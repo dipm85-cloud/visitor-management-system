@@ -1,3 +1,34 @@
+// ============================================================================
+// VMS NextGen - Application Map
+// ============================================================================
+//
+// This file is the mechanically extracted JavaScript from VMS_020D.
+//
+// Current refactor rule:
+// - Do not change functionality.
+// - Do not rename DOM IDs.
+// - Do not change Supabase table/RPC names.
+// - Do not redesign UI.
+// - Split into modules only after the structure is mapped.
+//
+// Planned module boundaries:
+// 1. Configuration and constants
+// 2. Application state/cache
+// 3. System settings and branding
+// 4. Staff authentication and profile loading
+// 5. Screen navigation and role panels
+// 6. Kiosk token/device behaviour
+// 7. Visitor sign-in/sign-out
+// 8. Planned visit management
+// 9. History search and editing
+// 10. Analytics/dashboard
+// 11. Audit events
+// 12. Kiosk device management
+// 13. User/profile management
+// 14. Printing and exports
+// 15. Utility helpers
+// 16. Event binding and startup
+//
 window.addEventListener("load", async function () {
   try {
     const SUPABASE_URL = "https://fozfvgdmrxygbzuhnojm.supabase.co/";
