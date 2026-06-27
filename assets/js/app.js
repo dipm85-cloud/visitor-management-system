@@ -5,6 +5,18 @@ import {
   KIOSK_TOKEN_STORAGE_KEY
 } from "./config.js";
 import { AppState } from "./state.js";
+import {
+  todayDate,
+  safe,
+  formatPersonName,
+  normalisePlate,
+  csvEscape,
+  exportDateStamp,
+  boolString,
+  printEscape,
+  formatPrintDate,
+  formatPrintTime
+} from "./utils.js";
 
 window.addEventListener("load", async function () {
   try {
@@ -214,9 +226,6 @@ window.addEventListener("load", async function () {
       return AppState.systemSettingsRaw[key] == null ? fallback : AppState.systemSettingsRaw[key];
     }
 
-    function boolString(value) {
-      return value ? "true" : "false";
-    }
     function initialiseCollapsibleSettings() {
       document.querySelectorAll(".settings-section").forEach(section => {
         const heading = section.querySelector(":scope > .settings-heading");
@@ -1684,19 +1693,6 @@ window.addEventListener("load", async function () {
       return true;
     }
 
-    function todayDate() {
-      const d = new Date();
-      return d.getFullYear() + "-" +
-        String(d.getMonth() + 1).padStart(2, "0") + "-" +
-        String(d.getDate()).padStart(2, "0");
-    }
-
-    function safe(value) {
-      const text = String(value || "").trim();
-      return text === "" ? "-" : text;
-    }
-
-
     function safeAttr(value) {
       return String(value || "").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/'/g, "&#39;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     }
@@ -1717,24 +1713,6 @@ window.addEventListener("load", async function () {
         }
       }
       return scroll;
-    }
-
-    function formatPersonName(value) {
-      return String(value || "")
-        .trim()
-        .replace(/\s+/g, " ")
-        .toLowerCase()
-        .replace(/\b\w/g, function (c) { return c.toUpperCase(); });
-    }
-
-    function normalisePlate(value) {
-      const text = String(value || "").trim().replace(/\s+/g, " ").toUpperCase();
-      return text === "" ? null : text;
-    }
-
-    function csvEscape(value) {
-      const text = String(value == null ? "" : value);
-      return '"' + text.replace(/"/g, '""') + '"';
     }
 
     function downloadTextFile(filename, content, mimeType) {
@@ -2282,13 +2260,6 @@ window.addEventListener("load", async function () {
       XLSX.utils.book_append_sheet(wb, ws, type === "planned" ? "Planned Visits" : "Visit History");
 
       XLSX.writeFile(wb, filename);
-    }
-
-    function exportDateStamp() {
-      const d = new Date();
-      return d.getFullYear() + "-" +
-        String(d.getMonth() + 1).padStart(2, "0") + "-" +
-        String(d.getDate()).padStart(2, "0");
     }
 
     function showScreen(screenId) {
@@ -7345,27 +7316,6 @@ window.addEventListener("load", async function () {
       $("superFromDate").value = "";
       $("superToDate").value = "";
       await loadSuperHistory();
-    }
-
-    function printEscape(value) {
-      return String(value == null || value === "" ? "-" : value)
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#39;");
-    }
-
-    function formatPrintDate(value) {
-      if (!value) return "Not selected";
-      const parts = String(value).split("-");
-      if (parts.length === 3) return parts[2] + "/" + parts[1] + "/" + parts[0];
-      return value;
-    }
-
-    function formatPrintTime(value) {
-      if (!value) return "-";
-      return String(value).slice(0, 5);
     }
 
     function buildCompactPlannedPrintHtml(rows, selectedDate, printedBy) {
