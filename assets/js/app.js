@@ -27,6 +27,7 @@ import {
   closeKioskConfirmation
 } from "./messages.js";
 import { supabaseClient } from "./api.js";
+import { configureNavigation, showScreen } from "./navigation.js";
 
 window.addEventListener("load", async function () {
   try {
@@ -94,6 +95,15 @@ window.addEventListener("load", async function () {
     // Defaults are used if a setting is missing or cannot be loaded.
     const appSettings = getDefaultAppSettings();
     configureMessages(appSettings);
+    configureNavigation({
+      isKioskProfile,
+      clearWalkInForm,
+      bindKioskIdleActivityReset,
+      resetKioskIdleTimer,
+      setSuperKioskTestMode(value) {
+        superKioskTestMode = value;
+      }
+    });
 
     const debugInfo = document.getElementById("debugInfo");
 
@@ -2185,34 +2195,6 @@ window.addEventListener("load", async function () {
 
       XLSX.writeFile(wb, filename);
     }
-
-    function showScreen(screenId) {
-      if (screenId === "staffScreen") {
-        superKioskTestMode = false;
-        document.body.classList.toggle("kiosk-mode", isKioskProfile());
-      }
-      $("homeScreen").style.display = screenId === "homeScreen" ? "grid" : "none";
-      ["signInScreen", "signOutScreen", "staffScreen"].forEach(id => {
-        $(id).classList.toggle("active", id === screenId);
-      });
-      clearMessage();
-
-      if (AppState.kioskIdleTimer) {
-        clearTimeout(AppState.kioskIdleTimer);
-        AppState.kioskIdleTimer = null;
-      }
-
-      if (screenId === "homeScreen" || screenId === "staffScreen" || screenId === "signOutScreen") {
-        if ($("walkInModalBackdrop")) $("walkInModalBackdrop").classList.remove("active");
-        clearWalkInForm();
-      }
-
-      if (screenId === "signInScreen" || screenId === "signOutScreen") {
-        bindKioskIdleActivityReset();
-        resetKioskIdleTimer();
-      }
-    }
-
 
     function ensureSuperReportingCards() {
       const reporting = $("superReportingSection");
