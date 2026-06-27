@@ -1,12 +1,13 @@
+import {
+  SUPABASE_URL,
+  SUPABASE_ANON_KEY,
+  getDefaultAppSettings,
+  KIOSK_TOKEN_STORAGE_KEY
+} from "./config.js";
+
 window.addEventListener("load", async function () {
   try {
-    const {
-      SUPABASE_URL,
-      SUPABASE_ANON_KEY,
-      APP_VERSION,
-      KIOSK_TOKEN_STORAGE_KEY,
-      DEFAULT_APP_SETTINGS
-    } = window.VMS_CONFIG;
+    const APP_VERSION = getDefaultAppSettings().currentAppVersion;
     let lastSettingsRefreshAt = null;
     let lastDataRefreshAt = null;
     let lastHealthCheck = null;
@@ -79,13 +80,6 @@ window.addEventListener("load", async function () {
 
     // Settings are loaded from public.system_settings.
     // Defaults are used if a setting is missing or cannot be loaded.
-    function getDefaultAppSettings() {
-      return {
-        ...DEFAULT_APP_SETTINGS,
-        fieldRules: { ...DEFAULT_APP_SETTINGS.fieldRules }
-      };
-    }
-
     const appSettings = getDefaultAppSettings();
 
     let systemSettingsRaw = {};

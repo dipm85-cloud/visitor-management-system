@@ -1,7 +1,8 @@
-(function (global) {
-  "use strict";
+export const SUPABASE_URL = "https://fozfvgdmrxygbzuhnojm.supabase.co/";
+export const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZvemZ2Z2Rtcnh5Z2J6dWhub2ptIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3MTgxNTgsImV4cCI6MjA5NTI5NDE1OH0.GWjcFVFzUkp0dG6Gj6ZnnY20Eqi0nNJaNSggjEGnVPo";
+export const KIOSK_TOKEN_STORAGE_KEY = "vms_kiosk_token";
 
-  const DEFAULT_APP_SETTINGS = Object.freeze({
+const DEFAULT_APP_SETTINGS = Object.freeze({
     confirmationAutoCloseMs: 5000,
     kioskIdleTimeoutMs: 45000,
     plannedSignInMessage: "You have been signed in successfully. Please collect your security pass if required.",
@@ -74,13 +75,11 @@
       walkin_pass_visible: true,
       walkin_pass_required: false
     })
-  });
+});
 
-  global.VMS_CONFIG = Object.freeze({
-    SUPABASE_URL: "https://fozfvgdmrxygbzuhnojm.supabase.co/",
-    SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZvemZ2Z2Rtcnh5Z2J6dWhub2ptIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3MTgxNTgsImV4cCI6MjA5NTI5NDE1OH0.GWjcFVFzUkp0dG6Gj6ZnnY20Eqi0nNJaNSggjEGnVPo",
-    APP_VERSION: "VMS_035A.1",
-    KIOSK_TOKEN_STORAGE_KEY: "vms_kiosk_token",
-    DEFAULT_APP_SETTINGS
-  });
-})(window);
+export function getDefaultAppSettings() {
+  return {
+    ...DEFAULT_APP_SETTINGS,
+    fieldRules: { ...DEFAULT_APP_SETTINGS.fieldRules }
+  };
+}
