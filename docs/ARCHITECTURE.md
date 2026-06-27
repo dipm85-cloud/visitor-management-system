@@ -1,6 +1,7 @@
 # Visitor Management Solution Architecture
 
-Version: `VMS_035A.1`  
+Baseline: `VMS_035A.1`  
+Milestone: `NextGen-002`  
 Development branch: `nextgen-ui`  
 Production branch: `main`
 
@@ -254,4 +255,3 @@ Module design principles:
 - Generated CSV, Excel, print, SAR, and evidence outputs are user-facing contracts.
 - Date/time comparison and formatting must retain their current timezone semantics.
 - Phase 1 permits structural improvement only; visual redesign, feature work, and database change belong to later approved phases.
-

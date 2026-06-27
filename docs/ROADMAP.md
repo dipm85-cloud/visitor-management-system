@@ -1,6 +1,7 @@
 # VMS NextGen Roadmap
 
-Version: `VMS_035A.1`  
+Baseline: `VMS_035A.1`  
+Milestone: `NextGen-002`  
 Development branch: `nextgen-ui`
 
 ## Roadmap Principles
@@ -11,7 +12,7 @@ Development branch: `nextgen-ui`
 - Architecture and behaviour are documented before substantial implementation.
 - A later phase must not be pulled into an earlier phase without a recorded decision.
 
-## Phase 1 — Refactor
+## Phase 1 — Refactor Foundation
 
 Goal: create a maintainable foundation without changing application behaviour or backend contracts.
 
@@ -80,7 +81,7 @@ Exit criteria:
 - Permissions, auditability, privacy, accessibility, and support documentation are complete.
 - Feature-level and end-to-end acceptance tests pass.
 
-## Phase 4 — Enterprise Features
+## Phase 4 — Enterprise Readiness
 
 Goal: prepare the solution for controlled use across larger and more complex organisations.
 
@@ -105,4 +106,3 @@ Exit criteria:
 ## Phase Governance
 
 Before a phase begins, agree its detailed backlog, acceptance criteria, risks, and test strategy. At phase close, update `ARCHITECTURE.md`, record material decisions in `DECISIONS.md`, and obtain approval before expanding scope.
-

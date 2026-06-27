@@ -1,5 +1,8 @@
 # VMS Architectural Decisions
 
+Baseline: `VMS_035A.1`  
+Milestone: `NextGen-002`
+
 This file is the architectural decision log for the Visitor Management Solution. New material decisions should be appended with status, context, decision, and consequences. A superseded decision remains in the log and links to its replacement.
 
 ## ADR-001 — `main` Is Production
@@ -26,7 +29,19 @@ Consequences:
 - Do not use `main` as a general development branch.
 - Keep changes reviewable so they can be promoted deliberately.
 
-## ADR-003 — Refactor Before Redesign
+## ADR-003 — `VMS_035A.1` Is the NextGen Baseline
+
+Status: Accepted
+
+Decision: Version `VMS_035A.1` is the behavioural and architectural baseline for NextGen development.
+
+Consequences:
+
+- Compare foundation-refactor behaviour with `VMS_035A.1`.
+- Do not treat unapproved differences from the baseline as refactor improvements.
+- Record intentional post-baseline behaviour changes in a later milestone and release decision.
+
+## ADR-004 — Refactor Before Redesign
 
 Status: Accepted
 
@@ -40,7 +55,7 @@ Consequences:
 - UI modernisation begins in Phase 2 after module boundaries and regression checks are established.
 - Visual changes discovered during refactor are documented for later rather than bundled into structural work.
 
-## ADR-004 — Preserve Behaviour During Refactor
+## ADR-005 — Preserve Behaviour During Refactor
 
 Status: Accepted
 
@@ -52,7 +67,7 @@ Consequences:
 - Preserve DOM IDs, Supabase names and parameters, role values, messages, exports, and date/time semantics unless a separate decision approves a change.
 - Treat an unapproved behaviour change as a regression even if it appears beneficial.
 
-## ADR-005 — No Database Changes During Refactor
+## ADR-006 — No Database Changes During Foundation Refactor
 
 Status: Accepted
 
@@ -64,7 +79,7 @@ Consequences:
 - Any required backend change is deferred to a later phase and requires its own design, migration, security review, and rollback plan.
 - Refactor testing must confirm existing backend calls and permissions remain intact.
 
-## ADR-006 — Architecture Discussion Before Implementation
+## ADR-007 — Architecture Discussion Before Implementation
 
 Status: Accepted
 
@@ -85,4 +100,3 @@ Proposed decisions should include:
 3. The selected approach.
 4. Security, privacy, data, accessibility, deployment, and rollback impact where relevant.
 5. A status of Proposed, Accepted, Superseded, or Rejected.
-

@@ -1,5 +1,8 @@
 # VMS Coding Standards
 
+Baseline: `VMS_035A.1`  
+Milestone: `NextGen-002`
+
 These standards apply to future work on the Visitor Management Solution. During Phase 1, preservation of current behaviour and backend contracts takes precedence over stylistic cleanup.
 
 ## JavaScript
@@ -107,4 +110,3 @@ These standards apply to future work on the Visitor Management Solution. During 
 ## Review Standard
 
 Every change should be reviewable for behaviour, security, privacy, accessibility, maintainability, and operational impact. During Phase 1, reviewers must be able to verify that changes are structural only and that no database or visible behaviour change has been introduced.
-
