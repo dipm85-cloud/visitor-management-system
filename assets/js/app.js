@@ -30,12 +30,18 @@
 // 16. Event binding and startup
 //
 window.addEventListener("load", async function () {
+	// =========================================================================
+    // 1. Configuration and Supabase client
+    // =========================================================================
   try {
     const SUPABASE_URL = "https://fozfvgdmrxygbzuhnojm.supabase.co/";
 	const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZvemZ2Z2Rtcnh5Z2J6dWhub2ptIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3MTgxNTgsImV4cCI6MjA5NTI5NDE1OH0.GWjcFVFzUkp0dG6Gj6ZnnY20Eqi0nNJaNSggjEGnVPo";
 
     const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
+	
+    // =========================================================================
+    // 2. Application state and caches
+    // =========================================================================
     let plannedTodayCache = [];
     let visitLogCache = [];
     let securityPlannedCache = [];
@@ -46,6 +52,9 @@ window.addEventListener("load", async function () {
     let opportunisticAutoSignOutChecked = false;
     let currentProfile = null;
 
+    // =========================================================================
+    // 3. System settings and branding
+    // =========================================================================
     // Settings are loaded from public.system_settings.
     // Defaults are used if a setting is missing or cannot be loaded.
     function getDefaultAppSettings() {
