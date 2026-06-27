@@ -26,6 +26,7 @@ import {
   showKioskConfirmation,
   closeKioskConfirmation
 } from "./messages.js";
+import { supabaseClient } from "./api.js";
 
 window.addEventListener("load", async function () {
   try {
@@ -36,8 +37,6 @@ window.addEventListener("load", async function () {
     let kioskHeartbeatTimer = null;
     let lastKioskHeartbeatAt = null;
     let lastKioskHeartbeatResult = null;
-
-    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     let activeVisitCache = [];
     let agreementSearchCache = [];
