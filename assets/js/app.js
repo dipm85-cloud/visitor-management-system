@@ -17,6 +17,15 @@ import {
   formatPrintDate,
   formatPrintTime
 } from "./utils.js";
+import { $ } from "./dom.js";
+import {
+  configureMessages,
+  showMessage,
+  clearMessage,
+  showToast,
+  showKioskConfirmation,
+  closeKioskConfirmation
+} from "./messages.js";
 
 window.addEventListener("load", async function () {
   try {
@@ -85,10 +94,9 @@ window.addEventListener("load", async function () {
     // Settings are loaded from public.system_settings.
     // Defaults are used if a setting is missing or cannot be loaded.
     const appSettings = getDefaultAppSettings();
+    configureMessages(appSettings);
 
     const debugInfo = document.getElementById("debugInfo");
-
-    function $(id) { return document.getElementById(id); }
 
     async function loadSystemSettings() {
       Object.assign(appSettings, getDefaultAppSettings());
@@ -1398,23 +1406,6 @@ window.addEventListener("load", async function () {
       showMessage("Settings reloaded.", "success");
     }
 
-    function showMessage(text, type) {
-      const box = $("message");
-      box.textContent = text;
-      box.className = "message " + type;
-
-      if (text && AppState.currentProfile && AppState.currentProfile.role !== "kiosk_user") {
-        showToast(type === "error" ? "Action failed" : "Action complete", text, type || "success");
-      }
-    }
-
-    function clearMessage() {
-      const box = $("message");
-      box.textContent = "";
-      box.className = "message";
-    }
-
-
     function showWalkInModalMessage(text, type) {
       const box = $("walkInModalMessage");
       if (!box) {
@@ -1447,72 +1438,6 @@ window.addEventListener("load", async function () {
       if (!box) return;
       box.textContent = "";
       box.className = "modal-message";
-    }
-
-
-    const recentToastKeys = new Map();
-
-    function isLowValueAutoToast(title, body, type) {
-      if (type === "error") return false;
-      const text = (String(title || "") + " " + String(body || "")).toLowerCase();
-      return /\b(loading|loaded|refreshing|refreshed|searching|reloaded)\b/.test(text)
-        && !/saved|created|deleted|updated|failed|error|cannot|could not|blocked|warning|missing/.test(text);
-    }
-
-    function showToast(title, body, type) {
-      // Staff/admin messages use toasts. Kiosk visitor messages still use the centre modal.
-      const area = $("toastArea");
-      if (!area) return;
-
-      const toastType = type || "success";
-      if (isLowValueAutoToast(title, body, toastType)) return;
-
-      const key = toastType + "|" + String(title || "") + "|" + String(body || "");
-      const nowMs = Date.now();
-      const previous = recentToastKeys.get(key) || 0;
-      if (nowMs - previous < 2500) return;
-      recentToastKeys.set(key, nowMs);
-
-      const toast = document.createElement("div");
-      toast.className = "toast " + toastType;
-
-      const content = document.createElement("div");
-      content.innerHTML =
-        "<div class='toast-title'>" + safe(title) + "</div>" +
-        "<div class='toast-body'>" + safe(body) + "</div>";
-
-      const close = document.createElement("button");
-      close.className = "toast-close";
-      close.type = "button";
-      close.innerHTML = "&times;";
-      close.addEventListener("click", function () {
-        toast.remove();
-      });
-
-      toast.appendChild(content);
-      toast.appendChild(close);
-      area.appendChild(toast);
-
-      setTimeout(function () {
-        toast.remove();
-      }, appSettings.confirmationAutoCloseMs);
-    }
-
-    let confirmTimer = null;
-
-    function showKioskConfirmation(title, body) {
-      $("kioskConfirmTitle").textContent = title;
-      $("kioskConfirmBody").textContent = body;
-      $("kioskConfirmBackdrop").classList.add("active");
-
-      if (confirmTimer) clearTimeout(confirmTimer);
-      confirmTimer = setTimeout(closeKioskConfirmation, appSettings.confirmationAutoCloseMs);
-    }
-
-    function closeKioskConfirmation() {
-      $("kioskConfirmBackdrop").classList.remove("active");
-      if (confirmTimer) clearTimeout(confirmTimer);
-      confirmTimer = null;
     }
 
     function getKioskToken() {
