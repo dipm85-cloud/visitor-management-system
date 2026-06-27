@@ -1,0 +1,6 @@
+{
+  "scripts": {
+    "start": "npx serve .",
+    "dev": "npx serve ."
+  }
+}
