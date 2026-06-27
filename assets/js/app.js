@@ -4,6 +4,7 @@ import {
   getDefaultAppSettings,
   KIOSK_TOKEN_STORAGE_KEY
 } from "./config.js";
+import { AppState } from "./state.js";
 
 window.addEventListener("load", async function () {
   try {
@@ -17,13 +18,6 @@ window.addEventListener("load", async function () {
 
     const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    let plannedTodayCache = [];
-    let visitLogCache = [];
-    let securityPlannedCache = [];
-    let securityHistoryCache = [];
-    let superPlannedCache = [];
-    let superHistoryCache = [];
-    let auditEventsCache = [];
     let activeVisitCache = [];
     let agreementSearchCache = [];
     let securityAgreementSearchCache = [];
@@ -41,14 +35,12 @@ window.addEventListener("load", async function () {
     let currentAgreementQueueScope = null;
     let currentAgreementSelectionVisit = null;
     let signaturePadState = { drawing: false, hasInk: false };
-    let opportunisticAutoSignOutChecked = false;
     let opportunisticMaintenanceCheckedThisSession = false;
-    let currentProfile = null;
     let superKioskTestMode = false;
     let kioskActionInProgress = false;
 
     function isSuperKioskTestProfile() {
-      return currentProfile && currentProfile.active && currentProfile.role === "super_user" && superKioskTestMode === true;
+      return AppState.currentProfile && AppState.currentProfile.active && AppState.currentProfile.role === "super_user" && superKioskTestMode === true;
     }
 
     function setKioskActionButtonBusy(button, busy, busyText, normalText) {
@@ -82,10 +74,6 @@ window.addEventListener("load", async function () {
     // Defaults are used if a setting is missing or cannot be loaded.
     const appSettings = getDefaultAppSettings();
 
-    let systemSettingsRaw = {};
-
-    let kioskIdleTimer = null;
-
     const debugInfo = document.getElementById("debugInfo");
 
     function $(id) { return document.getElementById(id); }
@@ -106,7 +94,7 @@ window.addEventListener("load", async function () {
       (result.data || []).forEach(row => {
         settings[row.setting_key] = row.setting_value;
       });
-      systemSettingsRaw = settings;
+      AppState.systemSettingsRaw = settings;
 
       if (settings.confirmation_auto_close_seconds != null) {
         appSettings.confirmationAutoCloseMs = Number(settings.confirmation_auto_close_seconds) * 1000;
@@ -223,7 +211,7 @@ window.addEventListener("load", async function () {
     }
 
     function settingValue(key, fallback) {
-      return systemSettingsRaw[key] == null ? fallback : systemSettingsRaw[key];
+      return AppState.systemSettingsRaw[key] == null ? fallback : AppState.systemSettingsRaw[key];
     }
 
     function boolString(value) {
@@ -422,7 +410,7 @@ window.addEventListener("load", async function () {
     async function saveSettingsForm() {
       clearMessage();
 
-      if (!currentProfile || currentProfile.role !== "super_user") {
+      if (!AppState.currentProfile || AppState.currentProfile.role !== "super_user") {
         showMessage("Only Super Users can save settings.", "error");
         return;
       }
@@ -614,7 +602,7 @@ window.addEventListener("load", async function () {
     async function saveSettingsGroup(groupName, label) {
       clearMessage();
 
-      if (!currentProfile || currentProfile.role !== "super_user") {
+      if (!AppState.currentProfile || AppState.currentProfile.role !== "super_user") {
         showMessage("Only Super Users can save settings.", "error");
         return;
       }
@@ -645,7 +633,7 @@ window.addEventListener("load", async function () {
         const afterSettings = {};
 
         for (const item of group) {
-          beforeSettings[item[0]] = systemSettingsRaw ? systemSettingsRaw[item[0]] : null;
+          beforeSettings[item[0]] = AppState.systemSettingsRaw ? AppState.systemSettingsRaw[item[0]] : null;
           afterSettings[item[0]] = item[1]();
           await saveSetting(item[0], afterSettings[item[0]], item[2]);
         }
@@ -675,7 +663,7 @@ window.addEventListener("load", async function () {
     }
 
     async function resetSettingsGroup(groupName, label) {
-      if (!currentProfile || currentProfile.role !== "super_user") {
+      if (!AppState.currentProfile || AppState.currentProfile.role !== "super_user") {
         showMessage("Only Super Users can reset settings.", "error");
         return;
       }
@@ -775,7 +763,7 @@ window.addEventListener("load", async function () {
         const afterSettings = {};
 
         for (const key of Object.keys(values)) {
-          beforeSettings[key] = systemSettingsRaw ? systemSettingsRaw[key] : null;
+          beforeSettings[key] = AppState.systemSettingsRaw ? AppState.systemSettingsRaw[key] : null;
           afterSettings[key] = values[key];
           await saveSetting(key, values[key], "Default " + label + " setting");
         }
@@ -835,7 +823,7 @@ window.addEventListener("load", async function () {
     async function saveProfileFromForm() {
       clearMessage();
 
-      if (!currentProfile || currentProfile.role !== "super_user") {
+      if (!AppState.currentProfile || AppState.currentProfile.role !== "super_user") {
         showMessage("Only Super Users can manage profiles.", "error");
         return;
       }
@@ -1113,7 +1101,7 @@ window.addEventListener("load", async function () {
     async function createKioskDevice() {
       clearMessage();
 
-      if (!currentProfile || currentProfile.role !== "super_user") {
+      if (!AppState.currentProfile || AppState.currentProfile.role !== "super_user") {
         showMessage("Only Super Users can create kiosk devices.", "error");
         return;
       }
@@ -1237,10 +1225,10 @@ window.addEventListener("load", async function () {
         } : null,
         touch_points: navigator.maxTouchPoints || 0,
         online: navigator.onLine,
-        session_profile: currentProfile ? {
-          id: currentProfile.id,
-          display_name: currentProfile.display_name,
-          role: currentProfile.role
+        session_profile: AppState.currentProfile ? {
+          id: AppState.currentProfile.id,
+          display_name: AppState.currentProfile.display_name,
+          role: AppState.currentProfile.role
         } : null,
         kiosk_token_present: !!getKioskToken()
       };
@@ -1283,8 +1271,8 @@ window.addEventListener("load", async function () {
         return;
       }
 
-      auditEventsCache = result.data || [];
-      renderAuditEvents(box, auditEventsCache);
+      AppState.auditEventsCache = result.data || [];
+      renderAuditEvents(box, AppState.auditEventsCache);
     }
 
     function openAuditDetailsModal(eventRecord) {
@@ -1364,7 +1352,7 @@ window.addEventListener("load", async function () {
     }
 
     async function resetSettingsDefaults() {
-      if (!currentProfile || currentProfile.role !== "super_user") {
+      if (!AppState.currentProfile || AppState.currentProfile.role !== "super_user") {
         showMessage("Only Super Users can reset settings.", "error");
         return;
       }
@@ -1406,7 +1394,7 @@ window.addEventListener("load", async function () {
       box.textContent = text;
       box.className = "message " + type;
 
-      if (text && currentProfile && currentProfile.role !== "kiosk_user") {
+      if (text && AppState.currentProfile && AppState.currentProfile.role !== "kiosk_user") {
         showToast(type === "error" ? "Action failed" : "Action complete", text, type || "success");
       }
     }
@@ -1582,7 +1570,7 @@ window.addEventListener("load", async function () {
     }
 
     function resetKioskIdleTimer() {
-      if (kioskIdleTimer) clearTimeout(kioskIdleTimer);
+      if (AppState.kioskIdleTimer) clearTimeout(AppState.kioskIdleTimer);
 
       const onKioskScreen =
         $("signInScreen").classList.contains("active") ||
@@ -1590,7 +1578,7 @@ window.addEventListener("load", async function () {
 
       if (!onKioskScreen) return;
 
-      kioskIdleTimer = setTimeout(function () {
+      AppState.kioskIdleTimer = setTimeout(function () {
         showScreen("homeScreen");
       }, appSettings.kioskIdleTimeoutMs);
     }
@@ -1614,7 +1602,7 @@ window.addEventListener("load", async function () {
     }
 
     async function sendKioskHeartbeat(triggerReason) {
-      if (!currentProfile || currentProfile.role !== "kiosk_user") return null;
+      if (!AppState.currentProfile || AppState.currentProfile.role !== "kiosk_user") return null;
 
       const token = getKioskToken();
       if (!token) return null;
@@ -1643,9 +1631,9 @@ window.addEventListener("load", async function () {
 
         clearKioskToken();
         await supabaseClient.auth.signOut({ scope: "local" });
-        currentProfile = null;
+        AppState.currentProfile = null;
         updateTopbarStaffStatus();
-      if (currentProfile && currentProfile.role === "kiosk_user") startKioskHeartbeat();
+      if (AppState.currentProfile && AppState.currentProfile.role === "kiosk_user") startKioskHeartbeat();
         showScreen("homeScreen");
         showMessage("This kiosk device was remotely logged out by a SuperUser.", "error");
       }
@@ -1656,7 +1644,7 @@ window.addEventListener("load", async function () {
     function startKioskHeartbeat() {
       stopKioskHeartbeat();
 
-      if (!currentProfile || currentProfile.role !== "kiosk_user") return;
+      if (!AppState.currentProfile || AppState.currentProfile.role !== "kiosk_user") return;
 
       sendKioskHeartbeat("start");
 
@@ -1677,7 +1665,7 @@ window.addEventListener("load", async function () {
 
       if (!token) {
         await supabaseClient.auth.signOut();
-        currentProfile = null;
+        AppState.currentProfile = null;
         updateTopbarStaffStatus();
         throw new Error("Kiosk device token is required before kiosk login can be completed.");
       }
@@ -1688,7 +1676,7 @@ window.addEventListener("load", async function () {
 
       if (result.error || result.data !== true) {
         await supabaseClient.auth.signOut();
-        currentProfile = null;
+        AppState.currentProfile = null;
         updateTopbarStaffStatus();
         throw new Error("This kiosk device token is invalid or disabled. Ask a SuperUser to set or replace this tablet token.");
       }
@@ -1866,30 +1854,30 @@ window.addEventListener("load", async function () {
     }
 
     function isKioskProfile() {
-      return currentProfile && currentProfile.active && currentProfile.role === "kiosk_user";
+      return AppState.currentProfile && AppState.currentProfile.active && AppState.currentProfile.role === "kiosk_user";
     }
 
     function isStaffProfile() {
-      return currentProfile && currentProfile.active && currentProfile.role !== "kiosk_user";
+      return AppState.currentProfile && AppState.currentProfile.active && AppState.currentProfile.role !== "kiosk_user";
     }
 
     function updateIdentityChip() {
       const chip = $("identityChip");
       if (!chip) return;
 
-      if (!currentProfile || !currentProfile.active) {
+      if (!AppState.currentProfile || !AppState.currentProfile.active) {
         chip.className = "identity-chip hidden";
         chip.textContent = "";
         return;
       }
 
-      const role = currentProfile.role;
+      const role = AppState.currentProfile.role;
       chip.className = "identity-chip " + (role === "kiosk_user" ? "kiosk" : "staff");
-      chip.textContent = (role === "kiosk_user" ? "🟢 Kiosk" : "🟢 " + roleLabel(role)) + ": " + currentProfile.display_name;
+      chip.textContent = (role === "kiosk_user" ? "🟢 Kiosk" : "🟢 " + roleLabel(role)) + ": " + AppState.currentProfile.display_name;
     }
 
     function updateHomeAccess() {
-      const loggedOut = !currentProfile || !currentProfile.active;
+      const loggedOut = !AppState.currentProfile || !AppState.currentProfile.active;
       const kiosk = isKioskProfile();
       const staff = isStaffProfile();
 
@@ -1911,10 +1899,10 @@ window.addEventListener("load", async function () {
     }
 
     function updateTopbarStaffStatus() {
-      if (currentProfile && currentProfile.active) {
-        $("topbarStaffStatus").textContent = currentProfile.display_name + " (" + roleLabel(currentProfile.role) + ")";
+      if (AppState.currentProfile && AppState.currentProfile.active) {
+        $("topbarStaffStatus").textContent = AppState.currentProfile.display_name + " (" + roleLabel(AppState.currentProfile.role) + ")";
         $("topbarLogoutButton").classList.remove("hidden");
-        $("changePasswordTopButton").classList.toggle("hidden", currentProfile.role === "kiosk_user");
+        $("changePasswordTopButton").classList.toggle("hidden", AppState.currentProfile.role === "kiosk_user");
       } else {
         $("topbarStaffStatus").textContent = "";
         $("topbarLogoutButton").classList.add("hidden");
@@ -1929,7 +1917,7 @@ window.addEventListener("load", async function () {
       const session = sessionResult.data ? sessionResult.data.session : null;
 
       if (!session || !session.user) {
-        currentProfile = null;
+        AppState.currentProfile = null;
         updateTopbarStaffStatus();
         return null;
       }
@@ -1941,15 +1929,15 @@ window.addEventListener("load", async function () {
         .single();
 
       if (profileResult.error) {
-        currentProfile = null;
+        AppState.currentProfile = null;
         updateTopbarStaffStatus();
         console.error("Profile load error:", profileResult.error);
         return null;
       }
 
-      currentProfile = profileResult.data;
+      AppState.currentProfile = profileResult.data;
       updateTopbarStaffStatus();
-      return currentProfile;
+      return AppState.currentProfile;
     }
 
     async function loginStaff() {
@@ -1990,7 +1978,7 @@ window.addEventListener("load", async function () {
         $("loginStatus").textContent =
           "Login succeeded, but no staff profile exists for this account. Ask a SuperUser to create your profile.";
         await supabaseClient.auth.signOut();
-        currentProfile = null;
+        AppState.currentProfile = null;
         updateTopbarStaffStatus();
         return;
       }
@@ -1999,7 +1987,7 @@ window.addEventListener("load", async function () {
         $("loginStatus").textContent =
           "This staff profile is inactive or locked. Ask a SuperUser to reactivate it.";
         await supabaseClient.auth.signOut();
-        currentProfile = null;
+        AppState.currentProfile = null;
         updateTopbarStaffStatus();
         return;
       }
@@ -2081,11 +2069,11 @@ window.addEventListener("load", async function () {
     }
 
     function clearStaffSearchCaches() {
-      securityPlannedCache = [];
-      securityHistoryCache = [];
-      superPlannedCache = [];
-      superHistoryCache = [];
-      auditEventsCache = [];
+      AppState.securityPlannedCache = [];
+      AppState.securityHistoryCache = [];
+      AppState.superPlannedCache = [];
+      AppState.superHistoryCache = [];
+      AppState.auditEventsCache = [];
 
       ["generalResults","securityPlannedResults","securityHistoryResults","superPlannedResults","superHistoryResults","auditEventsResults","profilesList","kioskDevicesList"].forEach(id => {
         if ($(id)) $(id).innerHTML = "No data loaded.";
@@ -2132,7 +2120,7 @@ window.addEventListener("load", async function () {
     }
 
     async function requestProtectedLogout() {
-      if (currentProfile && currentProfile.role === "kiosk_user") {
+      if (AppState.currentProfile && AppState.currentProfile.role === "kiosk_user") {
         const password = await openKioskLogoutModal();
 
         if (!password) return;
@@ -2180,13 +2168,13 @@ window.addEventListener("load", async function () {
     async function logoutStaff() {
       stopKioskHeartbeat();
 
-      if (currentProfile && currentProfile.id) {
-        await writeAuditEvent("logout", "profiles", currentProfile.id, { role: currentProfile.role });
+      if (AppState.currentProfile && AppState.currentProfile.id) {
+        await writeAuditEvent("logout", "profiles", AppState.currentProfile.id, { role: AppState.currentProfile.role });
       }
 
       await supabaseClient.auth.signOut({ scope: "local" });
 
-      currentProfile = null;
+      AppState.currentProfile = null;
       updateTopbarStaffStatus();
 
       $("staffIdentity").textContent = "Login required. Your role will decide which tools are available.";
@@ -2314,9 +2302,9 @@ window.addEventListener("load", async function () {
       });
       clearMessage();
 
-      if (kioskIdleTimer) {
-        clearTimeout(kioskIdleTimer);
-        kioskIdleTimer = null;
+      if (AppState.kioskIdleTimer) {
+        clearTimeout(AppState.kioskIdleTimer);
+        AppState.kioskIdleTimer = null;
       }
 
       if (screenId === "homeScreen" || screenId === "staffScreen" || screenId === "signOutScreen") {
@@ -2875,7 +2863,7 @@ window.addEventListener("load", async function () {
       if (typedBox) typedBox.classList.toggle("hidden", !inductorEnabled || inductorMode !== "typed_name");
       if (signatureBox) signatureBox.classList.toggle("hidden", !inductorEnabled || inductorMode !== "manual_signature");
       if (inductorEnabled && $("inductorName")) {
-        $("inductorName").value = currentProfile && currentProfile.display_name ? currentProfile.display_name : "";
+        $("inductorName").value = AppState.currentProfile && AppState.currentProfile.display_name ? AppState.currentProfile.display_name : "";
       }
       if (!inductorEnabled) {
         clearInductorSignature();
@@ -3069,7 +3057,7 @@ window.addEventListener("load", async function () {
         $("confirmAgreementLinkButton").title = isSignedOutRecord ? "Use SuperUser consolidation for signed-out/history records." : "Correct this active visit only.";
       }
       if ($("confirmAgreementConsolidateButton")) {
-        $("confirmAgreementConsolidateButton").classList.toggle("hidden", !(currentProfile && currentProfile.role === "super_user"));
+        $("confirmAgreementConsolidateButton").classList.toggle("hidden", !(AppState.currentProfile && AppState.currentProfile.role === "super_user"));
         $("confirmAgreementConsolidateButton").textContent = "Consolidate Historical Identity";
       }
       setAgreementLinkModalMessage(isSignedOutRecord ? "This is a signed-out/history record. Use SuperUser consolidation rather than Link Active Visit." : "", isSignedOutRecord ? "info" : "");
@@ -3125,7 +3113,7 @@ window.addEventListener("load", async function () {
     }
 
     async function confirmAgreementConsolidation() {
-      if (!currentProfile || currentProfile.role !== "super_user") {
+      if (!AppState.currentProfile || AppState.currentProfile.role !== "super_user") {
         setAgreementLinkModalMessage("Only SuperUsers can consolidate agreement identities.", "error");
         return;
       }
@@ -3157,7 +3145,7 @@ window.addEventListener("load", async function () {
     async function loadSecurityAgreementSearch() { await loadAgreementVersions(); setLocalStatus("securityAgreementSearchStatus", "Searching agreements...", "info"); const result = await supabaseClient.rpc("search_visitor_agreements", { p_date_from:$("securityAgreementSearchFromDate").value || null, p_date_to:$("securityAgreementSearchToDate").value || null, p_visitor_name:$("securityAgreementSearchVisitorName").value.trim() || null, p_company:$("securityAgreementSearchCompany").value.trim() || null, p_agreement_version_id:$("securityAgreementSearchVersion").value || null, p_agreement_type_id:$("securityAgreementSearchType") ? ($("securityAgreementSearchType").value || null) : null }); if (result.error) { setLocalStatus("securityAgreementSearchStatus", result.error.message, "error"); showToast("Agreement search failed", result.error.message, "error"); return; } securityAgreementSearchCache = result.data || []; renderAgreementSearchResultsToBox("securityAgreementSearchResults", securityAgreementSearchCache); setLocalStatus("securityAgreementSearchStatus", securityAgreementSearchCache.length + " agreement record(s) found.", "success"); }
     async function loadAgreementSearch() { setLocalStatus("agreementSearchStatus", "Searching agreements...", "info"); const result = await supabaseClient.rpc("search_visitor_agreements", { p_date_from:$("agreementSearchFromDate").value || null, p_date_to:$("agreementSearchToDate").value || null, p_visitor_name:$("agreementSearchVisitorName").value.trim() || null, p_company:$("agreementSearchCompany").value.trim() || null, p_agreement_version_id:$("agreementSearchVersion").value || null, p_agreement_type_id:$("agreementSearchType") ? ($("agreementSearchType").value || null) : null }); if (result.error) { setLocalStatus("agreementSearchStatus", result.error.message, "error"); showToast("Agreement search failed", result.error.message, "error"); return; } agreementSearchCache = result.data || []; renderAgreementSearchResults(); setLocalStatus("agreementSearchStatus", agreementSearchCache.length + " agreement record(s) found.", "success"); }
     function renderAgreementSearchResults() { renderAgreementSearchResultsToBox("agreementSearchResults", agreementSearchCache); }
-    function renderAgreementSearchResultsToBox(boxId, rows) { const box = $(boxId); if (!box) return; if (!rows || !rows.length) { box.innerHTML = buildResultSummary(0, "Agreements", "No matching records") + "<div class='results-scroll'><div class='row-meta' style='padding:14px 0;'>No agreements found.</div></div>"; return; } const temp = document.createElement("div"); rows.forEach(agreement => { const row = document.createElement("div"); row.className = "row"; row.innerHTML = "<div class='row-title'>" + safe(agreement.visitor_name) + "</div><div class='row-meta'>Company: " + safe(agreement.company) + "<br>Agreement: " + safe(agreement.agreement_name) + "<br>Title: " + safe(agreement.agreement_title) + "<br>Version: " + safe(agreement.agreement_version_number) + "<br>Signed: " + safe(agreement.signed_at ? new Date(agreement.signed_at).toLocaleString() : "-") + "<br>Signed by: " + safe(agreement.signed_by_name) + "<br>Evidence: " + (agreement.has_signature ? "Visitor signature" : (agreement.accepted_without_signature ? "Tick acceptance" : "Unknown")) + "<br>Inductor: " + (agreement.inductor_signoff_required ? safe(agreement.inductor_name || (agreement.inductor_signature_data ? "Signature captured" : "-")) : "Not required") + "</div>"; const actions = document.createElement("div"); actions.className = "button-row"; const view = document.createElement("button"); view.type = "button"; view.className = "secondary"; view.textContent = "View / Print Evidence"; view.addEventListener("click", () => openAgreementEvidenceModal(agreement)); actions.appendChild(view); const extra = document.createElement("button"); extra.type = "button"; extra.className = "secondary"; extra.textContent = "Sign Additional Agreement"; extra.addEventListener("click", () => openAgreementSelectionModal({ id:agreement.visit_log_id, visit_log_id:agreement.visit_log_id, visitor_name:agreement.visitor_name, company:agreement.company, sign_in_time:agreement.signed_at }, true)); actions.appendChild(extra); if (currentProfile && currentProfile.role === "super_user") { const relink = document.createElement("button"); relink.type = "button"; relink.className = "secondary"; relink.textContent = "Relink / Consolidate"; relink.addEventListener("click", () => openAgreementLinkModal({ id:agreement.visit_log_id, visit_log_id:agreement.visit_log_id, visitor_name:agreement.visitor_name, company:agreement.company, sign_in_time:agreement.signed_at, signed_at:agreement.signed_at })); actions.appendChild(relink); } row.appendChild(actions); temp.appendChild(row); }); setResultBox(box, buildResultSummary(rows.length, "Agreements", "Filtered result"), temp); }
+    function renderAgreementSearchResultsToBox(boxId, rows) { const box = $(boxId); if (!box) return; if (!rows || !rows.length) { box.innerHTML = buildResultSummary(0, "Agreements", "No matching records") + "<div class='results-scroll'><div class='row-meta' style='padding:14px 0;'>No agreements found.</div></div>"; return; } const temp = document.createElement("div"); rows.forEach(agreement => { const row = document.createElement("div"); row.className = "row"; row.innerHTML = "<div class='row-title'>" + safe(agreement.visitor_name) + "</div><div class='row-meta'>Company: " + safe(agreement.company) + "<br>Agreement: " + safe(agreement.agreement_name) + "<br>Title: " + safe(agreement.agreement_title) + "<br>Version: " + safe(agreement.agreement_version_number) + "<br>Signed: " + safe(agreement.signed_at ? new Date(agreement.signed_at).toLocaleString() : "-") + "<br>Signed by: " + safe(agreement.signed_by_name) + "<br>Evidence: " + (agreement.has_signature ? "Visitor signature" : (agreement.accepted_without_signature ? "Tick acceptance" : "Unknown")) + "<br>Inductor: " + (agreement.inductor_signoff_required ? safe(agreement.inductor_name || (agreement.inductor_signature_data ? "Signature captured" : "-")) : "Not required") + "</div>"; const actions = document.createElement("div"); actions.className = "button-row"; const view = document.createElement("button"); view.type = "button"; view.className = "secondary"; view.textContent = "View / Print Evidence"; view.addEventListener("click", () => openAgreementEvidenceModal(agreement)); actions.appendChild(view); const extra = document.createElement("button"); extra.type = "button"; extra.className = "secondary"; extra.textContent = "Sign Additional Agreement"; extra.addEventListener("click", () => openAgreementSelectionModal({ id:agreement.visit_log_id, visit_log_id:agreement.visit_log_id, visitor_name:agreement.visitor_name, company:agreement.company, sign_in_time:agreement.signed_at }, true)); actions.appendChild(extra); if (AppState.currentProfile && AppState.currentProfile.role === "super_user") { const relink = document.createElement("button"); relink.type = "button"; relink.className = "secondary"; relink.textContent = "Relink / Consolidate"; relink.addEventListener("click", () => openAgreementLinkModal({ id:agreement.visit_log_id, visit_log_id:agreement.visit_log_id, visitor_name:agreement.visitor_name, company:agreement.company, sign_in_time:agreement.signed_at, signed_at:agreement.signed_at })); actions.appendChild(relink); } row.appendChild(actions); temp.appendChild(row); }); setResultBox(box, buildResultSummary(rows.length, "Agreements", "Filtered result"), temp); }
 
     function agreementExportRows(rows) { return (rows || []).map(row => ({ "Signed At": row.signed_at ? new Date(row.signed_at).toLocaleString() : "", "Visitor": row.visitor_name || "", "Company": row.company || "", "Agreement Type": row.agreement_name || "", "Agreement Title": row.agreement_title || "", "Version": row.agreement_version_number || "", "Signed By": row.signed_by_name || "", "Evidence": row.has_signature ? "Signature" : (row.accepted_without_signature ? "Tick acceptance" : "Unknown"), "Inductor": row.inductor_signoff_required ? (row.inductor_name || (row.inductor_signature_data ? "Signature captured" : "")) : "Not required", "Visit Log ID": row.visit_log_id || "", "Agreement ID": row.agreement_id || "" })); }
 
@@ -3269,7 +3257,7 @@ window.addEventListener("load", async function () {
         const linkBtn = document.createElement("button");
         linkBtn.type = "button";
         linkBtn.className = "secondary";
-        linkBtn.textContent = currentProfile && currentProfile.role === "super_user" ? "Consolidate Historical Identity" : "Link Active Visit";
+        linkBtn.textContent = AppState.currentProfile && AppState.currentProfile.role === "super_user" ? "Consolidate Historical Identity" : "Link Active Visit";
         linkBtn.addEventListener("click", () => openAgreementLinkModal({
           id: row.visit_log_id,
           visit_log_id: row.visit_log_id,
@@ -3341,7 +3329,7 @@ window.addEventListener("load", async function () {
           return haystack.indexOf(filterText) >= 0;
         })
         .sort((a,b) => ((a.visitor_name||"").localeCompare(b.visitor_name||"", undefined, {sensitivity:"base"}) || (a.company||"").localeCompare(b.company||"", undefined, {sensitivity:"base"})));
-      let html = "<div class='row-meta' style='margin:0 0 10px;'>One row per unique visitor/company identity. Click a row to view visit/agreement history and validity reasons." + (currentProfile && currentProfile.role === "super_user" ? " SuperUsers can also correct the identity globally from the detail view." : "") + "</div>";
+      let html = "<div class='row-meta' style='margin:0 0 10px;'>One row per unique visitor/company identity. Click a row to view visit/agreement history and validity reasons." + (AppState.currentProfile && AppState.currentProfile.role === "super_user" ? " SuperUsers can also correct the identity globally from the detail view." : "") + "</div>";
       html += "<div style='overflow:auto;'><table style='width:100%;border-collapse:collapse;'><thead><tr><th style='text-align:left;'>Visitor</th><th style='text-align:left;'>Company</th>";
       types.forEach(t => { html += "<th style='text-align:left;'>" + safe(t.name) + (t.required ? " *" : "") + "</th>"; });
       html += "</tr></thead><tbody>";
@@ -3400,7 +3388,7 @@ window.addEventListener("load", async function () {
             "<button type='button' class='secondary agreement-identity-tab' data-tab='visits'>Visits</button>" +
             "<button type='button' class='secondary agreement-identity-tab' data-tab='agreements'>Agreements</button>" +
             "<button type='button' class='secondary agreement-identity-tab' data-tab='activity'>Activity</button>" +
-            (currentProfile && currentProfile.role === "super_user" ? "<button type='button' class='secondary agreement-identity-tab' data-tab='edit'>Edit Identity</button>" : "") +
+            (AppState.currentProfile && AppState.currentProfile.role === "super_user" ? "<button type='button' class='secondary agreement-identity-tab' data-tab='edit'>Edit Identity</button>" : "") +
           "</div>" +
           "<div id='agreementIdentityDetails' class='identity-profile-content'>Loading...</div>" +
         "</div>" +
@@ -3551,7 +3539,7 @@ window.addEventListener("load", async function () {
     }
 
     function renderAgreementIdentityEdit(profile, box) {
-      if (!(currentProfile && currentProfile.role === "super_user")) {
+      if (!(AppState.currentProfile && AppState.currentProfile.role === "super_user")) {
         box.innerHTML = "<div class='row-meta'>Only SuperUsers can edit identities.</div>";
         return;
       }
@@ -3815,7 +3803,7 @@ window.addEventListener("load", async function () {
       });
 
       if (!availableResult.error && Array.isArray(availableResult.data)) {
-        plannedTodayCache = availableResult.data || [];
+        AppState.plannedTodayCache = availableResult.data || [];
         renderPlannedVisitorList();
         return;
       }
@@ -3847,13 +3835,13 @@ window.addEventListener("load", async function () {
         console.warn("Could not read visit_log for planned visit filtering. Falling back to planned visit status only.", logsResult.error);
       }
 
-      visitLogCache = logsResult.data || [];
+      AppState.visitLogCache = logsResult.data || [];
       const used = {};
-      visitLogCache.forEach(log => {
+      AppState.visitLogCache.forEach(log => {
         if (log.sign_in_time) used[log.planned_visit_id] = true;
       });
 
-      plannedTodayCache = (plannedResult.data || []).filter(v => {
+      AppState.plannedTodayCache = (plannedResult.data || []).filter(v => {
         const status = String(v.status || "planned").toLowerCase();
         const statusAllowsKioskSignIn = ["", "planned", "pending"].includes(status);
         return statusAllowsKioskSignIn && !used[v.id];
@@ -3904,7 +3892,7 @@ window.addEventListener("load", async function () {
         return;
       }
 
-      let rows = plannedTodayCache.filter(v =>
+      let rows = AppState.plannedTodayCache.filter(v =>
         formatPersonName(v.visitor_name).includes(filter) ||
         formatPersonName(v.company).includes(filter)
       );
@@ -4217,7 +4205,7 @@ window.addEventListener("load", async function () {
         return;
       }
 
-      const plannedDuplicate = plannedTodayCache.find(v => formatPersonName(v.visitor_name) === name);
+      const plannedDuplicate = AppState.plannedTodayCache.find(v => formatPersonName(v.visitor_name) === name);
       if (plannedDuplicate) {
         showWalkInModalMessage("A planned visitor with this name exists. Please select the planned visitor entry instead of creating a walk-in.", "error");
         endKioskAction(actionButton, "Sign In Walk-In");
@@ -4456,7 +4444,7 @@ window.addEventListener("load", async function () {
         security_pass_id: fieldValueIfVisible("plannedSecurityPass").trim() || null,
         notes: null,
         status: "planned",
-        created_by: currentProfile ? currentProfile.id : null
+        created_by: AppState.currentProfile ? AppState.currentProfile.id : null
       });
 
       if (result.error) {
@@ -4522,7 +4510,7 @@ window.addEventListener("load", async function () {
         ...data.map(v => v.created_by),
         ...data.map(v => v.modified_by)
       ]);
-      const isSuper = currentProfile && currentProfile.role === "super_user";
+      const isSuper = AppState.currentProfile && AppState.currentProfile.role === "super_user";
       renderPlannedResults(box, data, allowEdit || isSuper, allowDelete || isSuper, securityOnly, statusMap, profileMap);
       return data;
     }
@@ -4576,7 +4564,7 @@ window.addEventListener("load", async function () {
           statusInfo.status === "signed_in" ? "status-in" :
           statusInfo.status === "signed_out" ? "status-out" :
           "status-pending";
-        const isSuper = currentProfile && currentProfile.role === "super_user";
+        const isSuper = AppState.currentProfile && AppState.currentProfile.role === "super_user";
 
         const row = document.createElement("div");
         row.className = "row";
@@ -4854,7 +4842,7 @@ window.addEventListener("load", async function () {
       $("editContact").value = record.onsite_contact || "";
       $("editSecurityPass").value = record.security_pass_id || "";
 
-      const canEditLogAdvanced = table === "visit_log" && mode === "full" && currentProfile && currentProfile.role === "super_user";
+      const canEditLogAdvanced = table === "visit_log" && mode === "full" && AppState.currentProfile && AppState.currentProfile.role === "super_user";
       ["editSignInTime","editSignOutTime","editVisitStatus","editVisitOrigin"].forEach(id => $(id).classList.toggle("hidden", !canEditLogAdvanced));
       $("editSignInTime").value = canEditLogAdvanced ? toDateTimeLocalValue(record.sign_in_time) : "";
       $("editSignOutTime").value = canEditLogAdvanced ? toDateTimeLocalValue(record.sign_out_time) : "";
@@ -4914,7 +4902,7 @@ window.addEventListener("load", async function () {
             visit_reason: $("editReason").value.trim() || null,
             vehicle_plate: normalisePlate($("editVehicle").value),
             onsite_contact: formatPersonName($("editContact").value) || null,
-            modified_by: currentProfile ? currentProfile.id : null,
+            modified_by: AppState.currentProfile ? AppState.currentProfile.id : null,
             modified_at: new Date().toISOString()
           };
 
@@ -4923,7 +4911,7 @@ window.addEventListener("load", async function () {
             payload.expected_time = $("editExpectedTime").value || null;
           }
 
-          if (table === "visit_log" && currentProfile && currentProfile.role === "super_user") {
+          if (table === "visit_log" && AppState.currentProfile && AppState.currentProfile.role === "super_user") {
             payload.sign_in_time = fromDateTimeLocalValue($("editSignInTime").value);
             payload.sign_out_time = fromDateTimeLocalValue($("editSignOutTime").value);
             if ($("editVisitStatus").value) payload.visit_status = $("editVisitStatus").value;
@@ -5118,10 +5106,10 @@ window.addEventListener("load", async function () {
     }
 
     function shouldCurrentRoleRunDailyMaintenance() {
-      if (!currentProfile || !currentProfile.role) return false;
+      if (!AppState.currentProfile || !AppState.currentProfile.role) return false;
       const mode = settingValue("daily_maintenance_roles", appSettings.dailyMaintenanceRoles);
-      if (mode === "super_user_only") return currentProfile.role === "super_user";
-      return currentProfile.role === "super_user" || currentProfile.role === "security";
+      if (mode === "super_user_only") return AppState.currentProfile.role === "super_user";
+      return AppState.currentProfile.role === "super_user" || AppState.currentProfile.role === "security";
     }
 
     function renderDailyMaintenanceStatus(data) {
@@ -5155,7 +5143,7 @@ window.addEventListener("load", async function () {
     }
 
     async function runDailyMaintenance(reason) {
-      if (!currentProfile || (currentProfile.role !== "super_user" && currentProfile.role !== "security")) return null;
+      if (!AppState.currentProfile || (AppState.currentProfile.role !== "super_user" && AppState.currentProfile.role !== "security")) return null;
 
       const result = await supabaseClient.rpc("superuser_run_planned_visit_cleanup");
       if (result.error) {
@@ -5170,7 +5158,7 @@ window.addEventListener("load", async function () {
         "Completed planned deleted: " + (data.completed_planned_to_delete ?? 0) +
         "; No-shows deleted: " + (data.no_show_planned_to_delete ?? 0);
 
-      if (currentProfile.role === "super_user") {
+      if (AppState.currentProfile.role === "super_user") {
         await saveSystemSettingValue("last_daily_maintenance_date", localDateKey(), "Last daily maintenance local date");
         await saveSystemSettingValue("last_daily_maintenance_at", new Date().toISOString(), "Last daily maintenance timestamp");
         await saveSystemSettingValue("last_daily_maintenance_summary", summary, "Last daily maintenance summary");
@@ -6345,7 +6333,7 @@ window.addEventListener("load", async function () {
     }
 
     async function refreshDeploymentVersionStatus() {
-      if (!currentProfile || currentProfile.role !== "super_user") return;
+      if (!AppState.currentProfile || AppState.currentProfile.role !== "super_user") return;
       const result = await supabaseClient.rpc("superuser_list_kiosk_devices");
       if (result.error) {
         if ($("deploymentVersionStatus")) $("deploymentVersionStatus").innerHTML = "Could not load kiosk devices: " + safe(result.error.message);
@@ -6560,7 +6548,7 @@ window.addEventListener("load", async function () {
 
         console.log("Immediate visitor-arrival email processor result", result);
 
-        if (currentProfile && currentProfile.role === "super_user") {
+        if (AppState.currentProfile && AppState.currentProfile.role === "super_user") {
           setLocalStatus(
             "emailProcessorStatus",
             "Immediate visitor-arrival email result. Sent: " + (result.sent || 0) +
@@ -6575,7 +6563,7 @@ window.addEventListener("load", async function () {
         const message = err && err.message ? err.message : String(err);
         console.warn("Immediate host email failed. Notification remains in queue for retry.", err);
 
-        if (currentProfile && currentProfile.role === "super_user") {
+        if (AppState.currentProfile && AppState.currentProfile.role === "super_user") {
           setLocalStatus("emailProcessorStatus", "Immediate host email failed: " + message, "error");
         }
 
@@ -7049,15 +7037,15 @@ window.addEventListener("load", async function () {
       box.innerHTML = "<div class='row-meta'>Running health check...</div>";
 
       try {
-        const safePlanned = (typeof plannedTodayCache !== "undefined" && Array.isArray(plannedTodayCache)) ? plannedTodayCache : [];
+        const safePlanned = (typeof AppState.plannedTodayCache !== "undefined" && Array.isArray(AppState.plannedTodayCache)) ? AppState.plannedTodayCache : [];
         const safeActive = (typeof activeVisitCache !== "undefined" && Array.isArray(activeVisitCache)) ? activeVisitCache : [];
-        const safeSettings = (typeof systemSettingsRaw !== "undefined" && systemSettingsRaw) ? systemSettingsRaw : {};
+        const safeSettings = (typeof AppState.systemSettingsRaw !== "undefined" && AppState.systemSettingsRaw) ? AppState.systemSettingsRaw : {};
 
         const health = {
           appVersion: typeof APP_VERSION !== "undefined" ? APP_VERSION : "unknown",
           checkedAt: new Date().toISOString(),
-          currentUser: currentProfile ? currentProfile.display_name : null,
-          currentRole: currentProfile ? currentProfile.role : null,
+          currentUser: AppState.currentProfile ? AppState.currentProfile.display_name : null,
+          currentRole: AppState.currentProfile ? AppState.currentProfile.role : null,
           supabaseConnected: false,
           authSession: false,
           kioskTokenPresent: false,
@@ -7093,13 +7081,13 @@ window.addEventListener("load", async function () {
         health.supabaseConnected = !ping.error;
         if (ping.error) health.supabaseError = ping.error.message;
 
-        if (health.kioskTokenPresent && currentProfile && currentProfile.role === "kiosk_user") {
+        if (health.kioskTokenPresent && AppState.currentProfile && AppState.currentProfile.role === "kiosk_user") {
           const tokenCheck = await supabaseClient.rpc("validate_kiosk_device_token", { p_kiosk_token: getKioskToken() });
           health.kioskTokenValid = !tokenCheck.error && tokenCheck.data === true;
           if (tokenCheck.error) health.kioskTokenError = tokenCheck.error.message;
         }
 
-        if (currentProfile && currentProfile.role === "super_user") {
+        if (AppState.currentProfile && AppState.currentProfile.role === "super_user") {
           const devicesResult = await supabaseClient.rpc("superuser_list_kiosk_devices");
           if (!devicesResult.error) {
             const devices = devicesResult.data || [];
@@ -7229,10 +7217,10 @@ window.addEventListener("load", async function () {
     }
 
     async function runOpportunisticAutoSignOutCheck() {
-      if (opportunisticAutoSignOutChecked) return;
-      opportunisticAutoSignOutChecked = true;
+      if (AppState.opportunisticAutoSignOutChecked) return;
+      AppState.opportunisticAutoSignOutChecked = true;
 
-      if (!currentProfile || !(currentProfile.role === "security" || currentProfile.role === "super_user")) return;
+      if (!AppState.currentProfile || !(AppState.currentProfile.role === "security" || AppState.currentProfile.role === "super_user")) return;
 
       const enabled = settingValue("auto_end_of_day_sign_out_enabled", true);
       if (!enabled) return;
@@ -7284,11 +7272,11 @@ window.addEventListener("load", async function () {
     }
 
     async function loadSecurityPlanned() {
-      securityPlannedCache = await searchPlanned("securityPlannedResults", $("securityPlannedDate").value, "", false, false, true);
+      AppState.securityPlannedCache = await searchPlanned("securityPlannedResults", $("securityPlannedDate").value, "", false, false, true);
     }
 
     async function loadSecurityHistory() {
-      securityHistoryCache = await searchHistory(
+      AppState.securityHistoryCache = await searchHistory(
         "securityHistoryResults",
         $("securityFromDate").value,
         $("securityToDate").value,
@@ -7322,11 +7310,11 @@ window.addEventListener("load", async function () {
     }
 
     async function loadSuperPlanned() {
-      superPlannedCache = await searchPlanned("superPlannedResults", $("superPlannedDate").value, $("superNameSearch").value, true, true, false);
+      AppState.superPlannedCache = await searchPlanned("superPlannedResults", $("superPlannedDate").value, $("superNameSearch").value, true, true, false);
     }
 
     async function loadSuperHistory() {
-      superHistoryCache = await searchHistory(
+      AppState.superHistoryCache = await searchHistory(
         "superHistoryResults",
         $("superFromDate").value,
         $("superToDate").value,
@@ -7430,8 +7418,8 @@ window.addEventListener("load", async function () {
         return;
       }
 
-      const printedBy = currentProfile
-        ? currentProfile.display_name + " (" + roleLabel(currentProfile.role) + ")"
+      const printedBy = AppState.currentProfile
+        ? AppState.currentProfile.display_name + " (" + roleLabel(AppState.currentProfile.role) + ")"
         : "-";
 
       const html = buildCompactPlannedPrintHtml(rows, selectedDate, printedBy);
@@ -7524,22 +7512,22 @@ window.addEventListener("load", async function () {
     $("securityRunAutoSignOutButton").addEventListener("click", () => runAutoSignOut("securityAutoSignOutStatus"));
     $("securityOverdueButton").addEventListener("click", showSecurityOverdue);
     $("securityCurrentSignedInButton").addEventListener("click", showSecurityCurrentlySignedIn);
-    $("securityPrintPlannedButton").addEventListener("click", () => printPlannedList(securityPlannedCache, $("securityPlannedDate").value));
-    $("securityDownloadPlannedButton").addEventListener("click", () => downloadCsv("planned_visits.csv", securityPlannedCache));
-    $("securityExcelPlannedButton").addEventListener("click", () => exportToExcel(securityPlannedCache, "VMS_PlannedVisitors_" + ($("securityPlannedDate").value || exportDateStamp()) + ".xlsx", "planned"));
-    $("securityDownloadHistoryButton").addEventListener("click", () => downloadCsv("visit_history.csv", securityHistoryCache));
-    $("securityExcelHistoryButton").addEventListener("click", () => exportToExcel(securityHistoryCache, "VMS_VisitHistory_" + exportDateStamp() + ".xlsx", "history"));
+    $("securityPrintPlannedButton").addEventListener("click", () => printPlannedList(AppState.securityPlannedCache, $("securityPlannedDate").value));
+    $("securityDownloadPlannedButton").addEventListener("click", () => downloadCsv("planned_visits.csv", AppState.securityPlannedCache));
+    $("securityExcelPlannedButton").addEventListener("click", () => exportToExcel(AppState.securityPlannedCache, "VMS_PlannedVisitors_" + ($("securityPlannedDate").value || exportDateStamp()) + ".xlsx", "planned"));
+    $("securityDownloadHistoryButton").addEventListener("click", () => downloadCsv("visit_history.csv", AppState.securityHistoryCache));
+    $("securityExcelHistoryButton").addEventListener("click", () => exportToExcel(AppState.securityHistoryCache, "VMS_VisitHistory_" + exportDateStamp() + ".xlsx", "history"));
 
     $("superSearchPlannedButton").addEventListener("click", loadSuperPlanned);
     $("superSearchHistoryButton").addEventListener("click", loadSuperHistory);
     $("superRunAutoSignOutButton").addEventListener("click", () => runAutoSignOut("superAutoSignOutStatus"));
     $("superOverdueButton").addEventListener("click", showSuperOverdue);
     $("superCurrentSignedInButton").addEventListener("click", showSuperCurrentlySignedIn);
-    if ($("superPrintPlannedButton")) $("superPrintPlannedButton").addEventListener("click", () => printPlannedList(superPlannedCache, $("superPlannedDate").value));
-    $("superDownloadPlannedButton").addEventListener("click", () => downloadCsv("super_planned_visits.csv", superPlannedCache));
-    $("superExcelPlannedButton").addEventListener("click", () => exportToExcel(superPlannedCache, "VMS_Super_PlannedVisits_" + exportDateStamp() + ".xlsx", "planned"));
-    $("superDownloadHistoryButton").addEventListener("click", () => downloadCsv("super_visit_history.csv", superHistoryCache));
-    $("superExcelHistoryButton").addEventListener("click", () => exportToExcel(superHistoryCache, "VMS_Super_VisitHistory_" + exportDateStamp() + ".xlsx", "history"));
+    if ($("superPrintPlannedButton")) $("superPrintPlannedButton").addEventListener("click", () => printPlannedList(AppState.superPlannedCache, $("superPlannedDate").value));
+    $("superDownloadPlannedButton").addEventListener("click", () => downloadCsv("super_planned_visits.csv", AppState.superPlannedCache));
+    $("superExcelPlannedButton").addEventListener("click", () => exportToExcel(AppState.superPlannedCache, "VMS_Super_PlannedVisits_" + exportDateStamp() + ".xlsx", "planned"));
+    $("superDownloadHistoryButton").addEventListener("click", () => downloadCsv("super_visit_history.csv", AppState.superHistoryCache));
+    $("superExcelHistoryButton").addEventListener("click", () => exportToExcel(AppState.superHistoryCache, "VMS_Super_VisitHistory_" + exportDateStamp() + ".xlsx", "history"));
 
     if ($("securityLoadPendingAgreementsButton")) $("securityLoadPendingAgreementsButton").addEventListener("click", () => loadPendingAgreements("security"));
     if ($("securityAgreementSearchButton")) $("securityAgreementSearchButton").addEventListener("click", loadSecurityAgreementSearch);
@@ -7715,8 +7703,8 @@ window.addEventListener("load", async function () {
     if ($("cancelPrivacyNoticeButton")) $("cancelPrivacyNoticeButton").addEventListener("click", () => closePrivacyNoticeModal(false));
     if ($("closePrivacyNoticeModalButton")) $("closePrivacyNoticeModalButton").addEventListener("click", () => closePrivacyNoticeModal(false));
     if ($("superLoadAnalyticsButton")) $("superLoadAnalyticsButton").addEventListener("click", () => loadAnalytics("super"));
-    if ($("downloadAuditCsvButton")) $("downloadAuditCsvButton").addEventListener("click", () => downloadCsv("audit_events.csv", normaliseAuditExportRows(auditEventsCache)));
-    if ($("downloadAuditExcelButton")) $("downloadAuditExcelButton").addEventListener("click", () => exportToExcel(normaliseAuditExportRows(auditEventsCache), "VMS_AuditEvents_" + exportDateStamp() + ".xlsx", "history"));
+    if ($("downloadAuditCsvButton")) $("downloadAuditCsvButton").addEventListener("click", () => downloadCsv("audit_events.csv", normaliseAuditExportRows(AppState.auditEventsCache)));
+    if ($("downloadAuditExcelButton")) $("downloadAuditExcelButton").addEventListener("click", () => exportToExcel(normaliseAuditExportRows(AppState.auditEventsCache), "VMS_AuditEvents_" + exportDateStamp() + ".xlsx", "history"));
 
 
     ["settingPlannedReasonVisible","settingPlannedReasonRequired","settingPlannedVehicleVisible","settingPlannedVehicleRequired",
