@@ -91,6 +91,14 @@ Consequences:
 - Identify alternatives, risks, compatibility impact, and migration strategy before coding.
 - Small implementation details within an accepted design do not require a separate ADR.
 
+## NG-001 — Native JavaScript ES Modules
+
+Status: Accepted
+
+Decision: NextGen will use native JavaScript ES modules for all new modules.
+
+Native ES modules are agreed as the target architecture, but activation is deferred until the app is served over HTTP instead of opened directly as a local file.
+
 ## Decision Process
 
 Proposed decisions should include:
