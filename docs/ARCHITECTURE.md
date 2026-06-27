@@ -1,135 +1,257 @@
 # Visitor Management Solution Architecture
 
-This document maps the current `nextgen-ui` application before further refactoring. It is descriptive only: no application code, DOM IDs, Supabase names, UI behaviour, or visible design should be changed as part of this documentation step.
+Version: `VMS_035A.1`  
+Development branch: `nextgen-ui`  
+Production branch: `main`
 
-## 1. Current File Structure
+## Purpose and Scope
+
+The Visitor Management Solution is a browser-based single-page application for managing planned and walk-in visitors, kiosk sign-in and sign-out, staff administration, security operations, compliance evidence, and system governance.
+
+The current application has no build step or front-end framework. `index.html` defines the complete user interface, `assets/css/main.css` provides all styling, and `assets/js/app.js` provides all client-side behaviour. Supabase supplies authentication, persisted data, row-level security, and server-side RPC operations. The application also uses SheetJS in the browser for Excel exports.
+
+The current architecture is intentionally retained during Phase 1. Refactoring must preserve visible behaviour, backend contracts, access controls, and startup order.
+
+## Current File Structure
 
 ```text
 .
-+-- index.html
-+-- NEXTGEN_REFACTOR_NOTES.md
-+-- assets/
-|   +-- css/
-|   |   +-- main.css
-|   |   +-- README.md
-|   +-- js/
-|       +-- app.js
-|       +-- README.md
-+-- docs/
-|   +-- ARCHITECTURE.md
-+-- tools/
-    +-- split-index.js
+|-- index.html
+|-- NEXTGEN_REFACTOR_NOTES.md
+|-- assets/
+|   |-- css/
+|   |   |-- main.css
+|   |   `-- README.md
+|   `-- js/
+|       |-- app.js
+|       `-- README.md
+|-- docs/
+|   |-- ARCHITECTURE.md
+|   |-- ROADMAP.md
+|   |-- CODING_STANDARDS.md
+|   `-- DECISIONS.md
+`-- tools/
+    `-- split-index.js
 ```
 
-Key files:
+## Major Screens
 
-- `index.html` is the single page application shell. It contains all current DOM structure, screen containers, forms, modals, buttons, and third-party script includes for Supabase and XLSX.
-- `assets/css/main.css` contains the extracted application styles from the earlier mechanical split.
-- `assets/js/app.js` contains the extracted application behaviour from the earlier mechanical split. It is still a single monolithic browser script.
-- `tools/split-index.js` is the helper used for the initial mechanical extraction.
-- `NEXTGEN_REFACTOR_NOTES.md` records the branch rules and refactor guardrails.
+### Home
 
-## 2. Main Runtime Flow
+The home screen is the application entry point. It shows branding, application version, session state, and the actions appropriate to the current mode:
 
-The application runs as a browser-only single page app.
+- Logged-out users can open staff login or refresh.
+- Configured kiosk devices can open visitor sign-in and sign-out.
+- Authenticated staff can enter the staff area or log out.
 
-1. `index.html` loads Supabase JS, XLSX, `assets/css/main.css`, and finally `assets/js/app.js`.
-2. `assets/js/app.js` waits for `window.load` before running any app logic.
-3. Inside the load handler, the script creates a Supabase client with the configured URL and anon key.
-4. Shared state and caches are initialised in local variables inside the load handler.
-5. System settings are loaded from `system_settings`, merged with hard-coded defaults, and applied to branding, colours, messages, kiosk timing, and settings forms.
-6. Event listeners are attached to the existing DOM IDs from `index.html`.
-7. Date fields are initialised to today's date where applicable.
-8. Supabase auth state changes call `getCurrentSessionAndProfile()`.
-9. Initial startup calls check the current session/profile, update kiosk token warnings, set debug text, and load core visitor data.
-10. User interactions then drive screen switching, kiosk sign-in/sign-out, staff login, role panels, planned visits, history, analytics, settings, kiosk devices, audit events, printing, and exports.
+The shared top bar exposes staff status, change-password, staff-area, and logout actions when applicable.
 
-The most important implementation detail is that nearly all functions close over shared variables from the single load-handler scope. This makes the current file easy to run as one bundle, but it means module extraction must preserve shared state and call order carefully.
+### Visitor Sign-In
 
-## 3. Main `app.js` Sections
+The public kiosk sign-in screen lets a visitor search the current planned-visit list and start the planned sign-in workflow. It also provides the walk-in path. Sign-in is protected by kiosk-device configuration, application field rules, privacy-notice requirements, and any active agreement or induction requirements.
 
-`assets/js/app.js` already contains a high-level section map at the top. The current runtime code broadly follows these responsibilities:
+Supporting modals collect walk-in details, privacy acknowledgement, agreement selection, visitor signature, optional inductor sign-off, and success confirmation.
 
-- Configuration and Supabase client: Supabase URL/key constants and `window.supabase.createClient(...)`.
-- Application state and caches: planned visits, visit logs, role-specific result caches, audit event cache, current profile, kiosk idle state, and opportunistic auto sign-out flag.
-- System settings and branding: default settings, loading/saving settings, applying CSS variables/assets, settings form population, and reset behaviour.
-- User/profile management: Super User profile CRUD-style actions through RPCs, failed-attempt reset, activation/deactivation, and profile list rendering.
-- Kiosk device management: local kiosk token storage, token prompts, kiosk token warnings, device listing, creation, token regeneration, status changes, and token masking/copying.
-- Audit events: writing audit events, loading audit logs, rendering results, and normalising audit rows for export.
-- Messages and kiosk confirmation UI: main message banner, toast messages, kiosk confirmation modal, auto-close timer, and modal close helpers.
-- Utility helpers: DOM lookup, date formatting, escaping, CSV escaping/export, result summary rendering, name/plate normalisation, and Excel export helpers.
-- Staff authentication: login/logout, session/profile loading, topbar status, failed/successful login tracking, password changes, and staff area entry.
-- Screen navigation and role panels: home/sign-in/sign-out/staff screen switching, role tab selection, panel loading, and permission-based role availability.
-- Visitor sign-in/sign-out: planned visitor list loading/rendering, planned kiosk sign-in, walk-in sign-in, active visit loading, and kiosk sign-out.
-- Planned visit management: planned visit creation, planned visit search, status mapping, rendering, editing, and deletion.
-- History search and editing: visit log searching/filtering, rendering, editing, and deletion.
-- Analytics and dashboards: visitor analytics RPC, metric rendering, security dashboard, super dashboard, overdue visitor alerts, and auto sign-out workflows.
-- Printing and exports: compact planned list print HTML, print window handling, CSV downloads, and XLSX exports.
-- Event binding and startup: all DOM event listener registration, default date setup, settings load, auth subscription, profile/session check, kiosk warnings, debug status, and initial core data refresh.
+### Visitor Sign-Out
 
-Current Supabase surfaces referenced by `app.js` include:
+The public kiosk sign-out screen searches active visits and completes sign-out through the backend. It uses the same kiosk-token controls, busy-state protection, confirmation messaging, and idle-return behaviour as sign-in.
 
-- Tables: `system_settings`, `profiles`, `planned_visits`, `visit_log`.
-- RPCs: `superuser_save_setting`, `superuser_upsert_profile`, `superuser_list_profiles`, `superuser_reset_failed_login_attempts`, `superuser_set_profile_active`, `superuser_list_kiosk_devices`, `superuser_create_kiosk_device`, `superuser_regenerate_kiosk_token`, `superuser_set_kiosk_status`, `write_audit_event`, `superuser_list_audit_events`, `superuser_reset_default_settings`, `record_failed_login_attempt`, `record_successful_login`, `kiosk_sign_in_planned`, `kiosk_sign_in_walk_in`, `kiosk_sign_out`, `update_planned_security_pass`, `update_visit_log_security_pass`, `get_visitor_analytics`, `run_end_of_day_auto_sign_out`.
+### Staff Area
 
-Do not rename or reinterpret any of these during refactor work.
+The staff screen is the authenticated application workspace. The profile role determines which panels and actions are available. Normal users are routed directly to their permitted area; Super Users can use role views for administration and testing.
 
-## 4. Proposed Future JS Modules
+#### General User Panel
 
-These are proposed extraction boundaries only. They should be introduced gradually, with behaviour checks after each small move.
+The General User panel provides:
+
+- Planned-visit creation.
+- A date-based view of the user's planned visits.
+- Editing or deletion of the user's eligible visits before sign-in.
+
+#### Security Panel
+
+The Security panel provides operational control of the visitor estate:
+
+- Live security dashboard and status counts.
+- Pending visitor agreements and agreement evidence search.
+- Visitor analytics, top companies, and peak arrival hours.
+- End-of-day and overdue-visitor sign-out controls.
+- Planned-visit day view with print, CSV, and Excel output.
+- Advanced visit-history search and security-permitted edits.
+
+#### Super User Workspace
+
+The Super User workspace is divided into major navigation sections.
+
+**Dashboard**
+
+- System alerts and production-hardening status.
+- Daily maintenance and end-of-day operations.
+- System health and exportable health information.
+- Planned-visit queue and advanced visit history.
+- Kiosk test view.
+
+**Reporting**
+
+- Visitor analytics and operational reporting.
+- Agreements and inductions administration.
+- Agreement compliance, missing-evidence, matrix, outstanding-induction, and evidence-audit views.
+- Agreement types, versions, validity settings, signatures, and evidence printing.
+- Audit-event search, detail inspection, CSV export, and Excel export.
+
+**GDPR**
+
+- GDPR case register, filters, timeline, and case editing.
+- Data-subject search across visit and planned-visit records.
+- Subject Access Request package generation and export.
+- Erasure/anonymisation preview and controlled execution.
+- Evidence-pack generation, download, and print.
+
+**Notifications**
+
+- Email-recipient resolution and notification trigger settings.
+- Automatic email processor controls.
+- Email-delivery configuration and test sending.
+- Notification centre, templates, in-app notifications, and delivery queue.
+
+**Settings**
+
+- Data-retention and planned-visit lifecycle governance.
+- Visitor privacy-notice configuration.
+- Kiosk-device registration, local token management, heartbeat/version status, and behaviour.
+- Deployment and expected-version management.
+- Branding, confirmation messages, form field rules, and operational rules.
+- User-profile and access management.
+
+### Cross-Cutting Modals
+
+Modal workflows are overlays rather than independent routes, but they are major interaction surfaces. They include staff login, password change, visit editing, kiosk logout, audit details, notification-template editing, GDPR cases and anonymisation confirmation, retention confirmation, privacy notice, walk-in entry, agreement selection/signing/linking/evidence, and generic confirmation messages.
+
+## Application Startup Flow
+
+1. The browser parses `index.html`.
+2. The Supabase JavaScript v2 and SheetJS scripts load from jsDelivr.
+3. `assets/css/main.css` loads the current visual design.
+4. The DOM is created, including all screens, panels, and modals.
+5. `assets/js/app.js` loads and registers a `window.load` callback.
+6. On window load, the callback establishes constants, in-memory caches, operational flags, and the Supabase client.
+7. Default application settings are created. The script then registers DOM event listeners and sets default date inputs.
+8. Settings are read from `system_settings`, merged over defaults, and applied to branding, messages, field rules, kiosk behaviour, governance, and administration controls.
+9. Collapsible settings groups are initialised.
+10. A Supabase authentication-state listener is registered.
+11. The current session and profile are requested to determine role and home-screen access.
+12. Kiosk token/version warnings and debug state are updated.
+13. Core visitor data is refreshed.
+14. Subsequent interaction is event-driven. UI handlers call Supabase table queries or RPCs, update local caches, render results, and display visitor confirmations, staff toasts, or local status messages.
+15. Any uncaught startup error is shown in the page message and debug area and is also written to the browser console.
+
+Startup order is a compatibility constraint. Settings, event binding, authentication, role resolution, kiosk state, and initial data loading must not be reordered without explicit design and regression testing.
+
+## Current Dependencies
+
+### Runtime Libraries
+
+- `@supabase/supabase-js@2`, loaded from jsDelivr: authentication, database access, and RPC invocation.
+- `xlsx@0.18.5`, loaded from jsDelivr: Excel workbook generation and download.
+
+### Platform Dependencies
+
+- Modern browser DOM and event APIs.
+- Browser storage for the local kiosk token.
+- Canvas APIs for visitor and inductor signatures.
+- `fetch`, `Blob`, object URLs, popup/print windows, timers, and file downloads.
+- Supabase Auth, PostgreSQL tables/views, row-level security, RPC functions, and supporting Edge Functions.
+
+There is currently no package manifest, bundler, transpiler, component framework, client-side router, or automated front-end test runner.
+
+### Backend Contract
+
+Table/view names, column names, RPC names and parameters, role values, authentication behaviour, row-level security, kiosk tokens, and Edge Function contracts are external interfaces. Phase 1 must not change them.
+
+## Current JavaScript Structure
+
+`assets/js/app.js` is one large browser script enclosed by a `window.load` handler and a top-level `try/catch`. Most functions share closure-scoped state. The main responsibility groups are:
+
+- Configuration, version, Supabase client creation, and runtime health timestamps.
+- Shared caches, current profile, kiosk state, modal state, and workflow queues.
+- System settings, branding, field rules, privacy, retention, and deployment settings.
+- Utility functions for DOM access, escaping, dates, formatting, CSV/XLSX export, and printing.
+- Authentication, profile loading, login-attempt handling, password changes, and logout protection.
+- Screen, role-panel, and Super User section navigation.
+- Planned and walk-in visitor sign-in, active-visit sign-out, kiosk idle handling, and confirmations.
+- Planned-visit creation, search, editing, deletion, and day views.
+- Visit-history search, permission-aware editing, and deletion.
+- Security and Super User dashboards, analytics, maintenance, and health monitoring.
+- Agreement/induction configuration, selection, signatures, compliance, linking, evidence, and audit.
+- GDPR cases, searches, SAR packages, evidence packs, and anonymisation.
+- Notifications, templates, email queue processing, and in-app alerts.
+- Kiosk-device, user-profile, audit-event, and deployment administration.
+- DOM event registration and startup orchestration at the end of the file.
+
+This layout is functional but highly coupled. Shared closure variables, direct DOM lookups, inline rendering, and calls between responsibility groups make large extractions risky.
+
+## Proposed Future Module Boundaries
+
+The following boundaries describe the intended destination, not an instruction to perform a single large rewrite:
 
 ```text
 assets/js/
-+-- app.js                  # Thin startup/orchestration entrypoint
-+-- config.js               # Supabase URL/key and stable constants
-+-- state.js                # Shared caches/current profile/kiosk timer state
-+-- dom.js                  # DOM lookup helpers and DOM ID constants if introduced safely
-+-- settings.js             # System settings, branding, settings forms
-+-- auth.js                 # Staff auth, session/profile loading, password changes
-+-- navigation.js           # Screen switching and role panels
-+-- kiosk.js                # Kiosk token storage, warnings, idle timer, confirmation modal
-+-- visitors.js             # Public planned/walk-in sign-in and sign-out flows
-+-- planned-visits.js       # Staff planned visit creation/search/render/edit/delete
-+-- history.js              # Visit history search/render/edit/delete
-+-- analytics.js            # Analytics RPC and dashboard rendering
-+-- audit.js                # Audit writes, audit search, audit export normalisation
-+-- kiosk-devices.js        # Super User kiosk device management
-+-- profiles.js             # Super User profile management
-+-- exports.js              # CSV, XLSX, print helpers
-+-- utils.js                # Escaping, dates, formatting, result summaries
+|-- app.js                       # Thin composition and startup entry point
+|-- config/
+|   |-- constants.js
+|   `-- defaults.js
+|-- core/
+|   |-- state.js
+|   |-- dom.js
+|   |-- errors.js
+|   |-- events.js
+|   `-- permissions.js
+|-- services/
+|   |-- supabase-client.js
+|   |-- auth-service.js
+|   |-- settings-service.js
+|   |-- visitor-service.js
+|   |-- agreement-service.js
+|   |-- gdpr-service.js
+|   |-- notification-service.js
+|   `-- audit-service.js
+|-- features/
+|   |-- navigation/
+|   |-- kiosk/
+|   |-- planned-visits/
+|   |-- visit-history/
+|   |-- security/
+|   |-- agreements/
+|   |-- gdpr/
+|   |-- notifications/
+|   |-- governance/
+|   |-- device-management/
+|   `-- user-management/
+`-- shared/
+    |-- formatting.js
+    |-- validation.js
+    |-- exports.js
+    |-- printing.js
+    |-- toast.js
+    `-- modal.js
 ```
 
-Safer first extractions:
+Module design principles:
 
-- Pure helpers such as escaping, dates, CSV formatting, and result summary helpers.
-- Export and print helpers, once their dependencies on `appSettings` and `currentProfile` are made explicit.
-- Settings defaults and constants, while keeping actual load/save behaviour in place until dependencies are clear.
+- Keep backend access in services and UI rendering in feature modules.
+- Make shared state and dependencies explicit rather than relying on a global closure.
+- Preserve existing DOM IDs and backend contracts during Phase 1.
+- Extract pure utilities first, then low-coupling services, then feature workflows.
+- Keep `app.js` responsible for composition and startup sequence only.
+- Introduce automated checks around a behaviour before moving high-risk code.
 
-Higher-risk extractions:
+## Architectural Risks and Constraints
 
-- Auth/profile loading because many screens depend on `currentProfile`.
-- Navigation and role panel loading because screen changes trigger data refreshes.
-- Visitor sign-in/sign-out because kiosk token checks, Supabase RPCs, caches, messages, confirmation modals, and refreshes are intertwined.
+- DOM IDs are an active API between HTML and JavaScript.
+- Shared state and startup timing can produce subtle regressions.
+- Role permissions must be enforced by the backend as well as hidden in the UI.
+- Kiosk flows depend on local token state, privacy rules, agreements, timers, and modal sequencing.
+- Generated CSV, Excel, print, SAR, and evidence outputs are user-facing contracts.
+- Date/time comparison and formatting must retain their current timezone semantics.
+- Phase 1 permits structural improvement only; visual redesign, feature work, and database change belong to later approved phases.
 
-## 5. Refactor Risks
-
-- DOM ID coupling: almost every behaviour depends on exact IDs in `index.html`. Renaming IDs or changing when elements exist will break event binding.
-- Startup ordering: settings, event binding, auth subscription, current profile loading, kiosk warning updates, and core data refresh currently happen in one sequence.
-- Shared closure state: caches and `currentProfile` are local variables used across many functions. Module extraction must pass state explicitly or centralise it without changing timing.
-- Supabase contract risk: table names, column names, RPC names, and RPC parameter names are part of the live backend contract and RLS assumptions.
-- Role/permission behaviour: General User, Security, and Super User paths share render/search helpers with flags such as `allowEdit`, `allowDelete`, and `securityOnly`.
-- Kiosk behaviour: local storage token handling, prompts, idle timeout, public sign-in/out gating, and confirmation auto-close must remain identical.
-- Rendering side effects: many render functions create buttons and attach listeners inline. Moving these can accidentally change event timing or captured values.
-- Date handling: several flows compare dates using `YYYY-MM-DD` strings and `toLocaleString()` output. Refactors should not silently change timezone or formatting semantics.
-- Print/export behaviour: print windows, generated HTML, CSV headers, XLSX sheet names, and file names are user-visible outputs.
-- Existing encoding artifacts: some visible icon characters in HTML appear mojibake-like. Do not "fix" these during a refactor-only pass unless explicitly requested, because it would alter visible UI.
-
-## 6. Safe Next Steps
-
-1. Keep this document as the reference map for the next refactor pass.
-2. Before code movement, capture a lightweight smoke checklist for kiosk sign-in, kiosk sign-out, staff login, each role panel, settings load/save, history search, exports, and print.
-3. Add no-build browser checks if practical: load `index.html`, confirm `debugInfo` reaches the loaded state, and verify key buttons still bind.
-4. Start with pure helper extraction only, keeping function names and call sites stable where possible.
-5. After each extraction, check `index.html`, `assets/css/main.css`, and `assets/js/app.js` still work together.
-6. Avoid changing UI text, CSS selectors, DOM IDs, Supabase table/RPC names, RPC parameter names, or business logic while splitting files.
-7. Commit each small, verified module extraction separately so regressions can be isolated quickly.
