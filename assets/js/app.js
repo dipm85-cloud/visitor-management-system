@@ -9,12 +9,8 @@ import {
   safe,
   formatPersonName,
   normalisePlate,
-  csvEscape,
   exportDateStamp,
-  boolString,
-  printEscape,
-  formatPrintDate,
-  formatPrintTime
+  boolString
 } from "./utils.js";
 import { $ } from "./dom.js";
 import {
@@ -100,6 +96,15 @@ import {
   loadSuperDashboard,
   statCard
 } from "./analytics.js";
+import {
+  downloadCsv,
+  exportToExcel,
+  normaliseAuditExportRows
+} from "./exports.js";
+import {
+  configurePrinting,
+  printPlannedList
+} from "./printing.js";
 
 window.addEventListener("load", async function () {
   try {
@@ -165,6 +170,12 @@ window.addEventListener("load", async function () {
       getKioskToken
     });
     configureMessages(appSettings);
+    configurePrinting({
+      appSettings,
+      dependencies: {
+        roleLabel
+      }
+    });
     configureNavigation({
       isKioskProfile,
       clearWalkInForm,
@@ -1141,18 +1152,6 @@ window.addEventListener("load", async function () {
       setResultBox(box, buildResultSummary(data.length, "Audit events", "Filtered result"), temp);
     }
 
-    function normaliseAuditExportRows(rows) {
-      return (rows || []).map(evt => ({
-        "Time": evt.created_at ? new Date(evt.created_at).toLocaleString() : "",
-        "Event Type": evt.event_type || "",
-        "Actor": evt.actor_display_name || "",
-        "Actor ID": evt.actor_id || "",
-        "Entity Type": evt.entity_type || "",
-        "Entity ID": evt.entity_id || "",
-        "Details": JSON.stringify(evt.details || {})
-      }));
-    }
-
     function showWalkInModalMessage(text, type) {
       const box = $("walkInModalMessage");
       if (!box) {
@@ -1309,28 +1308,6 @@ window.addEventListener("load", async function () {
       URL.revokeObjectURL(url);
     }
 
-    function downloadCsv(filename, rows) {
-      if (!rows || rows.length === 0) {
-        showMessage("Nothing to download.", "error");
-        return;
-      }
-
-      const headers = Object.keys(rows[0]);
-      const csv = [
-        headers.map(csvEscape).join(","),
-        ...rows.map(row => headers.map(h => csvEscape(row[h])).join(","))
-      ].join("\n");
-
-      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = filename;
-      link.click();
-      URL.revokeObjectURL(url);
-    }
-
-
     function focusFirstModalInput(modalBackdropId) {
       const modal = $(modalBackdropId);
       if (!modal) return;
@@ -1479,74 +1456,6 @@ window.addEventListener("load", async function () {
       }
 
       await logoutStaff();
-    }
-
-    function normaliseExportRows(rows, type) {
-      if (!rows || rows.length === 0) return [];
-
-      if (type === "planned") {
-        return rows.map(row => ({
-          "Visitor": row.visitor_name || "",
-          "Company": row.company || "",
-          "Visit Date": row.visit_date || "",
-          "Expected Time": row.expected_time || "",
-          "Reason": row.visit_reason || "",
-          "Vehicle": row.vehicle_plate || "",
-          "On-site Contact": row.onsite_contact || "",
-          "Security Pass": row.security_pass_id || "",
-          "Created By": row.created_by || "",
-          "Modified By": row.modified_by || "",
-          "Modified At": row.modified_at || ""
-        }));
-      }
-
-      return rows.map(row => ({
-        "Visitor": row.visitor_name || "",
-        "Company": row.company || "",
-        "Origin": (row.visit_origin || (row.planned_visit_id ? "planned" : "walk_in")).replace("_", " "),
-        "Security Pass": row.security_pass_id || "",
-        "Vehicle": row.vehicle_plate || "",
-        "On-site Contact": row.onsite_contact || "",
-        "Sign In": row.sign_in_time ? new Date(row.sign_in_time).toLocaleString() : "",
-        "Sign Out": row.sign_out_time ? new Date(row.sign_out_time).toLocaleString() : "",
-        "Status": row.visit_status || "",
-        "Auto Signed Out": row.signed_out_automatically ? "Yes" : "No",
-        "Auto Sign-Out Reason": row.automatic_sign_out_reason || ""
-      }));
-    }
-
-    function autoSizeWorksheetColumns(ws, rows) {
-      if (!rows || rows.length === 0) return;
-      const headers = Object.keys(rows[0]);
-      ws["!cols"] = headers.map(header => {
-        const maxLen = Math.max(
-          header.length,
-          ...rows.map(row => String(row[header] == null ? "" : row[header]).length)
-        );
-        return { wch: Math.min(Math.max(maxLen + 2, 12), 42) };
-      });
-    }
-
-    function exportToExcel(rows, filename, type) {
-      const formattedRows = type === "agreements" ? (rows || []) : normaliseExportRows(rows, type);
-
-      if (!formattedRows || formattedRows.length === 0) {
-        showMessage("Nothing to export.", "error");
-        return;
-      }
-
-      if (!window.XLSX) {
-        showMessage("Excel export library could not be loaded.", "error");
-        return;
-      }
-
-      const ws = XLSX.utils.json_to_sheet(formattedRows);
-      autoSizeWorksheetColumns(ws, formattedRows);
-
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, type === "planned" ? "Planned Visits" : "Visit History");
-
-      XLSX.writeFile(wb, filename);
     }
 
     function ensureSuperReportingCards() {
@@ -5372,87 +5281,6 @@ window.addEventListener("load", async function () {
 
       await refreshCoreData();
       await reloadOpenStaffPanel();
-    }
-
-    function buildCompactPlannedPrintHtml(rows, selectedDate, printedBy) {
-      const generatedAt = new Date().toLocaleString();
-      const companyName = appSettings.companyName || "Visitor Management";
-      const bodyRows = (rows || []).map((row, index) => {
-        return "<tr>" +
-          "<td class='num'>" + (index + 1) + "</td>" +
-          "<td>" + printEscape(row.visitor_name) + "</td>" +
-          "<td>" + printEscape(row.company) + "</td>" +
-          "<td>" + printEscape(formatPrintTime(row.expected_time)) + "</td>" +
-          "<td>" + printEscape(row.vehicle_plate) + "</td>" +
-          "<td>" + printEscape(row.onsite_contact) + "</td>" +
-          "<td>" + printEscape(row.security_pass_id) + "</td>" +
-        "</tr>";
-      }).join("");
-
-      return "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Planned Visitor List</title>" +
-        "<style>" +
-        "@page{size:A4 landscape;margin:10mm;}" +
-        "*{box-sizing:border-box;}" +
-        "body{font-family:Arial,Helvetica,sans-serif;color:#111827;margin:0;font-size:11px;}" +
-        ".header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #111827;padding-bottom:8px;margin-bottom:8px;}" +
-        ".company{font-size:18px;font-weight:900;letter-spacing:-.02em;}" +
-        ".title{font-size:15px;font-weight:800;margin-top:2px;}" +
-        ".meta{text-align:right;line-height:1.45;color:#374151;font-size:10.5px;}" +
-        ".summary{display:flex;justify-content:space-between;border:1px solid #d1d5db;background:#f9fafb;padding:6px 8px;margin-bottom:8px;font-weight:800;}" +
-        "table{width:100%;border-collapse:collapse;table-layout:fixed;}" +
-        "th{background:#e5e7eb;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.03em;border:1px solid #9ca3af;padding:5px 6px;}" +
-        "td{border:1px solid #d1d5db;padding:5px 6px;vertical-align:top;word-wrap:break-word;}" +
-        "tr:nth-child(even) td{background:#f9fafb;}" +
-        ".num{width:28px;text-align:center;color:#6b7280;}" +
-        ".visitor{width:19%;}.companyCol{width:18%;}.time{width:8%;}.vehicle{width:13%;}.contact{width:19%;}.pass{width:12%;}" +
-        ".footer{margin-top:8px;color:#6b7280;font-size:9.5px;display:flex;justify-content:space-between;}" +
-        "</style></head><body>" +
-        "<div class='header'><div><div class='company'>" + printEscape(companyName) + "</div><div class='title'>Planned Visitor List</div></div>" +
-        "<div class='meta'>Selected date: <strong>" + printEscape(formatPrintDate(selectedDate)) + "</strong><br>Generated: " + printEscape(generatedAt) + "<br>Generated by: " + printEscape(printedBy || "-") + "</div></div>" +
-        "<div class='summary'><span>Total planned visitors: " + (rows ? rows.length : 0) + "</span><span>Security morning printout</span></div>" +
-        "<table><thead><tr>" +
-        "<th class='num'>#</th><th class='visitor'>Visitor</th><th class='companyCol'>Company</th><th class='time'>Time</th><th class='vehicle'>Vehicle</th><th class='contact'>On-site Contact</th><th class='pass'>Security Pass</th>" +
-        "</tr></thead><tbody>" + bodyRows + "</tbody></table>" +
-        "<div class='footer'><span>VMS_035A.1 compact planned visit printout</span><span>Printed from Visitor Management Solution</span></div>" +
-        "<script>window.addEventListener('load',function(){setTimeout(function(){window.focus();window.print();},150);});<\/script>" +
-        "</body></html>";
-    }
-
-    function printPlannedList(rows, selectedDate) {
-      if (!rows || rows.length === 0) {
-        showMessage("No planned visits are loaded. Please load or search a planned visitor list before printing.", "error");
-        return;
-      }
-
-      const printedBy = AppState.currentProfile
-        ? AppState.currentProfile.display_name + " (" + roleLabel(AppState.currentProfile.role) + ")"
-        : "-";
-
-      const html = buildCompactPlannedPrintHtml(rows, selectedDate, printedBy);
-
-      // Do not use noopener/noreferrer here. Some browsers open the tab but block script
-      // access to the new document, which leaves the print page blank.
-      const printWindow = window.open("", "_blank", "width=1200,height=800");
-      if (!printWindow || !printWindow.document) {
-        showMessage("The browser blocked the print window. Please allow pop-ups for this site and try again.", "error");
-        return;
-      }
-
-      printWindow.document.open("text/html", "replace");
-      printWindow.document.write(html);
-      printWindow.document.close();
-
-      // Fallback for browsers that do not fire load reliably after document.write.
-      setTimeout(function () {
-        try {
-          printWindow.focus();
-          if (printWindow.document && printWindow.document.body && printWindow.document.body.children.length > 0) {
-            printWindow.print();
-          }
-        } catch (err) {
-          console.warn("Print fallback failed:", err);
-        }
-      }, 500);
     }
 
     ["click", "input", "touchstart", "keydown"].forEach(function (eventName) {
