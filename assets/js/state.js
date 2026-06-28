@@ -6,6 +6,7 @@ export const AppState = {
   superPlannedCache: [],
   superHistoryCache: [],
   auditEventsCache: [],
+  activeVisitCache: [],
   opportunisticAutoSignOutChecked: false,
   currentProfile: null,
   systemSettingsRaw: {},
