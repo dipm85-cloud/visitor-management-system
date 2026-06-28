@@ -1,6 +1,6 @@
 import { supabaseClient } from "./api.js";
 import { AppState } from "./state.js";
-import { $ } from "./dom.js";
+import { $, buildResultSummary, setResultBox } from "./dom.js";
 import { clearMessage, showMessage } from "./messages.js";
 import { todayDate, safe, formatPersonName, normalisePlate } from "./utils.js";
 import { writeAuditEvent } from "./audit.js";
@@ -10,6 +10,22 @@ let plannedVisitDependencies;
 
 export function configurePlannedVisits(dependencies) {
   plannedVisitDependencies = dependencies;
+}
+
+export function plannedVisitDisplayStatus(visit) {
+  const rawStatus = String(visit.status || "").toLowerCase();
+
+  if (visit.sign_out_time || rawStatus === "signed_out") return "signed_out";
+  if (visit.sign_in_time || visit.visit_log_id || rawStatus === "signed_in") return "signed_in";
+  return rawStatus || "planned";
+}
+
+export function plannedVisitStatusLabel(visit) {
+  const status = plannedVisitDisplayStatus(visit);
+  if (status === "signed_in") return "Signed in";
+  if (status === "signed_out") return "Signed out";
+  if (status === "cancelled") return "Cancelled";
+  return "Pending";
 }
 
 export async function createPlannedVisit() {
@@ -146,7 +162,7 @@ export function renderPlannedResults(box, data, allowEdit, allowDelete, security
   profileMap = profileMap || {};
 
   if (data.length === 0) {
-    box.innerHTML = plannedVisitDependencies.buildResultSummary(0, "Planned visits", "No matching records") +
+    box.innerHTML = buildResultSummary(0, "Planned visits", "No matching records") +
       "<div class='results-scroll'><div class='row-meta' style='padding:14px 0;'>No planned visits found.</div></div>";
     return;
   }
@@ -217,9 +233,9 @@ export function renderPlannedResults(box, data, allowEdit, allowDelete, security
     temp.appendChild(row);
   });
 
-  plannedVisitDependencies.setResultBox(
+  setResultBox(
     box,
-    plannedVisitDependencies.buildResultSummary(data.length, "Planned visits", "Filtered result"),
+    buildResultSummary(data.length, "Planned visits", "Filtered result"),
     temp
   );
 }

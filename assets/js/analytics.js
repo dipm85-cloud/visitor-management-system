@@ -1,13 +1,7 @@
 import { supabaseClient } from "./api.js";
-import { $ } from "./dom.js";
+import { $, buildResultSummary, setResultBox } from "./dom.js";
 import { showMessage } from "./messages.js";
 import { todayDate, safe } from "./utils.js";
-
-let analyticsDependencies;
-
-export function configureAnalytics(dependencies) {
-  analyticsDependencies = dependencies;
-}
 
 export async function loadAnalytics(prefix) {
   const fromEl = prefix ? $(prefix + "AnalyticsFromDate") : $("analyticsFromDate");
@@ -67,9 +61,9 @@ export function renderSimpleMetricList(box, rows, labelKey, valueKey) {
     temp.appendChild(item);
   });
 
-  analyticsDependencies.setResultBox(
+  setResultBox(
     box,
-    analyticsDependencies.buildResultSummary(rows.length, "Rows", "Analytics result"),
+    buildResultSummary(rows.length, "Rows", "Analytics result"),
     temp
   );
 }

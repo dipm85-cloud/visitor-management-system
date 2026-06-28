@@ -7,18 +7,34 @@ import { AppState } from "./state.js";
 import {
   todayDate,
   safe,
+  safeAttr,
   formatPersonName,
   normalisePlate,
   exportDateStamp,
-  boolString
+  boolString,
+  localDateKey,
+  addOneMonthDate
 } from "./utils.js";
-import { $ } from "./dom.js";
+import {
+  $,
+  buildResultSummary,
+  setResultBox,
+  focusFirstModalInput,
+  handleGlobalModalKeyboard
+} from "./dom.js";
 import {
   configureMessages,
   showMessage,
   clearMessage,
   showToast,
-  closeKioskConfirmation
+  closeKioskConfirmation,
+  showWalkInModalMessage,
+  clearWalkInModalMessage,
+  showEditModalMessage,
+  clearEditModalMessage,
+  setLocalStatus,
+  showKioskLogoutModalMessage,
+  clearKioskLogoutModalMessage
 } from "./messages.js";
 import { supabaseClient } from "./api.js";
 import { configureNavigation, showScreen } from "./navigation.js";
@@ -43,7 +59,10 @@ import {
   getBrowserAuditContext,
   writeAuditEvent,
   loadAuditEvents,
-  closeAuditDetailsModal
+  closeAuditDetailsModal,
+  buildFieldDiff,
+  auditDiffSummary,
+  buildObjectDiff
 } from "./audit.js";
 import {
   configureSettings,
@@ -53,7 +72,12 @@ import {
   saveSetting,
   saveSettingsForm,
   resetSettingsDefaults,
-  reloadSettingsForm
+  reloadSettingsForm,
+  initialiseCollapsibleSettings,
+  readBoolInput,
+  applyFieldRules,
+  fieldValueIfVisible,
+  validateRequiredField
 } from "./settings.js";
 import {
   configureKiosk,
@@ -96,7 +120,6 @@ import {
   showSuperCurrentlySignedIn
 } from "./history.js";
 import {
-  configureAnalytics,
   loadAnalytics,
   loadSecurityDashboard,
   loadSuperDashboard,
@@ -104,6 +127,7 @@ import {
 } from "./analytics.js";
 import {
   downloadCsv,
+  downloadTextFile,
   exportToExcel,
   normaliseAuditExportRows
 } from "./exports.js";
@@ -116,7 +140,6 @@ import {
   createKioskDevice
 } from "./devices.js";
 import {
-  configureUsers,
   loadProfiles,
   clearProfileForm,
   saveProfileFromForm
@@ -172,21 +195,13 @@ window.addEventListener("load", async function () {
           lastSettingsRefreshAt = value;
         },
         syncAgreementSettingsControls,
-        applyFieldRules,
-        syncKioskManagerSettingsControls,
-        setSelectBool,
-        getFieldRule,
-        readBoolInput,
         bindKioskIdleActivityReset,
         simplifyPlannedQueueFilters
       }
     });
     configureAudit({
       appVersion: APP_VERSION,
-      getKioskToken,
-      buildResultSummary,
-      setResultBox,
-      auditDiffSummary
+      getKioskToken
     });
     configureMessages(appSettings);
     configurePrinting({
@@ -209,7 +224,6 @@ window.addEventListener("load", async function () {
       dependencies: {
         openWalkInModal,
         requestPrivacyAcknowledgement,
-        showWalkInModalMessage,
         validateRequiredField,
         currentPrivacyConfig,
         privacyDisplayMode,
@@ -222,30 +236,13 @@ window.addEventListener("load", async function () {
         writeAuditEvent
       }
     });
-    configureAnalytics({
-      buildResultSummary,
-      setResultBox
-    });
-    configureUsers({
-      buildResultSummary,
-      setResultBox
-    });
     configureHistory({
-      buildResultSummary,
-      setResultBox,
-      showEditModalMessage,
-      clearEditModalMessage,
-      focusFirstModalInput,
-      buildFieldDiff,
-      auditDiffSummary,
       loadSecurityDashboard,
       loadSuperDashboard
     });
     configurePlannedVisits({
       validateRequiredField,
       fieldValueIfVisible,
-      buildResultSummary,
-      setResultBox,
       openEditModal,
       reloadOpenStaffPanel
     });
@@ -261,122 +258,6 @@ window.addEventListener("load", async function () {
     });
 
     const debugInfo = document.getElementById("debugInfo");
-
-    function initialiseCollapsibleSettings() {
-      document.querySelectorAll(".settings-section").forEach(section => {
-        const heading = section.querySelector(":scope > .settings-heading");
-        if (!heading || section.dataset.collapsibleReady === "true") return;
-
-        const toggle = document.createElement("button");
-        toggle.type = "button";
-        toggle.className = "settings-toggle-button";
-        toggle.textContent = "−";
-        toggle.setAttribute("aria-label", "Collapse section");
-        heading.appendChild(toggle);
-
-        const toggleSection = () => {
-          section.classList.toggle("is-collapsed");
-          const collapsed = section.classList.contains("is-collapsed");
-          toggle.textContent = collapsed ? "+" : "−";
-          toggle.setAttribute("aria-label", collapsed ? "Expand section" : "Collapse section");
-        };
-
-        heading.addEventListener("click", event => {
-          if (["INPUT","SELECT","BUTTON","TEXTAREA","LABEL"].includes(event.target.tagName)) return;
-          toggleSection();
-        });
-
-        toggle.addEventListener("click", event => {
-          event.stopPropagation();
-          toggleSection();
-        });
-
-        section.classList.add("is-collapsed");
-        toggle.textContent = "+";
-        toggle.setAttribute("aria-label", "Expand section");
-
-        section.dataset.collapsibleReady = "true";
-      });
-    }
-
-
-    function getSettingBool(key, fallback) {
-      const value = settingValue(key, fallback);
-      return value === true || value === "true";
-    }
-
-    function getFieldRule(prefix, field, kind) {
-      const key = prefix + "_" + field + "_" + kind;
-      const fallback = appSettings.fieldRules[key];
-      return getSettingBool(key, fallback);
-    }
-
-    function setSelectBool(id, value) {
-      if (!$(id)) return;
-      if ($(id).type === "checkbox") {
-        $(id).checked = !!value;
-      } else {
-        $(id).value = value ? "true" : "false";
-      }
-    }
-
-    function readBoolInput(id) {
-      if (!$(id)) return false;
-      return $(id).type === "checkbox" ? $(id).checked : $(id).value === "true";
-    }
-
-    function applyFieldRules() {
-      const mappings = [
-        ["planned_reason", "planned", "reason"],
-        ["planned_vehicle", "planned", "vehicle"],
-        ["planned_contact", "planned", "contact"],
-        ["planned_pass", "planned", "pass"],
-        ["walkin_company", "walkin", "company"],
-        ["walkin_reason", "walkin", "reason"],
-        ["walkin_vehicle", "walkin", "vehicle"],
-        ["walkin_contact", "walkin", "contact"],
-        ["walkin_pass", "walkin", "pass"]
-      ];
-
-      mappings.forEach(([ruleName, prefix, field]) => {
-        const el = document.querySelector('[data-field-rule="' + ruleName + '"]');
-        if (!el) return;
-
-        const visible = getFieldRule(prefix, field, "visible");
-        const required = getFieldRule(prefix, field, "required") && visible;
-
-        el.classList.toggle("field-hidden-by-setting", !visible);
-        el.required = required;
-
-        const basePlaceholder = el.getAttribute("data-base-placeholder") || el.getAttribute("placeholder") || "";
-        if (!el.getAttribute("data-base-placeholder")) el.setAttribute("data-base-placeholder", basePlaceholder);
-        el.setAttribute("placeholder", basePlaceholder.replace(/ \\*$/, "") + (required ? " *" : ""));
-      });
-    }
-
-    function fieldValueIfVisible(id) {
-      const el = $(id);
-      if (!el || el.classList.contains("field-hidden-by-setting")) return "";
-      return el.value;
-    }
-
-    function validateRequiredField(id, label, useModalMessage) {
-      const el = $(id);
-      if (!el || el.classList.contains("field-hidden-by-setting") || !el.required) return true;
-      if (String(el.value || "").trim()) return true;
-
-      if (useModalMessage) {
-        showWalkInModalMessage(label + " is required.", "error");
-      } else {
-        showMessage(label + " is required.", "error");
-      }
-
-      return false;
-    }
-
-    function syncKioskManagerSettingsControls() {}
-    function syncKioskManagerSettingsBack() {}
-
 
     const settingGroups = {
       kioskBehaviour: [
@@ -691,40 +572,6 @@ window.addEventListener("load", async function () {
       await resetSettingsGroup("fieldRules", "Field Rules");
     }
 
-    function showWalkInModalMessage(text, type) {
-      const box = $("walkInModalMessage");
-      if (!box) {
-        showMessage(text, type || "error");
-        return;
-      }
-      box.textContent = text;
-      box.className = "modal-message " + (type || "error");
-    }
-
-    function clearWalkInModalMessage() {
-      const box = $("walkInModalMessage");
-      if (!box) return;
-      box.textContent = "";
-      box.className = "modal-message";
-    }
-
-    function showEditModalMessage(text, type) {
-      const box = $("editModalMessage");
-      if (!box) {
-        showMessage(text, type || "error");
-        return;
-      }
-      box.textContent = text;
-      box.className = "modal-message " + (type || "error");
-    }
-
-    function clearEditModalMessage() {
-      const box = $("editModalMessage");
-      if (!box) return;
-      box.textContent = "";
-      box.className = "modal-message";
-    }
-
     function kioskScreenInfo() {
       if (!window.screen) return null;
       return window.screen.width + "x" + window.screen.height + " / viewport " + window.innerWidth + "x" + window.innerHeight;
@@ -813,124 +660,7 @@ window.addEventListener("load", async function () {
       return true;
     }
 
-    function safeAttr(value) {
-      return String(value || "").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/'/g, "&#39;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    }
-
-    function buildResultSummary(count, label, extraText) {
-      return "<div class='results-summary'>" +
-        "<span>" + safe(label) + ": " + count + " row(s)</span>" +
-        "<span>" + safe(extraText || "") + "</span>" +
-        "</div>";
-    }
-
-    function setResultBox(box, summaryHtml, rowsContainer) {
-      box.innerHTML = summaryHtml + "<div class='results-scroll'></div>";
-      const scroll = box.querySelector(".results-scroll");
-      if (rowsContainer) {
-        while (rowsContainer.firstChild) {
-          scroll.appendChild(rowsContainer.firstChild);
-        }
-      }
-      return scroll;
-    }
-
-    function downloadTextFile(filename, content, mimeType) {
-      const blob = new Blob([content], { type: mimeType || "text/plain" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    }
-
-    function focusFirstModalInput(modalBackdropId) {
-      const modal = $(modalBackdropId);
-      if (!modal) return;
-
-      setTimeout(() => {
-        let firstInput = null;
-
-        if (modalBackdropId === "loginModalBackdrop" && $("loginEmail")) {
-          firstInput = $("loginEmail");
-        } else {
-          firstInput = Array.from(modal.querySelectorAll("input:not([type='hidden']):not([disabled]), textarea:not([disabled]), select:not([disabled])"))
-            .find(el => el.offsetParent !== null);
-        }
-
-        if (firstInput) {
-          firstInput.focus({ preventScroll: true });
-          if (typeof firstInput.select === "function") firstInput.select();
-        }
-      }, 120);
-    }
-
-    function getActiveModalConfig() {
-      const modalKeyboardMap = [
-        { backdrop: "kioskLogoutModalBackdrop", enter: "confirmKioskLogoutButton", escape: "cancelKioskLogoutButton" },
-        { backdrop: "notificationTemplateModalBackdrop", enter: "saveNotificationTemplateButton", escape: "cancelNotificationTemplateButton" },
-        { backdrop: "gdprCaseModalBackdrop", enter: "saveGdprCaseButton", escape: "cancelGdprCaseButton" },
-        { backdrop: "gdprAnonymiseModalBackdrop", enter: "confirmGdprAnonymiseButton", escape: "cancelGdprAnonymiseButton" },
-        { backdrop: "retentionConfirmModalBackdrop", enter: "confirmRetentionRunButton", escape: "cancelRetentionRunButton" },
-        { backdrop: "privacyNoticeModalBackdrop", enter: "confirmPrivacyNoticeButton", escape: "cancelPrivacyNoticeButton" },
-        { backdrop: "walkInModalBackdrop", enter: "walkInButton", escape: "cancelWalkInButton" },
-        { backdrop: "loginModalBackdrop", enter: "loginButton", escape: "closeLoginModalButton" },
-        { backdrop: "changePasswordModalBackdrop", enter: "savePasswordButton", escape: "cancelPasswordButton" },
-        { backdrop: "editModalBackdrop", enter: "saveEditButton", escape: "closeEditModalButton" },
-        { backdrop: "auditDetailsModalBackdrop", enter: "closeAuditDetailsBottomButton", escape: "closeAuditDetailsModalButton" },
-        { backdrop: "kioskConfirmBackdrop", enter: "closeKioskConfirmButton", escape: "closeKioskConfirmButton" }
-      ];
-
-      return modalKeyboardMap.find(config => {
-        const el = $(config.backdrop);
-        return el && el.classList.contains("active");
-      });
-    }
-
-    function handleGlobalModalKeyboard(event) {
-      if (event.key !== "Enter" && event.key !== "Escape") return;
-
-      const active = getActiveModalConfig();
-      if (!active) return;
-
-      if (event.key === "Enter") {
-        const tag = event.target && event.target.tagName ? event.target.tagName.toLowerCase() : "";
-        if (tag === "textarea") return;
-
-        const btn = $(active.enter);
-        if (btn) {
-          event.preventDefault();
-          btn.click();
-        }
-      }
-
-      if (event.key === "Escape") {
-        const btn = $(active.escape);
-        if (btn) {
-          event.preventDefault();
-          btn.click();
-        }
-      }
-    }
-
     let pendingKioskLogoutResolve = null;
-
-    function showKioskLogoutModalMessage(text, type) {
-      const box = $("kioskLogoutModalMessage");
-      if (!box) return;
-      box.textContent = text;
-      box.className = "modal-message " + (type || "error");
-    }
-
-    function clearKioskLogoutModalMessage() {
-      const box = $("kioskLogoutModalMessage");
-      if (!box) return;
-      box.textContent = "";
-      box.className = "modal-message";
-    }
 
     function openKioskLogoutModal() {
       clearKioskLogoutModalMessage();
@@ -2465,22 +2195,6 @@ window.addEventListener("load", async function () {
       }
     }
 
-    function plannedVisitDisplayStatus(visit) {
-      const rawStatus = String(visit.status || "").toLowerCase();
-
-      if (visit.sign_out_time || rawStatus === "signed_out") return "signed_out";
-      if (visit.sign_in_time || visit.visit_log_id || rawStatus === "signed_in") return "signed_in";
-      return rawStatus || "planned";
-    }
-
-    function plannedVisitStatusLabel(visit) {
-      const status = plannedVisitDisplayStatus(visit);
-      if (status === "signed_in") return "Signed in";
-      if (status === "signed_out") return "Signed out";
-      if (status === "cancelled") return "Cancelled";
-      return "Pending";
-    }
-
     function openWalkInModal(nameFromSearch) {
       clearWalkInModalMessage();
       $("walkInName").value = formatPersonName(nameFromSearch || $("plannedFilter").value || "");
@@ -2608,80 +2322,6 @@ window.addEventListener("load", async function () {
     }
 
 
-    function normaliseAuditValue(value, fieldName) {
-      if (value === undefined || value === "") return null;
-
-      const isDateTimeField = ["sign_in_time", "sign_out_time", "created_at", "modified_at"].includes(fieldName);
-
-      if (isDateTimeField && value) {
-        const parsed = new Date(value);
-        if (!isNaN(parsed.getTime())) {
-          // Compare datetime fields by actual instant, not by string format.
-          // Example equivalent values:
-          // 2026-06-20T18:03:00+00:00
-          // 2026-06-20T18:03:00.000Z
-          return parsed.toISOString();
-        }
-      }
-
-      return value;
-    }
-
-    function displayAuditValue(value, fieldName) {
-      if (value === undefined || value === "") return null;
-
-      const isDateTimeField = ["sign_in_time", "sign_out_time", "created_at", "modified_at"].includes(fieldName);
-
-      if (isDateTimeField && value) {
-        const parsed = new Date(value);
-        if (!isNaN(parsed.getTime())) {
-          return parsed.toISOString();
-        }
-      }
-
-      return value;
-    }
-
-    function buildFieldDiff(beforeRecord, afterRecord, fields) {
-      const diff = {};
-
-      fields.forEach(field => {
-        const beforeCompare = normaliseAuditValue(beforeRecord ? beforeRecord[field] : null, field);
-        const afterCompare = normaliseAuditValue(afterRecord ? afterRecord[field] : null, field);
-
-        if (String(beforeCompare ?? "") !== String(afterCompare ?? "")) {
-          diff[field] = {
-            old: displayAuditValue(beforeRecord ? beforeRecord[field] : null, field),
-            new: displayAuditValue(afterRecord ? afterRecord[field] : null, field)
-          };
-        }
-      });
-
-      return diff;
-    }
-
-    function auditDiffSummary(diff) {
-      const keys = Object.keys(diff || {});
-      if (keys.length === 0) return "No field changes detected.";
-      return keys.map(k => k.replaceAll("_", " ")).join(", ") + " changed.";
-    }
-
-    function buildObjectDiff(beforeObj, afterObj, fields) {
-      const diff = {};
-      (fields || Object.keys(Object.assign({}, beforeObj || {}, afterObj || {}))).forEach(field => {
-        const oldValue = normaliseAuditValue(beforeObj ? beforeObj[field] : null, field);
-        const newValue = normaliseAuditValue(afterObj ? afterObj[field] : null, field);
-
-        if (String(oldValue ?? "") !== String(newValue ?? "")) {
-          diff[field] = {
-            old: displayAuditValue(beforeObj ? beforeObj[field] : null, field),
-            new: displayAuditValue(afterObj ? afterObj[field] : null, field)
-          };
-        }
-      });
-      return diff;
-    }
-
 
     function healthItem(label, value) {
       return "<div class='health-item'><div class='health-label'>" + safe(label) + "</div><div class='health-value'>" + safe(value) + "</div></div>";
@@ -2689,11 +2329,6 @@ window.addEventListener("load", async function () {
 
 
 
-
-    function localDateKey() {
-      const now = new Date();
-      return now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0") + "-" + String(now.getDate()).padStart(2, "0");
-    }
 
     function shouldCurrentRoleRunDailyMaintenance() {
       if (!AppState.currentProfile || !AppState.currentProfile.role) return false;
@@ -2841,14 +2476,6 @@ window.addEventListener("load", async function () {
 
     let gdprSelectedCaseId = null;
     let gdprCasesCache = [];
-
-    function addOneMonthDate(value) {
-      const d = value ? new Date(value + "T00:00:00") : new Date();
-      const day = d.getDate();
-      d.setMonth(d.getMonth() + 1);
-      if (d.getDate() !== day) d.setDate(0);
-      return d.toISOString().slice(0, 10);
-    }
 
     function openGdprCaseModal(caseRecord) {
       const today = new Date().toISOString().slice(0, 10);
@@ -3791,24 +3418,6 @@ window.addEventListener("load", async function () {
       if ($("dataGovernanceStatus")) $("dataGovernanceStatus").textContent = "Privacy Notice restored to defaults.";
     }
 
-
-    function setLocalStatus(id, message, type) {
-      const box = $(id);
-      if (box) {
-        box.textContent = message || "";
-        if (!message) {
-          box.className = "local-action-status";
-          return;
-        }
-        box.className = "local-action-status " + (type || "info");
-      }
-
-      if (message) {
-        const toastType = type === "error" ? "error" : (type === "success" ? "success" : "info");
-        const toastTitle = type === "error" ? "Action failed" : (type === "success" ? "Action complete" : "Information");
-        showToast(toastTitle, message, toastType);
-      }
-    }
 
 
     let pendingRetentionConfirmResolve = null;

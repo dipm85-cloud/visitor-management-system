@@ -5,7 +5,8 @@ import {
   showMessage,
   clearMessage,
   showToast,
-  showKioskConfirmation
+  showKioskConfirmation,
+  showWalkInModalMessage
 } from "./messages.js";
 import { ensureKioskToken } from "./kiosk.js";
 import { showScreen } from "./navigation.js";
@@ -276,7 +277,7 @@ export async function signInWalkIn() {
   clearMessage();
   const actionButton = $("walkInButton");
   if (!beginKioskAction(actionButton, "Signing in...", "Sign In Walk-In")) {
-    visitorDependencies.showWalkInModalMessage("Signing in, please wait...", "success");
+    showWalkInModalMessage("Signing in, please wait...", "success");
     showToast("Please wait", "A kiosk action is already running.", "info");
     return;
   }
@@ -284,7 +285,7 @@ export async function signInWalkIn() {
   const name = formatPersonName($("walkInName").value);
 
   if (!name) {
-    visitorDependencies.showWalkInModalMessage("Please enter visitor name.", "error");
+    showWalkInModalMessage("Please enter visitor name.", "error");
     return;
   }
 
@@ -302,13 +303,13 @@ export async function signInWalkIn() {
     .limit(1);
 
   if (!activeDuplicate.error && activeDuplicate.data && activeDuplicate.data.length > 0) {
-    visitorDependencies.showWalkInModalMessage("A visitor with this name is already signed in. Please ask Security for help if this is a different person.", "error");
+    showWalkInModalMessage("A visitor with this name is already signed in. Please ask Security for help if this is a different person.", "error");
     return;
   }
 
   const plannedDuplicate = AppState.plannedTodayCache.find(v => formatPersonName(v.visitor_name) === name);
   if (plannedDuplicate) {
-    visitorDependencies.showWalkInModalMessage("A planned visitor with this name exists. Please select the planned visitor entry instead of creating a walk-in.", "error");
+    showWalkInModalMessage("A planned visitor with this name exists. Please select the planned visitor entry instead of creating a walk-in.", "error");
     return;
   }
 
@@ -325,11 +326,11 @@ export async function signInWalkIn() {
   try {
     kioskToken = ensureKioskToken();
   } catch (err) {
-    visitorDependencies.showWalkInModalMessage(err.message, "error");
+    showWalkInModalMessage(err.message, "error");
     return;
   }
 
-  visitorDependencies.showWalkInModalMessage("Signing you in, please wait...", "success");
+  showWalkInModalMessage("Signing you in, please wait...", "success");
 
   const walkInSignInRpc = visitorDependencies.isSuperKioskTestProfile()
     ? "superuser_test_kiosk_sign_in_walk_in"
@@ -348,7 +349,7 @@ export async function signInWalkIn() {
   });
 
   if (result.error) {
-    visitorDependencies.showWalkInModalMessage("Could not sign in walk-in visitor: " + result.error.message, "error");
+    showWalkInModalMessage("Could not sign in walk-in visitor: " + result.error.message, "error");
     console.error(result.error);
     return;
   }

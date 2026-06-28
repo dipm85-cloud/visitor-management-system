@@ -2,7 +2,7 @@ import { getDefaultAppSettings } from "./config.js";
 import { AppState } from "./state.js";
 import { supabaseClient } from "./api.js";
 import { $ } from "./dom.js";
-import { showMessage, clearMessage } from "./messages.js";
+import { showMessage, clearMessage, showWalkInModalMessage } from "./messages.js";
 import { writeAuditEvent } from "./audit.js";
 import { boolString } from "./utils.js";
 
@@ -15,6 +15,120 @@ export function configureSettings(options) {
   appVersion = options.appVersion;
   dependencies = options.dependencies;
 }
+
+export function initialiseCollapsibleSettings() {
+  document.querySelectorAll(".settings-section").forEach(section => {
+    const heading = section.querySelector(":scope > .settings-heading");
+    if (!heading || section.dataset.collapsibleReady === "true") return;
+
+    const toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = "settings-toggle-button";
+    toggle.textContent = "−";
+    toggle.setAttribute("aria-label", "Collapse section");
+    heading.appendChild(toggle);
+
+    const toggleSection = () => {
+      section.classList.toggle("is-collapsed");
+      const collapsed = section.classList.contains("is-collapsed");
+      toggle.textContent = collapsed ? "+" : "−";
+      toggle.setAttribute("aria-label", collapsed ? "Expand section" : "Collapse section");
+    };
+
+    heading.addEventListener("click", event => {
+      if (["INPUT","SELECT","BUTTON","TEXTAREA","LABEL"].includes(event.target.tagName)) return;
+      toggleSection();
+    });
+
+    toggle.addEventListener("click", event => {
+      event.stopPropagation();
+      toggleSection();
+    });
+
+    section.classList.add("is-collapsed");
+    toggle.textContent = "+";
+    toggle.setAttribute("aria-label", "Expand section");
+
+    section.dataset.collapsibleReady = "true";
+  });
+}
+
+function getSettingBool(key, fallback) {
+  const value = settingValue(key, fallback);
+  return value === true || value === "true";
+}
+
+function getFieldRule(prefix, field, kind) {
+  const key = prefix + "_" + field + "_" + kind;
+  const fallback = appSettings.fieldRules[key];
+  return getSettingBool(key, fallback);
+}
+
+function setSelectBool(id, value) {
+  if (!$(id)) return;
+  if ($(id).type === "checkbox") {
+    $(id).checked = !!value;
+  } else {
+    $(id).value = value ? "true" : "false";
+  }
+}
+
+export function readBoolInput(id) {
+  if (!$(id)) return false;
+  return $(id).type === "checkbox" ? $(id).checked : $(id).value === "true";
+}
+
+export function applyFieldRules() {
+  const mappings = [
+    ["planned_reason", "planned", "reason"],
+    ["planned_vehicle", "planned", "vehicle"],
+    ["planned_contact", "planned", "contact"],
+    ["planned_pass", "planned", "pass"],
+    ["walkin_company", "walkin", "company"],
+    ["walkin_reason", "walkin", "reason"],
+    ["walkin_vehicle", "walkin", "vehicle"],
+    ["walkin_contact", "walkin", "contact"],
+    ["walkin_pass", "walkin", "pass"]
+  ];
+
+  mappings.forEach(([ruleName, prefix, field]) => {
+    const el = document.querySelector('[data-field-rule="' + ruleName + '"]');
+    if (!el) return;
+
+    const visible = getFieldRule(prefix, field, "visible");
+    const required = getFieldRule(prefix, field, "required") && visible;
+
+    el.classList.toggle("field-hidden-by-setting", !visible);
+    el.required = required;
+
+    const basePlaceholder = el.getAttribute("data-base-placeholder") || el.getAttribute("placeholder") || "";
+    if (!el.getAttribute("data-base-placeholder")) el.setAttribute("data-base-placeholder", basePlaceholder);
+    el.setAttribute("placeholder", basePlaceholder.replace(/ \\*$/, "") + (required ? " *" : ""));
+  });
+}
+
+export function fieldValueIfVisible(id) {
+  const el = $(id);
+  if (!el || el.classList.contains("field-hidden-by-setting")) return "";
+  return el.value;
+}
+
+export function validateRequiredField(id, label, useModalMessage) {
+  const el = $(id);
+  if (!el || el.classList.contains("field-hidden-by-setting") || !el.required) return true;
+  if (String(el.value || "").trim()) return true;
+
+  if (useModalMessage) {
+    showWalkInModalMessage(label + " is required.", "error");
+  } else {
+    showMessage(label + " is required.", "error");
+  }
+
+  return false;
+}
+
+function syncKioskManagerSettingsControls() {}
+function syncKioskManagerSettingsBack() {}
 
 export async function loadSystemSettings() {
   Object.assign(appSettings, getDefaultAppSettings());
@@ -103,8 +217,8 @@ export async function loadSystemSettings() {
   if ($("settingEmailProcessorBatchSize")) $("settingEmailProcessorBatchSize").value = settingValue("email_processor_batch_size", appSettings.emailProcessorBatchSize || 25);
   if ($("settingEmailProcessorSchedule")) $("settingEmailProcessorSchedule").value = settingValue("email_processor_schedule", appSettings.emailProcessorSchedule || "Every 5 minutes");
   dependencies.syncAgreementSettingsControls();
-  dependencies.applyFieldRules();
-  dependencies.syncKioskManagerSettingsControls();
+  applyFieldRules();
+  syncKioskManagerSettingsControls();
 }
 
 export function applyBrandAssets() {
@@ -190,27 +304,27 @@ export function fillSettingsForm() {
   if ($("settingPrivacyNoticeText")) $("settingPrivacyNoticeText").value = settingValue("privacy_notice_text", appSettings.privacyNoticeText);
   if ($("settingPrivacyDisplayMode")) $("settingPrivacyDisplayMode").value = settingValue("privacy_display_mode", appSettings.privacyDisplayMode);
 
-  dependencies.setSelectBool("settingPlannedReasonVisible", dependencies.getFieldRule("planned", "reason", "visible"));
-  dependencies.setSelectBool("settingPlannedReasonRequired", dependencies.getFieldRule("planned", "reason", "required"));
-  dependencies.setSelectBool("settingPlannedVehicleVisible", dependencies.getFieldRule("planned", "vehicle", "visible"));
-  dependencies.setSelectBool("settingPlannedVehicleRequired", dependencies.getFieldRule("planned", "vehicle", "required"));
-  dependencies.setSelectBool("settingPlannedContactVisible", dependencies.getFieldRule("planned", "contact", "visible"));
-  dependencies.setSelectBool("settingPlannedContactRequired", dependencies.getFieldRule("planned", "contact", "required"));
-  dependencies.setSelectBool("settingPlannedPassVisible", dependencies.getFieldRule("planned", "pass", "visible"));
-  dependencies.setSelectBool("settingPlannedPassRequired", dependencies.getFieldRule("planned", "pass", "required"));
+  setSelectBool("settingPlannedReasonVisible", getFieldRule("planned", "reason", "visible"));
+  setSelectBool("settingPlannedReasonRequired", getFieldRule("planned", "reason", "required"));
+  setSelectBool("settingPlannedVehicleVisible", getFieldRule("planned", "vehicle", "visible"));
+  setSelectBool("settingPlannedVehicleRequired", getFieldRule("planned", "vehicle", "required"));
+  setSelectBool("settingPlannedContactVisible", getFieldRule("planned", "contact", "visible"));
+  setSelectBool("settingPlannedContactRequired", getFieldRule("planned", "contact", "required"));
+  setSelectBool("settingPlannedPassVisible", getFieldRule("planned", "pass", "visible"));
+  setSelectBool("settingPlannedPassRequired", getFieldRule("planned", "pass", "required"));
 
-  dependencies.setSelectBool("settingWalkinCompanyVisible", dependencies.getFieldRule("walkin", "company", "visible"));
-  dependencies.setSelectBool("settingWalkinCompanyRequired", dependencies.getFieldRule("walkin", "company", "required"));
-  dependencies.setSelectBool("settingWalkinReasonVisible", dependencies.getFieldRule("walkin", "reason", "visible"));
-  dependencies.setSelectBool("settingWalkinReasonRequired", dependencies.getFieldRule("walkin", "reason", "required"));
-  dependencies.setSelectBool("settingWalkinVehicleVisible", dependencies.getFieldRule("walkin", "vehicle", "visible"));
-  dependencies.setSelectBool("settingWalkinVehicleRequired", dependencies.getFieldRule("walkin", "vehicle", "required"));
-  dependencies.setSelectBool("settingWalkinContactVisible", dependencies.getFieldRule("walkin", "contact", "visible"));
-  dependencies.setSelectBool("settingWalkinContactRequired", dependencies.getFieldRule("walkin", "contact", "required"));
-  dependencies.setSelectBool("settingWalkinPassVisible", dependencies.getFieldRule("walkin", "pass", "visible"));
-  dependencies.setSelectBool("settingWalkinPassRequired", dependencies.getFieldRule("walkin", "pass", "required"));
+  setSelectBool("settingWalkinCompanyVisible", getFieldRule("walkin", "company", "visible"));
+  setSelectBool("settingWalkinCompanyRequired", getFieldRule("walkin", "company", "required"));
+  setSelectBool("settingWalkinReasonVisible", getFieldRule("walkin", "reason", "visible"));
+  setSelectBool("settingWalkinReasonRequired", getFieldRule("walkin", "reason", "required"));
+  setSelectBool("settingWalkinVehicleVisible", getFieldRule("walkin", "vehicle", "visible"));
+  setSelectBool("settingWalkinVehicleRequired", getFieldRule("walkin", "vehicle", "required"));
+  setSelectBool("settingWalkinContactVisible", getFieldRule("walkin", "contact", "visible"));
+  setSelectBool("settingWalkinContactRequired", getFieldRule("walkin", "contact", "required"));
+  setSelectBool("settingWalkinPassVisible", getFieldRule("walkin", "pass", "visible"));
+  setSelectBool("settingWalkinPassRequired", getFieldRule("walkin", "pass", "required"));
 
-  dependencies.applyFieldRules();
+  applyFieldRules();
   $("settingsStatus").textContent = "Settings loaded.";
 }
 
@@ -257,25 +371,25 @@ export async function saveSettingsForm() {
     ["require_onsite_contact", $("settingRequireContact").value === "true", "Require on-site contact during sign-in"],
     ["kiosk_device_required", $("settingRequireKioskDevice").value === "true", "Require kiosk token for public kiosk actions"],
 
-    ["planned_reason_visible", dependencies.readBoolInput("settingPlannedReasonVisible"), "Show reason field when creating planned visits"],
-    ["planned_reason_required", dependencies.readBoolInput("settingPlannedReasonRequired"), "Require reason field when creating planned visits"],
-    ["planned_vehicle_visible", dependencies.readBoolInput("settingPlannedVehicleVisible"), "Show vehicle field when creating planned visits"],
-    ["planned_vehicle_required", dependencies.readBoolInput("settingPlannedVehicleRequired"), "Require vehicle field when creating planned visits"],
-    ["planned_contact_visible", dependencies.readBoolInput("settingPlannedContactVisible"), "Show on-site contact field when creating planned visits"],
-    ["planned_contact_required", dependencies.readBoolInput("settingPlannedContactRequired"), "Require on-site contact field when creating planned visits"],
-    ["planned_pass_visible", dependencies.readBoolInput("settingPlannedPassVisible"), "Show security pass field when creating planned visits"],
-    ["planned_pass_required", dependencies.readBoolInput("settingPlannedPassRequired"), "Require security pass field when creating planned visits"],
+    ["planned_reason_visible", readBoolInput("settingPlannedReasonVisible"), "Show reason field when creating planned visits"],
+    ["planned_reason_required", readBoolInput("settingPlannedReasonRequired"), "Require reason field when creating planned visits"],
+    ["planned_vehicle_visible", readBoolInput("settingPlannedVehicleVisible"), "Show vehicle field when creating planned visits"],
+    ["planned_vehicle_required", readBoolInput("settingPlannedVehicleRequired"), "Require vehicle field when creating planned visits"],
+    ["planned_contact_visible", readBoolInput("settingPlannedContactVisible"), "Show on-site contact field when creating planned visits"],
+    ["planned_contact_required", readBoolInput("settingPlannedContactRequired"), "Require on-site contact field when creating planned visits"],
+    ["planned_pass_visible", readBoolInput("settingPlannedPassVisible"), "Show security pass field when creating planned visits"],
+    ["planned_pass_required", readBoolInput("settingPlannedPassRequired"), "Require security pass field when creating planned visits"],
 
-    ["walkin_company_visible", dependencies.readBoolInput("settingWalkinCompanyVisible"), "Show company field for walk-ins"],
-    ["walkin_company_required", dependencies.readBoolInput("settingWalkinCompanyRequired"), "Require company field for walk-ins"],
-    ["walkin_reason_visible", dependencies.readBoolInput("settingWalkinReasonVisible"), "Show reason field for walk-ins"],
-    ["walkin_reason_required", dependencies.readBoolInput("settingWalkinReasonRequired"), "Require reason field for walk-ins"],
-    ["walkin_vehicle_visible", dependencies.readBoolInput("settingWalkinVehicleVisible"), "Show vehicle field for walk-ins"],
-    ["walkin_vehicle_required", dependencies.readBoolInput("settingWalkinVehicleRequired"), "Require vehicle field for walk-ins"],
-    ["walkin_contact_visible", dependencies.readBoolInput("settingWalkinContactVisible"), "Show on-site contact field for walk-ins"],
-    ["walkin_contact_required", dependencies.readBoolInput("settingWalkinContactRequired"), "Require on-site contact field for walk-ins"],
-    ["walkin_pass_visible", dependencies.readBoolInput("settingWalkinPassVisible"), "Show security pass field for walk-ins"],
-    ["walkin_pass_required", dependencies.readBoolInput("settingWalkinPassRequired"), "Require security pass field for walk-ins"]
+    ["walkin_company_visible", readBoolInput("settingWalkinCompanyVisible"), "Show company field for walk-ins"],
+    ["walkin_company_required", readBoolInput("settingWalkinCompanyRequired"), "Require company field for walk-ins"],
+    ["walkin_reason_visible", readBoolInput("settingWalkinReasonVisible"), "Show reason field for walk-ins"],
+    ["walkin_reason_required", readBoolInput("settingWalkinReasonRequired"), "Require reason field for walk-ins"],
+    ["walkin_vehicle_visible", readBoolInput("settingWalkinVehicleVisible"), "Show vehicle field for walk-ins"],
+    ["walkin_vehicle_required", readBoolInput("settingWalkinVehicleRequired"), "Require vehicle field for walk-ins"],
+    ["walkin_contact_visible", readBoolInput("settingWalkinContactVisible"), "Show on-site contact field for walk-ins"],
+    ["walkin_contact_required", readBoolInput("settingWalkinContactRequired"), "Require on-site contact field for walk-ins"],
+    ["walkin_pass_visible", readBoolInput("settingWalkinPassVisible"), "Show security pass field for walk-ins"],
+    ["walkin_pass_required", readBoolInput("settingWalkinPassRequired"), "Require security pass field for walk-ins"]
   ];
 
   try {
@@ -295,7 +409,7 @@ export async function saveSettingsForm() {
     dependencies.bindKioskIdleActivityReset();
     dependencies.simplifyPlannedQueueFilters();
     await loadSystemSettings();
-    dependencies.applyFieldRules();
+    applyFieldRules();
     fillSettingsForm();
 
     await writeAuditEvent("settings_changed", "system_settings", null, { action: "settings_saved" });
@@ -330,7 +444,7 @@ export async function resetSettingsDefaults() {
   Object.assign(appSettings, getDefaultAppSettings());
   await loadSystemSettings();
   applyBrandAssets();
-  dependencies.applyFieldRules();
+  applyFieldRules();
   fillSettingsForm();
 
   await writeAuditEvent("settings_changed", "system_settings", null, { action: "settings_reset_defaults" });

@@ -86,3 +86,69 @@ export function closeKioskConfirmation() {
   if (confirmTimer) clearTimeout(confirmTimer);
   confirmTimer = null;
 }
+
+export function showWalkInModalMessage(text, type) {
+  const box = $("walkInModalMessage");
+  if (!box) {
+    showMessage(text, type || "error");
+    return;
+  }
+  box.textContent = text;
+  box.className = "modal-message " + (type || "error");
+}
+
+export function clearWalkInModalMessage() {
+  const box = $("walkInModalMessage");
+  if (!box) return;
+  box.textContent = "";
+  box.className = "modal-message";
+}
+
+export function showEditModalMessage(text, type) {
+  const box = $("editModalMessage");
+  if (!box) {
+    showMessage(text, type || "error");
+    return;
+  }
+  box.textContent = text;
+  box.className = "modal-message " + (type || "error");
+}
+
+export function clearEditModalMessage() {
+  const box = $("editModalMessage");
+  if (!box) return;
+  box.textContent = "";
+  box.className = "modal-message";
+}
+
+export function setLocalStatus(id, message, type) {
+  const box = $(id);
+  if (box) {
+    box.textContent = message || "";
+    if (!message) {
+      box.className = "local-action-status";
+      return;
+    }
+    box.className = "local-action-status " + (type || "info");
+  }
+
+  if (message) {
+    const toastType = type === "error" ? "error" : (type === "success" ? "success" : "info");
+    const toastTitle = type === "error" ? "Action failed" : (type === "success" ? "Action complete" : "Information");
+    showToast(toastTitle, message, toastType);
+  }
+}
+
+export function showKioskLogoutModalMessage(text, type) {
+  const box = $("kioskLogoutModalMessage");
+  if (!box) return;
+  box.textContent = text;
+  box.className = "modal-message " + (type || "error");
+}
+
+export function clearKioskLogoutModalMessage() {
+  const box = $("kioskLogoutModalMessage");
+  if (!box) return;
+  box.textContent = "";
+  box.className = "modal-message";
+}

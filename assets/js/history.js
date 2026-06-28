@@ -1,9 +1,9 @@
 import { supabaseClient } from "./api.js";
 import { AppState } from "./state.js";
-import { $ } from "./dom.js";
-import { clearMessage, showMessage } from "./messages.js";
+import { $, buildResultSummary, setResultBox, focusFirstModalInput } from "./dom.js";
+import { clearMessage, showMessage, showEditModalMessage, clearEditModalMessage } from "./messages.js";
 import { todayDate, safe, formatPersonName, normalisePlate } from "./utils.js";
-import { writeAuditEvent } from "./audit.js";
+import { writeAuditEvent, buildFieldDiff, auditDiffSummary } from "./audit.js";
 import { refreshCoreData } from "./visitorFlow.js";
 import {
   searchPlanned,
@@ -69,7 +69,7 @@ export async function searchHistory(targetBoxId, fromDate, toDate, name, allowEd
 
 export function renderHistoryResults(box, data, allowEdit, allowDelete, securityOnly) {
   if (data.length === 0) {
-    box.innerHTML = historyDependencies.buildResultSummary(0, "Visit history", "No matching records") +
+    box.innerHTML = buildResultSummary(0, "Visit history", "No matching records") +
       "<div class='results-scroll'><div class='row-meta' style='padding:14px 0;'>No history found.</div></div>";
     return;
   }
@@ -118,9 +118,9 @@ export function renderHistoryResults(box, data, allowEdit, allowDelete, security
     temp.appendChild(row);
   });
 
-  historyDependencies.setResultBox(
+  setResultBox(
     box,
-    historyDependencies.buildResultSummary(data.length, "Visit history", "Filtered result"),
+    buildResultSummary(data.length, "Visit history", "Filtered result"),
     temp
   );
 }
@@ -142,7 +142,7 @@ function fromDateTimeLocalValue(value) {
 }
 
 export function openEditModal(table, record, mode) {
-  historyDependencies.clearEditModalMessage();
+  clearEditModalMessage();
   originalEditRecord = JSON.parse(JSON.stringify(record || {}));
   if ($("editChangeReason")) $("editChangeReason").value = "";
   $("editTableName").value = table;
@@ -169,17 +169,17 @@ export function openEditModal(table, record, mode) {
   $("editVisitOrigin").value = canEditLogAdvanced ? (record.visit_origin || "") : "";
 
   $("editModalBackdrop").classList.add("active");
-  historyDependencies.focusFirstModalInput("editModalBackdrop");
+  focusFirstModalInput("editModalBackdrop");
 }
 
 export function closeEditModal() {
   $("editModalBackdrop").classList.remove("active");
-  historyDependencies.clearEditModalMessage();
+  clearEditModalMessage();
 }
 
 export async function saveEdit() {
   clearMessage();
-  historyDependencies.clearEditModalMessage();
+  clearEditModalMessage();
 
   try {
     const table = $("editTableName").value;
@@ -188,11 +188,11 @@ export async function saveEdit() {
     const changeReason = $("editChangeReason") ? $("editChangeReason").value.trim() : "";
 
     if (!changeReason) {
-      historyDependencies.showEditModalMessage("Change reason is required.", "error");
+      showEditModalMessage("Change reason is required.", "error");
       return;
     }
 
-    historyDependencies.showEditModalMessage("Saving changes...", "success");
+    showEditModalMessage("Saving changes...", "success");
 
     const securityPass = $("editSecurityPass").value.trim() || null;
 
@@ -241,10 +241,10 @@ export async function saveEdit() {
     }
 
     const afterRecord = Object.assign({}, originalEditRecord || {}, payloadForAudit);
-    const changes = historyDependencies.buildFieldDiff(originalEditRecord, afterRecord, trackedFields);
+    const changes = buildFieldDiff(originalEditRecord, afterRecord, trackedFields);
 
     if (Object.keys(changes).length === 0) {
-      historyDependencies.showEditModalMessage("No field changes detected. Nothing was saved and no audit event was created.", "error");
+      showEditModalMessage("No field changes detected. Nothing was saved and no audit event was created.", "error");
       return;
     }
 
@@ -260,7 +260,7 @@ export async function saveEdit() {
           p_security_pass_id: securityPass
         });
       } else {
-        historyDependencies.showEditModalMessage("Unknown edit target.", "error");
+        showEditModalMessage("Unknown edit target.", "error");
         return;
       }
     } else {
@@ -268,7 +268,7 @@ export async function saveEdit() {
     }
 
     if (result.error) {
-      historyDependencies.showEditModalMessage("Could not save changes: " + result.error.message, "error");
+      showEditModalMessage("Could not save changes: " + result.error.message, "error");
       showMessage("Could not save changes. See edit window for details.", "error");
       console.error(result.error);
       return;
@@ -279,7 +279,7 @@ export async function saveEdit() {
       action: "edit",
       reason: changeReason,
       changes: changes,
-      summary: historyDependencies.auditDiffSummary(changes)
+      summary: auditDiffSummary(changes)
     });
 
     closeEditModal();
@@ -287,7 +287,7 @@ export async function saveEdit() {
     await refreshCoreData();
     await reloadOpenStaffPanel();
   } catch (err) {
-    historyDependencies.showEditModalMessage("Unexpected save error: " + (err.message || String(err)), "error");
+    showEditModalMessage("Unexpected save error: " + (err.message || String(err)), "error");
     showMessage("Could not save changes. See edit window for details.", "error");
     console.error("saveEdit failed:", err);
   }

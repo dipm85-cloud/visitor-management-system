@@ -22,6 +22,18 @@ export function downloadCsv(filename, rows) {
   URL.revokeObjectURL(url);
 }
 
+export function downloadTextFile(filename, content, mimeType) {
+  const blob = new Blob([content], { type: mimeType || "text/plain" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 export function normaliseExportRows(rows, type) {
   if (!rows || rows.length === 0) return [];
 

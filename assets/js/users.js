@@ -1,15 +1,9 @@
 import { supabaseClient } from "./api.js";
 import { AppState } from "./state.js";
-import { $ } from "./dom.js";
+import { $, buildResultSummary, setResultBox } from "./dom.js";
 import { clearMessage, showMessage } from "./messages.js";
 import { writeAuditEvent } from "./audit.js";
 import { safe } from "./utils.js";
-
-let userDependencies;
-
-export function configureUsers(dependencies) {
-  userDependencies = dependencies;
-}
 
 function normalisePlannedVisitRows(rows) {
   return (rows || []).map(row => {
@@ -103,7 +97,6 @@ export async function loadProfiles() {
 }
 
 export function renderProfiles(data) {
-  const { buildResultSummary, setResultBox } = userDependencies;
   const box = $("profilesList");
   if (!box) return;
 

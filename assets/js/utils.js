@@ -10,6 +10,10 @@ export function safe(value) {
   return text === "" ? "-" : text;
 }
 
+export function safeAttr(value) {
+  return String(value || "").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/'/g, "&#39;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
 export function formatPersonName(value) {
   return String(value || "")
     .trim()
@@ -58,4 +62,17 @@ export function formatPrintDate(value) {
 export function formatPrintTime(value) {
   if (!value) return "-";
   return String(value).slice(0, 5);
+}
+
+export function localDateKey() {
+  const now = new Date();
+  return now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0") + "-" + String(now.getDate()).padStart(2, "0");
+}
+
+export function addOneMonthDate(value) {
+  const d = value ? new Date(value + "T00:00:00") : new Date();
+  const day = d.getDate();
+  d.setMonth(d.getMonth() + 1);
+  if (d.getDate() !== day) d.setDate(0);
+  return d.toISOString().slice(0, 10);
 }

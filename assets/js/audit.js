@@ -1,6 +1,6 @@
 import { supabaseClient } from "./api.js";
 import { AppState } from "./state.js";
-import { $ } from "./dom.js";
+import { $, buildResultSummary, setResultBox } from "./dom.js";
 import { showMessage } from "./messages.js";
 import { safe } from "./utils.js";
 
@@ -113,8 +113,6 @@ export function closeAuditDetailsModal() {
 }
 
 export function renderAuditEvents(box, data) {
-  const { buildResultSummary, setResultBox, auditDiffSummary } = auditDependencies;
-
   if (!data || data.length === 0) {
     box.innerHTML = buildResultSummary(0, "Audit events", "No matching records") +
       "<div class='results-scroll'><div class='row-meta' style='padding:14px 0;'>No audit events found.</div></div>";
@@ -150,4 +148,78 @@ export function renderAuditEvents(box, data) {
   });
 
   setResultBox(box, buildResultSummary(data.length, "Audit events", "Filtered result"), temp);
+}
+
+export function normaliseAuditValue(value, fieldName) {
+  if (value === undefined || value === "") return null;
+
+  const isDateTimeField = ["sign_in_time", "sign_out_time", "created_at", "modified_at"].includes(fieldName);
+
+  if (isDateTimeField && value) {
+    const parsed = new Date(value);
+    if (!isNaN(parsed.getTime())) {
+      // Compare datetime fields by actual instant, not by string format.
+      // Example equivalent values:
+      // 2026-06-20T18:03:00+00:00
+      // 2026-06-20T18:03:00.000Z
+      return parsed.toISOString();
+    }
+  }
+
+  return value;
+}
+
+export function displayAuditValue(value, fieldName) {
+  if (value === undefined || value === "") return null;
+
+  const isDateTimeField = ["sign_in_time", "sign_out_time", "created_at", "modified_at"].includes(fieldName);
+
+  if (isDateTimeField && value) {
+    const parsed = new Date(value);
+    if (!isNaN(parsed.getTime())) {
+      return parsed.toISOString();
+    }
+  }
+
+  return value;
+}
+
+export function buildFieldDiff(beforeRecord, afterRecord, fields) {
+  const diff = {};
+
+  fields.forEach(field => {
+    const beforeCompare = normaliseAuditValue(beforeRecord ? beforeRecord[field] : null, field);
+    const afterCompare = normaliseAuditValue(afterRecord ? afterRecord[field] : null, field);
+
+    if (String(beforeCompare ?? "") !== String(afterCompare ?? "")) {
+      diff[field] = {
+        old: displayAuditValue(beforeRecord ? beforeRecord[field] : null, field),
+        new: displayAuditValue(afterRecord ? afterRecord[field] : null, field)
+      };
+    }
+  });
+
+  return diff;
+}
+
+export function auditDiffSummary(diff) {
+  const keys = Object.keys(diff || {});
+  if (keys.length === 0) return "No field changes detected.";
+  return keys.map(k => k.replaceAll("_", " ")).join(", ") + " changed.";
+}
+
+export function buildObjectDiff(beforeObj, afterObj, fields) {
+  const diff = {};
+  (fields || Object.keys(Object.assign({}, beforeObj || {}, afterObj || {}))).forEach(field => {
+    const oldValue = normaliseAuditValue(beforeObj ? beforeObj[field] : null, field);
+    const newValue = normaliseAuditValue(afterObj ? afterObj[field] : null, field);
+
+    if (String(oldValue ?? "") !== String(newValue ?? "")) {
+      diff[field] = {
+        old: displayAuditValue(beforeObj ? beforeObj[field] : null, field),
+        new: displayAuditValue(afterObj ? afterObj[field] : null, field)
+      };
+    }
+  });
+  return diff;
 }
