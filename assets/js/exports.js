@@ -69,7 +69,11 @@ export function autoSizeWorksheetColumns(ws, rows) {
 }
 
 export function exportToExcel(rows, filename, type) {
-  const formattedRows = type === "agreements" ? (rows || []) : normaliseExportRows(rows, type);
+  const formattedRows = type === "agreements"
+    ? (rows || [])
+    : type === "audit"
+      ? normaliseAuditExportRows(rows)
+      : normaliseExportRows(rows, type);
 
   if (!formattedRows || formattedRows.length === 0) {
     showMessage("Nothing to export.", "error");
@@ -85,7 +89,7 @@ export function exportToExcel(rows, filename, type) {
   autoSizeWorksheetColumns(ws, formattedRows);
 
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, type === "planned" ? "Planned Visits" : "Visit History");
+  XLSX.utils.book_append_sheet(wb, ws, type === "planned" ? "Planned Visits" : type === "audit" ? "Audit Events" : "Visit History");
 
   XLSX.writeFile(wb, filename);
 }

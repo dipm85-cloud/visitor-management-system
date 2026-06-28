@@ -38,7 +38,13 @@ import {
   isKioskProfile,
   roleLabel
 } from "./auth.js";
-import { configureAudit, getBrowserAuditContext, writeAuditEvent } from "./audit.js";
+import {
+  configureAudit,
+  getBrowserAuditContext,
+  writeAuditEvent,
+  loadAuditEvents,
+  closeAuditDetailsModal
+} from "./audit.js";
 import {
   configureSettings,
   loadSystemSettings,
@@ -167,7 +173,10 @@ window.addEventListener("load", async function () {
     });
     configureAudit({
       appVersion: APP_VERSION,
-      getKioskToken
+      getKioskToken,
+      buildResultSummary,
+      setResultBox,
+      auditDiffSummary
     });
     configureMessages(appSettings);
     configurePrinting({
@@ -1062,94 +1071,6 @@ window.addEventListener("load", async function () {
       });
       showMessage("Kiosk device status updated.", "success");
       await loadKioskDevices();
-    }
-
-    async function loadAuditEvents() {
-      const box = $("auditEventsResults");
-      if (!box) return;
-
-      box.innerHTML = "Loading audit events...";
-
-      const result = await supabaseClient.rpc("superuser_list_audit_events", {
-        p_from_date: $("auditFromDate").value || null,
-        p_to_date: $("auditToDate").value || null,
-        p_event_type: $("auditEventType").value || null,
-        p_search_text: $("auditSearchText").value.trim() || null
-      });
-
-      if (result.error) {
-        box.innerHTML = "Could not load audit events: " + result.error.message;
-        showMessage("Could not load audit events: " + result.error.message, "error");
-        console.error(result.error);
-        return;
-      }
-
-      AppState.auditEventsCache = result.data || [];
-      renderAuditEvents(box, AppState.auditEventsCache);
-    }
-
-    function openAuditDetailsModal(eventRecord) {
-      const details = eventRecord.details || {};
-      const changes = details.changes || {};
-      const rows = Object.keys(changes).map(field => {
-        const c = changes[field] || {};
-        return "<tr><td>" + safe(field.replaceAll("_", " ")) + "</td><td>" + safe(c.old) + "</td><td>" + safe(c.new) + "</td></tr>";
-      }).join("");
-
-      $("auditDetailsContent").innerHTML =
-        "<div class='row-meta'>" +
-        "<strong>Event:</strong> " + safe(eventRecord.event_type) + "<br>" +
-        "<strong>Time:</strong> " + (eventRecord.created_at ? new Date(eventRecord.created_at).toLocaleString() : "-") + "<br>" +
-        "<strong>Actor:</strong> " + safe(eventRecord.actor_display_name) + "<br>" +
-        "<strong>Entity:</strong> " + safe(eventRecord.entity_type) + " / " + safe(eventRecord.entity_id) + "<br>" +
-        "<strong>Reason:</strong> " + safe(details.reason || "-") +
-        "</div>" +
-        (rows ? "<table><thead><tr><th>Field</th><th>Old</th><th>New</th></tr></thead><tbody>" + rows + "</tbody></table>" : "<div class='row-meta'>No field-level changes recorded.</div>") +
-        "<h3>Raw Audit Details</h3><pre style='white-space:pre-wrap;word-break:break-word;'>" + safe(JSON.stringify(details, null, 2)) + "</pre>";
-
-      $("auditDetailsModalBackdrop").classList.add("active");
-    }
-
-    function closeAuditDetailsModal() {
-      $("auditDetailsModalBackdrop").classList.remove("active");
-    }
-
-    function renderAuditEvents(box, data) {
-      if (!data || data.length === 0) {
-        box.innerHTML = buildResultSummary(0, "Audit events", "No matching records") +
-          "<div class='results-scroll'><div class='row-meta' style='padding:14px 0;'>No audit events found.</div></div>";
-        return;
-      }
-
-      const temp = document.createElement("div");
-
-      data.forEach(evt => {
-        const row = document.createElement("div");
-        row.className = "row";
-
-        const details = evt.details || {};
-        const summary = details.summary || auditDiffSummary(details.changes || {});
-
-        row.innerHTML =
-          "<div class='row-title'>" + safe(evt.event_type) + "</div>" +
-          "<div class='row-meta'>" +
-          "Time: " + (evt.created_at ? new Date(evt.created_at).toLocaleString() : "-") + "<br>" +
-          "Actor: " + safe(evt.actor_display_name) + "<br>" +
-          "Entity: " + safe(evt.entity_type) + " / " + safe(evt.entity_id) + "<br>" +
-          "Summary: " + safe(summary) +
-          "</div>";
-
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.className = "secondary";
-        btn.textContent = "View Details";
-        btn.addEventListener("click", () => openAuditDetailsModal(evt));
-        row.appendChild(btn);
-
-        temp.appendChild(row);
-      });
-
-      setResultBox(box, buildResultSummary(data.length, "Audit events", "Filtered result"), temp);
     }
 
     function showWalkInModalMessage(text, type) {
@@ -5538,7 +5459,7 @@ window.addEventListener("load", async function () {
     if ($("closePrivacyNoticeModalButton")) $("closePrivacyNoticeModalButton").addEventListener("click", () => closePrivacyNoticeModal(false));
     if ($("superLoadAnalyticsButton")) $("superLoadAnalyticsButton").addEventListener("click", () => loadAnalytics("super"));
     if ($("downloadAuditCsvButton")) $("downloadAuditCsvButton").addEventListener("click", () => downloadCsv("audit_events.csv", normaliseAuditExportRows(AppState.auditEventsCache)));
-    if ($("downloadAuditExcelButton")) $("downloadAuditExcelButton").addEventListener("click", () => exportToExcel(normaliseAuditExportRows(AppState.auditEventsCache), "VMS_AuditEvents_" + exportDateStamp() + ".xlsx", "history"));
+    if ($("downloadAuditExcelButton")) $("downloadAuditExcelButton").addEventListener("click", () => exportToExcel(AppState.auditEventsCache, "VMS_AuditEvents_" + exportDateStamp() + ".xlsx", "audit"));
 
 
     ["settingPlannedReasonVisible","settingPlannedReasonRequired","settingPlannedVehicleVisible","settingPlannedVehicleRequired",
