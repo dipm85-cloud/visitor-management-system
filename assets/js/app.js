@@ -44,6 +44,7 @@ import {
   isKioskProfile,
   roleLabel
 } from "./auth.js";
+import { configureAudit, getBrowserAuditContext, writeAuditEvent } from "./audit.js";
 
 window.addEventListener("load", async function () {
   try {
@@ -110,6 +111,10 @@ window.addEventListener("load", async function () {
     // Settings are loaded from public.system_settings.
     // Defaults are used if a setting is missing or cannot be loaded.
     const appSettings = getDefaultAppSettings();
+    configureAudit({
+      appVersion: APP_VERSION,
+      getKioskToken
+    });
     configureMessages(appSettings);
     configureNavigation({
       isKioskProfile,
@@ -122,7 +127,6 @@ window.addEventListener("load", async function () {
     });
     configureAuth({
       verifyKioskTokenOrLogout,
-      writeAuditEvent,
       startKioskHeartbeat,
       stopKioskHeartbeat,
       runDailyMaintenanceIfDue,
@@ -1251,57 +1255,6 @@ window.addEventListener("load", async function () {
       });
       showMessage("Kiosk device status updated.", "success");
       await loadKioskDevices();
-    }
-
-
-    function getBrowserAuditContext() {
-      return {
-        app_version: typeof APP_VERSION !== "undefined" ? APP_VERSION : "unknown",
-        captured_at: new Date().toISOString(),
-        page_url: window.location.href,
-        referrer: document.referrer || null,
-        user_agent: navigator.userAgent || null,
-        platform: navigator.platform || null,
-        language: navigator.language || null,
-        languages: navigator.languages || null,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || null,
-        viewport: {
-          width: window.innerWidth,
-          height: window.innerHeight
-        },
-        screen: window.screen ? {
-          width: window.screen.width,
-          height: window.screen.height,
-          avail_width: window.screen.availWidth,
-          avail_height: window.screen.availHeight,
-          color_depth: window.screen.colorDepth
-        } : null,
-        touch_points: navigator.maxTouchPoints || 0,
-        online: navigator.onLine,
-        session_profile: AppState.currentProfile ? {
-          id: AppState.currentProfile.id,
-          display_name: AppState.currentProfile.display_name,
-          role: AppState.currentProfile.role
-        } : null,
-        kiosk_token_present: !!getKioskToken()
-      };
-    }
-
-    async function writeAuditEvent(eventType, entityType, entityId, details) {
-      try {
-        const enrichedDetails = Object.assign({}, details || {}, {
-          client_context: getBrowserAuditContext()
-        });
-
-        await supabaseClient.rpc("write_audit_event", {
-          p_event_type: eventType,
-          p_entity_type: entityType || null,
-          p_entity_id: entityId || null,
-          p_details: enrichedDetails
-        });
-      } catch (err) {
-        console.warn("Audit event write failed:", err);
-      }
     }
 
     async function loadAuditEvents() {

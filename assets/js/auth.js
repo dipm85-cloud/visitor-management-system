@@ -1,4 +1,5 @@
 import { supabaseClient } from "./api.js";
+import { writeAuditEvent } from "./audit.js";
 import { $ } from "./dom.js";
 import { showMessage, clearMessage } from "./messages.js";
 import { showScreen } from "./navigation.js";
@@ -113,7 +114,6 @@ export async function getCurrentSessionAndProfile() {
 export async function loginStaff() {
   const {
     verifyKioskTokenOrLogout,
-    writeAuditEvent,
     startKioskHeartbeat,
     runDailyMaintenanceIfDue
   } = authDependencies;
@@ -263,7 +263,6 @@ function clearStaffSearchCaches() {
 export async function logoutStaff() {
   const {
     stopKioskHeartbeat,
-    writeAuditEvent,
     clearWalkInForm
   } = authDependencies;
 
