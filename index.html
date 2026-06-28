@@ -9,7 +9,95 @@
 </head>
 
 <body>
-<div class="app-shell">
+<div id="operationsHubShell" class="operations-hub">
+  <header class="oh-header">
+    <div class="oh-header-start">
+      <button id="ohNavToggle" class="oh-icon-button oh-nav-toggle no-print" type="button" aria-label="Toggle application navigation" aria-controls="ohNavigation" aria-expanded="false">
+        <span aria-hidden="true">☰</span>
+      </button>
+      <div class="oh-product">
+        <div class="oh-product-mark" aria-hidden="true">OH</div>
+        <div class="oh-product-name">
+          <strong>Operations Hub</strong>
+          <span>Operational workspace</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="oh-global-search" role="search">
+      <span class="oh-search-icon" aria-hidden="true">⌕</span>
+      <input type="search" placeholder="Search Operations Hub" aria-label="Global Search (coming soon)" disabled />
+      <span class="oh-coming-soon">Coming soon</span>
+    </div>
+
+    <div class="oh-header-actions">
+      <button class="oh-header-action no-print" type="button" disabled title="Notifications are coming soon">
+        <span aria-hidden="true">●</span>
+        <span class="oh-action-label">Notifications</span>
+      </button>
+      <div class="oh-current-user" aria-label="Current user">
+        <span class="oh-user-avatar" aria-hidden="true">U</span>
+        <span>
+          <small>Current user</small>
+          <strong id="ohCurrentUser">Not signed in</strong>
+        </span>
+      </div>
+      <button id="ohSettingsShortcut" class="oh-header-action no-print" type="button" title="Open the existing Visitor staff area">
+        <span aria-hidden="true">⚙</span>
+        <span class="oh-action-label">Settings</span>
+      </button>
+    </div>
+  </header>
+
+  <div class="oh-layout">
+    <button id="ohNavScrim" class="oh-nav-scrim no-print" type="button" aria-label="Close application navigation"></button>
+
+    <aside id="ohNavigation" class="oh-navigation" aria-label="Operations Hub applications">
+      <div class="oh-nav-heading">
+        <span>Applications</span>
+        <span class="oh-nav-heading-short">Apps</span>
+      </div>
+      <nav class="oh-nav-list">
+        <button class="oh-nav-item" type="button" disabled title="Operations Hub Home is coming soon">
+          <span class="oh-nav-icon" aria-hidden="true">⌂</span>
+          <span class="oh-nav-label">Home</span>
+          <span class="oh-nav-status">Soon</span>
+        </button>
+        <button id="ohVisitorsNav" class="oh-nav-item active" type="button" aria-current="page">
+          <span class="oh-nav-icon" aria-hidden="true">V</span>
+          <span class="oh-nav-label">Visitors</span>
+        </button>
+        <button class="oh-nav-item" type="button" disabled title="People is coming soon">
+          <span class="oh-nav-icon" aria-hidden="true">P</span>
+          <span class="oh-nav-label">People</span>
+          <span class="oh-nav-status">Soon</span>
+        </button>
+        <button class="oh-nav-item" type="button" disabled title="Labour is coming soon">
+          <span class="oh-nav-icon" aria-hidden="true">L</span>
+          <span class="oh-nav-label">Labour</span>
+          <span class="oh-nav-status">Soon</span>
+        </button>
+        <button class="oh-nav-item" type="button" disabled title="Planning is coming soon">
+          <span class="oh-nav-icon" aria-hidden="true">P</span>
+          <span class="oh-nav-label">Planning</span>
+          <span class="oh-nav-status">Soon</span>
+        </button>
+        <button class="oh-nav-item" type="button" disabled title="Reports is coming soon">
+          <span class="oh-nav-icon" aria-hidden="true">R</span>
+          <span class="oh-nav-label">Reports</span>
+          <span class="oh-nav-status">Soon</span>
+        </button>
+        <button class="oh-nav-item" type="button" disabled title="Operations Hub Administration is coming soon">
+          <span class="oh-nav-icon" aria-hidden="true">A</span>
+          <span class="oh-nav-label">Administration</span>
+          <span class="oh-nav-status">Soon</span>
+        </button>
+      </nav>
+      <div class="oh-nav-footnote">Platform applications</div>
+    </aside>
+
+    <main id="operationsHubWorkspace" class="oh-workspace" tabindex="-1">
+      <div class="app-shell">
   <div class="topbar">
     <div class="brand">
       <div class="brand-mark"><img id="brandLogoImg" alt="Logo" style="display:none;width:100%;height:100%;object-fit:contain;border-radius:12px;"><span id="brandLogoFallback">V</span></div>
@@ -1732,6 +1820,28 @@
 
   <div id="debugInfo" class="debug">Script not loaded yet...</div>
 </div>
+    </main>
+
+    <aside id="ohContextPanel" class="oh-context-panel" aria-label="Context information" aria-hidden="true">
+      <div class="oh-context-header">
+        <div>
+          <small>Context</small>
+          <strong>Information panel</strong>
+        </div>
+        <button id="ohContextClose" class="oh-icon-button" type="button" aria-label="Close context panel">×</button>
+      </div>
+      <div class="oh-context-empty">
+        Contextual information and related actions will appear here in future apps.
+      </div>
+    </aside>
+  </div>
+
+  <footer class="oh-footer">
+    <strong>Operations Hub</strong>
+    <span>Version <span id="ohPlatformVersion">VMS_035A.1</span></span>
+    <span>Environment <span id="ohEnvironment">Local</span></span>
+  </footer>
+</div>
 
 
 
@@ -2302,6 +2412,7 @@
   </div>
 </div>
 
+<script type="module" src="assets/js/shell.js"></script>
 <script type="module" src="assets/js/app.js"></script>
 </body>
 </html>
