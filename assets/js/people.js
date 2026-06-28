@@ -3,6 +3,10 @@ import { $ } from "./dom.js";
 import { showToast } from "./messages.js";
 import { showPeopleWorkspace } from "./shell.js";
 import { AppState } from "./state.js";
+import {
+  getSelectedAssignmentPersonId,
+  selectPersonForAssignments
+} from "./assignments.js";
 
 const PERSON_COLUMNS = [
   "id",
@@ -102,6 +106,8 @@ export function renderPeopleList() {
 
   filtered.forEach(person => {
     const row = document.createElement("tr");
+    row.dataset.personId = person.id;
+    row.classList.toggle("selected", person.id === getSelectedAssignmentPersonId());
     row.appendChild(createCell(person.display_name));
     row.appendChild(createCell(person.external_person_number));
 
@@ -117,12 +123,26 @@ export function renderPeopleList() {
 
     const actionCell = document.createElement("td");
     actionCell.className = "people-row-action";
+
+    const assignmentsButton = document.createElement("button");
+    assignmentsButton.className = "ghost";
+    assignmentsButton.type = "button";
+    assignmentsButton.textContent = "Assignments";
+    assignmentsButton.setAttribute("aria-label", "View assignments for " + person.display_name);
+    assignmentsButton.addEventListener("click", () => {
+      selectPersonForAssignments(person.id, person.display_name);
+    });
+    actionCell.appendChild(assignmentsButton);
+
     const editButton = document.createElement("button");
     editButton.className = "ghost";
     editButton.type = "button";
     editButton.textContent = "Edit";
     editButton.setAttribute("aria-label", "Edit " + person.display_name);
-    editButton.addEventListener("click", () => openPeoplePanel(person.id));
+    editButton.addEventListener("click", () => {
+      selectPersonForAssignments(person.id, person.display_name);
+      openPeoplePanel(person.id);
+    });
     actionCell.appendChild(editButton);
     row.appendChild(actionCell);
 

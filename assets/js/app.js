@@ -171,6 +171,12 @@ import {
   saveReferenceRecord,
   clearReferenceForm
 } from "./referenceData.js";
+import {
+  openAssignmentEditor,
+  closeAssignmentEditor,
+  saveAssignment,
+  clearAssignmentForm
+} from "./assignments.js";
 
 window.addEventListener("load", async function () {
   try {
@@ -4482,6 +4488,13 @@ window.addEventListener("load", async function () {
     if ($("referenceDataForm")) $("referenceDataForm").addEventListener("submit", event => {
       event.preventDefault();
       saveReferenceRecord();
+    });
+    if ($("assignmentCreateButton")) $("assignmentCreateButton").addEventListener("click", () => openAssignmentEditor(null));
+    if ($("assignmentPanelCloseButton")) $("assignmentPanelCloseButton").addEventListener("click", closeAssignmentEditor);
+    if ($("assignmentClearButton")) $("assignmentClearButton").addEventListener("click", clearAssignmentForm);
+    if ($("assignmentForm")) $("assignmentForm").addEventListener("submit", event => {
+      event.preventDefault();
+      saveAssignment();
     });
 
     $("openSignInButton").addEventListener("click", () => {

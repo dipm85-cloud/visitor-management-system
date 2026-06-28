@@ -1868,6 +1868,42 @@
             </div>
           </section>
 
+          <section id="personAssignmentsSection" class="card person-assignments-section hidden" aria-labelledby="personAssignmentsTitle">
+            <div class="person-assignments-header">
+              <div>
+                <p class="oh-app-eyebrow">Selected person</p>
+                <h2 id="personAssignmentsTitle">Assignments</h2>
+                <p id="personAssignmentsName">Select a person to view assignments.</p>
+              </div>
+              <button id="assignmentCreateButton" type="button">Create Assignment</button>
+            </div>
+
+            <p id="assignmentListStatus" class="assignment-list-status" aria-live="polite"></p>
+
+            <div class="assignment-table-wrap">
+              <table class="assignment-table" aria-labelledby="personAssignmentsTitle">
+                <thead>
+                  <tr>
+                    <th scope="col">Site</th>
+                    <th scope="col">Employer</th>
+                    <th scope="col">Contract</th>
+                    <th scope="col">Department</th>
+                    <th scope="col">Job Role</th>
+                    <th scope="col">Shift Pattern</th>
+                    <th scope="col">Assignment Start</th>
+                    <th scope="col">Assignment End</th>
+                    <th scope="col">Active</th>
+                    <th scope="col"><span class="sr-only">Actions</span></th>
+                  </tr>
+                </thead>
+                <tbody id="assignmentResults"></tbody>
+              </table>
+              <div id="assignmentEmptyState" class="people-empty-state">
+                No assignments loaded.
+              </div>
+            </div>
+          </section>
+
           <aside id="peoplePanel" class="people-panel hidden" aria-labelledby="peoplePanelTitle" aria-hidden="true">
             <div class="people-panel-header">
               <div>
@@ -1923,6 +1959,109 @@
               <div class="people-form-actions">
                 <button id="peopleSaveButton" type="submit">Save Person</button>
                 <button id="peopleClearButton" class="secondary" type="button">Clear</button>
+              </div>
+            </form>
+          </aside>
+
+          <aside id="assignmentPanel" class="assignment-panel hidden" aria-labelledby="assignmentPanelTitle" aria-hidden="true">
+            <div class="people-panel-header">
+              <div>
+                <p class="oh-app-eyebrow">Assignment editor</p>
+                <h2 id="assignmentPanelTitle">Create Assignment</h2>
+              </div>
+              <button id="assignmentPanelCloseButton" class="oh-icon-button" type="button" aria-label="Close assignment editor">×</button>
+            </div>
+
+            <form id="assignmentForm" class="people-form assignment-form" novalidate>
+              <input id="assignmentSourceId" type="hidden" />
+              <input id="assignmentPersonId" type="hidden" />
+
+              <div id="assignmentEditorNotice" class="assignment-editor-notice">
+                Saving creates a new assignment record.
+              </div>
+
+              <div class="assignment-form-grid">
+                <div>
+                  <label for="assignmentSite">Site</label>
+                  <select id="assignmentSite"></select>
+                </div>
+                <div>
+                  <label for="assignmentEmployer">Employer</label>
+                  <select id="assignmentEmployer"></select>
+                </div>
+                <div>
+                  <label for="assignmentContract">Contract</label>
+                  <select id="assignmentContract"></select>
+                </div>
+                <div>
+                  <label for="assignmentDepartment">Department</label>
+                  <select id="assignmentDepartment"></select>
+                </div>
+                <div>
+                  <label for="assignmentJobRole">Job Role</label>
+                  <select id="assignmentJobRole"></select>
+                </div>
+                <div>
+                  <label for="assignmentShiftPattern">Shift Pattern</label>
+                  <select id="assignmentShiftPattern"></select>
+                </div>
+                <div>
+                  <label for="assignmentBreakRule">Break Rule</label>
+                  <select id="assignmentBreakRule"></select>
+                </div>
+                <div>
+                  <label for="assignmentType">Assignment Type <span aria-hidden="true">*</span></label>
+                  <select id="assignmentType" required>
+                    <option value="direct_employee">Direct Employee</option>
+                    <option value="agency_worker">Agency Worker</option>
+                    <option value="contractor">Contractor</option>
+                    <option value="supplier_contact">Supplier Contact</option>
+                    <option value="visitor_contact">Visitor Contact</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="assignment-form-grid">
+                <div>
+                  <label for="assignmentEmploymentStart">Employment Start Date</label>
+                  <input id="assignmentEmploymentStart" type="date" />
+                </div>
+                <div>
+                  <label for="assignmentStart">Assignment Start Date <span aria-hidden="true">*</span></label>
+                  <input id="assignmentStart" type="date" required />
+                </div>
+                <div>
+                  <label for="assignmentEnd">Assignment End Date</label>
+                  <input id="assignmentEnd" type="date" />
+                </div>
+                <div>
+                  <label for="assignmentCycleAnchor">Cycle Anchor Date</label>
+                  <input id="assignmentCycleAnchor" type="date" />
+                </div>
+                <div>
+                  <label for="assignmentShiftStart">Shift Start Time</label>
+                  <input id="assignmentShiftStart" type="time" />
+                </div>
+                <div>
+                  <label for="assignmentShiftEnd">Shift End Time</label>
+                  <input id="assignmentShiftEnd" type="time" />
+                </div>
+              </div>
+
+              <label for="assignmentActive">Assignment State</label>
+              <select id="assignmentActive">
+                <option value="true">Active</option>
+                <option value="false">Historical</option>
+              </select>
+              <small class="assignment-field-help">Only one assignment may be active for this person.</small>
+
+              <label for="assignmentNotes">Notes</label>
+              <textarea id="assignmentNotes" rows="4"></textarea>
+
+              <div class="people-form-actions">
+                <button id="assignmentSaveButton" type="submit">Create Assignment</button>
+                <button id="assignmentClearButton" class="secondary" type="button">Clear</button>
               </div>
             </form>
           </aside>
