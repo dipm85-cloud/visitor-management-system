@@ -16,6 +16,12 @@ function isTabletLayout() {
   return window.matchMedia("(min-width: 600px) and (max-width: 1023px)").matches;
 }
 
+function currentLayout() {
+  if (isPhoneLayout()) return "phone";
+  if (isTabletLayout()) return "tablet";
+  return "desktop";
+}
+
 function setNavigationOpen(open) {
   shell.classList.toggle("oh-nav-open", open);
   navToggle.setAttribute("aria-expanded", String(open));
@@ -98,12 +104,20 @@ navScrim.addEventListener("click", () => setNavigationOpen(false));
 visitorsNav.addEventListener("click", showVisitorsHome);
 settingsShortcut.addEventListener("click", openExistingSettingsArea);
 
+let activeLayout = currentLayout();
+
 window.addEventListener("resize", function () {
+  const nextLayout = currentLayout();
+  if (nextLayout === activeLayout) return;
+
+  activeLayout = nextLayout;
   setNavigationOpen(false);
-  if (isTabletLayout()) {
+  if (nextLayout === "tablet") {
     shell.classList.add("oh-nav-collapsed");
-  } else if (!isPhoneLayout()) {
+    navToggle.setAttribute("aria-expanded", "false");
+  } else if (nextLayout === "desktop") {
     shell.classList.remove("oh-nav-collapsed");
+    navToggle.setAttribute("aria-expanded", "true");
   }
 });
 
@@ -113,7 +127,12 @@ const versionSource = document.getElementById("appVersionText");
 if (userSource) new MutationObserver(syncCurrentUser).observe(userSource, { childList: true, subtree: true });
 if (versionSource) new MutationObserver(syncPlatformVersion).observe(versionSource, { childList: true, subtree: true });
 
-if (isTabletLayout()) shell.classList.add("oh-nav-collapsed");
+if (activeLayout === "tablet") {
+  shell.classList.add("oh-nav-collapsed");
+  navToggle.setAttribute("aria-expanded", "false");
+} else if (activeLayout === "desktop") {
+  navToggle.setAttribute("aria-expanded", "true");
+}
 syncCurrentUser();
 syncPlatformVersion();
 setEnvironmentLabel();
