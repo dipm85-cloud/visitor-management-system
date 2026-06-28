@@ -161,6 +161,16 @@ import {
   openPeopleWorkspace
 } from "./people.js";
 import { showVisitorWorkspace } from "./shell.js";
+import {
+  openReferenceDataWorkspace,
+  selectReferenceEntity,
+  loadReferenceData,
+  renderReferenceDataList,
+  openReferenceDataPanel,
+  closeReferenceDataPanel,
+  saveReferenceRecord,
+  clearReferenceForm
+} from "./referenceData.js";
 
 window.addEventListener("load", async function () {
   try {
@@ -4459,6 +4469,19 @@ window.addEventListener("load", async function () {
     if ($("peopleForm")) $("peopleForm").addEventListener("submit", event => {
       event.preventDefault();
       savePerson();
+    });
+    if ($("ohAdministrationNav")) $("ohAdministrationNav").addEventListener("click", openReferenceDataWorkspace);
+    document.querySelectorAll("[data-reference-entity]").forEach(button => {
+      button.addEventListener("click", () => selectReferenceEntity(button.dataset.referenceEntity));
+    });
+    if ($("referenceSearch")) $("referenceSearch").addEventListener("input", renderReferenceDataList);
+    if ($("referenceReloadButton")) $("referenceReloadButton").addEventListener("click", loadReferenceData);
+    if ($("referenceCreateButton")) $("referenceCreateButton").addEventListener("click", () => openReferenceDataPanel(null));
+    if ($("referencePanelCloseButton")) $("referencePanelCloseButton").addEventListener("click", closeReferenceDataPanel);
+    if ($("referenceClearButton")) $("referenceClearButton").addEventListener("click", clearReferenceForm);
+    if ($("referenceDataForm")) $("referenceDataForm").addEventListener("submit", event => {
+      event.preventDefault();
+      saveReferenceRecord();
     });
 
     $("openSignInButton").addEventListener("click", () => {

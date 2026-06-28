@@ -89,10 +89,9 @@
           <span class="oh-nav-label">Reports</span>
           <span class="oh-nav-status">Soon</span>
         </button>
-        <button class="oh-nav-item" type="button" disabled title="Operations Hub Administration is coming soon">
+        <button id="ohAdministrationNav" class="oh-nav-item" type="button" title="Administration">
           <span class="oh-nav-icon" aria-hidden="true">A</span>
           <span class="oh-nav-label">Administration</span>
-          <span class="oh-nav-status">Soon</span>
         </button>
       </nav>
       <div class="oh-nav-footnote">Platform applications</div>
@@ -1928,6 +1927,96 @@
             </form>
           </aside>
         </div>
+      </section>
+
+      <section id="administrationWorkspace" class="oh-app-page hidden" aria-labelledby="administrationPageTitle">
+        <header class="oh-app-page-header">
+          <div>
+            <p class="oh-app-eyebrow">Operations Hub</p>
+            <h1 id="administrationPageTitle">Administration</h1>
+            <p>Maintain shared platform configuration and reference records.</p>
+          </div>
+        </header>
+
+        <nav class="administration-section-nav" aria-label="Administration sections">
+          <button class="active" type="button" aria-current="page">Reference Data</button>
+        </nav>
+
+        <section id="referenceDataSection" aria-labelledby="referenceDataTitle">
+          <div class="reference-data-heading">
+            <div>
+              <h2 id="referenceDataTitle">Reference Data</h2>
+              <p>Manage reusable operational values. Records are deactivated rather than deleted.</p>
+            </div>
+          </div>
+
+          <nav class="reference-entity-tabs" aria-label="Reference data entities">
+            <button class="active" type="button" data-reference-entity="sites" aria-current="page">Sites</button>
+            <button type="button" data-reference-entity="departments">Departments</button>
+            <button type="button" data-reference-entity="contracts">Contracts</button>
+            <button type="button" data-reference-entity="jobRoles">Job Roles</button>
+            <button type="button" data-reference-entity="shiftPatterns">Shift Patterns</button>
+            <button type="button" data-reference-entity="breakRules">Break Rules</button>
+          </nav>
+
+          <div class="reference-toolbar">
+            <div class="reference-search" role="search">
+              <label for="referenceSearch">Search <span id="referenceSearchEntityLabel">sites</span></label>
+              <input id="referenceSearch" type="search" placeholder="Search sites" autocomplete="off" />
+            </div>
+            <div class="reference-toolbar-actions">
+              <button id="referenceReloadButton" class="secondary" type="button">Refresh</button>
+              <button id="referenceCreateButton" type="button">Create Site</button>
+            </div>
+          </div>
+
+          <section class="card reference-results-card" aria-labelledby="referenceResultsTitle">
+            <div class="reference-results-header">
+              <div>
+                <h3 id="referenceResultsTitle">Sites</h3>
+                <p id="referenceListStatus" aria-live="polite">Open Reference Data to load records.</p>
+              </div>
+            </div>
+
+            <div class="reference-table-wrap">
+              <table class="reference-table" aria-labelledby="referenceResultsTitle">
+                <thead>
+                  <tr id="referenceTableHead"></tr>
+                </thead>
+                <tbody id="referenceResults"></tbody>
+              </table>
+              <div id="referenceEmptyState" class="people-empty-state">
+                No reference records loaded.
+              </div>
+            </div>
+          </section>
+
+          <aside id="referenceDataPanel" class="reference-data-panel hidden" aria-labelledby="referencePanelTitle" aria-hidden="true">
+            <div class="people-panel-header">
+              <div>
+                <p class="oh-app-eyebrow">Reference record</p>
+                <h2 id="referencePanelTitle">Create Site</h2>
+              </div>
+              <button id="referencePanelCloseButton" class="oh-icon-button" type="button" aria-label="Close reference record details">×</button>
+            </div>
+
+            <form id="referenceDataForm" class="people-form" novalidate>
+              <input id="referenceRecordId" type="hidden" />
+              <div id="referenceFormFields"></div>
+
+              <label for="referenceRecordActive">Active</label>
+              <select id="referenceRecordActive">
+                <option value="true">Active</option>
+                <option value="false">Inactive</option>
+              </select>
+
+              <div class="people-form-actions">
+                <button id="referenceSaveButton" type="submit">Save Record</button>
+                <button id="referenceClearButton" class="secondary" type="button">Clear</button>
+              </div>
+            </form>
+          </aside>
+        </section>
       </section>
     </main>
 

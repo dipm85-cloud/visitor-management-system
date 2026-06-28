@@ -4,6 +4,7 @@ const navToggle = document.getElementById("ohNavToggle");
 const navScrim = document.getElementById("ohNavScrim");
 const visitorsNav = document.getElementById("ohVisitorsNav");
 const peopleNav = document.getElementById("ohPeopleNav");
+const administrationNav = document.getElementById("ohAdministrationNav");
 const settingsShortcut = document.getElementById("ohSettingsShortcut");
 const currentUser = document.getElementById("ohCurrentUser");
 const platformVersion = document.getElementById("ohPlatformVersion");
@@ -45,27 +46,37 @@ function toggleNavigation() {
 }
 
 function setActiveApp(appName) {
-  const visitorsActive = appName === "visitors";
-  visitorsNav.classList.toggle("active", visitorsActive);
-  if (visitorsActive) visitorsNav.setAttribute("aria-current", "page");
-  else visitorsNav.removeAttribute("aria-current");
-  peopleNav.classList.toggle("active", !visitorsActive);
-  if (visitorsActive) peopleNav.removeAttribute("aria-current");
-  else peopleNav.setAttribute("aria-current", "page");
+  [
+    ["visitors", visitorsNav],
+    ["people", peopleNav],
+    ["administration", administrationNav]
+  ].forEach(([name, item]) => {
+    const active = appName === name;
+    item.classList.toggle("active", active);
+    if (active) item.setAttribute("aria-current", "page");
+    else item.removeAttribute("aria-current");
+  });
+}
+
+function showOnlyWorkspace(workspaceId, appName) {
+  ["visitorsWorkspace", "peopleWorkspace", "administrationWorkspace"].forEach(id => {
+    document.getElementById(id).classList.toggle("hidden", id !== workspaceId);
+  });
+  setActiveApp(appName);
+  setNavigationOpen(false);
 }
 
 export function showVisitorWorkspace() {
-  document.getElementById("visitorsWorkspace").classList.remove("hidden");
-  document.getElementById("peopleWorkspace").classList.add("hidden");
-  setActiveApp("visitors");
-  setNavigationOpen(false);
+  showOnlyWorkspace("visitorsWorkspace", "visitors");
 }
 
 export function showPeopleWorkspace() {
-  document.getElementById("visitorsWorkspace").classList.add("hidden");
-  document.getElementById("peopleWorkspace").classList.remove("hidden");
-  setActiveApp("people");
-  setNavigationOpen(false);
+  showOnlyWorkspace("peopleWorkspace", "people");
+  document.getElementById("operationsHubWorkspace").focus({ preventScroll: true });
+}
+
+export function showAdministrationWorkspace() {
+  showOnlyWorkspace("administrationWorkspace", "administration");
   document.getElementById("operationsHubWorkspace").focus({ preventScroll: true });
 }
 
