@@ -2276,6 +2276,19 @@ button.oh-nav-scrim {
   line-height: 1.4;
 }
 
+input[data-business-code="true"] {
+  font-family: Consolas, "Courier New", monospace;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+input[data-reference-field="cycle_length_days"][readonly] {
+  background: #f2f4f7;
+  color: #475467;
+  cursor: default;
+}
+
 .reference-form-field textarea {
   font-family: inherit;
 }
@@ -2326,6 +2339,7 @@ button.oh-nav-scrim {
   margin: 18px 0 0;
   padding: 0;
   overflow: hidden;
+  scroll-margin-top: 18px;
 }
 
 .person-assignments-header {
@@ -2386,11 +2400,18 @@ button.oh-nav-scrim {
   top: var(--oh-header-height);
   right: 0;
   bottom: var(--oh-footer-height);
-  width: min(600px, calc(100vw - var(--oh-nav-rail-width)));
+  width: min(540px, calc(100vw - var(--oh-nav-rail-width)));
   overflow-y: auto;
   border-left: 1px solid var(--oh-shell-border);
   background: var(--oh-shell-surface);
   box-shadow: -16px 0 36px rgba(16, 24, 40, .16);
+}
+
+.assignment-panel-person {
+  margin: 4px 0 0;
+  color: var(--oh-shell-muted);
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .assignment-editor-notice {
@@ -2432,8 +2453,12 @@ button.oh-nav-scrim {
   margin-bottom: 16px;
 }
 
+.assignment-form .people-form-actions {
+  bottom: 0;
+}
+
 @media (max-width: 1023px) {
-  .assignment-panel { width: min(600px, calc(100vw - 40px)); }
+  .assignment-panel { width: min(540px, calc(100vw - 40px)); }
 }
 
 @media (max-width: 599px) {

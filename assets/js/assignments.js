@@ -194,6 +194,8 @@ export async function selectPersonForAssignments(personId, displayName) {
     row.classList.toggle("selected", row.dataset.personId === selectedPersonId);
   });
 
+  $("personAssignmentsSection").scrollIntoView({ block: "start" });
+
   await loadAssignments();
 }
 
@@ -270,7 +272,9 @@ export function renderAssignmentList() {
   });
 
   $("assignmentEmptyState").classList.toggle("hidden", assignmentsCache.length > 0);
-  $("assignmentEmptyState").textContent = "No assignments found for " + selectedPersonName + ".";
+  $("assignmentEmptyState").textContent =
+    "No assignments yet for " + selectedPersonName +
+    ". Create one to add current or historical work context.";
   $("assignmentListStatus").textContent =
     assignmentsCache.length + " assignment" + (assignmentsCache.length === 1 ? "" : "s") + " shown.";
 }
@@ -289,6 +293,8 @@ export function openAssignmentEditor(sourceAssignmentId) {
   if (!requireAssignmentAccess() || !selectedPersonId) return;
 
   clearAssignmentForm();
+  $("personAssignmentsSection").scrollIntoView({ block: "start" });
+  $("assignmentPanelPerson").textContent = selectedPersonName;
   const source = assignmentsCache.find(assignment => assignment.id === sourceAssignmentId);
 
   if (source) {
@@ -326,6 +332,7 @@ export function clearAssignmentForm() {
   $("assignmentStart").value = todayDate();
   $("assignmentActive").value = "true";
   $("assignmentPanelTitle").textContent = "Create Assignment";
+  $("assignmentPanelPerson").textContent = selectedPersonName || "No person selected";
   $("assignmentEditorNotice").textContent = "Saving creates a new assignment record.";
 }
 

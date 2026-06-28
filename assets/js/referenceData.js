@@ -3,6 +3,10 @@ import { $ } from "./dom.js";
 import { showToast } from "./messages.js";
 import { showAdministrationWorkspace } from "./shell.js";
 import { AppState } from "./state.js";
+import {
+  normaliseBusinessCode,
+  titleCaseText
+} from "./utils.js";
 
 const commonRecordColumns = ["id", "active", "notes", "created_at", "updated_at"];
 
@@ -13,15 +17,28 @@ const entityDefinitions = {
     plural: "Sites",
     orderBy: "site_name",
     fields: [
-      { key: "site_code", label: "Site Code" },
-      { key: "site_name", label: "Site Name", required: true },
-      { key: "timezone", label: "Timezone", required: true, defaultValue: "Europe/London" },
+      { key: "site_code", label: "Site Code", normalise: "code", placeholder: "SITE-01", help: "Business code; saved in uppercase." },
+      { key: "site_name", label: "Site Name", required: true, normalise: "title" },
+      {
+        key: "timezone",
+        label: "Timezone",
+        required: true,
+        defaultValue: "Europe/London",
+        placeholder: "Europe/London",
+        help: "Use an IANA timezone, for example Europe/London."
+      },
       { key: "address_line_1", label: "Address Line 1" },
       { key: "address_line_2", label: "Address Line 2" },
       { key: "town_city", label: "Town / City" },
       { key: "county_region", label: "County / Region" },
       { key: "postcode", label: "Postcode" },
-      { key: "country", label: "Country", defaultValue: "United Kingdom" },
+      {
+        key: "country",
+        label: "Country",
+        defaultValue: "United Kingdom",
+        placeholder: "United Kingdom",
+        help: "For example United Kingdom."
+      },
       { key: "notes", label: "Notes", type: "textarea" }
     ],
     columns: [
@@ -38,8 +55,8 @@ const entityDefinitions = {
     orderBy: "department_name",
     fields: [
       { key: "site_id", label: "Site", type: "lookup", lookup: "sites" },
-      { key: "department_code", label: "Department Code" },
-      { key: "department_name", label: "Department Name", required: true },
+      { key: "department_code", label: "Department Code", normalise: "code", placeholder: "OPERATIONS", help: "Business code; saved in uppercase." },
+      { key: "department_name", label: "Department Name", required: true, normalise: "title" },
       { key: "notes", label: "Notes", type: "textarea" }
     ],
     columns: [
@@ -56,7 +73,7 @@ const entityDefinitions = {
     fields: [
       { key: "site_id", label: "Site", type: "lookup", lookup: "sites" },
       { key: "customer_organisation_id", label: "Customer Organisation", type: "lookup", lookup: "organisations" },
-      { key: "contract_code", label: "Contract Code" },
+      { key: "contract_code", label: "Contract Code", normalise: "code", placeholder: "CONTRACT-01", help: "Business code; saved in uppercase." },
       { key: "contract_name", label: "Contract Name", required: true },
       { key: "notes", label: "Notes", type: "textarea" }
     ],
@@ -73,8 +90,8 @@ const entityDefinitions = {
     plural: "Job Roles",
     orderBy: "role_name",
     fields: [
-      { key: "role_code", label: "Role Code" },
-      { key: "role_name", label: "Role Name", required: true },
+      { key: "role_code", label: "Role Code", normalise: "code", placeholder: "SUPERVISOR", help: "Business code; saved in uppercase." },
+      { key: "role_name", label: "Role Name", required: true, normalise: "title" },
       { key: "notes", label: "Notes", type: "textarea" }
     ],
     columns: [
@@ -88,8 +105,8 @@ const entityDefinitions = {
     plural: "Shift Patterns",
     orderBy: "shift_name",
     fields: [
-      { key: "shift_code", label: "Shift Code" },
-      { key: "shift_name", label: "Shift Name", required: true },
+      { key: "shift_code", label: "Shift Code", normalise: "code", placeholder: "DAY-SHIFT", help: "Business code; saved in uppercase." },
+      { key: "shift_name", label: "Shift Name", required: true, normalise: "title" },
       {
         key: "pattern_type",
         label: "Pattern Type",
@@ -102,9 +119,28 @@ const entityDefinitions = {
           { value: "ad_hoc", label: "Ad Hoc" }
         ]
       },
-      { key: "static_weekdays", label: "Static Weekdays (JSON)", type: "json", help: "Optional JSON describing the static working weekdays." },
-      { key: "cycle_pattern", label: "Cycle Pattern (JSON)", type: "json", help: "Optional JSON describing the rotating cycle." },
-      { key: "cycle_length_days", label: "Cycle Length Days", type: "number", min: 1 },
+      {
+        key: "static_weekdays",
+        label: "Static Weekdays (JSON)",
+        type: "json",
+        placeholder: "[\"Monday\", \"Tuesday\", \"Wednesday\", \"Thursday\", \"Friday\"]",
+        help: "Example: [\"Monday\", \"Tuesday\", \"Wednesday\", \"Thursday\", \"Friday\"]"
+      },
+      {
+        key: "cycle_pattern",
+        label: "Rotating Cycle (JSON)",
+        type: "json",
+        placeholder: "[{\"day\":1,\"shift\":\"day\"},{\"day\":2,\"shift\":\"night\"},{\"day\":3,\"shift\":\"off\"}]",
+        help: "Use a JSON array of cycle days. Cycle length is calculated from the number of array items."
+      },
+      {
+        key: "cycle_length_days",
+        label: "Cycle Length Days (Derived)",
+        type: "number",
+        min: 1,
+        readOnly: true,
+        help: "Calculated automatically from a cycle array, or a JSON object containing a days or cycle array."
+      },
       { key: "notes", label: "Notes", type: "textarea" }
     ],
     columns: [
@@ -120,8 +156,8 @@ const entityDefinitions = {
     plural: "Break Rules",
     orderBy: "break_rule_name",
     fields: [
-      { key: "break_rule_code", label: "Break Rule Code" },
-      { key: "break_rule_name", label: "Break Rule Name", required: true },
+      { key: "break_rule_code", label: "Break Rule Code", normalise: "code", placeholder: "STANDARD-BREAK", help: "Business code; saved in uppercase." },
+      { key: "break_rule_name", label: "Break Rule Name", required: true, normalise: "title" },
       { key: "break_minutes", label: "Break Minutes", type: "number", required: true, min: 0, defaultValue: 0 },
       {
         key: "paid_break",
@@ -283,8 +319,44 @@ function createFieldControl(field) {
 
   control.id = "referenceField_" + field.key;
   control.dataset.referenceField = field.key;
+  if (field.placeholder) control.placeholder = field.placeholder;
+  if (field.readOnly) control.readOnly = true;
+  if (field.normalise === "code") {
+    control.dataset.businessCode = "true";
+    control.autocapitalize = "characters";
+  }
   if (field.required) control.required = true;
+  if (field.key === "cycle_pattern") {
+    control.addEventListener("input", () => syncDerivedCycleLength(true));
+  }
   return control;
+}
+
+function derivedCycleLength(value) {
+  if (Array.isArray(value)) return value.length;
+  if (value && Array.isArray(value.days)) return value.days.length;
+  if (value && Array.isArray(value.cycle)) return value.cycle.length;
+  return null;
+}
+
+function syncDerivedCycleLength(clearWhenUnknown) {
+  const patternControl = $("referenceField_cycle_pattern");
+  const lengthControl = $("referenceField_cycle_length_days");
+  if (!patternControl || !lengthControl) return;
+
+  const rawValue = patternControl.value.trim();
+  if (!rawValue) {
+    if (clearWhenUnknown) lengthControl.value = "";
+    return;
+  }
+
+  try {
+    const length = derivedCycleLength(JSON.parse(rawValue));
+    if (length !== null) lengthControl.value = String(length);
+    else if (clearWhenUnknown) lengthControl.value = "";
+  } catch {
+    if (clearWhenUnknown) lengthControl.value = "";
+  }
 }
 
 function renderReferenceFormFields() {
@@ -461,8 +533,10 @@ export function renderReferenceDataList() {
 
   $("referenceEmptyState").classList.toggle("hidden", filtered.length > 0);
   $("referenceEmptyState").textContent = query
-    ? "No records match this search."
-    : "No " + definition.plural.toLowerCase() + " found.";
+    ? "No " + definition.plural.toLowerCase() +
+      " match this search. Try a different code or name."
+    : "No " + definition.plural.toLowerCase() + " yet. Create the first " +
+      definition.singular.toLowerCase() + " to establish this reference list.";
   setListStatus(filtered.length + " of " + records.length + " records shown.");
 }
 
@@ -488,6 +562,7 @@ export function openReferenceDataPanel(recordId) {
     });
     $("referenceRecordActive").value = record.active === false ? "false" : "true";
     $("referencePanelTitle").textContent = "Edit " + definition.singular;
+    syncDerivedCycleLength(false);
   }
 
   $("referenceDataPanel").classList.remove("hidden");
@@ -542,6 +617,16 @@ function fieldValue(field) {
   }
 
   if (field.boolean) return rawValue === "true";
+  if (field.normalise === "code") {
+    const value = normaliseBusinessCode(rawValue);
+    control.value = value || "";
+    return value;
+  }
+  if (field.normalise === "title") {
+    const value = titleCaseText(rawValue);
+    control.value = value;
+    return value;
+  }
   return rawValue;
 }
 
@@ -584,7 +669,17 @@ export async function saveReferenceRecord() {
     closeReferenceDataPanel();
     await loadReferenceData();
   } catch (err) {
-    showToast("Record not saved", err.message || "Could not save this reference record.", "error");
+    const duplicateCode = err && (
+      err.code === "23505" ||
+      /duplicate key|unique constraint|already exists/i.test(String(err.message || ""))
+    );
+    showToast(
+      "Record not saved",
+      duplicateCode
+        ? "That business code is already in use. Enter a unique code."
+        : (err.message || "Could not save this reference record."),
+      "error"
+    );
   } finally {
     saveButton.disabled = false;
     saveButton.textContent = "Save Record";

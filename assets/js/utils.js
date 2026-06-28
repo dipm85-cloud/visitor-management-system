@@ -14,12 +14,26 @@ export function safeAttr(value) {
   return String(value || "").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/'/g, "&#39;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-export function formatPersonName(value) {
+export function titleCaseText(value) {
   return String(value || "")
     .trim()
     .replace(/\s+/g, " ")
     .toLowerCase()
     .replace(/\b\w/g, function (c) { return c.toUpperCase(); });
+}
+
+export function formatPersonName(value) {
+  return titleCaseText(value);
+}
+
+export function normaliseBusinessCode(value) {
+  const text = String(value || "").trim().toUpperCase();
+  return text || null;
+}
+
+export function normaliseEmail(value) {
+  const text = String(value || "").trim().toLowerCase();
+  return text || null;
 }
 
 export function normalisePlate(value) {

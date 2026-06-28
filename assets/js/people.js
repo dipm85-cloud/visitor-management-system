@@ -7,6 +7,10 @@ import {
   getSelectedAssignmentPersonId,
   selectPersonForAssignments
 } from "./assignments.js";
+import {
+  normaliseEmail,
+  titleCaseText
+} from "./utils.js";
 
 const PERSON_COLUMNS = [
   "id",
@@ -151,8 +155,8 @@ export function renderPeopleList() {
 
   $("peopleEmptyState").classList.toggle("hidden", filtered.length > 0);
   $("peopleEmptyState").textContent = query
-    ? "No people match this search."
-    : "No people records found.";
+    ? "No people match this search. Try a different name, number, email or phone."
+    : "No people records yet. Create the first person to start the shared directory.";
   setListStatus(filtered.length + " of " + peopleCache.length + " people shown.");
 }
 
@@ -196,8 +200,11 @@ export function clearPersonForm() {
 export async function savePerson() {
   if (!requirePeopleAccess()) return;
 
-  const firstName = $("personFirstName").value.trim();
-  const displayName = $("personDisplayName").value.trim();
+  const firstName = titleCaseText($("personFirstName").value);
+  const lastName = titleCaseText($("personLastName").value);
+  const preferredName = titleCaseText($("personPreferredName").value);
+  const displayName = titleCaseText($("personDisplayName").value);
+  const email = normaliseEmail($("personEmail").value);
   const emailInput = $("personEmail");
 
   if (!firstName || !displayName) {
@@ -210,13 +217,19 @@ export async function savePerson() {
     return;
   }
 
+  $("personFirstName").value = firstName;
+  $("personLastName").value = lastName;
+  $("personPreferredName").value = preferredName;
+  $("personDisplayName").value = displayName;
+  $("personEmail").value = email || "";
+
   const payload = {
     external_person_number: optionalValue("personExternalNumber"),
     first_name: firstName,
-    last_name: optionalValue("personLastName"),
-    preferred_name: optionalValue("personPreferredName"),
+    last_name: lastName || null,
+    preferred_name: preferredName || null,
     display_name: displayName,
-    email: optionalValue("personEmail"),
+    email,
     phone: optionalValue("personPhone"),
     active: $("personActive").value === "true",
     notes: optionalValue("personNotes")
@@ -244,7 +257,17 @@ export async function savePerson() {
     closePeoplePanel();
     await loadPeople();
   } catch (err) {
-    showToast("Person not saved", err.message || "Could not save this person.", "error");
+    const duplicate = err && (
+      err.code === "23505" ||
+      /duplicate key|unique constraint|already exists/i.test(String(err.message || ""))
+    );
+    showToast(
+      "Person not saved",
+      duplicate
+        ? "That External Person Number is already in use."
+        : (err.message || "Could not save this person."),
+      "error"
+    );
   } finally {
     saveButton.disabled = false;
     saveButton.textContent = "Save Person";
