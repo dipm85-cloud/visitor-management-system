@@ -70,10 +70,9 @@
           <span class="oh-nav-icon" aria-hidden="true">V</span>
           <span class="oh-nav-label">Visitors</span>
         </button>
-        <button class="oh-nav-item" type="button" disabled title="People is coming soon">
+        <button id="ohPeopleNav" class="oh-nav-item" type="button" title="People">
           <span class="oh-nav-icon" aria-hidden="true">P</span>
           <span class="oh-nav-label">People</span>
-          <span class="oh-nav-status">Soon</span>
         </button>
         <button class="oh-nav-item" type="button" disabled title="Labour is coming soon">
           <span class="oh-nav-icon" aria-hidden="true">L</span>
@@ -100,7 +99,7 @@
     </aside>
 
     <main id="operationsHubWorkspace" class="oh-workspace" tabindex="-1">
-      <div class="app-shell">
+      <div id="visitorsWorkspace" class="app-shell">
   <div class="topbar">
     <div class="brand">
       <div class="brand-mark"><img id="brandLogoImg" alt="Logo" style="display:none;width:100%;height:100%;object-fit:contain;border-radius:12px;"><span id="brandLogoFallback">V</span></div>
@@ -1823,6 +1822,113 @@
 
   <div id="debugInfo" class="debug">Script not loaded yet...</div>
 </div>
+
+      <section id="peopleWorkspace" class="oh-app-page hidden" aria-labelledby="peoplePageTitle">
+        <header class="oh-app-page-header">
+          <div>
+            <p class="oh-app-eyebrow">Operations Hub</p>
+            <h1 id="peoplePageTitle">People</h1>
+            <p>Find and maintain the shared person records used across Operations Hub.</p>
+          </div>
+          <button id="peopleCreateButton" type="button">Create Person</button>
+        </header>
+
+        <div class="people-toolbar" role="search">
+          <label for="peopleSearch">Search people</label>
+          <div class="people-search-row">
+            <input id="peopleSearch" type="search" placeholder="Search by name, number, email or phone" autocomplete="off" />
+            <button id="peopleReloadButton" class="secondary" type="button">Refresh</button>
+          </div>
+        </div>
+
+        <div class="people-workspace-layout">
+          <section class="card people-results-card" aria-labelledby="peopleResultsTitle">
+            <div class="people-results-header">
+              <div>
+                <h2 id="peopleResultsTitle">People records</h2>
+                <p id="peopleListStatus" aria-live="polite">Open People to load records.</p>
+              </div>
+            </div>
+
+            <div class="people-table-wrap">
+              <table class="people-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Display Name</th>
+                    <th scope="col">External Person Number</th>
+                    <th scope="col">Contact</th>
+                    <th scope="col">Status</th>
+                    <th scope="col"><span class="sr-only">Actions</span></th>
+                  </tr>
+                </thead>
+                <tbody id="peopleResults"></tbody>
+              </table>
+              <div id="peopleEmptyState" class="people-empty-state">
+                No people records loaded.
+              </div>
+            </div>
+          </section>
+
+          <aside id="peoplePanel" class="people-panel hidden" aria-labelledby="peoplePanelTitle" aria-hidden="true">
+            <div class="people-panel-header">
+              <div>
+                <p class="oh-app-eyebrow">Person details</p>
+                <h2 id="peoplePanelTitle">Create Person</h2>
+              </div>
+              <button id="peoplePanelCloseButton" class="oh-icon-button" type="button" aria-label="Close person details">×</button>
+            </div>
+
+            <form id="peopleForm" class="people-form" novalidate>
+              <input id="personId" type="hidden" />
+
+              <label for="personExternalNumber">External Person Number</label>
+              <input id="personExternalNumber" autocomplete="off" />
+
+              <div class="people-form-grid">
+                <div>
+                  <label for="personFirstName">First Name <span aria-hidden="true">*</span></label>
+                  <input id="personFirstName" required autocomplete="given-name" />
+                </div>
+                <div>
+                  <label for="personLastName">Last Name</label>
+                  <input id="personLastName" autocomplete="family-name" />
+                </div>
+              </div>
+
+              <label for="personPreferredName">Preferred Name</label>
+              <input id="personPreferredName" autocomplete="nickname" />
+
+              <label for="personDisplayName">Display Name <span aria-hidden="true">*</span></label>
+              <input id="personDisplayName" required autocomplete="name" />
+
+              <div class="people-form-grid">
+                <div>
+                  <label for="personEmail">Email</label>
+                  <input id="personEmail" type="email" autocomplete="email" />
+                </div>
+                <div>
+                  <label for="personPhone">Phone</label>
+                  <input id="personPhone" type="tel" autocomplete="tel" />
+                </div>
+              </div>
+
+              <label for="personActive">Active</label>
+              <select id="personActive">
+                <option value="true">Active</option>
+                <option value="false">Inactive</option>
+              </select>
+
+              <label for="personNotes">Notes</label>
+              <textarea id="personNotes" rows="4"></textarea>
+
+              <div class="people-form-actions">
+                <button id="peopleSaveButton" type="submit">Save Person</button>
+                <button id="peopleClearButton" class="secondary" type="button">Clear</button>
+              </div>
+            </form>
+          </aside>
+        </div>
+      </section>
     </main>
 
     <aside id="ohContextPanel" class="oh-context-panel" aria-label="Context information" aria-hidden="true">

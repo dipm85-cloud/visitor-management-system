@@ -151,6 +151,16 @@ import {
   returnToEntryMode,
   detectEntryMode
 } from "./modes.js";
+import {
+  loadPeople,
+  renderPeopleList,
+  openPeoplePanel,
+  closePeoplePanel,
+  savePerson,
+  clearPersonForm,
+  openPeopleWorkspace
+} from "./people.js";
+import { showVisitorWorkspace } from "./shell.js";
 
 window.addEventListener("load", async function () {
   try {
@@ -228,7 +238,8 @@ window.addEventListener("load", async function () {
     });
     configureModes({
       updateHomeAccess,
-      openStaffAreaFromProfile
+      openStaffAreaFromProfile,
+      showVisitorWorkspace
     });
     configureVisitorFlow({
       appSettings,
@@ -4439,6 +4450,16 @@ window.addEventListener("load", async function () {
 
     $("openStaffHomeButton").addEventListener("click", openStaffAreaFromProfile);
     if ($("kioskStaffLoginButton")) $("kioskStaffLoginButton").addEventListener("click", openLoginModal);
+    if ($("ohPeopleNav")) $("ohPeopleNav").addEventListener("click", openPeopleWorkspace);
+    if ($("peopleCreateButton")) $("peopleCreateButton").addEventListener("click", () => openPeoplePanel(null));
+    if ($("peopleReloadButton")) $("peopleReloadButton").addEventListener("click", loadPeople);
+    if ($("peoplePanelCloseButton")) $("peoplePanelCloseButton").addEventListener("click", closePeoplePanel);
+    if ($("peopleClearButton")) $("peopleClearButton").addEventListener("click", clearPersonForm);
+    if ($("peopleSearch")) $("peopleSearch").addEventListener("input", renderPeopleList);
+    if ($("peopleForm")) $("peopleForm").addEventListener("submit", event => {
+      event.preventDefault();
+      savePerson();
+    });
 
     $("openSignInButton").addEventListener("click", () => {
       if (!isKioskProfile() && !isSuperKioskTestProfile()) { openLoginModal(); return; }

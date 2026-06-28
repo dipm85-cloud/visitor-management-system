@@ -3,6 +3,7 @@ const navigation = document.getElementById("ohNavigation");
 const navToggle = document.getElementById("ohNavToggle");
 const navScrim = document.getElementById("ohNavScrim");
 const visitorsNav = document.getElementById("ohVisitorsNav");
+const peopleNav = document.getElementById("ohPeopleNav");
 const settingsShortcut = document.getElementById("ohSettingsShortcut");
 const currentUser = document.getElementById("ohCurrentUser");
 const platformVersion = document.getElementById("ohPlatformVersion");
@@ -43,7 +44,33 @@ function toggleNavigation() {
   navToggle.setAttribute("aria-expanded", String(!shell.classList.contains("oh-nav-collapsed")));
 }
 
+function setActiveApp(appName) {
+  const visitorsActive = appName === "visitors";
+  visitorsNav.classList.toggle("active", visitorsActive);
+  if (visitorsActive) visitorsNav.setAttribute("aria-current", "page");
+  else visitorsNav.removeAttribute("aria-current");
+  peopleNav.classList.toggle("active", !visitorsActive);
+  if (visitorsActive) peopleNav.removeAttribute("aria-current");
+  else peopleNav.setAttribute("aria-current", "page");
+}
+
+export function showVisitorWorkspace() {
+  document.getElementById("visitorsWorkspace").classList.remove("hidden");
+  document.getElementById("peopleWorkspace").classList.add("hidden");
+  setActiveApp("visitors");
+  setNavigationOpen(false);
+}
+
+export function showPeopleWorkspace() {
+  document.getElementById("visitorsWorkspace").classList.add("hidden");
+  document.getElementById("peopleWorkspace").classList.remove("hidden");
+  setActiveApp("people");
+  setNavigationOpen(false);
+  document.getElementById("operationsHubWorkspace").focus({ preventScroll: true });
+}
+
 function showVisitorsHome() {
+  showVisitorWorkspace();
   const backHomeButton = document.querySelector(".backHomeButton");
   const homeScreen = document.getElementById("homeScreen");
 
@@ -53,11 +80,11 @@ function showVisitorsHome() {
     homeScreen.style.display = "grid";
   }
 
-  setNavigationOpen(false);
   document.getElementById("operationsHubWorkspace").focus({ preventScroll: true });
 }
 
 function openExistingSettingsArea() {
+  showVisitorWorkspace();
   const staffButton = document.getElementById("staffButton");
   if (!staffButton || staffButton.classList.contains("hidden")) return;
 

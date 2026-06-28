@@ -39,6 +39,7 @@ export function detectEntryMode() {
 
 export function enterKioskMode() {
   setDocumentMode(KIOSK_MODE);
+  modeDependencies.showVisitorWorkspace();
   showScreen("homeScreen");
   modeDependencies.updateHomeAccess();
   return KIOSK_MODE;
@@ -46,6 +47,7 @@ export function enterKioskMode() {
 
 export async function enterWorkspaceMode() {
   setDocumentMode(WORKSPACE_MODE);
+  modeDependencies.showVisitorWorkspace();
 
   const profile = AppState.currentProfile;
   const activeStaffSession =
