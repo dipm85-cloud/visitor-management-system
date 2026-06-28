@@ -115,7 +115,9 @@ export async function loginStaff() {
   const {
     verifyKioskTokenOrLogout,
     startKioskHeartbeat,
-    runDailyMaintenanceIfDue
+    runDailyMaintenanceIfDue,
+    enterKioskMode,
+    enterWorkspaceMode
   } = authDependencies;
 
   clearMessage();
@@ -189,13 +191,12 @@ export async function loginStaff() {
     closeLoginModal();
     showMessage("Kiosk logged in and device verified.", "success");
     startKioskHeartbeat();
-    showScreen("homeScreen");
-    updateHomeAccess();
+    enterKioskMode();
     return;
   }
 
   await writeAuditEvent("login_success", "profiles", profile.id, { role: profile.role, login_type: "staff" });
-  await openStaffAreaFromProfile();
+  await enterWorkspaceMode();
   await runDailyMaintenanceIfDue("opportunistic_staff_login");
   $("loginPassword").value = "";
   closeLoginModal();
@@ -263,7 +264,8 @@ function clearStaffSearchCaches() {
 export async function logoutStaff() {
   const {
     stopKioskHeartbeat,
-    clearWalkInForm
+    clearWalkInForm,
+    returnToEntryMode
   } = authDependencies;
 
   stopKioskHeartbeat();
@@ -287,7 +289,7 @@ export async function logoutStaff() {
 
   clearStaffSearchCaches();
   clearWalkInForm();
-  showScreen("homeScreen");
+  await returnToEntryMode();
   showMessage("Logged out.", "success");
   closeLoginModal();
 }

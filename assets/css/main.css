@@ -158,6 +158,12 @@ textarea { min-height: 86px; resize: vertical; }
   opacity: .9;
 }
 
+#kioskStaffLoginButton {
+  grid-column: 1 / -1;
+  min-height: 72px;
+  font-size: 18px;
+}
+
 .screen {
   display: none;
   width: min(1180px, calc(100% - 40px));
@@ -1666,6 +1672,27 @@ button.oh-nav-item:disabled {
 .oh-nav-scrim,
 button.oh-nav-scrim {
   display: none;
+}
+
+.operations-hub.oh-kiosk-mode {
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.operations-hub.oh-kiosk-mode .oh-header,
+.operations-hub.oh-kiosk-mode .oh-navigation,
+.operations-hub.oh-kiosk-mode .oh-context-panel,
+.operations-hub.oh-kiosk-mode .oh-footer,
+.operations-hub.oh-kiosk-mode .oh-nav-scrim {
+  display: none;
+}
+
+.operations-hub.oh-kiosk-mode .oh-layout {
+  display: block;
+}
+
+.operations-hub.oh-kiosk-mode .oh-workspace {
+  width: 100%;
+  height: 100%;
 }
 
 .operations-hub.oh-nav-collapsed .oh-layout {

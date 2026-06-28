@@ -144,6 +144,13 @@ import {
   clearProfileForm,
   saveProfileFromForm
 } from "./users.js";
+import {
+  configureModes,
+  enterKioskMode,
+  enterWorkspaceMode,
+  returnToEntryMode,
+  detectEntryMode
+} from "./modes.js";
 
 window.addEventListener("load", async function () {
   try {
@@ -219,6 +226,10 @@ window.addEventListener("load", async function () {
         superKioskTestMode = value;
       }
     });
+    configureModes({
+      updateHomeAccess,
+      openStaffAreaFromProfile
+    });
     configureVisitorFlow({
       appSettings,
       dependencies: {
@@ -254,7 +265,10 @@ window.addEventListener("load", async function () {
       clearWalkInForm,
       setRole,
       loadAgreementVersions,
-      showSuperSection
+      showSuperSection,
+      enterKioskMode,
+      enterWorkspaceMode,
+      returnToEntryMode
     });
 
     const debugInfo = document.getElementById("debugInfo");
@@ -610,7 +624,7 @@ window.addEventListener("load", async function () {
         AppState.currentProfile = null;
         updateTopbarStaffStatus();
       if (AppState.currentProfile && AppState.currentProfile.role === "kiosk_user") startKioskHeartbeat();
-        showScreen("homeScreen");
+        await returnToEntryMode();
         showMessage("This kiosk device was remotely logged out by a SuperUser.", "error");
       }
 
@@ -4424,6 +4438,7 @@ window.addEventListener("load", async function () {
     $("homeLogoutButton").addEventListener("click", requestProtectedLogout);
 
     $("openStaffHomeButton").addEventListener("click", openStaffAreaFromProfile);
+    if ($("kioskStaffLoginButton")) $("kioskStaffLoginButton").addEventListener("click", openLoginModal);
 
     $("openSignInButton").addEventListener("click", () => {
       if (!isKioskProfile() && !isSuperKioskTestProfile()) { openLoginModal(); return; }
@@ -4714,12 +4729,16 @@ window.addEventListener("load", async function () {
       await getCurrentSessionAndProfile();
 
       if (event === "SIGNED_OUT") {
-        showScreen("homeScreen");
-        updateHomeAccess();
+        await returnToEntryMode();
       }
     });
 
-    getCurrentSessionAndProfile();
+    await getCurrentSessionAndProfile();
+    if (detectEntryMode() === "kiosk") {
+      enterKioskMode();
+    } else {
+      await enterWorkspaceMode();
+    }
     updateKioskTokenWarning();
     debugInfo.textContent = "Script loaded. Settings loaded.";
     refreshCoreData();
