@@ -160,7 +160,10 @@ import {
   clearPersonForm,
   openPeopleWorkspace
 } from "./people.js";
-import { showVisitorWorkspace } from "./shell.js";
+import {
+  showVisitorWorkspace,
+  syncNavigationCapabilityVisibility
+} from "./shell.js";
 import {
   openReferenceDataWorkspace,
   selectReferenceEntity,
@@ -293,6 +296,7 @@ window.addEventListener("load", async function () {
       setRole,
       loadAgreementVersions,
       showSuperSection,
+      syncNavigationCapabilityVisibility,
       enterKioskMode,
       enterWorkspaceMode,
       returnToEntryMode

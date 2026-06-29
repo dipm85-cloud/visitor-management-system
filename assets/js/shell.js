@@ -1,3 +1,6 @@
+import { hasAnyCapability, hasCapability } from "./capabilities.js";
+import { AppState } from "./state.js";
+
 const shell = document.getElementById("operationsHubShell");
 const navigation = document.getElementById("ohNavigation");
 const navToggle = document.getElementById("ohNavToggle");
@@ -56,6 +59,32 @@ function setActiveApp(appName) {
     if (active) item.setAttribute("aria-current", "page");
     else item.removeAttribute("aria-current");
   });
+}
+
+function setNavItemCapabilityVisibility(item, visible) {
+  if (!item) return;
+  item.classList.toggle("hidden", !visible);
+}
+
+export function syncNavigationCapabilityVisibility() {
+  const activeStaffProfile = AppState.currentProfile &&
+    AppState.currentProfile.active &&
+    AppState.currentProfile.role !== "kiosk_user";
+
+  if (!activeStaffProfile) {
+    setNavItemCapabilityVisibility(visitorsNav, true);
+    setNavItemCapabilityVisibility(peopleNav, true);
+    setNavItemCapabilityVisibility(administrationNav, true);
+    return;
+  }
+
+  setNavItemCapabilityVisibility(visitorsNav, hasCapability("visitor.view"));
+  setNavItemCapabilityVisibility(peopleNav, hasAnyCapability(["people.view", "people.manage"]));
+  setNavItemCapabilityVisibility(administrationNav, hasAnyCapability([
+    "settings.view",
+    "users.view",
+    "devices.view"
+  ]));
 }
 
 function showOnlyWorkspace(workspaceId, appName) {

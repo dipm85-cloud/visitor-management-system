@@ -1,5 +1,6 @@
 import { supabaseClient } from "./api.js";
 import { writeAuditEvent } from "./audit.js";
+import { loadUserCapabilities } from "./capabilities.js";
 import { $ } from "./dom.js";
 import { showMessage, clearMessage } from "./messages.js";
 import { showScreen } from "./navigation.js";
@@ -9,6 +10,12 @@ let authDependencies;
 
 export function configureAuth(dependencies) {
   authDependencies = dependencies;
+}
+
+function syncCapabilityConsumers() {
+  if (authDependencies && authDependencies.syncNavigationCapabilityVisibility) {
+    authDependencies.syncNavigationCapabilityVisibility();
+  }
 }
 
 export function openLoginModal() {
@@ -89,6 +96,8 @@ export async function getCurrentSessionAndProfile() {
 
   if (!session || !session.user) {
     AppState.currentProfile = null;
+    await loadUserCapabilities(null);
+    syncCapabilityConsumers();
     updateTopbarStaffStatus();
     return null;
   }
@@ -101,12 +110,16 @@ export async function getCurrentSessionAndProfile() {
 
   if (profileResult.error) {
     AppState.currentProfile = null;
+    await loadUserCapabilities(null);
+    syncCapabilityConsumers();
     updateTopbarStaffStatus();
     console.error("Profile load error:", profileResult.error);
     return null;
   }
 
   AppState.currentProfile = profileResult.data;
+  await loadUserCapabilities(AppState.currentProfile);
+  syncCapabilityConsumers();
   updateTopbarStaffStatus();
   return AppState.currentProfile;
 }
@@ -158,6 +171,8 @@ export async function loginStaff() {
       "Login succeeded, but no staff profile exists for this account. Ask a SuperUser to create your profile.";
     await supabaseClient.auth.signOut();
     AppState.currentProfile = null;
+    await loadUserCapabilities(null);
+    syncCapabilityConsumers();
     updateTopbarStaffStatus();
     return;
   }
@@ -167,6 +182,8 @@ export async function loginStaff() {
       "This staff profile is inactive or locked. Ask a SuperUser to reactivate it.";
     await supabaseClient.auth.signOut();
     AppState.currentProfile = null;
+    await loadUserCapabilities(null);
+    syncCapabilityConsumers();
     updateTopbarStaffStatus();
     return;
   }
@@ -277,6 +294,8 @@ export async function logoutStaff() {
   await supabaseClient.auth.signOut({ scope: "local" });
 
   AppState.currentProfile = null;
+  await loadUserCapabilities(null);
+  syncCapabilityConsumers();
   updateTopbarStaffStatus();
 
   $("staffIdentity").textContent = "Login required. Your role will decide which tools are available.";

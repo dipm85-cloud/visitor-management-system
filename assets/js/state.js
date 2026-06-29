@@ -9,6 +9,7 @@ export const AppState = {
   activeVisitCache: [],
   opportunisticAutoSignOutChecked: false,
   currentProfile: null,
+  userCapabilities: new Set(),
   systemSettingsRaw: {},
   kioskIdleTimer: null
 };
