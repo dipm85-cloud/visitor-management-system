@@ -181,6 +181,10 @@ import {
   clearAssignmentForm
 } from "./assignments.js";
 import { initialiseVisitorIdentityLookups } from "./visitorIdentity.js";
+import {
+  configureDashboard,
+  initialiseDashboard
+} from "./dashboard.js";
 
 window.addEventListener("load", async function () {
   try {
@@ -260,6 +264,11 @@ window.addEventListener("load", async function () {
       updateHomeAccess,
       openStaffAreaFromProfile,
       showVisitorWorkspace
+    });
+    configureDashboard({
+      openVisitors: showVisitorWorkspace,
+      openPeople: openPeopleWorkspace,
+      openReferenceData: openReferenceDataWorkspace
     });
     configureVisitorFlow({
       appSettings,
@@ -4472,6 +4481,7 @@ window.addEventListener("load", async function () {
     $("openStaffHomeButton").addEventListener("click", openStaffAreaFromProfile);
     if ($("kioskStaffLoginButton")) $("kioskStaffLoginButton").addEventListener("click", openLoginModal);
     initialiseVisitorIdentityLookups();
+    initialiseDashboard();
     if ($("ohPeopleNav")) $("ohPeopleNav").addEventListener("click", openPeopleWorkspace);
     if ($("peopleCreateButton")) $("peopleCreateButton").addEventListener("click", () => openPeoplePanel(null));
     if ($("peopleReloadButton")) $("peopleReloadButton").addEventListener("click", loadPeople);

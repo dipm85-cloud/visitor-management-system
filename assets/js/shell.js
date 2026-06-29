@@ -5,6 +5,7 @@ const shell = document.getElementById("operationsHubShell");
 const navigation = document.getElementById("ohNavigation");
 const navToggle = document.getElementById("ohNavToggle");
 const navScrim = document.getElementById("ohNavScrim");
+const dashboardNav = document.getElementById("ohDashboardNav");
 const visitorsNav = document.getElementById("ohVisitorsNav");
 const peopleNav = document.getElementById("ohPeopleNav");
 const administrationNav = document.getElementById("ohAdministrationNav");
@@ -50,6 +51,7 @@ function toggleNavigation() {
 
 function setActiveApp(appName) {
   [
+    ["dashboard", dashboardNav],
     ["visitors", visitorsNav],
     ["people", peopleNav],
     ["administration", administrationNav]
@@ -72,12 +74,14 @@ export function syncNavigationCapabilityVisibility() {
     AppState.currentProfile.role !== "kiosk_user";
 
   if (!activeStaffProfile) {
+    setNavItemCapabilityVisibility(dashboardNav, true);
     setNavItemCapabilityVisibility(visitorsNav, true);
     setNavItemCapabilityVisibility(peopleNav, true);
     setNavItemCapabilityVisibility(administrationNav, true);
     return;
   }
 
+  setNavItemCapabilityVisibility(dashboardNav, hasCapability("dashboard.view"));
   setNavItemCapabilityVisibility(visitorsNav, hasCapability("visitor.view"));
   setNavItemCapabilityVisibility(peopleNav, hasAnyCapability(["people.view", "people.manage"]));
   setNavItemCapabilityVisibility(administrationNav, hasAnyCapability([
@@ -88,11 +92,17 @@ export function syncNavigationCapabilityVisibility() {
 }
 
 function showOnlyWorkspace(workspaceId, appName) {
-  ["visitorsWorkspace", "peopleWorkspace", "administrationWorkspace"].forEach(id => {
+  ["dashboardWorkspace", "visitorsWorkspace", "peopleWorkspace", "administrationWorkspace"].forEach(id => {
     document.getElementById(id).classList.toggle("hidden", id !== workspaceId);
   });
   setActiveApp(appName);
   setNavigationOpen(false);
+}
+
+export function showDashboardWorkspace() {
+  showOnlyWorkspace("dashboardWorkspace", "dashboard");
+  document.getElementById("operationsHubWorkspace").focus({ preventScroll: true });
+  window.dispatchEvent(new CustomEvent("oh:dashboard-opened"));
 }
 
 export function showVisitorWorkspace() {
@@ -168,6 +178,7 @@ function setEnvironmentLabel() {
 
 navToggle.addEventListener("click", toggleNavigation);
 navScrim.addEventListener("click", () => setNavigationOpen(false));
+dashboardNav.addEventListener("click", showDashboardWorkspace);
 visitorsNav.addEventListener("click", showVisitorsHome);
 settingsShortcut.addEventListener("click", openExistingSettingsArea);
 

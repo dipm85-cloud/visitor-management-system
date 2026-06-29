@@ -61,10 +61,9 @@
         <span class="oh-nav-heading-short">Apps</span>
       </div>
       <nav class="oh-nav-list">
-        <button class="oh-nav-item" type="button" disabled title="Operations Hub Home is coming soon">
+        <button id="ohDashboardNav" class="oh-nav-item" type="button" title="Dashboard">
           <span class="oh-nav-icon" aria-hidden="true">⌂</span>
           <span class="oh-nav-label">Home</span>
-          <span class="oh-nav-status">Soon</span>
         </button>
         <button id="ohVisitorsNav" class="oh-nav-item active" type="button" aria-current="page" title="Visitors">
           <span class="oh-nav-icon" aria-hidden="true">V</span>
@@ -98,6 +97,102 @@
     </aside>
 
     <main id="operationsHubWorkspace" class="oh-workspace" tabindex="-1">
+      <section id="dashboardWorkspace" class="oh-app-page oh-dashboard-page hidden" aria-labelledby="dashboardPageTitle">
+        <header class="oh-app-page-header">
+          <div>
+            <p class="oh-app-eyebrow">Operations Hub</p>
+            <h1 id="dashboardPageTitle">Dashboard</h1>
+            <p>Today's operational focus using the Visitor and People data already available in the Hub.</p>
+          </div>
+          <button id="dashboardRefreshButton" class="secondary" type="button">Refresh</button>
+        </header>
+
+        <section class="dashboard-status-strip" aria-label="Site Pulse">
+          <div>
+            <span>Site Pulse</span>
+            <strong>Foundation active</strong>
+          </div>
+          <div>
+            <span>Data source</span>
+            <strong>Existing Visitor and People records</strong>
+          </div>
+          <div>
+            <span>Freshness</span>
+            <strong id="dashboardLastUpdated">Open Dashboard to refresh</strong>
+          </div>
+        </section>
+
+        <section class="dashboard-section" aria-labelledby="dashboardTodayFocusTitle">
+          <div class="dashboard-section-heading">
+            <div>
+              <h2 id="dashboardTodayFocusTitle">Today's Focus</h2>
+              <p>Operational counts and placeholders for future Hub widgets.</p>
+            </div>
+          </div>
+
+          <div id="dashboardNoWidgets" class="dashboard-empty-state hidden">
+            No dashboard widgets are available for your current capabilities.
+          </div>
+
+          <div id="dashboardVisitorWidgets" class="dashboard-widget-grid">
+            <article class="dashboard-kpi-card">
+              <span>Today's planned visitors</span>
+              <strong id="dashboardPlannedTodayCount">-</strong>
+              <p>Planned visits dated today.</p>
+            </article>
+            <article class="dashboard-kpi-card">
+              <span>Currently signed in</span>
+              <strong id="dashboardSignedInCount">-</strong>
+              <p>Visitor records without sign-out time.</p>
+            </article>
+            <article class="dashboard-kpi-card">
+              <span>Overdue visitors</span>
+              <strong id="dashboardOverdueCount">-</strong>
+              <p>Signed in before today and not signed out.</p>
+            </article>
+          </div>
+
+          <div id="dashboardPeopleWidgets" class="dashboard-widget-grid">
+            <article class="dashboard-kpi-card">
+              <span>People records</span>
+              <strong id="dashboardPeopleCount">-</strong>
+              <p>Total shared People records.</p>
+            </article>
+            <article class="dashboard-kpi-card">
+              <span>Active people</span>
+              <strong id="dashboardActivePeopleCount">-</strong>
+              <p>People records marked active.</p>
+            </article>
+          </div>
+
+          <div id="dashboardAdminWidgets" class="dashboard-widget-grid">
+            <article class="dashboard-kpi-card dashboard-placeholder-card">
+              <span>Reference data health</span>
+              <strong>Pending</strong>
+              <p>Placeholder for future configured reference completeness checks.</p>
+            </article>
+            <article class="dashboard-kpi-card dashboard-placeholder-card">
+              <span>System and kiosk health</span>
+              <strong>Pending</strong>
+              <p>Placeholder for future safe health summaries.</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="dashboard-section" aria-labelledby="dashboardQuickActionsTitle">
+          <div class="dashboard-section-heading">
+            <div>
+              <h2 id="dashboardQuickActionsTitle">Quick Actions</h2>
+              <p>Open existing Operations Hub apps without adding new workflows.</p>
+            </div>
+          </div>
+          <div class="dashboard-quick-actions">
+            <button id="dashboardOpenVisitorsButton" type="button">Open Visitors</button>
+            <button id="dashboardOpenPeopleButton" type="button">Open People</button>
+            <button id="dashboardOpenReferenceButton" type="button">Open Reference Data</button>
+          </div>
+        </section>
+      </section>
       <div id="visitorsWorkspace" class="app-shell">
   <div class="topbar">
     <div class="brand">

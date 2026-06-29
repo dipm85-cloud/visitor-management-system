@@ -1985,6 +1985,102 @@ button.oh-nav-scrim {
   text-transform: uppercase;
 }
 
+.oh-dashboard-page {
+  display: block;
+}
+
+.dashboard-status-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 22px;
+}
+
+.dashboard-status-strip > div,
+.dashboard-empty-state,
+.dashboard-kpi-card {
+  border: 1px solid var(--oh-shell-border);
+  border-radius: 8px;
+  background: var(--oh-shell-surface);
+}
+
+.dashboard-status-strip > div {
+  min-height: 82px;
+  padding: 16px;
+}
+
+.dashboard-status-strip span,
+.dashboard-kpi-card span {
+  display: block;
+  color: var(--oh-shell-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.dashboard-status-strip strong {
+  display: block;
+  margin-top: 7px;
+  font-size: 15px;
+}
+
+.dashboard-section {
+  margin-top: 22px;
+}
+
+.dashboard-section-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.dashboard-section-heading h2 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.dashboard-section-heading p,
+.dashboard-kpi-card p {
+  margin: 5px 0 0;
+  color: var(--oh-shell-muted);
+  line-height: 1.45;
+}
+
+.dashboard-widget-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.dashboard-kpi-card {
+  min-height: 146px;
+  padding: 18px;
+}
+
+.dashboard-kpi-card strong {
+  display: block;
+  margin-top: 10px;
+  font-size: 34px;
+  line-height: 1;
+}
+
+.dashboard-placeholder-card {
+  background: #f8fafc;
+}
+
+.dashboard-empty-state {
+  padding: 18px;
+  color: var(--oh-shell-muted);
+}
+
+.dashboard-quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .people-toolbar {
   margin-bottom: 18px;
   padding: 18px;
@@ -2143,6 +2239,10 @@ button.oh-nav-scrim {
   }
 
   .oh-app-page-header > button { width: 100%; min-height: 48px; }
+  .dashboard-status-strip,
+  .dashboard-widget-grid {
+    grid-template-columns: 1fr;
+  }
   .people-toolbar { padding: 14px; }
   .people-search-row { grid-template-columns: 1fr; }
   .people-search-row button { width: 100%; }
