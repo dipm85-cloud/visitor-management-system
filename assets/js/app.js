@@ -161,6 +161,15 @@ import {
   openPeopleWorkspace
 } from "./people.js";
 import {
+  openOrganisationsWorkspace,
+  loadOrganisations,
+  renderOrganisationList,
+  openOrganisationPanel,
+  closeOrganisationPanel,
+  saveOrganisation,
+  clearOrganisationForm
+} from "./organisations.js";
+import {
   showVisitorWorkspace,
   showDashboardWorkspace,
   closeAccountMenu,
@@ -4494,6 +4503,17 @@ window.addEventListener("load", async function () {
     if ($("peopleForm")) $("peopleForm").addEventListener("submit", event => {
       event.preventDefault();
       savePerson();
+    });
+    window.addEventListener("oh:organisations-nav-requested", () => openOrganisationsWorkspace());
+    if ($("organisationCreateButton")) $("organisationCreateButton").addEventListener("click", () => openOrganisationPanel(null));
+    if ($("organisationReloadButton")) $("organisationReloadButton").addEventListener("click", loadOrganisations);
+    if ($("organisationPanelCloseButton")) $("organisationPanelCloseButton").addEventListener("click", closeOrganisationPanel);
+    if ($("organisationClearButton")) $("organisationClearButton").addEventListener("click", clearOrganisationForm);
+    if ($("organisationSearch")) $("organisationSearch").addEventListener("input", renderOrganisationList);
+    if ($("organisationStatusFilter")) $("organisationStatusFilter").addEventListener("change", renderOrganisationList);
+    if ($("organisationForm")) $("organisationForm").addEventListener("submit", event => {
+      event.preventDefault();
+      saveOrganisation();
     });
     if ($("ohAdministrationNav")) $("ohAdministrationNav").addEventListener("click", openReferenceDataWorkspace);
     document.querySelectorAll("[data-reference-entity]").forEach(button => {

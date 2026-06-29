@@ -82,6 +82,10 @@
           <span class="oh-nav-icon" aria-hidden="true">P</span>
           <span class="oh-nav-label">People</span>
         </button>
+        <button id="ohOrganisationsNav" class="oh-nav-item" type="button" title="Organisations">
+          <span class="oh-nav-icon" aria-hidden="true">O</span>
+          <span class="oh-nav-label">Organisations</span>
+        </button>
         <button class="oh-nav-item" type="button" disabled title="Labour is coming soon">
           <span class="oh-nav-icon" aria-hidden="true">L</span>
           <span class="oh-nav-label">Labour</span>
@@ -2182,6 +2186,150 @@
             </form>
           </aside>
         </div>
+      </section>
+
+      <section id="organisationsWorkspace" class="oh-app-page hidden" aria-labelledby="organisationsPageTitle">
+        <header class="oh-app-page-header">
+          <div>
+            <p class="oh-app-eyebrow">Operations Hub</p>
+            <h1 id="organisationsPageTitle">Organisations</h1>
+            <p>Manage organisational parties used by visitors, people, assignments and contracts.</p>
+          </div>
+          <button id="organisationCreateButton" type="button">Create Organisation</button>
+        </header>
+
+        <div class="people-toolbar" role="search">
+          <label for="organisationSearch">Search organisations</label>
+          <div class="organisation-search-row">
+            <input id="organisationSearch" type="search" placeholder="Search by name, code, type or status" autocomplete="off" />
+            <select id="organisationStatusFilter" aria-label="Filter organisations by status">
+              <option value="all">All statuses</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+            <button id="organisationReloadButton" class="secondary" type="button">Refresh</button>
+          </div>
+        </div>
+
+        <div class="organisation-workspace-layout">
+          <section class="card organisation-results-card" aria-labelledby="organisationResultsTitle">
+            <div class="people-results-header">
+              <div>
+                <h2 id="organisationResultsTitle">Organisation records</h2>
+                <p id="organisationListStatus" aria-live="polite">Open Organisations to load records.</p>
+              </div>
+            </div>
+
+            <div class="people-table-wrap">
+              <table class="people-table organisation-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Organisation Name</th>
+                    <th scope="col">Organisation Code</th>
+                    <th scope="col">Organisation Type</th>
+                    <th scope="col">Status</th>
+                    <th scope="col"><span class="sr-only">Actions</span></th>
+                  </tr>
+                </thead>
+                <tbody id="organisationResults"></tbody>
+              </table>
+              <div id="organisationEmptyState" class="people-empty-state">
+                No organisation records yet. Create the first organisation to start the shared directory.
+              </div>
+            </div>
+          </section>
+
+          <aside class="card organisation-detail-card" aria-labelledby="organisationDetailTitle">
+            <div class="people-results-header">
+              <div>
+                <h2 id="organisationDetailTitle">Organisation detail</h2>
+                <p>Summary and future relationship areas.</p>
+              </div>
+            </div>
+            <div id="organisationDetailEmpty" class="people-empty-state">
+              Select an organisation to view details.
+            </div>
+            <div id="organisationDetailContent" class="organisation-detail-content hidden">
+              <div class="organisation-detail-heading">
+                <div>
+                  <h3 id="organisationDetailName">-</h3>
+                  <p><span id="organisationDetailCode">-</span> | <span id="organisationDetailType">-</span></p>
+                </div>
+                <span id="organisationDetailStatus" class="people-status active">Active</span>
+              </div>
+              <p id="organisationDetailNotes" class="organisation-detail-notes">No notes recorded.</p>
+
+              <div class="organisation-relationship-grid" aria-label="Relationship summaries">
+                <div>
+                  <span>Contracts</span>
+                  <strong id="organisationContractsCount">-</strong>
+                </div>
+                <div>
+                  <span>People</span>
+                  <strong id="organisationPeopleCount">-</strong>
+                </div>
+                <div>
+                  <span>Sites</span>
+                  <strong id="organisationSitesCount">Future</strong>
+                </div>
+                <div>
+                  <span>Visitors</span>
+                  <strong id="organisationVisitorsCount">Future</strong>
+                </div>
+              </div>
+
+              <section class="organisation-placeholder-section" aria-label="Reserved relationship sections">
+                <h3>Contacts</h3>
+                <p>Reserved for organisation contacts.</p>
+                <h3>Contracts</h3>
+                <p>Reserved for contract relationships.</p>
+                <h3>People</h3>
+                <p>Reserved for linked people and assignments.</p>
+                <h3>Sites</h3>
+                <p>Reserved for site relationships.</p>
+                <h3>Documents</h3>
+                <p>Reserved for future document records.</p>
+              </section>
+            </div>
+          </aside>
+        </div>
+
+        <aside id="organisationPanel" class="reference-data-panel hidden" aria-labelledby="organisationPanelTitle" aria-hidden="true">
+          <div class="people-panel-header">
+            <div>
+              <p class="oh-app-eyebrow">Organisation details</p>
+              <h2 id="organisationPanelTitle">Create Organisation</h2>
+            </div>
+            <button id="organisationPanelCloseButton" class="oh-icon-button" type="button" aria-label="Close organisation details">×</button>
+          </div>
+
+          <form id="organisationForm" class="people-form" novalidate>
+            <input id="organisationId" type="hidden" />
+
+            <label for="organisationName">Organisation Name <span aria-hidden="true">*</span></label>
+            <input id="organisationName" required autocomplete="organization" />
+
+            <label for="organisationCode">Organisation Code</label>
+            <input id="organisationCode" autocomplete="off" data-business-code="true" />
+
+            <label for="organisationType">Organisation Type <span aria-hidden="true">*</span></label>
+            <input id="organisationType" required placeholder="Supplier, contractor, customer, agency" />
+
+            <label for="organisationActive">Active</label>
+            <select id="organisationActive">
+              <option value="true">Active</option>
+              <option value="false">Inactive</option>
+            </select>
+
+            <label for="organisationNotes">Notes</label>
+            <textarea id="organisationNotes" rows="4"></textarea>
+
+            <div class="people-form-actions">
+              <button id="organisationSaveButton" type="submit">Save Organisation</button>
+              <button id="organisationClearButton" class="secondary" type="button">Clear</button>
+            </div>
+          </form>
+        </aside>
       </section>
 
       <section id="administrationWorkspace" class="oh-app-page hidden" aria-labelledby="administrationPageTitle">

@@ -2622,6 +2622,130 @@ input[data-reference-field="cycle_length_days"][readonly] {
 
 .people-row-action button + button { margin-left: 6px; }
 
+/* Organisations app foundation */
+.organisation-workspace-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(320px, .75fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.organisation-results-card,
+.organisation-detail-card {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.organisation-search-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(150px, 220px) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.organisation-table th:nth-child(3),
+.organisation-table td:nth-child(3) {
+  min-width: 150px;
+}
+
+.organisation-row-action {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.organisation-row-action button {
+  min-height: 40px;
+  padding: 8px 12px;
+}
+
+.organisation-row-action button + button { margin-left: 6px; }
+
+.organisation-detail-content {
+  padding: 18px 20px 22px;
+}
+
+.organisation-detail-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.organisation-detail-heading h3 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.organisation-detail-heading p,
+.organisation-detail-notes,
+.organisation-placeholder-section p {
+  color: var(--oh-shell-muted);
+}
+
+.organisation-detail-heading p {
+  margin: 6px 0 0;
+}
+
+.organisation-detail-notes {
+  margin: 16px 0 0;
+  line-height: 1.5;
+}
+
+.organisation-relationship-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.organisation-relationship-grid > div {
+  min-height: 82px;
+  padding: 13px;
+  border: 1px solid var(--oh-shell-border);
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.organisation-relationship-grid span {
+  display: block;
+  color: var(--oh-shell-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.organisation-relationship-grid strong {
+  display: block;
+  margin-top: 8px;
+  font-size: 24px;
+}
+
+.organisation-placeholder-section {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--oh-shell-border);
+}
+
+.organisation-placeholder-section h3 {
+  margin: 14px 0 4px;
+  font-size: 15px;
+}
+
+.organisation-placeholder-section h3:first-child {
+  margin-top: 0;
+}
+
+.organisation-placeholder-section p {
+  margin: 0;
+  font-size: 13px;
+}
+
+@media (max-width: 1023px) {
+  .organisation-workspace-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
 .person-assignments-section {
   margin: 0;
   padding: 0;
@@ -2750,6 +2874,22 @@ input[data-reference-field="cycle_length_days"][readonly] {
 }
 
 @media (max-width: 599px) {
+  .organisation-search-row {
+    grid-template-columns: 1fr;
+  }
+
+  .organisation-detail-content {
+    padding: 16px 14px 18px;
+  }
+
+  .organisation-detail-heading {
+    flex-direction: column;
+  }
+
+  .organisation-relationship-grid {
+    grid-template-columns: 1fr;
+  }
+
   .person-assignments-header {
     align-items: stretch;
     flex-direction: column;

@@ -9,6 +9,7 @@ const navScrim = document.getElementById("ohNavScrim");
 const dashboardNav = document.getElementById("ohDashboardNav");
 const visitorsNav = document.getElementById("ohVisitorsNav");
 const peopleNav = document.getElementById("ohPeopleNav");
+const organisationsNav = document.getElementById("ohOrganisationsNav");
 const administrationNav = document.getElementById("ohAdministrationNav");
 const settingsShortcut = document.getElementById("ohSettingsShortcut");
 const currentUserButton = document.getElementById("ohCurrentUserButton");
@@ -23,6 +24,7 @@ const platformVersion = document.getElementById("ohPlatformVersion");
 const environment = document.getElementById("ohEnvironment");
 const dockedPanelIds = [
   "peoplePanel",
+  "organisationPanel",
   "referenceDataPanel"
 ];
 
@@ -100,6 +102,7 @@ function setActiveApp(appName) {
     dashboard: "Dashboard",
     visitors: "Visitors",
     people: "People",
+    organisations: "Organisations",
     administration: "Administration"
   };
 
@@ -107,8 +110,10 @@ function setActiveApp(appName) {
     ["dashboard", dashboardNav],
     ["visitors", visitorsNav],
     ["people", peopleNav],
+    ["organisations", organisationsNav],
     ["administration", administrationNav]
   ].forEach(([name, item]) => {
+    if (!item) return;
     const active = appName === name;
     item.classList.toggle("active", active);
     if (active) item.setAttribute("aria-current", "page");
@@ -134,6 +139,7 @@ export function syncNavigationCapabilityVisibility() {
     setNavItemCapabilityVisibility(dashboardNav, true);
     setNavItemCapabilityVisibility(visitorsNav, true);
     setNavItemCapabilityVisibility(peopleNav, true);
+    setNavItemCapabilityVisibility(organisationsNav, true);
     setNavItemCapabilityVisibility(administrationNav, true);
     return;
   }
@@ -141,6 +147,10 @@ export function syncNavigationCapabilityVisibility() {
   setNavItemCapabilityVisibility(dashboardNav, hasCapability("dashboard.view"));
   setNavItemCapabilityVisibility(visitorsNav, hasCapability("visitor.view"));
   setNavItemCapabilityVisibility(peopleNav, hasAnyCapability(["people.view", "people.manage"]));
+  setNavItemCapabilityVisibility(
+    organisationsNav,
+    AppState.currentProfile.role === "super_user"
+  );
   setNavItemCapabilityVisibility(administrationNav, hasAnyCapability([
     "settings.view",
     "users.view",
@@ -149,7 +159,7 @@ export function syncNavigationCapabilityVisibility() {
 }
 
 function showOnlyWorkspace(workspaceId, appName) {
-  ["dashboardWorkspace", "visitorsWorkspace", "peopleWorkspace", "administrationWorkspace"].forEach(id => {
+  ["dashboardWorkspace", "visitorsWorkspace", "peopleWorkspace", "organisationsWorkspace", "administrationWorkspace"].forEach(id => {
     document.getElementById(id).classList.toggle("hidden", id !== workspaceId);
   });
   closeDockedPanels();
@@ -170,6 +180,11 @@ export function showVisitorWorkspace() {
 
 export function showPeopleWorkspace() {
   showOnlyWorkspace("peopleWorkspace", "people");
+  document.getElementById("operationsHubWorkspace").focus({ preventScroll: true });
+}
+
+export function showOrganisationsWorkspace() {
+  showOnlyWorkspace("organisationsWorkspace", "organisations");
   document.getElementById("operationsHubWorkspace").focus({ preventScroll: true });
 }
 
@@ -263,6 +278,9 @@ navToggle.addEventListener("click", toggleNavigation);
 navScrim.addEventListener("click", () => setNavigationOpen(false));
 dashboardNav.addEventListener("click", showDashboardWorkspace);
 visitorsNav.addEventListener("click", showVisitorsHome);
+if (organisationsNav) organisationsNav.addEventListener("click", () => {
+  window.dispatchEvent(new CustomEvent("oh:organisations-nav-requested"));
+});
 settingsShortcut.addEventListener("click", openExistingSettingsArea);
 if (currentUserButton) currentUserButton.addEventListener("click", event => {
   event.stopPropagation();
