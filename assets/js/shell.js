@@ -2,6 +2,7 @@ import { hasAnyCapability, hasCapability } from "./capabilities.js";
 import { AppState } from "./state.js";
 
 const shell = document.getElementById("operationsHubShell");
+const layout = shell ? shell.querySelector(".oh-layout") : null;
 const navigation = document.getElementById("ohNavigation");
 const navToggle = document.getElementById("ohNavToggle");
 const navScrim = document.getElementById("ohNavScrim");
@@ -10,9 +11,20 @@ const visitorsNav = document.getElementById("ohVisitorsNav");
 const peopleNav = document.getElementById("ohPeopleNav");
 const administrationNav = document.getElementById("ohAdministrationNav");
 const settingsShortcut = document.getElementById("ohSettingsShortcut");
+const currentUserButton = document.getElementById("ohCurrentUserButton");
+const accountMenu = document.getElementById("ohAccountMenu");
 const currentUser = document.getElementById("ohCurrentUser");
+const accountDisplayName = document.getElementById("ohAccountDisplayName");
+const accountDisplayRole = document.getElementById("ohAccountDisplayRole");
+const accountChangePassword = document.getElementById("ohAccountChangePassword");
+const accountLogout = document.getElementById("ohAccountLogout");
+const workspaceCue = document.getElementById("ohWorkspaceCue");
 const platformVersion = document.getElementById("ohPlatformVersion");
 const environment = document.getElementById("ohEnvironment");
+const dockedPanelIds = [
+  "peoplePanel",
+  "referenceDataPanel"
+];
 
 function isPhoneLayout() {
   return window.matchMedia("(max-width: 599px)").matches;
@@ -26,6 +38,40 @@ function currentLayout() {
   if (isPhoneLayout()) return "phone";
   if (isTabletLayout()) return "tablet";
   return "desktop";
+}
+
+function getDockedPanels() {
+  return dockedPanelIds
+    .map(id => document.getElementById(id))
+    .filter(Boolean);
+}
+
+function dockWorkspacePanels() {
+  if (!layout) return [];
+
+  return getDockedPanels()
+    .map(panel => {
+      panel.dataset.ohDockedPanel = "true";
+      if (panel.parentElement !== layout) {
+        layout.appendChild(panel);
+      }
+      return panel;
+    });
+}
+
+function syncDockedPanelState(panels) {
+  if (!shell) return;
+  const anyOpen = panels.some(panel => !panel.classList.contains("hidden"));
+  shell.classList.toggle("oh-panel-open", anyOpen);
+}
+
+function closeDockedPanels() {
+  const panels = getDockedPanels();
+  panels.forEach(panel => {
+    panel.classList.add("hidden");
+    panel.setAttribute("aria-hidden", "true");
+  });
+  syncDockedPanelState(panels);
 }
 
 function setNavigationOpen(open) {
@@ -50,6 +96,13 @@ function toggleNavigation() {
 }
 
 function setActiveApp(appName) {
+  const labels = {
+    dashboard: "Dashboard",
+    visitors: "Visitors",
+    people: "People",
+    administration: "Administration"
+  };
+
   [
     ["dashboard", dashboardNav],
     ["visitors", visitorsNav],
@@ -61,6 +114,10 @@ function setActiveApp(appName) {
     if (active) item.setAttribute("aria-current", "page");
     else item.removeAttribute("aria-current");
   });
+
+  if (workspaceCue) {
+    workspaceCue.textContent = "Operations Hub / " + (labels[appName] || "Workspace");
+  }
 }
 
 function setNavItemCapabilityVisibility(item, visible) {
@@ -95,7 +152,9 @@ function showOnlyWorkspace(workspaceId, appName) {
   ["dashboardWorkspace", "visitorsWorkspace", "peopleWorkspace", "administrationWorkspace"].forEach(id => {
     document.getElementById(id).classList.toggle("hidden", id !== workspaceId);
   });
+  closeDockedPanels();
   setActiveApp(appName);
+  closeAccountMenu();
   setNavigationOpen(false);
 }
 
@@ -162,6 +221,30 @@ function syncCurrentUser() {
   const name = source ? source.textContent.trim() : "";
   currentUser.textContent = name || "Not signed in";
   currentUser.title = name || "Not signed in";
+
+  if (accountDisplayName) accountDisplayName.textContent = AppState.currentProfile && AppState.currentProfile.display_name
+    ? AppState.currentProfile.display_name
+    : "Not signed in";
+  if (accountDisplayRole) accountDisplayRole.textContent = AppState.currentProfile && AppState.currentProfile.role
+    ? String(AppState.currentProfile.role).replace("_", " ")
+    : "No active staff session";
+  const staffSession = AppState.currentProfile &&
+    AppState.currentProfile.active &&
+    AppState.currentProfile.role !== "kiosk_user";
+  if (accountChangePassword) accountChangePassword.classList.toggle("hidden", !staffSession);
+  if (accountLogout) accountLogout.classList.toggle("hidden", !AppState.currentProfile);
+}
+
+export function closeAccountMenu() {
+  if (!accountMenu || !currentUserButton) return;
+  accountMenu.classList.add("hidden");
+  currentUserButton.setAttribute("aria-expanded", "false");
+}
+
+function toggleAccountMenu() {
+  if (!accountMenu || !currentUserButton) return;
+  const open = accountMenu.classList.toggle("hidden") === false;
+  currentUserButton.setAttribute("aria-expanded", String(open));
 }
 
 function syncPlatformVersion() {
@@ -181,6 +264,18 @@ navScrim.addEventListener("click", () => setNavigationOpen(false));
 dashboardNav.addEventListener("click", showDashboardWorkspace);
 visitorsNav.addEventListener("click", showVisitorsHome);
 settingsShortcut.addEventListener("click", openExistingSettingsArea);
+if (currentUserButton) currentUserButton.addEventListener("click", event => {
+  event.stopPropagation();
+  toggleAccountMenu();
+});
+document.addEventListener("click", event => {
+  if (!accountMenu || accountMenu.classList.contains("hidden")) return;
+  if (accountMenu.contains(event.target) || (currentUserButton && currentUserButton.contains(event.target))) return;
+  closeAccountMenu();
+});
+document.addEventListener("keydown", event => {
+  if (event.key === "Escape") closeAccountMenu();
+});
 
 let activeLayout = currentLayout();
 
@@ -201,9 +296,16 @@ window.addEventListener("resize", function () {
 
 const userSource = document.getElementById("topbarStaffStatus");
 const versionSource = document.getElementById("appVersionText");
+const dockedPanels = dockWorkspacePanels();
 
 if (userSource) new MutationObserver(syncCurrentUser).observe(userSource, { childList: true, subtree: true });
 if (versionSource) new MutationObserver(syncPlatformVersion).observe(versionSource, { childList: true, subtree: true });
+dockedPanels.forEach(panel => {
+  new MutationObserver(() => syncDockedPanelState(dockedPanels)).observe(panel, {
+    attributes: true,
+    attributeFilter: ["class"]
+  });
+});
 
 if (activeLayout === "tablet") {
   shell.classList.add("oh-nav-collapsed");
@@ -214,3 +316,4 @@ if (activeLayout === "tablet") {
 syncCurrentUser();
 syncPlatformVersion();
 setEnvironmentLabel();
+syncDockedPanelState(dockedPanels);

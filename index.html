@@ -35,12 +35,21 @@
         <span aria-hidden="true">●</span>
         <span class="oh-action-label">Notifications</span>
       </button>
-      <div class="oh-current-user" aria-label="Current user">
+      <button id="ohCurrentUserButton" class="oh-current-user" type="button" aria-label="Current user menu" aria-haspopup="true" aria-expanded="false">
         <span class="oh-user-avatar" aria-hidden="true">U</span>
         <span>
           <small>Current user</small>
           <strong id="ohCurrentUser">Not signed in</strong>
         </span>
+      </button>
+      <div id="ohAccountMenu" class="oh-account-menu hidden" role="menu" aria-labelledby="ohCurrentUserButton">
+        <div class="oh-account-menu-identity">
+          <strong id="ohAccountDisplayName">Not signed in</strong>
+          <span id="ohAccountDisplayRole">No active staff session</span>
+        </div>
+        <button id="ohAccountChangePassword" type="button" role="menuitem">Change Password</button>
+        <button id="ohAccountLogout" type="button" role="menuitem">Log Out</button>
+        <button id="ohAccountAbout" type="button" role="menuitem">About Operations Hub</button>
       </div>
       <button id="ohSettingsShortcut" class="oh-header-action no-print" type="button" title="Open the existing Visitor staff area">
         <span aria-hidden="true">⚙</span>
@@ -97,6 +106,7 @@
     </aside>
 
     <main id="operationsHubWorkspace" class="oh-workspace" tabindex="-1">
+      <div id="ohWorkspaceCue" class="oh-location-cue">Operations Hub / Visitors</div>
       <section id="dashboardWorkspace" class="oh-app-page oh-dashboard-page hidden" aria-labelledby="dashboardPageTitle">
         <header class="oh-app-page-header">
           <div>
@@ -2009,7 +2019,7 @@
             </div>
           </section>
 
-          <aside id="peoplePanel" class="people-panel hidden" aria-labelledby="peoplePanelTitle" aria-hidden="true">
+          <aside id="peoplePanel" class="reference-data-panel hidden" aria-labelledby="peoplePanelTitle" aria-hidden="true">
             <div class="people-panel-header">
               <div>
                 <p class="oh-app-eyebrow">Person details</p>

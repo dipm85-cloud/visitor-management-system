@@ -4,8 +4,10 @@ import { showToast } from "./messages.js";
 import { showPeopleWorkspace } from "./shell.js";
 import { AppState } from "./state.js";
 import {
+  detachAssignmentInlinePlacement,
   getSelectedAssignmentPersonId,
-  selectPersonForAssignments
+  selectPersonForAssignments,
+  syncAssignmentInlinePlacement
 } from "./assignments.js";
 import {
   normaliseEmail,
@@ -106,6 +108,7 @@ export function renderPeopleList() {
   });
 
   const body = $("peopleResults");
+  detachAssignmentInlinePlacement();
   body.replaceChildren();
 
   filtered.forEach(person => {
@@ -144,7 +147,6 @@ export function renderPeopleList() {
     editButton.textContent = "Edit";
     editButton.setAttribute("aria-label", "Edit " + person.display_name);
     editButton.addEventListener("click", () => {
-      selectPersonForAssignments(person.id, person.display_name);
       openPeoplePanel(person.id);
     });
     actionCell.appendChild(editButton);
@@ -158,6 +160,7 @@ export function renderPeopleList() {
     ? "No people match this search. Try a different name, number, email or phone."
     : "No people records yet. Create the first person to start the shared directory.";
   setListStatus(filtered.length + " of " + peopleCache.length + " people shown.");
+  syncAssignmentInlinePlacement();
 }
 
 export function openPeoplePanel(personId) {

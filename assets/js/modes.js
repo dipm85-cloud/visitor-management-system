@@ -47,7 +47,6 @@ export function enterKioskMode() {
 
 export async function enterWorkspaceMode() {
   setDocumentMode(WORKSPACE_MODE);
-  modeDependencies.showVisitorWorkspace();
 
   const profile = AppState.currentProfile;
   const activeStaffSession =
@@ -56,8 +55,11 @@ export async function enterWorkspaceMode() {
     profile.role !== "kiosk_user";
 
   if (activeStaffSession) {
+    modeDependencies.showDashboardWorkspace();
     await modeDependencies.openStaffAreaFromProfile();
+    modeDependencies.showDashboardWorkspace();
   } else {
+    modeDependencies.showVisitorWorkspace();
     showScreen("homeScreen");
     modeDependencies.updateHomeAccess();
   }

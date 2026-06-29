@@ -162,6 +162,8 @@ import {
 } from "./people.js";
 import {
   showVisitorWorkspace,
+  showDashboardWorkspace,
+  closeAccountMenu,
   syncNavigationCapabilityVisibility
 } from "./shell.js";
 import {
@@ -263,6 +265,7 @@ window.addEventListener("load", async function () {
     configureModes({
       updateHomeAccess,
       openStaffAreaFromProfile,
+      showDashboardWorkspace,
       showVisitorWorkspace
     });
     configureDashboard({
@@ -4540,6 +4543,18 @@ window.addEventListener("load", async function () {
     });
     $("topbarLogoutButton").addEventListener("click", requestProtectedLogout);
     $("changePasswordTopButton").addEventListener("click", openChangePasswordModal);
+    if ($("ohAccountChangePassword")) $("ohAccountChangePassword").addEventListener("click", () => {
+      closeAccountMenu();
+      openChangePasswordModal();
+    });
+    if ($("ohAccountLogout")) $("ohAccountLogout").addEventListener("click", async () => {
+      closeAccountMenu();
+      await requestProtectedLogout();
+    });
+    if ($("ohAccountAbout")) $("ohAccountAbout").addEventListener("click", () => {
+      closeAccountMenu();
+      showToast("Operations Hub", "Platform workspace foundation. More account options will be added in a future release.", "info");
+    });
     $("staffHeaderLogoutButton").addEventListener("click", requestProtectedLogout);
     document.querySelectorAll(".backHomeButton").forEach(b => b.addEventListener("click", () => showScreen("homeScreen")));
 

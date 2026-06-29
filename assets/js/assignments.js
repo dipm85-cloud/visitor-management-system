@@ -105,6 +105,7 @@ let assignmentsCache = [];
 let selectedPersonId = null;
 let selectedPersonName = "";
 let assignmentsLoadedSuccessfully = false;
+const ASSIGNMENT_DETAIL_ROW_ID = "inlineAssignmentDetailRow";
 
 function hasAssignmentAccess() {
   return !!(
@@ -180,6 +181,49 @@ export function getSelectedAssignmentPersonId() {
   return selectedPersonId;
 }
 
+export function detachAssignmentInlinePlacement() {
+  const section = $("personAssignmentsSection");
+  const existingRow = document.getElementById(ASSIGNMENT_DETAIL_ROW_ID);
+  const fallback = document.querySelector(".people-workspace-layout");
+
+  if (section && fallback && section.parentElement !== fallback) {
+    fallback.appendChild(section);
+  }
+  if (existingRow) existingRow.remove();
+}
+
+export function syncAssignmentInlinePlacement() {
+  const section = $("personAssignmentsSection");
+  const existingRow = document.getElementById(ASSIGNMENT_DETAIL_ROW_ID);
+  if (existingRow) existingRow.remove();
+
+  if (!selectedPersonId) {
+    section.classList.add("hidden");
+    return false;
+  }
+
+  const selectedRow = document.querySelector('#peopleResults tr[data-person-id="' + selectedPersonId + '"]');
+  if (!selectedRow) {
+    section.classList.add("hidden");
+    closeAssignmentEditor();
+    return false;
+  }
+
+  const detailRow = document.createElement("tr");
+  detailRow.id = ASSIGNMENT_DETAIL_ROW_ID;
+  detailRow.className = "assignment-inline-row";
+
+  const detailCell = document.createElement("td");
+  detailCell.className = "assignment-inline-cell";
+  detailCell.colSpan = selectedRow.cells.length || 5;
+  detailCell.appendChild(section);
+  detailRow.appendChild(detailCell);
+
+  selectedRow.insertAdjacentElement("afterend", detailRow);
+  section.classList.remove("hidden");
+  return true;
+}
+
 export async function selectPersonForAssignments(personId, displayName) {
   if (!requireAssignmentAccess()) return;
 
@@ -187,14 +231,13 @@ export async function selectPersonForAssignments(personId, displayName) {
   selectedPersonName = displayName || "Selected person";
   assignmentsLoadedSuccessfully = false;
   $("personAssignmentsName").textContent = selectedPersonName;
-  $("personAssignmentsSection").classList.remove("hidden");
   closeAssignmentEditor();
 
   document.querySelectorAll("#peopleResults tr[data-person-id]").forEach(row => {
     row.classList.toggle("selected", row.dataset.personId === selectedPersonId);
   });
 
-  $("personAssignmentsSection").scrollIntoView({ block: "start" });
+  syncAssignmentInlinePlacement();
 
   await loadAssignments();
 }
@@ -293,7 +336,7 @@ export function openAssignmentEditor(sourceAssignmentId) {
   if (!requireAssignmentAccess() || !selectedPersonId) return;
 
   clearAssignmentForm();
-  $("personAssignmentsSection").scrollIntoView({ block: "start" });
+  syncAssignmentInlinePlacement();
   $("assignmentPanelPerson").textContent = selectedPersonName;
   const source = assignmentsCache.find(assignment => assignment.id === sourceAssignmentId);
 
@@ -316,7 +359,7 @@ export function openAssignmentEditor(sourceAssignmentId) {
 
   $("assignmentPanel").classList.remove("hidden");
   $("assignmentPanel").setAttribute("aria-hidden", "false");
-  setTimeout(() => $("assignmentSite").focus(), 0);
+  setTimeout(() => $("assignmentSite").focus({ preventScroll: true }), 0);
 }
 
 export function closeAssignmentEditor() {
