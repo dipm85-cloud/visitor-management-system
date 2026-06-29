@@ -54,6 +54,49 @@ function endKioskAction(button, normalText) {
   setKioskActionButtonBusy(button, false, null, normalText);
 }
 
+function resetPlannedSignInSearch() {
+  if ($("plannedFilter")) $("plannedFilter").value = "";
+  if ($("plannedVisits")) {
+    $("plannedVisits").innerHTML = "<div class='row'><div class='row-meta'>Type at least 2 letters of your name to search today's planned visitors.</div></div>";
+  }
+}
+
+function resetSignOutSearch() {
+  if ($("signOutFilter")) $("signOutFilter").value = "";
+  if ($("activeVisits")) {
+    $("activeVisits").innerHTML = "<div class='row'><div class='row-meta'>Type at least 2 letters of your name to search current signed-in visitors.</div></div>";
+  }
+}
+
+function resetWalkInPublicFlow() {
+  ["walkInName","walkInCompany","walkInReason","walkInVehicle","walkInContact","walkInSecurityPass"].forEach(id => {
+    if ($(id)) $(id).value = "";
+  });
+  resetPlannedSignInSearch();
+}
+
+async function queueVisitorArrivalNotificationBestEffort(visitId) {
+  try {
+    await visitorDependencies.queueVisitorArrivalNotification(visitId);
+  } catch (err) {
+    console.warn("Visitor arrival notification failed after successful sign-in. Visitor flow remains successful.", err);
+  }
+}
+
+function isPublicKioskContext() {
+  const superKioskTest = visitorDependencies.isSuperKioskTestProfile && visitorDependencies.isSuperKioskTestProfile();
+  return !superKioskTest && (!AppState.currentProfile || AppState.currentProfile.role === "kiosk_user");
+}
+
+function showStaffComplianceToast(title, body, type) {
+  if (isPublicKioskContext()) {
+    console.warn(title + ": " + body);
+    return;
+  }
+
+  showToast(title, body, type);
+}
+
 export async function refreshCoreData() {
   await loadPlannedVisits();
   await loadActiveVisits();
@@ -251,7 +294,7 @@ export async function signInPlanned(visit, actionButton) {
     }
 
     const plannedVisitLogId = await findVisitLogIdAfterPlannedSignIn(visit.id, result.data);
-    await visitorDependencies.queueVisitorArrivalNotification(plannedVisitLogId);
+    await queueVisitorArrivalNotificationBestEffort(plannedVisitLogId);
 
     await visitorDependencies.sendKioskHeartbeat("visitor_signed_in_planned");
 
@@ -263,6 +306,7 @@ export async function signInPlanned(visit, actionButton) {
 
     showMessage("Signed in successfully.", "success");
     showKioskConfirmation("Welcome, " + safe(visit.visitor_name), appSettings.plannedSignInMessage);
+    resetPlannedSignInSearch();
     await refreshCoreData();
     showScreen("homeScreen");
   } catch (err) {
@@ -355,7 +399,7 @@ export async function signInWalkIn() {
   }
 
   const walkInVisitLogId = await findVisitLogIdAfterWalkInSignIn(name, result.data);
-  await visitorDependencies.queueVisitorArrivalNotification(walkInVisitLogId);
+  await queueVisitorArrivalNotificationBestEffort(walkInVisitLogId);
 
   await visitorDependencies.sendKioskHeartbeat("visitor_signed_in_walk_in");
 
@@ -364,7 +408,7 @@ export async function signInWalkIn() {
     visitor_name: name
   });
 
-  ["walkInName","walkInCompany","walkInReason","walkInVehicle","walkInContact","walkInSecurityPass"].forEach(id => $(id).value = "");
+  resetWalkInPublicFlow();
   visitorDependencies.closeWalkInModal();
   showMessage("Walk-in visitor signed in successfully.", "success");
   showKioskConfirmation("Welcome, " + safe(name), appSettings.walkInSignInMessage);
@@ -472,16 +516,21 @@ export async function signOut(id, actionButton) {
 
   const complianceSummary = await getVisitMissingAgreementSummary(id);
   if (complianceSummary && complianceSummary.error) {
-    showToast("Compliance check warning", "Could not check agreement compliance before sign-out: " + complianceSummary.error.message, "error");
+    showStaffComplianceToast("Compliance check warning", "Could not check agreement compliance before sign-out: " + complianceSummary.error.message, "error");
   } else if (complianceSummary && Number(complianceSummary.missing_count || 0) > 0) {
     const missingText = complianceSummary.missing_agreements || "required agreement(s)";
     const blockSignOut = !!settingValue("block_sign_out_if_required_agreements_missing", false);
     if (blockSignOut) {
-      showMessage("Cannot sign out. Missing required agreement(s): " + missingText, "error");
-      showToast("Sign-out blocked", "Missing required agreement(s): " + missingText, "error");
+      showMessage(
+        isPublicKioskContext()
+          ? "Sign-out could not be completed. Please ask Security for help."
+          : "Cannot sign out. Missing required agreement(s): " + missingText,
+        "error"
+      );
+      showStaffComplianceToast("Sign-out blocked", "Missing required agreement(s): " + missingText, "error");
       return;
     }
-    showToast("Compliance warning", "Signing out with missing required agreement(s): " + missingText, "error");
+    showStaffComplianceToast("Compliance warning", "Signing out with missing required agreement(s): " + missingText, "error");
   }
 
   showMessage("Signing you out, please wait...", "success");
@@ -507,6 +556,7 @@ export async function signOut(id, actionButton) {
 
   showMessage("Visitor signed out successfully.", "success");
   showKioskConfirmation("Thank you for your visit", appSettings.signOutMessage);
+  resetSignOutSearch();
   await refreshCoreData();
   showScreen("homeScreen");
   } finally {

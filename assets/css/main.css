@@ -405,6 +405,68 @@ textarea { min-height: 86px; resize: vertical; }
 
 .form-grid .full { grid-column: 1 / -1; }
 
+.identity-lookup-field {
+  position: relative;
+}
+
+.identity-lookup-results {
+  position: absolute;
+  z-index: 55;
+  inset-inline: 0;
+  top: calc(100% + 4px);
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  padding: 6px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.identity-lookup-result {
+  width: 100%;
+  display: block;
+  text-align: left;
+  background: transparent;
+  color: var(--text);
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.identity-lookup-result:hover,
+.identity-lookup-result:focus {
+  background: #eef3f8;
+  color: var(--text);
+  box-shadow: none;
+  transform: none;
+}
+
+.identity-lookup-title,
+.identity-lookup-meta {
+  display: block;
+}
+
+.identity-lookup-title {
+  font-weight: 800;
+}
+
+.identity-lookup-meta,
+.identity-lookup-status {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.identity-lookup-status {
+  margin-top: 5px;
+  min-height: 16px;
+}
+
+.identity-lookup-create {
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+}
+
 .message {
   display: none;
   padding: 14px 16px;

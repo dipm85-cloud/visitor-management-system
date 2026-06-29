@@ -5,6 +5,7 @@ import { clearMessage, showMessage } from "./messages.js";
 import { todayDate, safe, formatPersonName, normalisePlate } from "./utils.js";
 import { writeAuditEvent } from "./audit.js";
 import { refreshCoreData } from "./visitorFlow.js";
+import { resetVisitorIdentitySelection, visitorDisplayName } from "./visitorIdentity.js";
 
 let plannedVisitDependencies;
 
@@ -44,7 +45,7 @@ export async function createPlannedVisit() {
   if (!plannedVisitDependencies.validateRequiredField("plannedContact", "On-site contact")) return;
   if (!plannedVisitDependencies.validateRequiredField("plannedSecurityPass", "Security pass ID")) return;
 
-  const result = await supabaseClient.from("planned_visits").insert({
+  const payload = {
     visitor_name: name,
     company: $("plannedCompany").value.trim() || null,
     host_id: null,
@@ -57,7 +58,9 @@ export async function createPlannedVisit() {
     notes: null,
     status: "planned",
     created_by: AppState.currentProfile ? AppState.currentProfile.id : null
-  });
+  };
+
+  const result = await supabaseClient.from("planned_visits").insert(payload);
 
   if (result.error) {
     if (result.error.code === "23505") {
@@ -70,6 +73,7 @@ export async function createPlannedVisit() {
   }
 
   ["plannedName","plannedCompany","plannedTime","plannedReason","plannedVehicle","plannedContact","plannedSecurityPass"].forEach(id => $(id).value = "");
+  resetVisitorIdentitySelection("planned");
   $("plannedDate").value = todayDate();
   await writeAuditEvent("planned_visit_created", "planned_visits", result.data && result.data[0] ? result.data[0].id : null, {
     action: "create",
@@ -180,7 +184,7 @@ export function renderPlannedResults(box, data, allowEdit, allowDelete, security
     const row = document.createElement("div");
     row.className = "row";
     row.innerHTML =
-      "<div class='row-title'>" + safe(visit.visitor_name) + "</div>" +
+      "<div class='row-title'>" + visitorDisplayName(visit) + "</div>" +
       "<div class='row-meta'>" +
       "Date: " + safe(visit.visit_date) + " " + safe(visit.expected_time) + "<br>" +
       "Company: " + safe(visit.company) + "<br>" +

@@ -5,6 +5,7 @@ import { clearMessage, showMessage, showEditModalMessage, clearEditModalMessage 
 import { todayDate, safe, formatPersonName, normalisePlate } from "./utils.js";
 import { writeAuditEvent, buildFieldDiff, auditDiffSummary } from "./audit.js";
 import { refreshCoreData } from "./visitorFlow.js";
+import { resetVisitorIdentitySelection, visitorDisplayName } from "./visitorIdentity.js";
 import {
   searchPlanned,
   loadSecurityPlanned,
@@ -79,7 +80,7 @@ export function renderHistoryResults(box, data, allowEdit, allowDelete, security
     const row = document.createElement("div");
     row.className = "row";
     row.innerHTML =
-      "<div class='row-title'>" + safe(log.visitor_name) + "</div>" +
+      "<div class='row-title'>" + visitorDisplayName(log) + "</div>" +
       "<div class='row-meta'>" +
       "Company: " + safe(log.company) + "<br>" +
       "Origin: " + safe((log.visit_origin || (log.planned_visit_id ? "planned" : "walk_in")).replace("_", " ")) + "<br>" +
@@ -154,6 +155,7 @@ export function openEditModal(table, record, mode) {
 
   $("editVisitorName").value = record.visitor_name || "";
   $("editCompany").value = record.company || "";
+  resetVisitorIdentitySelection("edit");
   $("editVisitDate").value = record.visit_date || "";
   $("editExpectedTime").value = record.expected_time || "";
   $("editReason").value = record.visit_reason || "";

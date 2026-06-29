@@ -213,8 +213,18 @@
       <div class="card">
         <h2>Create Planned Visit</h2>
         <div class="form-grid">
-          <input id="plannedName" placeholder="Visitor name" />
-          <input id="plannedCompany" placeholder="Company" />
+          <div class="identity-lookup-field">
+            <input id="plannedName" placeholder="Search or create visitor" />
+            <input id="plannedPersonId" type="hidden" />
+            <div id="plannedPersonLookupResults" class="identity-lookup-results hidden" role="listbox"></div>
+            <div id="plannedPersonLookupStatus" class="identity-lookup-status" aria-live="polite"></div>
+          </div>
+          <div class="identity-lookup-field">
+            <input id="plannedCompany" placeholder="Search organisation or type company" />
+            <input id="plannedOrganisationId" type="hidden" />
+            <div id="plannedOrganisationLookupResults" class="identity-lookup-results hidden" role="listbox"></div>
+            <div id="plannedOrganisationLookupStatus" class="identity-lookup-status" aria-live="polite"></div>
+          </div>
           <input id="plannedDate" type="date" />
           <input id="plannedTime" type="time" />
           <input id="plannedReason" data-field-rule="planned_reason" class="full" placeholder="Reason for visit / comments" />
@@ -2718,8 +2728,18 @@
     </div>
 
     <div class="form-grid" id="editFullFields">
-      <input id="editVisitorName" placeholder="Visitor name" />
-      <input id="editCompany" placeholder="Company" />
+      <div class="identity-lookup-field">
+        <input id="editVisitorName" placeholder="Search or create visitor" />
+        <input id="editPersonId" type="hidden" />
+        <div id="editPersonLookupResults" class="identity-lookup-results hidden" role="listbox"></div>
+        <div id="editPersonLookupStatus" class="identity-lookup-status" aria-live="polite"></div>
+      </div>
+      <div class="identity-lookup-field">
+        <input id="editCompany" placeholder="Search organisation or type company" />
+        <input id="editOrganisationId" type="hidden" />
+        <div id="editOrganisationLookupResults" class="identity-lookup-results hidden" role="listbox"></div>
+        <div id="editOrganisationLookupStatus" class="identity-lookup-status" aria-live="polite"></div>
+      </div>
       <input id="editVisitDate" type="date" />
       <input id="editExpectedTime" type="time" />
       <textarea id="editReason" class="full" placeholder="Reason / comments"></textarea>

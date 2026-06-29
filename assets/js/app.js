@@ -180,6 +180,7 @@ import {
   saveAssignment,
   clearAssignmentForm
 } from "./assignments.js";
+import { initialiseVisitorIdentityLookups } from "./visitorIdentity.js";
 
 window.addEventListener("load", async function () {
   try {
@@ -4470,6 +4471,7 @@ window.addEventListener("load", async function () {
 
     $("openStaffHomeButton").addEventListener("click", openStaffAreaFromProfile);
     if ($("kioskStaffLoginButton")) $("kioskStaffLoginButton").addEventListener("click", openLoginModal);
+    initialiseVisitorIdentityLookups();
     if ($("ohPeopleNav")) $("ohPeopleNav").addEventListener("click", openPeopleWorkspace);
     if ($("peopleCreateButton")) $("peopleCreateButton").addEventListener("click", () => openPeoplePanel(null));
     if ($("peopleReloadButton")) $("peopleReloadButton").addEventListener("click", loadPeople);
