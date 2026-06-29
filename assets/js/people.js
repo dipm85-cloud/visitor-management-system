@@ -71,6 +71,7 @@ export async function loadPeople() {
   if (!requirePeopleAccess()) return;
 
   setListStatus("Loading people…");
+  detachAssignmentInlinePlacement();
   $("peopleResults").replaceChildren();
   $("peopleEmptyState").classList.add("hidden");
 

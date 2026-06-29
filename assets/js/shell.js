@@ -24,6 +24,7 @@ const platformVersion = document.getElementById("ohPlatformVersion");
 const environment = document.getElementById("ohEnvironment");
 const dockedPanelIds = [
   "peoplePanel",
+  "assignmentPanel",
   "organisationPanel",
   "referenceDataPanel"
 ];

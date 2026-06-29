@@ -187,9 +187,8 @@ import {
 } from "./referenceData.js";
 import {
   openAssignmentEditor,
-  closeAssignmentEditor,
-  saveAssignment,
-  clearAssignmentForm
+  cancelAssignmentEditor,
+  saveAssignment
 } from "./assignments.js";
 import { initialiseVisitorIdentityLookups } from "./visitorIdentity.js";
 import {
@@ -4529,8 +4528,8 @@ window.addEventListener("load", async function () {
       saveReferenceRecord();
     });
     if ($("assignmentCreateButton")) $("assignmentCreateButton").addEventListener("click", () => openAssignmentEditor(null));
-    if ($("assignmentPanelCloseButton")) $("assignmentPanelCloseButton").addEventListener("click", closeAssignmentEditor);
-    if ($("assignmentClearButton")) $("assignmentClearButton").addEventListener("click", clearAssignmentForm);
+    if ($("assignmentPanelCloseButton")) $("assignmentPanelCloseButton").addEventListener("click", cancelAssignmentEditor);
+    if ($("assignmentCancelButton")) $("assignmentCancelButton").addEventListener("click", cancelAssignmentEditor);
     if ($("assignmentForm")) $("assignmentForm").addEventListener("submit", event => {
       event.preventDefault();
       saveAssignment();

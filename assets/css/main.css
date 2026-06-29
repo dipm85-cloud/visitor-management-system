@@ -2817,12 +2817,6 @@ input[data-reference-field="cycle_length_days"][readonly] {
 .assignment-row-action { width: 1%; white-space: nowrap; }
 .assignment-row-action button { min-height: 40px; padding: 8px 12px; }
 
-.assignment-panel {
-  margin: 0;
-  border-top: 1px solid var(--oh-shell-border);
-  background: var(--oh-shell-surface);
-}
-
 .assignment-panel-person {
   margin: 4px 0 0;
   color: var(--oh-shell-muted);

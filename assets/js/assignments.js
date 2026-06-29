@@ -105,6 +105,7 @@ let assignmentsCache = [];
 let selectedPersonId = null;
 let selectedPersonName = "";
 let assignmentsLoadedSuccessfully = false;
+let assignmentEditorTrigger = null;
 const ASSIGNMENT_DETAIL_ROW_ID = "inlineAssignmentDetailRow";
 
 function hasAssignmentAccess() {
@@ -196,6 +197,7 @@ export function syncAssignmentInlinePlacement() {
   const section = $("personAssignmentsSection");
   const existingRow = document.getElementById(ASSIGNMENT_DETAIL_ROW_ID);
   if (existingRow) existingRow.remove();
+  if (!section) return false;
 
   if (!selectedPersonId) {
     section.classList.add("hidden");
@@ -335,6 +337,9 @@ function setLookupValues(assignment) {
 export function openAssignmentEditor(sourceAssignmentId) {
   if (!requireAssignmentAccess() || !selectedPersonId) return;
 
+  assignmentEditorTrigger = document.activeElement instanceof HTMLElement
+    ? document.activeElement
+    : null;
   clearAssignmentForm();
   syncAssignmentInlinePlacement();
   $("assignmentPanelPerson").textContent = selectedPersonName;
@@ -365,6 +370,15 @@ export function openAssignmentEditor(sourceAssignmentId) {
 export function closeAssignmentEditor() {
   $("assignmentPanel").classList.add("hidden");
   $("assignmentPanel").setAttribute("aria-hidden", "true");
+  if (assignmentEditorTrigger && assignmentEditorTrigger.isConnected) {
+    assignmentEditorTrigger.focus({ preventScroll: true });
+  }
+  assignmentEditorTrigger = null;
+}
+
+export async function cancelAssignmentEditor() {
+  closeAssignmentEditor();
+  if (selectedPersonId) await loadAssignments();
 }
 
 export function clearAssignmentForm() {
