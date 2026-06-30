@@ -2814,8 +2814,46 @@ input[data-reference-field="cycle_length_days"][readonly] {
 
 .assignment-table td { font-size: 13px; }
 .assignment-table tbody tr:hover { background: #f8fafc; }
-.assignment-row-action { width: 1%; white-space: nowrap; }
+.assignment-row-action { width: 1%; }
 .assignment-row-action button { min-height: 40px; padding: 8px 12px; }
+
+.assignment-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.assignment-current-badge {
+  display: block;
+  width: max-content;
+  margin-top: 6px;
+  padding: 3px 8px;
+  border: 1px solid #86b7a0;
+  border-radius: 999px;
+  color: #166534;
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.assignment-action-note {
+  max-width: 120px;
+  color: var(--oh-shell-muted);
+  font-size: 11px;
+  line-height: 1.25;
+  white-space: normal;
+}
+
+#assignmentEndModalBackdrop label {
+  display: block;
+  margin: 16px 0 7px;
+  font-weight: 800;
+}
+
+#assignmentEndDate {
+  width: 100%;
+}
 
 .assignment-panel-person {
   margin: 4px 0 0;

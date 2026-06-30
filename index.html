@@ -2011,7 +2011,7 @@
                     <th scope="col">Shift Pattern</th>
                     <th scope="col">Assignment Start</th>
                     <th scope="col">Assignment End</th>
-                    <th scope="col">Active</th>
+                    <th scope="col">State</th>
                     <th scope="col"><span class="sr-only">Actions</span></th>
                   </tr>
                 </thead>
@@ -2894,6 +2894,25 @@
       <button id="confirmAgreementLinkButton" type="button">Link Active Visit</button>
       <button id="confirmAgreementConsolidateButton" class="accent hidden" type="button">Consolidate Identity</button>
       <button id="cancelAgreementLinkButton" class="secondary" type="button">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div id="assignmentEndModalBackdrop" class="modal-backdrop priority-modal" role="dialog" aria-modal="true" aria-labelledby="assignmentEndModalTitle">
+  <div class="modal" style="width:min(520px,100%);">
+    <div class="modal-header">
+      <h2 id="assignmentEndModalTitle">End Assignment</h2>
+      <button id="assignmentEndCloseButton" class="ghost" type="button">Close</button>
+    </div>
+    <p>
+      This assignment will become Historical. The record will be retained.
+    </p>
+    <label for="assignmentEndDate">Assignment End Date <span aria-hidden="true">*</span></label>
+    <input id="assignmentEndDate" type="date" required />
+    <div id="assignmentEndMessage" class="modal-message" aria-live="polite"></div>
+    <div class="button-row" style="margin-top:16px;">
+      <button id="assignmentEndConfirmButton" type="button">End Assignment</button>
+      <button id="assignmentEndCancelButton" class="secondary" type="button">Cancel</button>
     </div>
   </div>
 </div>

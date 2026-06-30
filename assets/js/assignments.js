@@ -106,6 +106,8 @@ let selectedPersonId = null;
 let selectedPersonName = "";
 let assignmentsLoadedSuccessfully = false;
 let assignmentEditorTrigger = null;
+let assignmentEndTrigger = null;
+let assignmentPendingEnd = null;
 const ASSIGNMENT_DETAIL_ROW_ID = "inlineAssignmentDetailRow";
 
 function hasAssignmentAccess() {
@@ -283,6 +285,7 @@ function createCell(text) {
 export function renderAssignmentList() {
   const body = $("assignmentResults");
   body.replaceChildren();
+  const hasActiveAssignment = assignmentsCache.some(assignment => assignment.active === true);
 
   assignmentsCache.forEach(assignment => {
     const row = document.createElement("tr");
@@ -300,17 +303,58 @@ export function renderAssignmentList() {
     activeStatus.className = "people-status " + (assignment.active ? "active" : "inactive");
     activeStatus.textContent = assignment.active ? "Active" : "Historical";
     activeCell.appendChild(activeStatus);
+    if (assignment.active) {
+      const currentBadge = document.createElement("span");
+      currentBadge.className = "assignment-current-badge";
+      currentBadge.textContent = "Current assignment";
+      activeCell.appendChild(currentBadge);
+    }
     row.appendChild(activeCell);
 
     const actionCell = document.createElement("td");
     actionCell.className = "assignment-row-action";
+    const actionGroup = document.createElement("div");
+    actionGroup.className = "assignment-row-actions";
     const editButton = document.createElement("button");
     editButton.className = "ghost";
     editButton.type = "button";
-    editButton.textContent = "Edit as New";
-    editButton.setAttribute("aria-label", "Create a new assignment from this assignment");
+    editButton.textContent = "Edit";
+    editButton.setAttribute("aria-label", "Edit assignment");
     editButton.addEventListener("click", () => openAssignmentEditor(assignment.id));
-    actionCell.appendChild(editButton);
+    actionGroup.appendChild(editButton);
+
+    if (assignment.active) {
+      const endButton = document.createElement("button");
+      endButton.className = "secondary";
+      endButton.type = "button";
+      endButton.textContent = "End Assignment";
+      endButton.addEventListener("click", event => {
+        openEndAssignmentDialog(assignment.id, event.currentTarget);
+      });
+      actionGroup.appendChild(endButton);
+    } else {
+      const reactivateButton = document.createElement("button");
+      reactivateButton.className = "secondary";
+      reactivateButton.type = "button";
+      reactivateButton.textContent = "Reactivate";
+      reactivateButton.disabled = hasActiveAssignment;
+      if (hasActiveAssignment) {
+        reactivateButton.title = "End the current active assignment before reactivating this one.";
+        reactivateButton.setAttribute(
+          "aria-label",
+          "Reactivate assignment unavailable: end the current active assignment first"
+        );
+      }
+      reactivateButton.addEventListener("click", () => reactivateAssignment(assignment.id));
+      actionGroup.appendChild(reactivateButton);
+      if (hasActiveAssignment) {
+        const unavailableReason = document.createElement("span");
+        unavailableReason.className = "assignment-action-note";
+        unavailableReason.textContent = "End current assignment first";
+        actionGroup.appendChild(unavailableReason);
+      }
+    }
+    actionCell.appendChild(actionGroup);
     row.appendChild(actionCell);
 
     body.appendChild(row);
@@ -356,10 +400,11 @@ export function openAssignmentEditor(sourceAssignmentId) {
     $("assignmentShiftEnd").value = source.shift_end_time || "";
     $("assignmentCycleAnchor").value = source.cycle_anchor_date || "";
     $("assignmentNotes").value = source.notes || "";
-    $("assignmentActive").value = "false";
-    $("assignmentPanelTitle").textContent = "Create Assignment from Existing";
+    $("assignmentActive").value = source.active ? "true" : "false";
+    $("assignmentPanelTitle").textContent = "Edit Assignment";
     $("assignmentEditorNotice").textContent =
-      "The original assignment will remain unchanged. Saving creates a new historical assignment.";
+      "Saving updates this assignment record. Assignments are retained as current or historical records.";
+    $("assignmentSaveButton").textContent = "Save Assignment";
   }
 
   $("assignmentPanel").classList.remove("hidden");
@@ -391,6 +436,7 @@ export function clearAssignmentForm() {
   $("assignmentPanelTitle").textContent = "Create Assignment";
   $("assignmentPanelPerson").textContent = selectedPersonName || "No person selected";
   $("assignmentEditorNotice").textContent = "Saving creates a new assignment record.";
+  $("assignmentSaveButton").textContent = "Create Assignment";
 }
 
 function validateAssignmentDates(startDate, endDate) {
@@ -415,12 +461,22 @@ export async function saveAssignment() {
   const assignmentStart = $("assignmentStart").value;
   const assignmentEnd = optionalValue("assignmentEnd");
   const active = $("assignmentActive").value === "true";
+  const assignmentId = $("assignmentSourceId").value || null;
+  const existingAssignment = assignmentId
+    ? assignmentsCache.find(assignment => assignment.id === assignmentId)
+    : null;
 
   try {
     validateAssignmentDates(assignmentStart, assignmentEnd);
-    if (active && assignmentsCache.some(assignment => assignment.active === true)) {
+    if (existingAssignment?.active && !active && !assignmentEnd) {
+      throw new Error("Assignment End Date is required when ending an active assignment.");
+    }
+    if (
+      active &&
+      assignmentsCache.some(assignment => assignment.active === true && assignment.id !== assignmentId)
+    ) {
       throw new Error(
-        "This person already has an active assignment. Create this record as Historical or end the existing assignment first."
+        "This person already has an active assignment. End the current active assignment first, or create this assignment as Historical."
       );
     }
   } catch (err) {
@@ -443,7 +499,7 @@ export async function saveAssignment() {
     cycle_anchor_date: optionalValue("assignmentCycleAnchor"),
     employment_start_date: optionalValue("assignmentEmploymentStart"),
     assignment_start_date: assignmentStart,
-    assignment_end_date: assignmentEnd,
+    assignment_end_date: active ? null : assignmentEnd,
     active,
     notes: optionalValue("assignmentNotes")
   };
@@ -453,21 +509,180 @@ export async function saveAssignment() {
   saveButton.textContent = "Saving…";
 
   try {
-    const result = await supabaseClient
-      .from("work_assignments")
-      .insert(payload)
-      .select(ASSIGNMENT_COLUMNS)
-      .single();
+    if (active) {
+      const activeAssignment = await findActiveAssignment(assignmentId);
+      if (activeAssignment) {
+        throw new Error(
+          "This person already has an active assignment. End the current active assignment first, or create this assignment as Historical."
+        );
+      }
+    }
+
+    const query = assignmentId
+      ? supabaseClient
+        .from("work_assignments")
+        .update(payload)
+        .eq("id", assignmentId)
+        .eq("person_id", selectedPersonId)
+      : supabaseClient
+        .from("work_assignments")
+        .insert(payload);
+    const result = await query.select(ASSIGNMENT_COLUMNS).single();
 
     if (result.error) throw result.error;
 
-    showToast("Assignment created", "The new assignment record was saved successfully.", "success");
+    if (active && (!existingAssignment || !existingAssignment.active)) {
+      await rollbackIfActivationConflicted(
+        result.data.id,
+        existingAssignment ? existingAssignment.assignment_end_date : null
+      );
+    }
+
+    showToast(
+      assignmentId ? "Assignment updated" : "Assignment created",
+      assignmentId
+        ? "The assignment record was updated successfully."
+        : "The new assignment record was saved successfully.",
+      "success"
+    );
     closeAssignmentEditor();
     await loadAssignments();
   } catch (err) {
     showToast("Assignment not saved", err.message || "Could not save this assignment.", "error");
   } finally {
     saveButton.disabled = false;
-    saveButton.textContent = "Create Assignment";
+    saveButton.textContent = assignmentId ? "Save Assignment" : "Create Assignment";
+  }
+}
+
+async function findActiveAssignment(excludeAssignmentId) {
+  let query = supabaseClient
+    .from("work_assignments")
+    .select("id")
+    .eq("person_id", selectedPersonId)
+    .eq("active", true);
+
+  if (excludeAssignmentId) query = query.neq("id", excludeAssignmentId);
+  const result = await query.limit(1);
+  if (result.error) throw result.error;
+  return (result.data || [])[0] || null;
+}
+
+async function rollbackIfActivationConflicted(assignmentId, previousEndDate) {
+  const result = await supabaseClient
+    .from("work_assignments")
+    .select("id")
+    .eq("person_id", selectedPersonId)
+    .eq("active", true);
+
+  if (result.error) throw result.error;
+  if ((result.data || []).length <= 1) return;
+
+  const rollback = await supabaseClient
+    .from("work_assignments")
+    .update({ active: false, assignment_end_date: previousEndDate })
+    .eq("id", assignmentId)
+    .eq("person_id", selectedPersonId);
+
+  if (rollback.error) throw rollback.error;
+  throw new Error(
+    "Another active assignment was saved at the same time. This assignment was kept Historical; end the current active assignment before trying again."
+  );
+}
+
+export function openEndAssignmentDialog(assignmentId, trigger) {
+  if (!requireAssignmentAccess()) return;
+  const assignment = assignmentsCache.find(record => record.id === assignmentId);
+  if (!assignment || !assignment.active) return;
+
+  assignmentPendingEnd = assignment;
+  assignmentEndTrigger = trigger instanceof HTMLElement ? trigger : null;
+  $("assignmentEndDate").value = todayDate();
+  $("assignmentEndMessage").textContent = "";
+  $("assignmentEndMessage").className = "modal-message";
+  $("assignmentEndModalBackdrop").classList.add("active");
+  setTimeout(() => $("assignmentEndDate").focus({ preventScroll: true }), 0);
+}
+
+export function closeEndAssignmentDialog() {
+  $("assignmentEndModalBackdrop").classList.remove("active");
+  assignmentPendingEnd = null;
+  if (assignmentEndTrigger && assignmentEndTrigger.isConnected) {
+    assignmentEndTrigger.focus({ preventScroll: true });
+  }
+  assignmentEndTrigger = null;
+}
+
+export async function confirmEndAssignment() {
+  if (!requireAssignmentAccess() || !assignmentPendingEnd) return;
+  const assignment = assignmentPendingEnd;
+  const endDate = $("assignmentEndDate").value;
+
+  try {
+    if (!endDate) throw new Error("Assignment End Date is required.");
+    validateAssignmentDates(assignment.assignment_start_date, endDate);
+  } catch (err) {
+    $("assignmentEndMessage").textContent = err.message;
+    $("assignmentEndMessage").className = "modal-message error";
+    return;
+  }
+
+  const confirmButton = $("assignmentEndConfirmButton");
+  confirmButton.disabled = true;
+  confirmButton.textContent = "Ending...";
+
+  try {
+    const result = await supabaseClient
+      .from("work_assignments")
+      .update({ active: false, assignment_end_date: endDate })
+      .eq("id", assignment.id)
+      .eq("person_id", selectedPersonId)
+      .eq("active", true)
+      .select("id")
+      .single();
+
+    if (result.error) throw result.error;
+    closeEndAssignmentDialog();
+    await loadAssignments();
+    showToast("Assignment ended", "The assignment is now Historical.", "success");
+  } catch (err) {
+    $("assignmentEndMessage").textContent = err.message || "Could not end this assignment.";
+    $("assignmentEndMessage").className = "modal-message error";
+    showToast("Assignment not ended", err.message || "Could not end this assignment.", "error");
+  } finally {
+    confirmButton.disabled = false;
+    confirmButton.textContent = "End Assignment";
+  }
+}
+
+export async function reactivateAssignment(assignmentId) {
+  if (!requireAssignmentAccess() || !selectedPersonId) return;
+  const assignment = assignmentsCache.find(record => record.id === assignmentId);
+  if (!assignment || assignment.active) return;
+
+  try {
+    const activeAssignment = await findActiveAssignment(assignmentId);
+    if (activeAssignment) {
+      throw new Error(
+        "This person already has an active assignment. End the current active assignment first."
+      );
+    }
+
+    const result = await supabaseClient
+      .from("work_assignments")
+      .update({ active: true, assignment_end_date: null })
+      .eq("id", assignment.id)
+      .eq("person_id", selectedPersonId)
+      .eq("active", false)
+      .select(ASSIGNMENT_COLUMNS)
+      .single();
+
+    if (result.error) throw result.error;
+    await rollbackIfActivationConflicted(result.data.id, assignment.assignment_end_date);
+    await loadAssignments();
+    showToast("Assignment reactivated", "The assignment is now Active.", "success");
+  } catch (err) {
+    await loadAssignments();
+    showToast("Assignment not reactivated", err.message || "Could not reactivate this assignment.", "error");
   }
 }

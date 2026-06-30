@@ -188,7 +188,9 @@ import {
 import {
   openAssignmentEditor,
   cancelAssignmentEditor,
-  saveAssignment
+  saveAssignment,
+  closeEndAssignmentDialog,
+  confirmEndAssignment
 } from "./assignments.js";
 import { initialiseVisitorIdentityLookups } from "./visitorIdentity.js";
 import {
@@ -4534,6 +4536,15 @@ window.addEventListener("load", async function () {
       event.preventDefault();
       saveAssignment();
     });
+    if ($("assignmentEndCloseButton")) {
+      $("assignmentEndCloseButton").addEventListener("click", closeEndAssignmentDialog);
+    }
+    if ($("assignmentEndCancelButton")) {
+      $("assignmentEndCancelButton").addEventListener("click", closeEndAssignmentDialog);
+    }
+    if ($("assignmentEndConfirmButton")) {
+      $("assignmentEndConfirmButton").addEventListener("click", confirmEndAssignment);
+    }
 
     $("openSignInButton").addEventListener("click", () => {
       if (!isKioskProfile() && !isSuperKioskTestProfile()) { openLoginModal(); return; }
