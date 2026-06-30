@@ -113,6 +113,50 @@ function deriveRoles(assignments) {
   })), "role_code");
 }
 
+function mapRolePresetAssignments(roleRows, capabilityRows, groupRows, junctionRows) {
+  const rolesById = new Map(roleRows.map(role => [role.id, role]));
+  const capabilitiesById = new Map(
+    capabilityRows.map(capability => [capability.id, capability])
+  );
+  const groupsById = new Map(groupRows.map(group => [group.id, group]));
+
+  const assignments = junctionRows.flatMap(junction => {
+    const role = rolesById.get(junction.role_preset_id);
+    const capability = capabilitiesById.get(junction.capability_id);
+    if (!role || !capability) return [];
+
+    const group = groupsById.get(capability.group_id);
+    return [{
+      role_preset_id: junction.role_preset_id,
+      capability_id: junction.capability_id,
+      role_code: role.role_code,
+      role_name: role.role_name,
+      group_code: group ? group.group_code : "ungrouped",
+      group_name: group ? group.group_name : "Ungrouped",
+      group_display_order: group ? group.display_order : 999,
+      capability_code: capability.capability_code,
+      capability_name: capability.capability_name,
+      description: capability.description || null
+    }];
+  });
+
+  if (assignments.length !== junctionRows.length) {
+    console.warn(
+      "Some role preset capability assignments could not be mapped.",
+      {
+        assignment_rows: junctionRows.length,
+        mapped_rows: assignments.length
+      }
+    );
+  }
+
+  return assignments.sort((a, b) =>
+    String(a.role_code).localeCompare(String(b.role_code)) ||
+    Number(a.group_display_order) - Number(b.group_display_order) ||
+    String(a.capability_code).localeCompare(String(b.capability_code))
+  );
+}
+
 function normaliseAccessControlData(groupRows, capabilityRows, roleRows, assignments) {
   const groups = groupRows.length ? groupRows : deriveGroups(assignments);
   const groupById = new Map(groups.filter(group => group.id).map(group => [group.id, group]));
@@ -303,7 +347,13 @@ export async function loadAccessControl() {
   $("accessControlRefreshButton").disabled = true;
 
   try {
-    const [groupResult, capabilityResult, roleResult, assignmentResult] = await Promise.all([
+    const [
+      groupResult,
+      capabilityResult,
+      roleResult,
+      junctionResult,
+      assignmentViewResult
+    ] = await Promise.all([
       supabaseClient
         .from("capability_groups")
         .select("id, group_code, group_name, description, display_order, active")
@@ -317,11 +367,20 @@ export async function loadAccessControl() {
         .select("id, role_code, role_name, description, is_system_role, active")
         .order("role_name", { ascending: true }),
       supabaseClient
+        .from("role_preset_capabilities")
+        .select("role_preset_id, capability_id"),
+      supabaseClient
         .from("v_role_preset_capabilities")
         .select("role_code, role_name, group_code, group_name, capability_code, capability_name, description")
     ]);
 
-    const results = [groupResult, capabilityResult, roleResult, assignmentResult];
+    const results = [
+      groupResult,
+      capabilityResult,
+      roleResult,
+      junctionResult,
+      assignmentViewResult
+    ];
     const errors = results.map(result => result.error).filter(Boolean);
     if (errors.length) {
       console.warn("Some Access Control sources were unavailable.", errors.map(error => ({
@@ -333,8 +392,24 @@ export async function loadAccessControl() {
     const groupRows = groupResult.error ? [] : (groupResult.data || []);
     const capabilityRows = capabilityResult.error ? [] : (capabilityResult.data || []);
     const roleRows = roleResult.error ? [] : (roleResult.data || []);
-    const assignments = assignmentResult.error ? [] : (assignmentResult.data || []);
-    const activeViewFallbackUsed = assignments.length > 0 && (
+    const junctionRows = junctionResult.error ? [] : (junctionResult.data || []);
+    const viewAssignments = assignmentViewResult.error
+      ? []
+      : (assignmentViewResult.data || []);
+    const mappedAssignments = mapRolePresetAssignments(
+      roleRows,
+      capabilityRows,
+      groupRows,
+      junctionRows
+    );
+    const junctionMappingComplete =
+      junctionRows.length > 0 &&
+      mappedAssignments.length === junctionRows.length;
+    const assignments = junctionMappingComplete
+      ? mappedAssignments
+      : (viewAssignments.length ? viewAssignments : mappedAssignments);
+    const activeViewFallbackUsed = !junctionMappingComplete && viewAssignments.length > 0;
+    const catalogueFallbackUsed = assignments.length > 0 && (
       groupRows.length === 0 ||
       capabilityRows.length === 0 ||
       roleRows.length === 0
@@ -361,7 +436,8 @@ export async function loadAccessControl() {
       accessControlData.roles.length + " role presets, " +
       accessControlData.capabilities.length + " capabilities and " +
       accessControlData.groups.length + " capability groups loaded." +
-      (activeViewFallbackUsed ? " Active records were completed from the role capability view." : "");
+      (activeViewFallbackUsed ? " Role assignments were loaded from the active capability view." : "") +
+      (catalogueFallbackUsed ? " Active catalogue records were completed from assignment data." : "");
   } catch (err) {
     accessControlData = { roles: [], capabilities: [], groups: [], assignments: [] };
     renderAccessControl();
