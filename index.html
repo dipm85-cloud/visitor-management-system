@@ -96,10 +96,9 @@
           <span class="oh-nav-label">Planning</span>
           <span class="oh-nav-status">Soon</span>
         </button>
-        <button class="oh-nav-item" type="button" disabled title="Reports is coming soon">
+        <button id="ohReportingNav" class="oh-nav-item" type="button" title="Reporting Centre">
           <span class="oh-nav-icon" aria-hidden="true">R</span>
           <span class="oh-nav-label">Reports</span>
-          <span class="oh-nav-status">Soon</span>
         </button>
         <button id="ohAdministrationNav" class="oh-nav-item" type="button" title="Administration">
           <span class="oh-nav-icon" aria-hidden="true">A</span>
@@ -206,6 +205,223 @@
             <button id="dashboardOpenReferenceButton" type="button">Open Reference Data</button>
           </div>
         </section>
+      </section>
+      <section id="reportingWorkspace" class="oh-app-page reporting-page hidden" aria-labelledby="reportingPageTitle">
+        <header class="oh-app-page-header">
+          <div>
+            <p class="oh-app-eyebrow">Operations Hub</p>
+            <h1 id="reportingPageTitle">Reporting Centre</h1>
+            <p>Find reports, exports and analytics across Operations Hub modules.</p>
+          </div>
+        </header>
+
+        <div class="reporting-search" role="search">
+          <label for="reportSearch">Search reports</label>
+          <input id="reportSearch" type="search" placeholder="Search by title, description or module" autocomplete="off" />
+          <p id="reportSearchStatus" aria-live="polite">All report cards shown.</p>
+        </div>
+
+        <section class="reporting-group" data-report-group aria-labelledby="reportingVisitorsTitle">
+          <div class="reporting-group-heading">
+            <h2 id="reportingVisitorsTitle">Visitors</h2>
+            <p>Visitor history, exports and operational analytics.</p>
+          </div>
+          <div class="reporting-card-grid">
+            <article class="report-card" data-report-card>
+              <div class="report-card-heading">
+                <span class="report-card-module">Visitors</span>
+                <span class="report-status available">Available</span>
+              </div>
+              <h3>Visitor History</h3>
+              <p>Search current and historical visitor records using the existing Advanced History tools.</p>
+              <button type="button" data-report-shortcut="visitor-history">Open History</button>
+            </article>
+            <article class="report-card" data-report-card>
+              <div class="report-card-heading">
+                <span class="report-card-module">Visitors</span>
+                <span class="report-status available">Available</span>
+              </div>
+              <h3>Visitor CSV Export</h3>
+              <p>Open the existing visitor history CSV export controls.</p>
+              <button type="button" data-report-shortcut="visitor-csv">Open CSV Export</button>
+            </article>
+            <article class="report-card" data-report-card>
+              <div class="report-card-heading">
+                <span class="report-card-module">Visitors</span>
+                <span class="report-status available">Available</span>
+              </div>
+              <h3>Visitor Excel Export</h3>
+              <p>Open the existing visitor history Excel export controls.</p>
+              <button type="button" data-report-shortcut="visitor-excel">Open Excel Export</button>
+            </article>
+            <article class="report-card" data-report-card>
+              <div class="report-card-heading">
+                <span class="report-card-module">Visitors</span>
+                <span class="report-status available">Available</span>
+              </div>
+              <h3>Visitor Analytics</h3>
+              <p>Open the existing visitor analytics dashboard for date-range metrics.</p>
+              <button type="button" data-report-shortcut="visitor-analytics">Open Analytics</button>
+            </article>
+          </div>
+        </section>
+
+        <section class="reporting-group" data-report-group aria-labelledby="reportingPeopleTitle">
+          <div class="reporting-group-heading">
+            <h2 id="reportingPeopleTitle">People</h2>
+            <p>Reusable reporting for shared person records.</p>
+          </div>
+          <div class="reporting-card-grid">
+            <article class="report-card report-card-future" data-report-card>
+              <div class="report-card-heading">
+                <span class="report-card-module">People</span>
+                <span class="report-status coming-soon">Coming Soon</span>
+              </div>
+              <h3>People Reports</h3>
+              <p>Directory, status and shared person record reporting.</p>
+              <button type="button" disabled>Coming Soon</button>
+            </article>
+          </div>
+        </section>
+
+        <section class="reporting-group" data-report-group aria-labelledby="reportingOrganisationsTitle">
+          <div class="reporting-group-heading">
+            <h2 id="reportingOrganisationsTitle">Organisations</h2>
+            <p>Reusable reporting for organisational parties and relationships.</p>
+          </div>
+          <div class="reporting-card-grid">
+            <article class="report-card report-card-future" data-report-card>
+              <div class="report-card-heading">
+                <span class="report-card-module">Organisations</span>
+                <span class="report-status coming-soon">Coming Soon</span>
+              </div>
+              <h3>Organisation Reports</h3>
+              <p>Organisation status, relationship and operational context reporting.</p>
+              <button type="button" disabled>Coming Soon</button>
+            </article>
+          </div>
+        </section>
+
+        <section class="reporting-group" data-report-group aria-labelledby="reportingAssignmentsTitle">
+          <div class="reporting-group-heading">
+            <h2 id="reportingAssignmentsTitle">Assignments</h2>
+            <p>Current and historical work assignment reporting.</p>
+          </div>
+          <div class="reporting-card-grid">
+            <article class="report-card report-card-future" data-report-card>
+              <div class="report-card-heading">
+                <span class="report-card-module">Assignments</span>
+                <span class="report-status coming-soon">Coming Soon</span>
+              </div>
+              <h3>Assignment Reports</h3>
+              <p>Current assignment, lifecycle and historical assignment reporting.</p>
+              <button type="button" disabled>Coming Soon</button>
+            </article>
+          </div>
+        </section>
+
+        <section class="reporting-group" data-report-group aria-labelledby="reportingAuditTitle">
+          <div class="reporting-group-heading">
+            <h2 id="reportingAuditTitle">Audit</h2>
+            <p>Audit event search and existing export tools.</p>
+          </div>
+          <div class="reporting-card-grid">
+            <article class="report-card" data-report-card>
+              <div class="report-card-heading">
+                <span class="report-card-module">Audit</span>
+                <span class="report-status available">Available</span>
+              </div>
+              <h3>Audit Search</h3>
+              <p>Open the existing Audit Event Log search and filters.</p>
+              <button type="button" data-report-shortcut="audit-search">Open Audit Search</button>
+            </article>
+            <article class="report-card" data-report-card>
+              <div class="report-card-heading">
+                <span class="report-card-module">Audit</span>
+                <span class="report-status available">Available</span>
+              </div>
+              <h3>Audit CSV Export</h3>
+              <p>Open the existing audit event CSV export control.</p>
+              <button type="button" data-report-shortcut="audit-csv">Open CSV Export</button>
+            </article>
+            <article class="report-card" data-report-card>
+              <div class="report-card-heading">
+                <span class="report-card-module">Audit</span>
+                <span class="report-status available">Available</span>
+              </div>
+              <h3>Audit Excel Export</h3>
+              <p>Open the existing audit event Excel export control.</p>
+              <button type="button" data-report-shortcut="audit-excel">Open Excel Export</button>
+            </article>
+          </div>
+        </section>
+
+        <section class="reporting-group" data-report-group aria-labelledby="reportingSystemTitle">
+          <div class="reporting-group-heading">
+            <h2 id="reportingSystemTitle">System</h2>
+            <p>Future reusable and automated reporting capabilities.</p>
+          </div>
+          <div class="reporting-card-grid">
+            <article class="report-card report-card-future" data-report-card>
+              <div class="report-card-heading">
+                <span class="report-card-module">System</span>
+                <span class="report-status coming-soon">Coming Soon</span>
+              </div>
+              <h3>Custom Reports</h3>
+              <p>Build reusable reports from governed Operations Hub data.</p>
+              <button type="button" disabled>Coming Soon</button>
+            </article>
+            <article class="report-card report-card-future" data-report-card>
+              <div class="report-card-heading">
+                <span class="report-card-module">System</span>
+                <span class="report-status coming-soon">Coming Soon</span>
+              </div>
+              <h3>Scheduled Reports</h3>
+              <p>Schedule approved reports and exports for controlled delivery.</p>
+              <button type="button" disabled>Coming Soon</button>
+            </article>
+          </div>
+        </section>
+
+        <section class="reporting-group" data-report-group aria-labelledby="reportingFutureTitle">
+          <div class="reporting-group-heading">
+            <h2 id="reportingFutureTitle">Future</h2>
+            <p>Reporting foundations for planned Operations Hub modules.</p>
+          </div>
+          <div class="reporting-card-grid">
+            <article class="report-card report-card-future" data-report-card>
+              <div class="report-card-heading">
+                <span class="report-card-module">Labour</span>
+                <span class="report-status coming-soon">Coming Soon</span>
+              </div>
+              <h3>Labour Reports</h3>
+              <p>Future labour availability, allocation and exception reporting.</p>
+              <button type="button" disabled>Coming Soon</button>
+            </article>
+            <article class="report-card report-card-future" data-report-card>
+              <div class="report-card-heading">
+                <span class="report-card-module">Planning</span>
+                <span class="report-status coming-soon">Coming Soon</span>
+              </div>
+              <h3>Planning Reports</h3>
+              <p>Future demand, scheduling and planning conflict reporting.</p>
+              <button type="button" disabled>Coming Soon</button>
+            </article>
+            <article class="report-card report-card-future" data-report-card>
+              <div class="report-card-heading">
+                <span class="report-card-module">Training</span>
+                <span class="report-status coming-soon">Coming Soon</span>
+              </div>
+              <h3>Training Reports</h3>
+              <p>Future training status, expiry and compliance reporting.</p>
+              <button type="button" disabled>Coming Soon</button>
+            </article>
+          </div>
+        </section>
+
+        <div id="reportingEmptyState" class="reporting-empty-state hidden">
+          No reports match this search.
+        </div>
       </section>
       <div id="visitorsWorkspace" class="app-shell">
   <div class="topbar">

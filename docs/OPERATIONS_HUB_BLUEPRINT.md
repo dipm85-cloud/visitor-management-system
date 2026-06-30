@@ -300,6 +300,8 @@ Reports provides governed operational reporting across apps. It should offer reu
 
 Reports is a consumer of authoritative data, not a second business-logic engine.
 
+The Reporting Centre is the module-independent entry point for reports, exports and analytics. Report definitions and outputs should be reusable across apps, use authoritative shared entities, and link to existing module-owned tools until a governed shared reporting capability replaces them. A reporting shortcut must not duplicate or silently diverge from the underlying query, export or permission behaviour.
+
 ### Administration
 
 Administration manages platform configuration, companies, sites, capabilities, role presets, users, devices, integrations, retention, branding and system health.

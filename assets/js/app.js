@@ -197,6 +197,7 @@ import {
   configureDashboard,
   initialiseDashboard
 } from "./dashboard.js";
+import { initialiseReportingCentre } from "./reporting.js";
 
 window.addEventListener("load", async function () {
   try {
@@ -2190,6 +2191,76 @@ window.addEventListener("load", async function () {
       ].forEach(([id, key]) => {
         if ($(id)) $(id).classList.toggle("active", key === sectionName);
       });
+    }
+
+    function focusExistingReportControl(controlId) {
+      setTimeout(() => {
+        const control = $(controlId);
+        if (!control) return;
+        control.scrollIntoView({ block: "center" });
+        control.focus({ preventScroll: true });
+      }, 100);
+    }
+
+    async function openExistingReportShortcut(shortcut) {
+      const profile = AppState.currentProfile;
+      if (!profile || !profile.active || profile.role === "kiosk_user") {
+        openLoginModal();
+        return;
+      }
+
+      const visitorShortcuts = ["visitor-history", "visitor-csv", "visitor-excel"];
+      if (visitorShortcuts.includes(shortcut)) {
+        if (!["security", "super_user"].includes(profile.role)) {
+          showToast("Report unavailable", "Visitor history reports require Security or SuperUser access.", "error");
+          return;
+        }
+
+        showVisitorWorkspace();
+        await openStaffAreaFromProfile();
+        const visitorControlByRole = {
+          super_user: {
+            "visitor-history": "superSearchHistoryButton",
+            "visitor-csv": "superDownloadHistoryButton",
+            "visitor-excel": "superExcelHistoryButton"
+          },
+          security: {
+            "visitor-history": "securityHistorySearchButton",
+            "visitor-csv": "securityDownloadHistoryButton",
+            "visitor-excel": "securityExcelHistoryButton"
+          }
+        };
+        focusExistingReportControl(visitorControlByRole[profile.role][shortcut]);
+        return;
+      }
+
+      if (shortcut === "visitor-analytics") {
+        if (profile.role !== "super_user") {
+          showToast("Report unavailable", "Visitor Analytics is currently available to SuperUsers only.", "error");
+          return;
+        }
+        showVisitorWorkspace();
+        await openStaffAreaFromProfile();
+        showSuperSection("reporting");
+        focusExistingReportControl("superLoadAnalyticsButton");
+        return;
+      }
+
+      const auditControlByShortcut = {
+        "audit-search": "loadAuditEventsButton",
+        "audit-csv": "downloadAuditCsvButton",
+        "audit-excel": "downloadAuditExcelButton"
+      };
+      if (auditControlByShortcut[shortcut]) {
+        if (profile.role !== "super_user") {
+          showToast("Report unavailable", "Audit reports are currently available to SuperUsers only.", "error");
+          return;
+        }
+        showVisitorWorkspace();
+        await openStaffAreaFromProfile();
+        showSuperSection("settings");
+        focusExistingReportControl(auditControlByShortcut[shortcut]);
+      }
     }
 
     async function openSuperKioskSignIn() {
@@ -4495,6 +4566,10 @@ window.addEventListener("load", async function () {
     if ($("kioskStaffLoginButton")) $("kioskStaffLoginButton").addEventListener("click", openLoginModal);
     initialiseVisitorIdentityLookups();
     initialiseDashboard();
+    initialiseReportingCentre();
+    window.addEventListener("oh:report-shortcut-requested", event => {
+      openExistingReportShortcut(event.detail && event.detail.shortcut);
+    });
     if ($("ohPeopleNav")) $("ohPeopleNav").addEventListener("click", openPeopleWorkspace);
     if ($("peopleCreateButton")) $("peopleCreateButton").addEventListener("click", () => openPeoplePanel(null));
     if ($("peopleReloadButton")) $("peopleReloadButton").addEventListener("click", loadPeople);

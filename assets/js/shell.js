@@ -10,6 +10,7 @@ const dashboardNav = document.getElementById("ohDashboardNav");
 const visitorsNav = document.getElementById("ohVisitorsNav");
 const peopleNav = document.getElementById("ohPeopleNav");
 const organisationsNav = document.getElementById("ohOrganisationsNav");
+const reportingNav = document.getElementById("ohReportingNav");
 const administrationNav = document.getElementById("ohAdministrationNav");
 const settingsShortcut = document.getElementById("ohSettingsShortcut");
 const currentUserButton = document.getElementById("ohCurrentUserButton");
@@ -104,6 +105,7 @@ function setActiveApp(appName) {
     visitors: "Visitors",
     people: "People",
     organisations: "Organisations",
+    reporting: "Reporting Centre",
     administration: "Administration"
   };
 
@@ -112,6 +114,7 @@ function setActiveApp(appName) {
     ["visitors", visitorsNav],
     ["people", peopleNav],
     ["organisations", organisationsNav],
+    ["reporting", reportingNav],
     ["administration", administrationNav]
   ].forEach(([name, item]) => {
     if (!item) return;
@@ -141,6 +144,7 @@ export function syncNavigationCapabilityVisibility() {
     setNavItemCapabilityVisibility(visitorsNav, true);
     setNavItemCapabilityVisibility(peopleNav, true);
     setNavItemCapabilityVisibility(organisationsNav, true);
+    setNavItemCapabilityVisibility(reportingNav, true);
     setNavItemCapabilityVisibility(administrationNav, true);
     return;
   }
@@ -152,6 +156,7 @@ export function syncNavigationCapabilityVisibility() {
     organisationsNav,
     AppState.currentProfile.role === "super_user"
   );
+  setNavItemCapabilityVisibility(reportingNav, hasCapability("reports.view"));
   setNavItemCapabilityVisibility(administrationNav, hasAnyCapability([
     "settings.view",
     "users.view",
@@ -160,7 +165,14 @@ export function syncNavigationCapabilityVisibility() {
 }
 
 function showOnlyWorkspace(workspaceId, appName) {
-  ["dashboardWorkspace", "visitorsWorkspace", "peopleWorkspace", "organisationsWorkspace", "administrationWorkspace"].forEach(id => {
+  [
+    "dashboardWorkspace",
+    "visitorsWorkspace",
+    "peopleWorkspace",
+    "organisationsWorkspace",
+    "reportingWorkspace",
+    "administrationWorkspace"
+  ].forEach(id => {
     document.getElementById(id).classList.toggle("hidden", id !== workspaceId);
   });
   closeDockedPanels();
@@ -187,6 +199,12 @@ export function showPeopleWorkspace() {
 export function showOrganisationsWorkspace() {
   showOnlyWorkspace("organisationsWorkspace", "organisations");
   document.getElementById("operationsHubWorkspace").focus({ preventScroll: true });
+}
+
+export function showReportingWorkspace() {
+  showOnlyWorkspace("reportingWorkspace", "reporting");
+  document.getElementById("operationsHubWorkspace").focus({ preventScroll: true });
+  window.dispatchEvent(new CustomEvent("oh:reporting-opened"));
 }
 
 export function showAdministrationWorkspace() {
@@ -282,6 +300,7 @@ visitorsNav.addEventListener("click", showVisitorsHome);
 if (organisationsNav) organisationsNav.addEventListener("click", () => {
   window.dispatchEvent(new CustomEvent("oh:organisations-nav-requested"));
 });
+if (reportingNav) reportingNav.addEventListener("click", showReportingWorkspace);
 settingsShortcut.addEventListener("click", openExistingSettingsArea);
 if (currentUserButton) currentUserButton.addEventListener("click", event => {
   event.stopPropagation();
