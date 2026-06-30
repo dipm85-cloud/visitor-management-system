@@ -350,7 +350,7 @@ Every protected action should answer:
 
 Capability changes, preset changes and user assignments must be historically attributable.
 
-The Access Control administration workspace is currently read-only. It exposes role presets, capability groups and the capability catalogue for authorised administration review; future milestones may add governed role, capability and user-override editing with appropriate validation, enforcement and audit history.
+The Access Control administration workspace allows authorised SuperUsers to edit capability assignments for existing role presets. Access Control is transitioning the platform from role-based to capability-based authorisation, but some legacy role checks remain until their enforcement boundaries are migrated. `access_control.manage` is recovery-critical and must remain assigned to SuperUser alongside the protected administration capabilities. Role preset identity, capability definitions, capability groups and user overrides remain read-only until future governed editing adds appropriate validation, enforcement and audit history.
 
 ## 7. UI Philosophy
 

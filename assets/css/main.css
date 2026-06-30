@@ -2674,7 +2674,7 @@ button.oh-nav-scrim {
   color: var(--oh-shell-muted);
 }
 
-.access-control-readonly {
+.access-control-mode {
   display: inline-flex;
   align-items: center;
   min-height: 30px;
@@ -2686,6 +2686,17 @@ button.oh-nav-scrim {
   font-size: 12px;
   font-weight: 800;
   white-space: nowrap;
+}
+
+.access-control-migration-note {
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border: 1px solid #b9cadf;
+  border-radius: 12px;
+  background: #f3f7fb;
+  color: #344054;
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .access-control-tabs {
@@ -2766,6 +2777,12 @@ button.oh-nav-scrim {
   margin: 16px 0;
   color: var(--oh-shell-muted);
   font-weight: 700;
+}
+
+.access-control-edit-role {
+  width: 100%;
+  min-height: 44px;
+  margin-bottom: 18px;
 }
 
 .access-control-role-group {
@@ -2860,6 +2877,81 @@ button.oh-nav-scrim {
   min-height: 44px;
 }
 
+.role-capability-panel-body {
+  padding: 22px 24px 0;
+}
+
+.role-capability-groups {
+  display: grid;
+  gap: 18px;
+}
+
+.role-capability-group {
+  min-width: 0;
+  margin: 0;
+  padding: 14px;
+  border: 1px solid var(--oh-shell-border);
+  border-radius: 14px;
+  background: #fff;
+}
+
+.role-capability-group legend {
+  padding: 0 6px;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.role-capability-option {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: 10px;
+  align-items: flex-start;
+  min-height: 44px;
+  padding: 9px 6px;
+  border-radius: 8px;
+}
+
+.role-capability-option:hover {
+  background: #f8fafc;
+}
+
+.role-capability-option input {
+  width: 18px;
+  height: 18px;
+  margin: 2px 0 0;
+}
+
+.role-capability-option span {
+  display: grid;
+  gap: 3px;
+}
+
+.role-capability-option strong {
+  font-size: 13px;
+}
+
+.role-capability-option code {
+  color: #344054;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.role-capability-option small {
+  color: var(--oh-shell-muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.role-capability-option:has(input:disabled) {
+  opacity: .65;
+}
+
+.role-capability-panel-actions {
+  bottom: 0;
+  margin-top: 18px;
+}
+
 .reference-data-panel {
   position: absolute;
   z-index: 45;
@@ -2928,7 +3020,7 @@ input[data-reference-field="cycle_length_days"][readonly] {
     align-items: stretch;
     flex-direction: column;
   }
-  .access-control-readonly { width: max-content; }
+  .access-control-mode { width: max-content; }
   .access-control-toolbar {
     align-items: stretch;
     flex-direction: column;

@@ -1,30 +1,77 @@
 import { supabaseClient } from "./api.js";
-import { hasAnyCapability } from "./capabilities.js";
+import {
+  hasAnyCapability,
+  loadUserCapabilities
+} from "./capabilities.js";
+import { writeAuditEvent } from "./audit.js";
 import { $ } from "./dom.js";
 import { showToast } from "./messages.js";
-import { showAdministrationWorkspace } from "./shell.js";
+import {
+  showAdministrationWorkspace,
+  syncNavigationCapabilityVisibility
+} from "./shell.js";
 import { AppState } from "./state.js";
+
+const SUPERUSER_ROLE_CODE = "superuser";
+const REQUIRED_SUPERUSER_CAPABILITIES = [
+  "access_control.view",
+  "access_control.manage",
+  "settings.view",
+  "settings.edit",
+  "users.view",
+  "users.manage",
+  "people.manage",
+  "audit.view"
+];
+const PROFILE_ROLE_TO_PRESET = {
+  general_user: "general_user",
+  security: "security",
+  super_user: SUPERUSER_ROLE_CODE
+};
 
 let accessControlData = {
   roles: [],
   capabilities: [],
   groups: [],
-  assignments: []
+  assignments: [],
+  junctionRows: []
 };
 let accessControlInitialised = false;
+let editingRolePresetId = null;
+let roleEditorTrigger = null;
 
-function hasAccessControlAccess() {
-  const capabilityStateAvailable =
-    AppState.userCapabilities instanceof Set &&
-    AppState.userCapabilities.size > 0;
+function hasActiveSuperUserProfile() {
   return !!(
     AppState.currentProfile &&
     AppState.currentProfile.active &&
-    AppState.currentProfile.role === "super_user" &&
-    (
-      !capabilityStateAvailable ||
-      hasAnyCapability(["settings.view", "users.manage"])
-    )
+    AppState.currentProfile.role === "super_user"
+  );
+}
+
+function capabilityStateAvailable() {
+  return AppState.userCapabilities instanceof Set &&
+    AppState.userCapabilities.size > 0;
+}
+
+function hasAccessControlAccess() {
+  return hasActiveSuperUserProfile() && (
+    !capabilityStateAvailable() ||
+    hasAnyCapability([
+      "access_control.view",
+      "access_control.manage",
+      "settings.view",
+      "users.manage"
+    ])
+  );
+}
+
+function hasAccessControlManageAccess() {
+  const capabilityStateLoaded =
+    AppState.userCapabilities instanceof Set &&
+    AppState.userCapabilities.size > 0;
+  return hasActiveSuperUserProfile() && (
+    !capabilityStateLoaded ||
+    hasAnyCapability(["access_control.manage", "users.manage"])
   );
 }
 
@@ -33,6 +80,16 @@ function requireAccessControlAccess() {
   showToast(
     "Access denied",
     "Access Control is currently available to authorised SuperUsers only.",
+    "error"
+  );
+  return false;
+}
+
+function requireAccessControlManageAccess() {
+  if (hasAccessControlManageAccess()) return true;
+  showToast(
+    "Access denied",
+    "Managing role preset assignments requires access_control.manage.",
     "error"
   );
   return false;
@@ -64,6 +121,7 @@ export function syncAccessControlVisibility() {
   const visible = hasAccessControlAccess();
   $("administrationAccessControlNav").classList.toggle("hidden", !visible);
   if (!visible && !$("accessControlSection").classList.contains("hidden")) {
+    closeRolePresetCapabilityEditor(false);
     setAdministrationSection("reference");
   }
 }
@@ -157,7 +215,13 @@ function mapRolePresetAssignments(roleRows, capabilityRows, groupRows, junctionR
   );
 }
 
-function normaliseAccessControlData(groupRows, capabilityRows, roleRows, assignments) {
+function normaliseAccessControlData(
+  groupRows,
+  capabilityRows,
+  roleRows,
+  assignments,
+  junctionRows
+) {
   const groups = groupRows.length ? groupRows : deriveGroups(assignments);
   const groupById = new Map(groups.filter(group => group.id).map(group => [group.id, group]));
   const groupByCode = new Map(groups.map(group => [group.group_code, group]));
@@ -191,7 +255,8 @@ function normaliseAccessControlData(groupRows, capabilityRows, roleRows, assignm
     roles: [...(roleRows.length ? roleRows : deriveRoles(assignments))].sort((a, b) =>
       String(a.role_name || "").localeCompare(String(b.role_name || ""))
     ),
-    assignments
+    assignments,
+    junctionRows
   };
 }
 
@@ -236,6 +301,23 @@ function renderRolePresets() {
     count.textContent = capabilityCount + " assigned " +
       (capabilityCount === 1 ? "capability" : "capabilities");
     card.appendChild(count);
+
+    const editButton = document.createElement("button");
+    editButton.type = "button";
+    editButton.className = "secondary access-control-edit-role";
+    editButton.textContent = "Edit Capabilities";
+    editButton.dataset.rolePresetId = role.id || "";
+    editButton.disabled =
+      !hasAccessControlManageAccess() ||
+      !role.id ||
+      !accessControlData.capabilities.some(capability => capability.id);
+    if (editButton.disabled) {
+      editButton.title = "Full role and capability records are required before assignments can be edited.";
+    }
+    editButton.addEventListener("click", event => {
+      openRolePresetCapabilityEditor(role.id, event.currentTarget);
+    });
+    card.appendChild(editButton);
 
     const grouped = new Map();
     assignments.forEach(assignment => {
@@ -327,6 +409,256 @@ function renderAccessControl() {
   renderRolePresets();
   renderCapabilities();
   renderCapabilityGroups();
+}
+
+function setRoleCapabilityMessage(message, type) {
+  const box = $("rolePresetCapabilityMessage");
+  box.textContent = message || "";
+  box.className = message ? "modal-message " + (type || "error") : "modal-message";
+}
+
+function assignedCapabilityIds(rolePresetId) {
+  return new Set(
+    accessControlData.junctionRows
+      .filter(row => row.role_preset_id === rolePresetId)
+      .map(row => row.capability_id)
+  );
+}
+
+function renderRoleCapabilityCheckboxes(role) {
+  const container = $("rolePresetCapabilityGroups");
+  const selectedIds = assignedCapabilityIds(role.id);
+  const grouped = new Map();
+  container.replaceChildren();
+
+  accessControlData.capabilities
+    .filter(capability => capability.id)
+    .forEach(capability => {
+      const groupName = capability.group_name || "Ungrouped";
+      if (!grouped.has(groupName)) grouped.set(groupName, []);
+      grouped.get(groupName).push(capability);
+    });
+
+  grouped.forEach((capabilities, groupName) => {
+    const fieldset = document.createElement("fieldset");
+    fieldset.className = "role-capability-group";
+    const legend = document.createElement("legend");
+    legend.textContent = groupName;
+    fieldset.appendChild(legend);
+
+    capabilities.forEach(capability => {
+      const label = document.createElement("label");
+      label.className = "role-capability-option";
+      label.title = capability.description || capability.capability_name;
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.value = capability.id;
+      checkbox.dataset.capabilityCode = capability.capability_code;
+      checkbox.checked = selectedIds.has(capability.id);
+      checkbox.disabled = capability.active === false;
+
+      const text = document.createElement("span");
+      const name = document.createElement("strong");
+      name.textContent = capability.capability_name;
+      const code = document.createElement("code");
+      code.textContent = capability.capability_code;
+      const description = document.createElement("small");
+      description.textContent = capability.description || "No description available.";
+      text.append(name, code, description);
+
+      label.append(checkbox, text);
+      fieldset.appendChild(label);
+    });
+
+    container.appendChild(fieldset);
+  });
+}
+
+export function openRolePresetCapabilityEditor(rolePresetId, trigger) {
+  if (!requireAccessControlManageAccess()) return;
+  const role = accessControlData.roles.find(item => item.id === rolePresetId);
+  if (!role) {
+    showToast("Role unavailable", "Reload Access Control before editing this role preset.", "error");
+    return;
+  }
+
+  editingRolePresetId = role.id;
+  roleEditorTrigger = trigger instanceof HTMLElement ? trigger : null;
+  $("rolePresetCapabilityPanelTitle").textContent = "Edit Capabilities";
+  $("rolePresetCapabilityPanelRole").textContent = role.role_name + " (" + role.role_code + ")";
+  $("rolePresetCapabilitySafetyNotice").textContent = role.role_code === SUPERUSER_ROLE_CODE
+    ? "SuperUser recovery access is protected. Required capabilities: " +
+      REQUIRED_SUPERUSER_CAPABILITIES.join(", ") + "."
+    : "Select the capabilities assigned to this role preset.";
+  setRoleCapabilityMessage("");
+  renderRoleCapabilityCheckboxes(role);
+  $("rolePresetCapabilityPanel").classList.remove("hidden");
+  $("rolePresetCapabilityPanel").setAttribute("aria-hidden", "false");
+
+  const firstCheckbox = $("rolePresetCapabilityGroups").querySelector("input:not([disabled])");
+  setTimeout(() => {
+    if (firstCheckbox) firstCheckbox.focus({ preventScroll: true });
+  }, 0);
+}
+
+export function closeRolePresetCapabilityEditor(restoreFocus = true) {
+  $("rolePresetCapabilityPanel").classList.add("hidden");
+  $("rolePresetCapabilityPanel").setAttribute("aria-hidden", "true");
+  editingRolePresetId = null;
+  if (restoreFocus && roleEditorTrigger && roleEditorTrigger.isConnected) {
+    roleEditorTrigger.focus({ preventScroll: true });
+  }
+  roleEditorTrigger = null;
+}
+
+function selectedRoleCapabilities() {
+  return Array.from(
+    $("rolePresetCapabilityGroups").querySelectorAll('input[type="checkbox"]')
+  )
+    .filter(checkbox => checkbox.checked)
+    .map(checkbox => ({
+      id: checkbox.value,
+      code: checkbox.dataset.capabilityCode
+    }));
+}
+
+function validateRoleCapabilitySelection(role, selectedCapabilities) {
+  if (role.role_code !== SUPERUSER_ROLE_CODE) return;
+  if (selectedCapabilities.length === 0) {
+    throw new Error("SuperUser must retain assigned capabilities.");
+  }
+
+  const selectedCodes = new Set(selectedCapabilities.map(capability => capability.code));
+  const missingRequired = REQUIRED_SUPERUSER_CAPABILITIES.filter(
+    capabilityCode => !selectedCodes.has(capabilityCode)
+  );
+  if (missingRequired.length) {
+    throw new Error(
+      "SuperUser must retain: " + missingRequired.join(", ") + "."
+    );
+  }
+}
+
+async function refreshCurrentUserCapabilitiesIfNeeded(role) {
+  const currentPresetCode = PROFILE_ROLE_TO_PRESET[AppState.currentProfile?.role];
+  if (currentPresetCode !== role.role_code) return;
+  await loadUserCapabilities(AppState.currentProfile);
+  syncNavigationCapabilityVisibility();
+  syncAccessControlVisibility();
+}
+
+export async function saveRolePresetCapabilities() {
+  if (!requireAccessControlManageAccess() || !editingRolePresetId) return;
+  const role = accessControlData.roles.find(item => item.id === editingRolePresetId);
+  if (!role) return;
+
+  const selectedCapabilities = selectedRoleCapabilities();
+  try {
+    validateRoleCapabilitySelection(role, selectedCapabilities);
+  } catch (err) {
+    setRoleCapabilityMessage(err.message, "error");
+    showToast("Unsafe capability change prevented", err.message, "error");
+    return;
+  }
+
+  const currentIds = assignedCapabilityIds(role.id);
+  const selectedIds = new Set(selectedCapabilities.map(capability => capability.id));
+  const additions = [...selectedIds].filter(capabilityId => !currentIds.has(capabilityId));
+  const removals = [...currentIds].filter(capabilityId => !selectedIds.has(capabilityId));
+
+  if (additions.length === 0 && removals.length === 0) {
+    setRoleCapabilityMessage("No capability changes to save.", "info");
+    return;
+  }
+
+  const saveButton = $("rolePresetCapabilitySaveButton");
+  saveButton.disabled = true;
+  saveButton.textContent = "Saving…";
+  $("rolePresetCapabilityCancelButton").disabled = true;
+  $("rolePresetCapabilityPanelCloseButton").disabled = true;
+  let additionsSaved = false;
+
+  try {
+    if (additions.length) {
+      const addResult = await supabaseClient
+        .from("role_preset_capabilities")
+        .insert(additions.map(capabilityId => ({
+          role_preset_id: role.id,
+          capability_id: capabilityId
+        })));
+      if (addResult.error) throw addResult.error;
+      additionsSaved = true;
+    }
+
+    if (removals.length) {
+      const removeResult = await supabaseClient
+        .from("role_preset_capabilities")
+        .delete()
+        .eq("role_preset_id", role.id)
+        .in("capability_id", removals);
+      if (removeResult.error) throw removeResult.error;
+    }
+
+    const capabilityById = new Map(
+      accessControlData.capabilities.map(capability => [capability.id, capability])
+    );
+    void writeAuditEvent(
+      "access_control.role_preset_capabilities.updated",
+      "role_presets",
+      role.id,
+      {
+        entity_type: "role_preset",
+        entity_id: role.id,
+        role_code: role.role_code,
+        role_name: role.role_name,
+        added_capabilities: additions.map(capabilityId =>
+          capabilityById.get(capabilityId)?.capability_code || capabilityId
+        ),
+        removed_capabilities: removals.map(capabilityId =>
+          capabilityById.get(capabilityId)?.capability_code || capabilityId
+        ),
+        summary: "Role preset capability assignments updated."
+      }
+    );
+
+    await refreshCurrentUserCapabilitiesIfNeeded(role);
+    closeRolePresetCapabilityEditor(false);
+    await loadAccessControl();
+    const refreshedTrigger = document.querySelector(
+      '[data-role-preset-id="' + role.id + '"]'
+    );
+    if (refreshedTrigger) refreshedTrigger.focus({ preventScroll: true });
+    showToast(
+      "Role capabilities updated",
+      role.role_name + " capability assignments were saved successfully.",
+      "success"
+    );
+  } catch (err) {
+    const partialMessage = additionsSaved
+      ? " New capabilities were added, but removals could not be completed. Assignments were refreshed; review this role."
+      : "";
+    if (additionsSaved) {
+      await loadAccessControl();
+      const refreshedTrigger = document.querySelector(
+        '[data-role-preset-id="' + role.id + '"]'
+      );
+      openRolePresetCapabilityEditor(role.id, refreshedTrigger);
+    }
+    setRoleCapabilityMessage(
+      (err.message || "Could not save role capability assignments.") + partialMessage,
+      "error"
+    );
+    showToast(
+      "Role capabilities not saved",
+      (err.message || "Could not save role capability assignments.") + partialMessage,
+      "error"
+    );
+  } finally {
+    saveButton.disabled = false;
+    saveButton.textContent = "Save Capabilities";
+    $("rolePresetCapabilityCancelButton").disabled = false;
+    $("rolePresetCapabilityPanelCloseButton").disabled = false;
+  }
 }
 
 export function showAccessControlView(viewName) {
@@ -429,7 +761,8 @@ export async function loadAccessControl() {
       groupRows,
       capabilityRows,
       roleRows,
-      assignments
+      assignments,
+      junctionRows
     );
     renderAccessControl();
     $("accessControlStatus").textContent =
@@ -439,7 +772,13 @@ export async function loadAccessControl() {
       (activeViewFallbackUsed ? " Role assignments were loaded from the active capability view." : "") +
       (catalogueFallbackUsed ? " Active catalogue records were completed from assignment data." : "");
   } catch (err) {
-    accessControlData = { roles: [], capabilities: [], groups: [], assignments: [] };
+    accessControlData = {
+      roles: [],
+      capabilities: [],
+      groups: [],
+      assignments: [],
+      junctionRows: []
+    };
     renderAccessControl();
     $("accessControlStatus").textContent = "Access control data could not be loaded.";
     showToast(
@@ -468,6 +807,18 @@ export function initialiseAccessControl() {
   syncAccessControlVisibility();
   $("administrationAccessControlNav").addEventListener("click", openAccessControlWorkspace);
   $("accessControlRefreshButton").addEventListener("click", loadAccessControl);
+  $("rolePresetCapabilityPanelCloseButton").addEventListener(
+    "click",
+    () => closeRolePresetCapabilityEditor()
+  );
+  $("rolePresetCapabilityCancelButton").addEventListener(
+    "click",
+    () => closeRolePresetCapabilityEditor()
+  );
+  $("rolePresetCapabilitySaveButton").addEventListener(
+    "click",
+    saveRolePresetCapabilities
+  );
   document.querySelectorAll("[data-access-control-view]").forEach(button => {
     button.addEventListener("click", () => {
       showAccessControlView(button.dataset.accessControlView);

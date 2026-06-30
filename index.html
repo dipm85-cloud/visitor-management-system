@@ -2655,9 +2655,13 @@
             <div>
               <p class="oh-app-eyebrow">Administration</p>
               <h2 id="accessControlTitle">Access Control</h2>
-              <p>Review role presets and the capability catalogue. Editing is not available in this milestone.</p>
+              <p>Edit role preset assignments and review the read-only capability catalogue and groups.</p>
             </div>
-            <span class="access-control-readonly">Read-only</span>
+            <span class="access-control-mode">Role assignments editable</span>
+          </div>
+
+          <div class="access-control-migration-note">
+            Capability assignments are saved here, but some legacy areas still use role-based checks until migration is complete.
           </div>
 
           <nav class="access-control-tabs" aria-label="Access Control views">
@@ -2721,6 +2725,30 @@
               <button type="button" disabled>Read-only placeholder</button>
             </div>
           </section>
+
+          <aside id="rolePresetCapabilityPanel" class="reference-data-panel hidden" aria-labelledby="rolePresetCapabilityPanelTitle" aria-hidden="true">
+            <div class="people-panel-header">
+              <div>
+                <p class="oh-app-eyebrow">Role preset</p>
+                <h2 id="rolePresetCapabilityPanelTitle">Edit Capabilities</h2>
+                <p id="rolePresetCapabilityPanelRole" class="assignment-panel-person"></p>
+              </div>
+              <button id="rolePresetCapabilityPanelCloseButton" class="oh-icon-button" type="button" aria-label="Close role capability editor">Ã—</button>
+            </div>
+
+            <div class="role-capability-panel-body">
+              <div id="rolePresetCapabilitySafetyNotice" class="assignment-editor-notice">
+                Select the capabilities assigned to this role preset.
+              </div>
+              <div id="rolePresetCapabilityMessage" class="modal-message" aria-live="polite"></div>
+              <div id="rolePresetCapabilityGroups" class="role-capability-groups"></div>
+            </div>
+
+            <div class="people-form-actions role-capability-panel-actions">
+              <button id="rolePresetCapabilitySaveButton" type="button">Save Capabilities</button>
+              <button id="rolePresetCapabilityCancelButton" class="secondary" type="button">Cancel</button>
+            </div>
+          </aside>
         </section>
       </section>
     </main>

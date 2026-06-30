@@ -27,7 +27,8 @@ const dockedPanelIds = [
   "peoplePanel",
   "assignmentPanel",
   "organisationPanel",
-  "referenceDataPanel"
+  "referenceDataPanel",
+  "rolePresetCapabilityPanel"
 ];
 
 function isPhoneLayout() {
