@@ -2565,12 +2565,13 @@
           <div>
             <p class="oh-app-eyebrow">Operations Hub</p>
             <h1 id="administrationPageTitle">Administration</h1>
-            <p>Maintain shared platform configuration and reference records.</p>
+            <p>Maintain shared platform configuration, reference records and access foundations.</p>
           </div>
         </header>
 
         <nav class="administration-section-nav" aria-label="Administration sections">
-          <button class="active" type="button" aria-current="page">Reference Data</button>
+          <button id="administrationReferenceNav" class="active" type="button" aria-current="page">Reference Data</button>
+          <button id="administrationAccessControlNav" class="hidden" type="button">Access Control</button>
         </nav>
 
         <section id="referenceDataSection" aria-labelledby="referenceDataTitle">
@@ -2647,6 +2648,79 @@
               </div>
             </form>
           </aside>
+        </section>
+
+        <section id="accessControlSection" class="hidden" aria-labelledby="accessControlTitle">
+          <div class="access-control-heading">
+            <div>
+              <p class="oh-app-eyebrow">Administration</p>
+              <h2 id="accessControlTitle">Access Control</h2>
+              <p>Review role presets and the capability catalogue. Editing is not available in this milestone.</p>
+            </div>
+            <span class="access-control-readonly">Read-only</span>
+          </div>
+
+          <nav class="access-control-tabs" aria-label="Access Control views">
+            <button id="accessControlRolePresetsTab" class="active" type="button" aria-current="page" data-access-control-view="roles">Role Presets</button>
+            <button id="accessControlCapabilitiesTab" type="button" data-access-control-view="capabilities">Capabilities</button>
+            <button id="accessControlGroupsTab" type="button" data-access-control-view="groups">Capability Groups</button>
+            <button id="accessControlOverridesTab" type="button" data-access-control-view="overrides">User Overrides</button>
+          </nav>
+
+          <div class="access-control-toolbar">
+            <p id="accessControlStatus" aria-live="polite">Open Access Control to load capability data.</p>
+            <button id="accessControlRefreshButton" class="secondary" type="button">Refresh</button>
+          </div>
+
+          <section id="accessControlRolesView" class="access-control-view" data-access-control-panel="roles" aria-labelledby="accessControlRolePresetsTab">
+            <div id="accessControlRolePresets" class="access-control-role-grid"></div>
+            <div id="accessControlRolesEmpty" class="people-empty-state hidden">No role presets are available.</div>
+          </section>
+
+          <section id="accessControlCapabilitiesView" class="access-control-view hidden" data-access-control-panel="capabilities" aria-labelledby="accessControlCapabilitiesTab">
+            <div class="access-control-table-wrap">
+              <table class="access-control-table" aria-label="Capability catalogue">
+                <thead>
+                  <tr>
+                    <th scope="col">Capability Code</th>
+                    <th scope="col">Capability Name</th>
+                    <th scope="col">Group</th>
+                    <th scope="col">Description</th>
+                    <th scope="col">Active</th>
+                  </tr>
+                </thead>
+                <tbody id="accessControlCapabilities"></tbody>
+              </table>
+              <div id="accessControlCapabilitiesEmpty" class="people-empty-state hidden">No capabilities are available.</div>
+            </div>
+          </section>
+
+          <section id="accessControlGroupsView" class="access-control-view hidden" data-access-control-panel="groups" aria-labelledby="accessControlGroupsTab">
+            <div class="access-control-table-wrap">
+              <table class="access-control-table" aria-label="Capability groups">
+                <thead>
+                  <tr>
+                    <th scope="col">Group</th>
+                    <th scope="col">Group Code</th>
+                    <th scope="col">Description</th>
+                    <th scope="col">Capabilities</th>
+                    <th scope="col">Active</th>
+                  </tr>
+                </thead>
+                <tbody id="accessControlGroups"></tbody>
+              </table>
+              <div id="accessControlGroupsEmpty" class="people-empty-state hidden">No capability groups are available.</div>
+            </div>
+          </section>
+
+          <section id="accessControlOverridesView" class="access-control-view hidden" data-access-control-panel="overrides" aria-labelledby="accessControlOverridesTab">
+            <div class="access-control-placeholder">
+              <span class="report-status coming-soon">Coming Soon</span>
+              <h3>User Overrides</h3>
+              <p>Per-user capability grants and denials will be reviewed here in a future milestone.</p>
+              <button type="button" disabled>Read-only placeholder</button>
+            </div>
+          </section>
         </section>
       </section>
     </main>

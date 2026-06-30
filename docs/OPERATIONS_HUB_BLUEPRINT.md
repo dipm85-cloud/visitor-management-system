@@ -350,6 +350,8 @@ Every protected action should answer:
 
 Capability changes, preset changes and user assignments must be historically attributable.
 
+The Access Control administration workspace is currently read-only. It exposes role presets, capability groups and the capability catalogue for authorised administration review; future milestones may add governed role, capability and user-override editing with appropriate validation, enforcement and audit history.
+
 ## 7. UI Philosophy
 
 ### Responsive-first

@@ -4,6 +4,7 @@ import { showToast } from "./messages.js";
 import { showAdministrationWorkspace } from "./shell.js";
 import { AppState } from "./state.js";
 import { auditDiffSummary, buildFieldDiff, writeAuditEvent } from "./audit.js";
+import { showReferenceDataAdministrationSection } from "./accessControl.js";
 import {
   normaliseBusinessCode,
   titleCaseText
@@ -439,6 +440,7 @@ function recordSearchText(record, definition) {
 export async function openReferenceDataWorkspace() {
   if (!requireAdministrationAccess()) return;
   showAdministrationWorkspace();
+  showReferenceDataAdministrationSection();
   closeReferenceDataPanel();
   await selectReferenceEntity(currentEntityKey);
 }

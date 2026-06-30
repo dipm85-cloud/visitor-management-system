@@ -198,6 +198,10 @@ import {
   initialiseDashboard
 } from "./dashboard.js";
 import { initialiseReportingCentre } from "./reporting.js";
+import {
+  initialiseAccessControl,
+  syncAccessControlVisibility
+} from "./accessControl.js";
 
 window.addEventListener("load", async function () {
   try {
@@ -320,7 +324,10 @@ window.addEventListener("load", async function () {
       setRole,
       loadAgreementVersions,
       showSuperSection,
-      syncNavigationCapabilityVisibility,
+      syncNavigationCapabilityVisibility() {
+        syncNavigationCapabilityVisibility();
+        syncAccessControlVisibility();
+      },
       enterKioskMode,
       enterWorkspaceMode,
       returnToEntryMode
@@ -4567,6 +4574,7 @@ window.addEventListener("load", async function () {
     initialiseVisitorIdentityLookups();
     initialiseDashboard();
     initialiseReportingCentre();
+    initialiseAccessControl();
     window.addEventListener("oh:report-shortcut-requested", event => {
       openExistingReportShortcut(event.detail && event.detail.shortcut);
     });
@@ -4592,6 +4600,9 @@ window.addEventListener("load", async function () {
       saveOrganisation();
     });
     if ($("ohAdministrationNav")) $("ohAdministrationNav").addEventListener("click", openReferenceDataWorkspace);
+    if ($("administrationReferenceNav")) {
+      $("administrationReferenceNav").addEventListener("click", openReferenceDataWorkspace);
+    }
     document.querySelectorAll("[data-reference-entity]").forEach(button => {
       button.addEventListener("click", () => selectReferenceEntity(button.dataset.referenceEntity));
     });

@@ -2656,6 +2656,210 @@ button.oh-nav-scrim {
 
 .reference-row-actions button + button { margin-left: 8px; }
 
+.access-control-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 18px;
+}
+
+.access-control-heading h2 {
+  margin: 0;
+  font-size: 25px;
+}
+
+.access-control-heading p:not(.oh-app-eyebrow) {
+  margin: 6px 0 0;
+  color: var(--oh-shell-muted);
+}
+
+.access-control-readonly {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 4px 10px;
+  border: 1px solid var(--oh-shell-border);
+  border-radius: 999px;
+  background: #f2f4f7;
+  color: #475467;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.access-control-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.access-control-tabs button {
+  min-height: 42px;
+  flex: 0 0 auto;
+  border: 1px solid var(--oh-shell-border);
+  background: var(--oh-shell-surface);
+  color: var(--oh-shell-text);
+}
+
+.access-control-tabs button.active {
+  border-color: #b9cadf;
+  background: var(--oh-shell-active);
+  color: #234d77;
+}
+
+.access-control-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+  padding: 14px 16px;
+  border: 1px solid var(--oh-shell-border);
+  border-radius: 14px;
+  background: var(--oh-shell-surface);
+}
+
+.access-control-toolbar p {
+  margin: 0;
+  color: var(--oh-shell-muted);
+}
+
+.access-control-role-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.access-control-role-card {
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid var(--oh-shell-border);
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 8px 22px rgba(16, 24, 40, .05);
+}
+
+.access-control-role-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.access-control-role-heading h3 {
+  margin: 0 0 5px;
+  font-size: 20px;
+}
+
+.access-control-role-card code,
+.access-control-table td:first-child {
+  color: #344054;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.access-control-capability-count {
+  margin: 16px 0;
+  color: var(--oh-shell-muted);
+  font-weight: 700;
+}
+
+.access-control-role-group {
+  padding-top: 14px;
+  border-top: 1px solid #e9edf2;
+}
+
+.access-control-role-group + .access-control-role-group {
+  margin-top: 14px;
+}
+
+.access-control-role-group h4 {
+  margin: 0 0 9px;
+  font-size: 14px;
+}
+
+.access-control-role-group ul {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.access-control-role-group li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(120px, auto);
+  gap: 12px;
+  align-items: baseline;
+  font-size: 13px;
+}
+
+.access-control-role-group li code {
+  text-align: right;
+}
+
+.access-control-role-empty {
+  margin: 0;
+  color: var(--oh-shell-muted);
+}
+
+.access-control-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--oh-shell-border);
+  border-radius: 16px;
+  background: #fff;
+}
+
+.access-control-table {
+  width: 100%;
+  min-width: 840px;
+  border-collapse: collapse;
+}
+
+.access-control-table th,
+.access-control-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid #e9edf2;
+  text-align: left;
+  vertical-align: top;
+}
+
+.access-control-table th {
+  background: #f8fafc;
+  color: #475467;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.access-control-table td {
+  font-size: 13px;
+}
+
+.access-control-placeholder {
+  max-width: 680px;
+  padding: 28px;
+  border: 1px dashed var(--oh-shell-border);
+  border-radius: 16px;
+  background: #f8fafc;
+}
+
+.access-control-placeholder h3 {
+  margin: 16px 0 8px;
+}
+
+.access-control-placeholder p {
+  color: var(--oh-shell-muted);
+  line-height: 1.5;
+}
+
+.access-control-placeholder button {
+  min-height: 44px;
+}
+
 .reference-data-panel {
   position: absolute;
   z-index: 45;
@@ -2714,11 +2918,24 @@ input[data-reference-field="cycle_length_days"][readonly] {
 
 @media (max-width: 1023px) {
   .reference-data-panel { width: min(480px, calc(100% - 40px)); }
+  .access-control-role-grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 599px) {
   .administration-section-nav { margin-bottom: 18px; }
   .reference-data-heading h2 { font-size: 22px; }
+  .access-control-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .access-control-readonly { width: max-content; }
+  .access-control-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .access-control-toolbar button { width: 100%; }
+  .access-control-role-group li { grid-template-columns: 1fr; }
+  .access-control-role-group li code { text-align: left; }
 
   .reference-toolbar {
     grid-template-columns: 1fr;
