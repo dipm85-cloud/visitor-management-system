@@ -2,9 +2,9 @@ import { supabaseClient } from "./api.js";
 import { $ } from "./dom.js";
 import { showToast } from "./messages.js";
 import { showAdministrationWorkspace } from "./shell.js";
-import { AppState } from "./state.js";
 import { auditDiffSummary, buildFieldDiff, writeAuditEvent } from "./audit.js";
 import { showReferenceDataAdministrationSection } from "./accessControl.js";
+import { hasAnyCapability, hasCapability } from "./capabilities.js";
 import {
   normaliseBusinessCode,
   titleCaseText
@@ -218,16 +218,22 @@ function referenceRecordCode(record, definition) {
 }
 
 function hasAdministrationAccess() {
-  return !!(
-    AppState.currentProfile &&
-    AppState.currentProfile.active &&
-    AppState.currentProfile.role === "super_user"
-  );
+  return hasAnyCapability(["settings.view", "settings.edit"]);
+}
+
+function hasAdministrationEditAccess() {
+  return hasCapability("settings.edit");
 }
 
 function requireAdministrationAccess() {
   if (hasAdministrationAccess()) return true;
-  showToast("Access denied", "Reference Data is currently available to SuperUsers only.", "error");
+  showToast("You do not have permission", "Reference Data requires settings.view.", "error");
+  return false;
+}
+
+function requireAdministrationEditAccess() {
+  if (hasAdministrationEditAccess()) return true;
+  showToast("You do not have permission", "This action requires settings.edit.", "error");
   return false;
 }
 
@@ -441,6 +447,7 @@ export async function openReferenceDataWorkspace() {
   if (!requireAdministrationAccess()) return;
   showAdministrationWorkspace();
   showReferenceDataAdministrationSection();
+  $("referenceCreateButton").classList.toggle("hidden", !hasAdministrationEditAccess());
   closeReferenceDataPanel();
   await selectReferenceEntity(currentEntityKey);
 }
@@ -539,7 +546,7 @@ export function renderReferenceDataList() {
     editButton.textContent = "Edit";
     editButton.setAttribute("aria-label", "Edit " + recordLabel);
     editButton.addEventListener("click", () => openReferenceDataPanel(record.id));
-    actionCell.appendChild(editButton);
+    if (hasAdministrationEditAccess()) actionCell.appendChild(editButton);
 
     const activeButton = document.createElement("button");
     activeButton.className = "secondary";
@@ -550,7 +557,7 @@ export function renderReferenceDataList() {
       (record.active ? "Deactivate " : "Activate ") + recordLabel
     );
     activeButton.addEventListener("click", () => setReferenceRecordActive(record.id, !record.active));
-    actionCell.appendChild(activeButton);
+    if (hasAdministrationEditAccess()) actionCell.appendChild(activeButton);
 
     row.appendChild(actionCell);
     body.appendChild(row);
@@ -566,7 +573,7 @@ export function renderReferenceDataList() {
 }
 
 export function openReferenceDataPanel(recordId) {
-  if (!requireAdministrationAccess()) return;
+  if (!requireAdministrationEditAccess()) return;
 
   clearReferenceForm();
   const definition = currentDefinition();
@@ -656,7 +663,7 @@ function fieldValue(field) {
 }
 
 export async function saveReferenceRecord() {
-  if (!requireAdministrationAccess()) return;
+  if (!requireAdministrationEditAccess()) return;
 
   const entityKey = currentEntityKey;
   const definition = currentDefinition();
@@ -738,7 +745,7 @@ export async function saveReferenceRecord() {
 }
 
 export async function setReferenceRecordActive(recordId, active) {
-  if (!requireAdministrationAccess()) return;
+  if (!requireAdministrationEditAccess()) return;
 
   const entityKey = currentEntityKey;
   const definition = currentDefinition();

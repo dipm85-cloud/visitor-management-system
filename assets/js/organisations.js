@@ -2,7 +2,7 @@ import { supabaseClient } from "./api.js";
 import { $ } from "./dom.js";
 import { showToast } from "./messages.js";
 import { showOrganisationsWorkspace } from "./shell.js";
-import { AppState } from "./state.js";
+import { hasAnyCapability, hasCapability } from "./capabilities.js";
 import { auditDiffSummary, buildFieldDiff, writeAuditEvent } from "./audit.js";
 import {
   normaliseBusinessCode,
@@ -31,16 +31,22 @@ let organisationsCache = [];
 let selectedOrganisationId = null;
 
 function hasOrganisationAccess() {
-  return !!(
-    AppState.currentProfile &&
-    AppState.currentProfile.active &&
-    AppState.currentProfile.role === "super_user"
-  );
+  return hasAnyCapability(["people.view", "people.manage"]);
+}
+
+function hasOrganisationManageAccess() {
+  return hasCapability("people.manage");
 }
 
 function requireOrganisationAccess() {
   if (hasOrganisationAccess()) return true;
-  showToast("Access denied", "Organisations is currently available to SuperUsers only.", "error");
+  showToast("You do not have permission", "Organisations requires people.view.", "error");
+  return false;
+}
+
+function requireOrganisationManageAccess() {
+  if (hasOrganisationManageAccess()) return true;
+  showToast("You do not have permission", "This action requires people.manage.", "error");
   return false;
 }
 
@@ -66,6 +72,7 @@ function selectedOrganisation() {
 export async function openOrganisationsWorkspace() {
   if (!requireOrganisationAccess()) return;
   showOrganisationsWorkspace();
+  $("organisationCreateButton").classList.toggle("hidden", !hasOrganisationManageAccess());
   closeOrganisationPanel();
   await loadOrganisations();
 }
@@ -146,7 +153,7 @@ export function renderOrganisationList() {
     editButton.textContent = "Edit";
     editButton.setAttribute("aria-label", "Edit " + organisation.organisation_name);
     editButton.addEventListener("click", () => openOrganisationPanel(organisation.id));
-    actionCell.appendChild(editButton);
+    if (hasOrganisationManageAccess()) actionCell.appendChild(editButton);
     row.appendChild(actionCell);
 
     body.appendChild(row);
@@ -236,7 +243,7 @@ export async function selectOrganisation(organisationId) {
 }
 
 export function openOrganisationPanel(organisationId) {
-  if (!requireOrganisationAccess()) return;
+  if (!requireOrganisationManageAccess()) return;
 
   clearOrganisationForm();
   const organisation = organisationsCache.find(item => item.id === organisationId);
@@ -269,7 +276,7 @@ export function clearOrganisationForm() {
 }
 
 export async function saveOrganisation() {
-  if (!requireOrganisationAccess()) return;
+  if (!requireOrganisationManageAccess()) return;
 
   const organisationName = titleCaseText($("organisationName").value);
   const organisationCode = normaliseBusinessCode($("organisationCode").value);

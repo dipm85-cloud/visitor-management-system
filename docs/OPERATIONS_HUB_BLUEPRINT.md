@@ -352,6 +352,8 @@ Capability changes, preset changes and user assignments must be historically att
 
 The Access Control administration workspace allows authorised SuperUsers to edit capability assignments for existing role presets. Access Control is transitioning the platform from role-based to capability-based authorisation, but some legacy role checks remain until their enforcement boundaries are migrated. `access_control.manage` is recovery-critical and must remain assigned to SuperUser alongside the protected administration capabilities. Role preset identity, capability definitions, capability groups and user overrides remain read-only until future governed editing adds appropriate validation, enforcement and audit history.
 
+Capability Migration Phase 1 is complete for People, Organisations, Assignments, Reference Data, Access Control navigation and Administration navigation. These UI boundaries now use the capability engine rather than role comparisons. Until dedicated Organisation and Assignment capabilities are introduced, `people.view` governs shared People/Organisation visibility and `people.manage` governs People, Organisation and Assignment actions. Existing backend RLS and legacy Visitors, Reporting, Dashboard, Audit and Kiosk role checks remain unchanged for later governed migration phases.
+
 ## 7. UI Philosophy
 
 ### Responsive-first

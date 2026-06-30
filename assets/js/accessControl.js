@@ -40,46 +40,27 @@ let accessControlInitialised = false;
 let editingRolePresetId = null;
 let roleEditorTrigger = null;
 
-function hasActiveSuperUserProfile() {
+function hasActiveProfile() {
   return !!(
     AppState.currentProfile &&
-    AppState.currentProfile.active &&
-    AppState.currentProfile.role === "super_user"
+    AppState.currentProfile.active
   );
-}
-
-function capabilityStateAvailable() {
-  return AppState.userCapabilities instanceof Set &&
-    AppState.userCapabilities.size > 0;
 }
 
 function hasAccessControlAccess() {
-  return hasActiveSuperUserProfile() && (
-    !capabilityStateAvailable() ||
-    hasAnyCapability([
-      "access_control.view",
-      "access_control.manage",
-      "settings.view",
-      "users.manage"
-    ])
-  );
+  return hasActiveProfile() &&
+    hasAnyCapability(["access_control.view", "access_control.manage"]);
 }
 
 function hasAccessControlManageAccess() {
-  const capabilityStateLoaded =
-    AppState.userCapabilities instanceof Set &&
-    AppState.userCapabilities.size > 0;
-  return hasActiveSuperUserProfile() && (
-    !capabilityStateLoaded ||
-    hasAnyCapability(["access_control.manage", "users.manage"])
-  );
+  return hasActiveProfile() && hasAnyCapability(["access_control.manage"]);
 }
 
 function requireAccessControlAccess() {
   if (hasAccessControlAccess()) return true;
   showToast(
-    "Access denied",
-    "Access Control is currently available to authorised SuperUsers only.",
+    "You do not have permission",
+    "Access Control requires access_control.view.",
     "error"
   );
   return false;
@@ -88,7 +69,7 @@ function requireAccessControlAccess() {
 function requireAccessControlManageAccess() {
   if (hasAccessControlManageAccess()) return true;
   showToast(
-    "Access denied",
+    "You do not have permission",
     "Managing role preset assignments requires access_control.manage.",
     "error"
   );
@@ -119,10 +100,12 @@ export function showReferenceDataAdministrationSection() {
 
 export function syncAccessControlVisibility() {
   const visible = hasAccessControlAccess();
+  const referenceVisible = hasAnyCapability(["settings.view", "settings.edit"]);
   $("administrationAccessControlNav").classList.toggle("hidden", !visible);
+  $("administrationReferenceNav").classList.toggle("hidden", !referenceVisible);
   if (!visible && !$("accessControlSection").classList.contains("hidden")) {
     closeRolePresetCapabilityEditor(false);
-    setAdministrationSection("reference");
+    if (referenceVisible) setAdministrationSection("reference");
   }
 }
 

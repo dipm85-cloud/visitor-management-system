@@ -143,10 +143,25 @@ export function syncNavigationCapabilityVisibility() {
   if (!activeStaffProfile) {
     setNavItemCapabilityVisibility(dashboardNav, true);
     setNavItemCapabilityVisibility(visitorsNav, true);
-    setNavItemCapabilityVisibility(peopleNav, true);
-    setNavItemCapabilityVisibility(organisationsNav, true);
+    setNavItemCapabilityVisibility(
+      peopleNav,
+      hasAnyCapability(["people.view", "people.manage"])
+    );
+    setNavItemCapabilityVisibility(
+      organisationsNav,
+      hasAnyCapability(["people.view", "people.manage"])
+    );
     setNavItemCapabilityVisibility(reportingNav, true);
-    setNavItemCapabilityVisibility(administrationNav, true);
+    setNavItemCapabilityVisibility(administrationNav, hasAnyCapability([
+      "settings.view",
+      "settings.edit",
+      "users.view",
+      "users.manage",
+      "devices.view",
+      "devices.manage",
+      "access_control.view",
+      "access_control.manage"
+    ]));
     return;
   }
 
@@ -155,13 +170,18 @@ export function syncNavigationCapabilityVisibility() {
   setNavItemCapabilityVisibility(peopleNav, hasAnyCapability(["people.view", "people.manage"]));
   setNavItemCapabilityVisibility(
     organisationsNav,
-    AppState.currentProfile.role === "super_user"
+    hasAnyCapability(["people.view", "people.manage"])
   );
   setNavItemCapabilityVisibility(reportingNav, hasCapability("reports.view"));
   setNavItemCapabilityVisibility(administrationNav, hasAnyCapability([
     "settings.view",
+    "settings.edit",
     "users.view",
-    "devices.view"
+    "users.manage",
+    "devices.view",
+    "devices.manage",
+    "access_control.view",
+    "access_control.manage"
   ]));
 }
 

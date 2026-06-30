@@ -200,8 +200,10 @@ import {
 import { initialiseReportingCentre } from "./reporting.js";
 import {
   initialiseAccessControl,
-  syncAccessControlVisibility
+  syncAccessControlVisibility,
+  openAccessControlWorkspace
 } from "./accessControl.js";
+import { hasAnyCapability } from "./capabilities.js";
 
 window.addEventListener("load", async function () {
   try {
@@ -4599,7 +4601,23 @@ window.addEventListener("load", async function () {
       event.preventDefault();
       saveOrganisation();
     });
-    if ($("ohAdministrationNav")) $("ohAdministrationNav").addEventListener("click", openReferenceDataWorkspace);
+    if ($("ohAdministrationNav")) {
+      $("ohAdministrationNav").addEventListener("click", () => {
+        if (hasAnyCapability(["settings.view", "settings.edit"])) {
+          openReferenceDataWorkspace();
+          return;
+        }
+        if (hasAnyCapability(["access_control.view", "access_control.manage"])) {
+          openAccessControlWorkspace();
+          return;
+        }
+        showToast(
+          "You do not have permission",
+          "Administration requires an administration capability.",
+          "error"
+        );
+      });
+    }
     if ($("administrationReferenceNav")) {
       $("administrationReferenceNav").addEventListener("click", openReferenceDataWorkspace);
     }

@@ -2,7 +2,7 @@ import { supabaseClient } from "./api.js";
 import { $ } from "./dom.js";
 import { showToast } from "./messages.js";
 import { showPeopleWorkspace } from "./shell.js";
-import { AppState } from "./state.js";
+import { hasAnyCapability, hasCapability } from "./capabilities.js";
 import { auditDiffSummary, buildFieldDiff, writeAuditEvent } from "./audit.js";
 import {
   detachAssignmentInlinePlacement,
@@ -42,16 +42,22 @@ const PERSON_AUDIT_FIELDS = [
 let peopleCache = [];
 
 function hasPeopleAccess() {
-  return !!(
-    AppState.currentProfile &&
-    AppState.currentProfile.active &&
-    AppState.currentProfile.role === "super_user"
-  );
+  return hasAnyCapability(["people.view", "people.manage"]);
+}
+
+function hasPeopleManageAccess() {
+  return hasCapability("people.manage");
 }
 
 function requirePeopleAccess() {
   if (hasPeopleAccess()) return true;
-  showToast("Access denied", "People is currently available to SuperUsers only.", "error");
+  showToast("You do not have permission", "People requires people.view.", "error");
+  return false;
+}
+
+function requirePeopleManageAccess() {
+  if (hasPeopleManageAccess()) return true;
+  showToast("You do not have permission", "This action requires people.manage.", "error");
   return false;
 }
 
@@ -73,6 +79,7 @@ function createCell(text) {
 export async function openPeopleWorkspace() {
   if (!requirePeopleAccess()) return;
   showPeopleWorkspace();
+  $("peopleCreateButton").classList.toggle("hidden", !hasPeopleManageAccess());
   closePeoplePanel();
   await loadPeople();
 }
@@ -150,7 +157,7 @@ export function renderPeopleList() {
     assignmentsButton.addEventListener("click", () => {
       selectPersonForAssignments(person.id, person.display_name);
     });
-    actionCell.appendChild(assignmentsButton);
+    if (hasPeopleManageAccess()) actionCell.appendChild(assignmentsButton);
 
     const editButton = document.createElement("button");
     editButton.className = "ghost";
@@ -160,7 +167,7 @@ export function renderPeopleList() {
     editButton.addEventListener("click", () => {
       openPeoplePanel(person.id);
     });
-    actionCell.appendChild(editButton);
+    if (hasPeopleManageAccess()) actionCell.appendChild(editButton);
     row.appendChild(actionCell);
 
     body.appendChild(row);
@@ -175,7 +182,7 @@ export function renderPeopleList() {
 }
 
 export function openPeoplePanel(personId) {
-  if (!requirePeopleAccess()) return;
+  if (!requirePeopleManageAccess()) return;
 
   clearPersonForm();
   const person = peopleCache.find(item => item.id === personId);
@@ -212,7 +219,7 @@ export function clearPersonForm() {
 }
 
 export async function savePerson() {
-  if (!requirePeopleAccess()) return;
+  if (!requirePeopleManageAccess()) return;
 
   const firstName = titleCaseText($("personFirstName").value);
   const lastName = titleCaseText($("personLastName").value);

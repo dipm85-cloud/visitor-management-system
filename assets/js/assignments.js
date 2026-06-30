@@ -1,9 +1,9 @@
 import { supabaseClient } from "./api.js";
 import { $ } from "./dom.js";
 import { showToast } from "./messages.js";
-import { AppState } from "./state.js";
 import { todayDate } from "./utils.js";
 import { auditDiffSummary, buildFieldDiff, writeAuditEvent } from "./audit.js";
+import { hasCapability } from "./capabilities.js";
 
 const ASSIGNMENT_COLUMNS = [
   "id",
@@ -130,16 +130,16 @@ let assignmentPendingEnd = null;
 const ASSIGNMENT_DETAIL_ROW_ID = "inlineAssignmentDetailRow";
 
 function hasAssignmentAccess() {
-  return !!(
-    AppState.currentProfile &&
-    AppState.currentProfile.active &&
-    AppState.currentProfile.role === "super_user"
-  );
+  return hasCapability("people.manage");
 }
 
 function requireAssignmentAccess() {
   if (hasAssignmentAccess()) return true;
-  showToast("Access denied", "Assignments are currently available to SuperUsers only.", "error");
+  showToast(
+    "You do not have permission",
+    "Assignment actions currently require people.manage.",
+    "error"
+  );
   return false;
 }
 
