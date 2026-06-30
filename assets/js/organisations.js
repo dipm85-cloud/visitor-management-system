@@ -3,6 +3,7 @@ import { $ } from "./dom.js";
 import { showToast } from "./messages.js";
 import { showOrganisationsWorkspace } from "./shell.js";
 import { AppState } from "./state.js";
+import { auditDiffSummary, buildFieldDiff, writeAuditEvent } from "./audit.js";
 import {
   normaliseBusinessCode,
   titleCaseText
@@ -18,6 +19,13 @@ const ORGANISATION_COLUMNS = [
   "created_at",
   "updated_at"
 ].join(", ");
+
+const ORGANISATION_AUDIT_FIELDS = [
+  "organisation_code",
+  "organisation_name",
+  "organisation_type",
+  "active"
+];
 
 let organisationsCache = [];
 let selectedOrganisationId = null;
@@ -289,6 +297,9 @@ export async function saveOrganisation() {
   };
 
   const organisationId = $("organisationId").value;
+  const previousOrganisation = organisationId
+    ? organisationsCache.find(organisation => organisation.id === organisationId) || null
+    : null;
   const saveButton = $("organisationSaveButton");
   saveButton.disabled = true;
   saveButton.textContent = "Saving...";
@@ -301,6 +312,27 @@ export async function saveOrganisation() {
 
     const result = await query.select(ORGANISATION_COLUMNS).single();
     if (result.error) throw result.error;
+
+    const changes = buildFieldDiff(
+      previousOrganisation,
+      result.data,
+      ORGANISATION_AUDIT_FIELDS
+    );
+    void writeAuditEvent(
+      organisationId ? "organisation.updated" : "organisation.created",
+      "organisations",
+      result.data.id,
+      {
+        entity_type: "organisation",
+        entity_id: result.data.id,
+        display_name: result.data.organisation_name,
+        code: result.data.organisation_code || null,
+        old_active: previousOrganisation ? previousOrganisation.active : null,
+        new_active: result.data.active,
+        changes,
+        summary: auditDiffSummary(changes)
+      }
+    );
 
     showToast(
       organisationId ? "Organisation updated" : "Organisation created",

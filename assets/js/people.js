@@ -3,6 +3,7 @@ import { $ } from "./dom.js";
 import { showToast } from "./messages.js";
 import { showPeopleWorkspace } from "./shell.js";
 import { AppState } from "./state.js";
+import { auditDiffSummary, buildFieldDiff, writeAuditEvent } from "./audit.js";
 import {
   detachAssignmentInlinePlacement,
   getSelectedAssignmentPersonId,
@@ -28,6 +29,15 @@ const PERSON_COLUMNS = [
   "created_at",
   "updated_at"
 ].join(", ");
+
+const PERSON_AUDIT_FIELDS = [
+  "external_person_number",
+  "first_name",
+  "last_name",
+  "preferred_name",
+  "display_name",
+  "active"
+];
 
 let peopleCache = [];
 
@@ -240,6 +250,9 @@ export async function savePerson() {
   };
 
   const personId = $("personId").value;
+  const previousPerson = personId
+    ? peopleCache.find(person => person.id === personId) || null
+    : null;
   const saveButton = $("peopleSaveButton");
   saveButton.disabled = true;
   saveButton.textContent = "Saving…";
@@ -252,6 +265,23 @@ export async function savePerson() {
 
     const result = await query.select(PERSON_COLUMNS).single();
     if (result.error) throw result.error;
+
+    const changes = buildFieldDiff(previousPerson, result.data, PERSON_AUDIT_FIELDS);
+    void writeAuditEvent(
+      personId ? "people.updated" : "people.created",
+      "people",
+      result.data.id,
+      {
+        entity_type: "person",
+        entity_id: result.data.id,
+        display_name: result.data.display_name,
+        external_person_number: result.data.external_person_number || null,
+        old_active: previousPerson ? previousPerson.active : null,
+        new_active: result.data.active,
+        changes,
+        summary: auditDiffSummary(changes)
+      }
+    );
 
     showToast(
       personId ? "Person updated" : "Person created",

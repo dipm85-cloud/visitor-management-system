@@ -107,6 +107,8 @@ Material history is append-only in meaning. Corrections should preserve what was
 
 Operational records must not be silently rewritten to make the past look cleaner. Retention or anonymisation may transform data under controlled policy, but the action itself must remain auditable.
 
+Operations Hub platform actions must be auditable. Master-data creation, updates and lifecycle transitions should record the actor, affected entity, event type and safe change context without exposing secrets or sensitive authentication data. An audit-write failure must not reverse or block an otherwise successful platform action.
+
 ### Engine vs Configuration
 
 The Engine defines what the platform can do. Configuration defines how a company chooses to use those capabilities.

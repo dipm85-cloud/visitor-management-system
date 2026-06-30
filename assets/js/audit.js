@@ -45,20 +45,42 @@ export function getBrowserAuditContext() {
   };
 }
 
+function auditErrorSummary(error) {
+  return {
+    code: error && error.code ? String(error.code) : null,
+    message: error && error.message
+      ? String(error.message)
+      : "Unknown audit write error."
+  };
+}
+
 export async function writeAuditEvent(eventType, entityType, entityId, details) {
   try {
     const enrichedDetails = Object.assign({}, details || {}, {
       client_context: getBrowserAuditContext()
     });
 
-    await supabaseClient.rpc("write_audit_event", {
+    const result = await supabaseClient.rpc("write_audit_event", {
       p_event_type: eventType,
       p_entity_type: entityType || null,
       p_entity_id: entityId || null,
       p_details: enrichedDetails
     });
+    if (result.error) {
+      console.warn("Audit event write failed:", {
+        event_type: eventType,
+        entity_type: entityType || null,
+        entity_id: entityId || null,
+        error: auditErrorSummary(result.error)
+      });
+    }
   } catch (err) {
-    console.warn("Audit event write failed:", err);
+    console.warn("Audit event write failed:", {
+      event_type: eventType,
+      entity_type: entityType || null,
+      entity_id: entityId || null,
+      error: auditErrorSummary(err)
+    });
   }
 }
 

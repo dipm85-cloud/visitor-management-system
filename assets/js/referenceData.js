@@ -3,6 +3,7 @@ import { $ } from "./dom.js";
 import { showToast } from "./messages.js";
 import { showAdministrationWorkspace } from "./shell.js";
 import { AppState } from "./state.js";
+import { auditDiffSummary, buildFieldDiff, writeAuditEvent } from "./audit.js";
 import {
   normaliseBusinessCode,
   titleCaseText
@@ -191,6 +192,28 @@ let currentEntityKey = "sites";
 
 function currentDefinition() {
   return entityDefinitions[currentEntityKey];
+}
+
+function referenceAuditFields(definition) {
+  return ["active", ...definition.fields
+    .map(field => field.key)
+    .filter(field => field !== "notes")];
+}
+
+function referenceAuditRecord(record, fields) {
+  if (!record) return null;
+  return fields.reduce((auditRecord, field) => {
+    const value = record[field];
+    auditRecord[field] = value && typeof value === "object"
+      ? JSON.stringify(value)
+      : value;
+    return auditRecord;
+  }, {});
+}
+
+function referenceRecordCode(record, definition) {
+  const codeField = definition.fields.find(field => field.key.endsWith("_code"));
+  return codeField && record ? record[codeField.key] || null : null;
 }
 
 function hasAdministrationAccess() {
@@ -633,6 +656,7 @@ function fieldValue(field) {
 export async function saveReferenceRecord() {
   if (!requireAdministrationAccess()) return;
 
+  const entityKey = currentEntityKey;
   const definition = currentDefinition();
   const payload = {
     active: $("referenceRecordActive").value === "true"
@@ -648,6 +672,9 @@ export async function saveReferenceRecord() {
   }
 
   const recordId = $("referenceRecordId").value;
+  const previousRecord = recordId
+    ? (referenceCache[entityKey] || []).find(record => record.id === recordId) || null
+    : null;
   const saveButton = $("referenceSaveButton");
   saveButton.disabled = true;
   saveButton.textContent = "Saving…";
@@ -660,6 +687,28 @@ export async function saveReferenceRecord() {
 
     const result = await query.select(definitionColumns(definition)).single();
     if (result.error) throw result.error;
+
+    const auditFields = referenceAuditFields(definition);
+    const changes = buildFieldDiff(
+      referenceAuditRecord(previousRecord, auditFields),
+      referenceAuditRecord(result.data, auditFields),
+      auditFields
+    );
+    void writeAuditEvent(
+      recordId ? "reference_data.updated" : "reference_data.created",
+      definition.table,
+      result.data.id,
+      {
+        entity_type: entityKey,
+        entity_id: result.data.id,
+        display_name: result.data[definition.orderBy] || definition.singular,
+        code: referenceRecordCode(result.data, definition),
+        old_active: previousRecord ? previousRecord.active : null,
+        new_active: result.data.active,
+        changes,
+        summary: auditDiffSummary(changes)
+      }
+    );
 
     showToast(
       recordId ? definition.singular + " updated" : definition.singular + " created",
@@ -689,7 +738,10 @@ export async function saveReferenceRecord() {
 export async function setReferenceRecordActive(recordId, active) {
   if (!requireAdministrationAccess()) return;
 
+  const entityKey = currentEntityKey;
   const definition = currentDefinition();
+  const previousRecord = (referenceCache[entityKey] || [])
+    .find(record => record.id === recordId) || null;
 
   try {
     const result = await supabaseClient
@@ -700,6 +752,29 @@ export async function setReferenceRecordActive(recordId, active) {
       .single();
 
     if (result.error) throw result.error;
+
+    const changes = buildFieldDiff(
+      { active: previousRecord ? previousRecord.active : !active },
+      { active: result.data.active },
+      ["active"]
+    );
+    void writeAuditEvent(
+      active ? "reference_data.activated" : "reference_data.deactivated",
+      definition.table,
+      result.data.id,
+      {
+        entity_type: entityKey,
+        entity_id: result.data.id,
+        display_name: previousRecord
+          ? previousRecord[definition.orderBy] || definition.singular
+          : definition.singular,
+        code: referenceRecordCode(previousRecord, definition),
+        old_active: previousRecord ? previousRecord.active : !active,
+        new_active: result.data.active,
+        changes,
+        summary: auditDiffSummary(changes)
+      }
+    );
 
     showToast(
       active ? definition.singular + " activated" : definition.singular + " deactivated",

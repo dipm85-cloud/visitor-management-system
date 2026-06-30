@@ -3,6 +3,7 @@ import { $ } from "./dom.js";
 import { showToast } from "./messages.js";
 import { AppState } from "./state.js";
 import { todayDate } from "./utils.js";
+import { auditDiffSummary, buildFieldDiff, writeAuditEvent } from "./audit.js";
 
 const ASSIGNMENT_COLUMNS = [
   "id",
@@ -27,6 +28,24 @@ const ASSIGNMENT_COLUMNS = [
   "created_at",
   "updated_at"
 ].join(", ");
+
+const ASSIGNMENT_AUDIT_FIELDS = [
+  "site_id",
+  "employer_organisation_id",
+  "department_id",
+  "contract_id",
+  "job_role_id",
+  "assignment_type",
+  "shift_pattern_id",
+  "break_rule_id",
+  "shift_start_time",
+  "shift_end_time",
+  "cycle_anchor_date",
+  "employment_start_date",
+  "assignment_start_date",
+  "assignment_end_date",
+  "active"
+];
 
 const lookupDefinitions = {
   sites: {
@@ -446,6 +465,28 @@ function validateAssignmentDates(startDate, endDate) {
   }
 }
 
+function assignmentAuditDetails(beforeAssignment, afterAssignment) {
+  const changes = buildFieldDiff(
+    beforeAssignment,
+    afterAssignment,
+    ASSIGNMENT_AUDIT_FIELDS
+  );
+  return {
+    entity_type: "work_assignment",
+    entity_id: afterAssignment.id,
+    person_id: afterAssignment.person_id,
+    display_name: selectedPersonName,
+    old_active: beforeAssignment ? beforeAssignment.active : null,
+    new_active: afterAssignment.active,
+    old_assignment_end_date: beforeAssignment
+      ? beforeAssignment.assignment_end_date || null
+      : null,
+    new_assignment_end_date: afterAssignment.assignment_end_date || null,
+    changes,
+    summary: auditDiffSummary(changes)
+  };
+}
+
 export async function saveAssignment() {
   if (!requireAssignmentAccess() || !selectedPersonId) return;
 
@@ -537,6 +578,19 @@ export async function saveAssignment() {
         existingAssignment ? existingAssignment.assignment_end_date : null
       );
     }
+
+    let auditEventType = assignmentId ? "assignment.updated" : "assignment.created";
+    if (existingAssignment?.active && !result.data.active) {
+      auditEventType = "assignment.ended";
+    } else if (existingAssignment && !existingAssignment.active && result.data.active) {
+      auditEventType = "assignment.reactivated";
+    }
+    void writeAuditEvent(
+      auditEventType,
+      "work_assignments",
+      result.data.id,
+      assignmentAuditDetails(existingAssignment, result.data)
+    );
 
     showToast(
       assignmentId ? "Assignment updated" : "Assignment created",
@@ -642,6 +696,17 @@ export async function confirmEndAssignment() {
       .single();
 
     if (result.error) throw result.error;
+    const endedAssignment = {
+      ...assignment,
+      active: false,
+      assignment_end_date: endDate
+    };
+    void writeAuditEvent(
+      "assignment.ended",
+      "work_assignments",
+      assignment.id,
+      assignmentAuditDetails(assignment, endedAssignment)
+    );
     closeEndAssignmentDialog();
     await loadAssignments();
     showToast("Assignment ended", "The assignment is now Historical.", "success");
@@ -679,6 +744,12 @@ export async function reactivateAssignment(assignmentId) {
 
     if (result.error) throw result.error;
     await rollbackIfActivationConflicted(result.data.id, assignment.assignment_end_date);
+    void writeAuditEvent(
+      "assignment.reactivated",
+      "work_assignments",
+      result.data.id,
+      assignmentAuditDetails(assignment, result.data)
+    );
     await loadAssignments();
     showToast("Assignment reactivated", "The assignment is now Active.", "success");
   } catch (err) {
