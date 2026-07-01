@@ -42,7 +42,7 @@ using (
     from public.role_presets rp
     join public.capabilities c on c.id = role_preset_capabilities.capability_id
     where rp.id = role_preset_capabilities.role_preset_id
-      and rp.role_code = 'superuser'
+      and rp.role_code = 'super_user'
       and c.capability_code in (
         'settings.view',
         'users.manage',

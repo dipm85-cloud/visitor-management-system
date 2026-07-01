@@ -139,6 +139,10 @@ export function shouldShowPeopleNavigation() {
   return hasAnyCapability(["people.view", "people.manage"]);
 }
 
+export function shouldShowOrganisationNavigation() {
+  return hasAnyCapability(["organisation.view", "organisation.manage"]);
+}
+
 function ensureVisibleWorkspace() {
   const activeNav = [
     dashboardNav,
@@ -180,7 +184,7 @@ export function syncNavigationCapabilityVisibility() {
     );
     setNavItemCapabilityVisibility(
       organisationsNav,
-      hasAnyCapability(["people.view", "people.manage"])
+      shouldShowOrganisationNavigation()
     );
     setNavItemCapabilityVisibility(reportingNav, true);
     setNavItemCapabilityVisibility(administrationNav, hasAnyCapability([
@@ -202,7 +206,7 @@ export function syncNavigationCapabilityVisibility() {
   setNavItemCapabilityVisibility(peopleNav, shouldShowPeopleNavigation());
   setNavItemCapabilityVisibility(
     organisationsNav,
-    hasAnyCapability(["people.view", "people.manage"])
+    shouldShowOrganisationNavigation()
   );
   setNavItemCapabilityVisibility(reportingNav, hasCapability("reports.view"));
   setNavItemCapabilityVisibility(administrationNav, hasAnyCapability([

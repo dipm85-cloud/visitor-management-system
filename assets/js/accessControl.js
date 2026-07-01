@@ -12,7 +12,7 @@ import {
 } from "./shell.js";
 import { AppState } from "./state.js";
 
-const SUPERUSER_ROLE_CODE = "superuser";
+const SUPER_USER_ROLE_CODE = "super_user";
 const REQUIRED_SUPERUSER_CAPABILITIES = [
   "access_control.view",
   "access_control.manage",
@@ -21,14 +21,9 @@ const REQUIRED_SUPERUSER_CAPABILITIES = [
   "users.view",
   "users.manage",
   "people.manage",
+  "organisation.manage",
   "audit.view"
 ];
-const PROFILE_ROLE_TO_PRESET = {
-  general_user: "general_user",
-  security: "security",
-  super_user: SUPERUSER_ROLE_CODE
-};
-
 let accessControlData = {
   roles: [],
   capabilities: [],
@@ -469,7 +464,7 @@ export function openRolePresetCapabilityEditor(rolePresetId, trigger) {
   roleEditorTrigger = trigger instanceof HTMLElement ? trigger : null;
   $("rolePresetCapabilityPanelTitle").textContent = "Edit Capabilities";
   $("rolePresetCapabilityPanelRole").textContent = role.role_name + " (" + role.role_code + ")";
-  $("rolePresetCapabilitySafetyNotice").textContent = role.role_code === SUPERUSER_ROLE_CODE
+  $("rolePresetCapabilitySafetyNotice").textContent = role.role_code === SUPER_USER_ROLE_CODE
     ? "SuperUser recovery access is protected. Required capabilities: " +
       REQUIRED_SUPERUSER_CAPABILITIES.join(", ") + "."
     : "Select the capabilities assigned to this role preset.";
@@ -506,7 +501,7 @@ function selectedRoleCapabilities() {
 }
 
 function validateRoleCapabilitySelection(role, selectedCapabilities) {
-  if (role.role_code !== SUPERUSER_ROLE_CODE) return;
+  if (role.role_code !== SUPER_USER_ROLE_CODE) return;
   if (selectedCapabilities.length === 0) {
     throw new Error("SuperUser must retain assigned capabilities.");
   }
@@ -523,8 +518,7 @@ function validateRoleCapabilitySelection(role, selectedCapabilities) {
 }
 
 async function refreshCurrentUserCapabilitiesIfNeeded(role) {
-  const currentPresetCode = PROFILE_ROLE_TO_PRESET[AppState.currentProfile?.role];
-  if (currentPresetCode !== role.role_code) return;
+  if (AppState.currentProfile?.role !== role.role_code) return;
   await loadUserCapabilities(AppState.currentProfile);
   syncNavigationCapabilityVisibility();
   syncAccessControlVisibility();

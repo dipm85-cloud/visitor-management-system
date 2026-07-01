@@ -43,7 +43,7 @@ insert into public.role_preset_capabilities (role_preset_id, capability_id)
 select role_preset.id, capability.id
 from public.role_presets role_preset
 cross join public.capabilities capability
-where role_preset.role_code = 'superuser'
+where role_preset.role_code = 'super_user'
   and capability.capability_code in (
     'access_control.view',
     'access_control.manage'
@@ -93,7 +93,7 @@ using (
     join public.capabilities capability
       on capability.id = role_preset_capabilities.capability_id
     where role_preset.id = role_preset_capabilities.role_preset_id
-      and role_preset.role_code = 'superuser'
+      and role_preset.role_code = 'super_user'
       and capability.capability_code in (
         'access_control.view',
         'access_control.manage',

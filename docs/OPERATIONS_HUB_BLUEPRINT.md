@@ -337,6 +337,8 @@ A role preset is a maintained bundle of capabilities, such as Reception, Securit
 - Do not replace capability checks.
 - Must not grant access merely because a matching label appears in the UI.
 
+Internal role codes use lowercase snake_case. The canonical profile and role-preset codes are `general_user`, `security`, `super_user` and `kiosk_user`. Display names such as “General User” and “SuperUser” are presentation labels and remain separate from internal codes. Where a role preset exists for a profile role, `role_presets.role_code` must exactly match `profiles.role`; capability loading must not translate between alternate role-code spellings.
+
 ### Enforcement
 
 Capabilities must be enforced at trusted service and data boundaries. Hiding a button is a usability measure, not security enforcement.
@@ -352,7 +354,9 @@ Capability changes, preset changes and user assignments must be historically att
 
 The Access Control administration workspace allows authorised SuperUsers to edit capability assignments for existing role presets. Access Control is transitioning the platform from role-based to capability-based authorisation, but some legacy role checks remain until their enforcement boundaries are migrated. `access_control.manage` is recovery-critical and must remain assigned to SuperUser alongside the protected administration capabilities. Role preset identity, capability definitions, capability groups and user overrides remain read-only until future governed editing adds appropriate validation, enforcement and audit history.
 
-Capability Migration Phase 1 is complete for People, Organisations, Assignments, Reference Data, Access Control navigation and Administration navigation. These UI boundaries now use the capability engine rather than role comparisons. Until dedicated Organisation and Assignment capabilities are introduced, `people.view` governs shared People/Organisation visibility and `people.manage` governs People, Organisation and Assignment actions. Existing backend RLS and legacy Visitors, Reporting, Dashboard, Audit and Kiosk role checks remain unchanged for later governed migration phases.
+Capability Migration Phase 1 is complete for People, Assignments, Reference Data, Access Control navigation and Administration navigation. These UI boundaries use the capability engine rather than role comparisons. `people.view` governs People visibility and `people.manage` governs People and, temporarily, Assignment actions until dedicated Assignment capabilities are introduced.
+
+Organisation capability migration is complete. `organisation.view` governs Organisation navigation, lists, search and detail access. `organisation.manage` governs Organisation creation, editing, activation and deactivation. Organisation UI checks no longer use `people.view` or `people.manage`. Existing legacy Visitors, Reporting, Dashboard, Audit and Kiosk role checks remain unchanged for later governed migration phases.
 
 ## 7. UI Philosophy
 

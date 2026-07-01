@@ -31,22 +31,22 @@ let organisationsCache = [];
 let selectedOrganisationId = null;
 
 function hasOrganisationAccess() {
-  return hasAnyCapability(["people.view", "people.manage"]);
+  return hasAnyCapability(["organisation.view", "organisation.manage"]);
 }
 
 function hasOrganisationManageAccess() {
-  return hasCapability("people.manage");
+  return hasCapability("organisation.manage");
 }
 
 function requireOrganisationAccess() {
   if (hasOrganisationAccess()) return true;
-  showToast("You do not have permission", "Organisations requires people.view.", "error");
+  showToast("You do not have permission", "Organisations requires organisation.view.", "error");
   return false;
 }
 
 function requireOrganisationManageAccess() {
   if (hasOrganisationManageAccess()) return true;
-  showToast("You do not have permission", "This action requires people.manage.", "error");
+  showToast("You do not have permission", "This action requires organisation.manage.", "error");
   return false;
 }
 

@@ -1,12 +1,6 @@
 import { supabaseClient } from "./api.js";
 import { AppState } from "./state.js";
 
-const rolePresetByProfileRole = {
-  general_user: "general_user",
-  security: "security",
-  super_user: "superuser"
-};
-
 const fallbackCapabilitiesByRole = {
   general_user: [
     "dashboard.view",
@@ -70,7 +64,8 @@ function setLoadedCapabilities(codes) {
 }
 
 export function rolePresetCodeForProfileRole(profileRole) {
-  return rolePresetByProfileRole[profileRole] || null;
+  const roleCode = String(profileRole || "").trim();
+  return roleCode || null;
 }
 
 async function loadRolePresetCapabilities(profile) {

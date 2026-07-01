@@ -185,7 +185,7 @@ insert into public.role_presets (role_code, role_name, description, is_system_ro
 values
   ('general_user', 'General User', 'Current General User role mapped to future capabilities', true),
   ('security', 'Security', 'Current Security role mapped to future capabilities', true),
-  ('superuser', 'SuperUser', 'Current SuperUser role mapped to future capabilities', true)
+  ('super_user', 'SuperUser', 'Current SuperUser role mapped to future capabilities', true)
 on conflict (role_code) do update
 set
   role_name = excluded.role_name,
@@ -241,7 +241,7 @@ insert into public.role_preset_capabilities (role_preset_id, capability_id)
 select rp.id, c.id
 from public.role_presets rp
 cross join public.capabilities c
-where rp.role_code = 'superuser'
+where rp.role_code = 'super_user'
 on conflict do nothing;
 
 -- ============================================================
