@@ -3,6 +3,7 @@ import { AppState } from "./state.js";
 import { $, buildResultSummary, setResultBox } from "./dom.js";
 import { showMessage } from "./messages.js";
 import { safe } from "./utils.js";
+import { hasCapability } from "./capabilities.js";
 
 let auditDependencies;
 
@@ -87,6 +88,12 @@ export async function writeAuditEvent(eventType, entityType, entityId, details) 
 export async function loadAuditEvents() {
   const box = $("auditEventsResults");
   if (!box) return;
+
+  if (!hasCapability("audit.view")) {
+    box.innerHTML = "You do not have permission to view audit events.";
+    showMessage("You do not have permission to view audit events.", "error");
+    return;
+  }
 
   box.innerHTML = "Loading audit events...";
 

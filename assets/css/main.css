@@ -1358,6 +1358,225 @@ body.kiosk-mode .results-scroll {
   .card { box-shadow: none; border: 1px solid #ccc; }
 }
 
+/* Native Visitors workspace foundation */
+.visitors-page {
+  display: block;
+}
+
+.visitors-permission-state,
+.visitors-migration-notice {
+  border: 1px solid var(--oh-shell-border);
+  border-radius: 12px;
+  background: var(--oh-shell-surface);
+}
+
+.visitors-permission-state {
+  padding: 28px;
+  color: var(--oh-shell-muted);
+  text-align: center;
+}
+
+.visitors-migration-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 16px 18px;
+  border-left: 4px solid var(--oh-shell-focus);
+}
+
+.visitors-migration-notice > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.visitors-migration-notice span,
+.visitors-section-heading p,
+.visitor-summary-card p,
+.visitor-tool-card p {
+  color: var(--oh-shell-muted);
+}
+
+.visitors-section {
+  margin-top: 26px;
+}
+
+.visitors-section-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 12px;
+}
+
+.visitors-section-heading h2,
+.visitor-tool-card h3 {
+  margin: 0;
+}
+
+.visitors-section-heading p {
+  margin: 5px 0 0;
+  line-height: 1.45;
+}
+
+.visitors-section-heading > span {
+  color: var(--oh-shell-muted);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.visitors-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 14px;
+}
+
+.visitor-summary-card,
+.visitor-tool-card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  padding: 18px;
+  border: 1px solid var(--oh-shell-border);
+  border-radius: 14px;
+  background: var(--oh-shell-surface);
+  box-shadow: 0 8px 22px rgba(16, 24, 40, .05);
+}
+
+.visitor-summary-card {
+  min-height: 220px;
+}
+
+.visitor-summary-card > span:first-child {
+  color: var(--oh-shell-muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.visitor-summary-card > strong {
+  margin-top: 12px;
+  font-size: clamp(30px, 4vw, 42px);
+  line-height: 1;
+}
+
+.visitor-summary-card p {
+  margin: 10px 0 18px;
+  line-height: 1.45;
+}
+
+.visitor-summary-card > button,
+.visitor-tool-card > button {
+  width: 100%;
+  min-height: 44px;
+  margin-top: auto;
+}
+
+.visitor-summary-primary {
+  border-color: #b7cbe3;
+  background: #f5f9fd;
+}
+
+.visitor-summary-warning {
+  border-color: #f2c98c;
+  background: #fffbeb;
+}
+
+.visitor-card-state {
+  margin-top: auto;
+  color: var(--oh-shell-focus) !important;
+  font-size: 12px !important;
+}
+
+.visitors-quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.visitors-quick-actions button {
+  min-height: 44px;
+}
+
+.visitors-tool-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.visitor-tool-card {
+  min-height: 220px;
+}
+
+.visitor-tool-card .report-status {
+  align-self: flex-start;
+}
+
+.visitor-tool-card h3 {
+  margin-top: 18px;
+  font-size: 19px;
+}
+
+.visitor-tool-card p {
+  margin: 8px 0 18px;
+  line-height: 1.5;
+}
+
+.visitor-tool-legacy {
+  border-style: dashed;
+  background: #f8fafc;
+}
+
+.legacy-vms-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 18px;
+  border-bottom: 1px solid #f2c98c;
+  background: #fffbeb;
+  color: #7a2e0e;
+  font-size: 13px;
+}
+
+.legacy-vms-banner span {
+  color: #92510a;
+}
+
+@media (max-width: 899px) {
+  .visitors-tool-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 599px) {
+  .visitors-migration-notice,
+  .visitors-section-heading,
+  .legacy-vms-banner {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .visitors-migration-notice > button {
+    width: 100%;
+  }
+
+  .visitors-section-heading > span {
+    white-space: normal;
+  }
+
+  .visitors-card-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .visitors-quick-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Operations Hub application shell */
 :root {
   --oh-header-height: 64px;

@@ -78,6 +78,11 @@
           <span class="oh-nav-icon" aria-hidden="true">V</span>
           <span class="oh-nav-label">Visitors</span>
         </button>
+        <button id="ohLegacyVmsNav" class="oh-nav-item" type="button" title="Legacy VMS — temporary internal workspace">
+          <span class="oh-nav-icon" aria-hidden="true">LV</span>
+          <span class="oh-nav-label">Legacy VMS</span>
+          <span class="oh-nav-status">Temporary</span>
+        </button>
         <button id="ohPeopleNav" class="oh-nav-item" type="button" title="People">
           <span class="oh-nav-icon" aria-hidden="true">P</span>
           <span class="oh-nav-label">People</span>
@@ -423,7 +428,128 @@
           No reports match this search.
         </div>
       </section>
-      <div id="visitorsWorkspace" class="app-shell">
+      <section id="visitorsWorkspace" class="oh-app-page visitors-page hidden" aria-labelledby="visitorsPageTitle">
+        <header class="oh-app-page-header">
+          <div>
+            <p class="oh-app-eyebrow">Operations Hub</p>
+            <h1 id="visitorsPageTitle">Visitors</h1>
+            <p>Today’s visitor position and safe shortcuts while operational workflows move into the native Hub experience.</p>
+          </div>
+          <button id="visitorsRefreshButton" class="secondary" type="button">Refresh</button>
+        </header>
+
+        <div id="visitorsPermissionState" class="visitors-permission-state hidden">
+          You do not have permission to view Visitors.
+        </div>
+
+        <div id="visitorsWorkspaceContent">
+          <div class="visitors-migration-notice">
+            <div>
+              <strong>Native Visitors workspace foundation</strong>
+              <span>Operational workflows remain available in Legacy VMS during migration.</span>
+            </div>
+            <button id="visitorsOpenLegacyButton" class="secondary" type="button">Open Legacy VMS</button>
+          </div>
+
+          <section class="visitors-section" aria-labelledby="visitorsTodayTitle">
+            <div class="visitors-section-heading">
+              <div>
+                <h2 id="visitorsTodayTitle">Today’s Visitors</h2>
+                <p>Live summaries from existing visitor records. Unavailable metrics do not block the workspace.</p>
+              </div>
+              <span id="visitorsLastUpdated">Open Visitors to refresh</span>
+            </div>
+
+            <div class="visitors-card-grid">
+              <article class="visitor-summary-card visitor-summary-primary">
+                <span>Today’s arrivals</span>
+                <strong id="visitorsTodayCount">-</strong>
+                <p>Visitors signed in today.</p>
+                <span class="visitor-card-state">Native summary</span>
+              </article>
+
+              <article class="visitor-summary-card">
+                <span>Planned Visits</span>
+                <strong id="visitorsPlannedCount">-</strong>
+                <p>Planned visits dated today.</p>
+                <button id="visitorsPlannedLegacyButton" class="secondary" type="button">Open in Legacy VMS</button>
+              </article>
+
+              <article class="visitor-summary-card">
+                <span>Currently Signed In</span>
+                <strong id="visitorsSignedInCount">-</strong>
+                <p>Active visits without a sign-out time.</p>
+                <button id="visitorsSignedInLegacyButton" class="secondary" type="button">Open in Legacy VMS</button>
+              </article>
+
+              <article class="visitor-summary-card">
+                <span>Walk-ins</span>
+                <strong id="visitorsWalkInCount">-</strong>
+                <p>Walk-in visitors signed in today.</p>
+                <button id="visitorsWalkInLegacyButton" class="secondary" type="button">Open in Legacy VMS</button>
+              </article>
+
+              <article class="visitor-summary-card visitor-summary-warning">
+                <span>Overdue Visitors</span>
+                <strong id="visitorsOverdueCount">-</strong>
+                <p>Visitors signed in before today who remain active.</p>
+                <button id="visitorsOverdueLegacyButton" class="secondary" type="button">Review in Legacy VMS</button>
+              </article>
+            </div>
+          </section>
+
+          <section class="visitors-section" aria-labelledby="visitorsQuickActionsTitle">
+            <div class="visitors-section-heading">
+              <div>
+                <h2 id="visitorsQuickActionsTitle">Quick Actions</h2>
+                <p>Actions open the established workflow in Legacy VMS until native workflows are migrated.</p>
+              </div>
+            </div>
+            <div class="visitors-quick-actions">
+              <button id="visitorsCreatePlannedButton" type="button">Create Planned Visit</button>
+              <button id="visitorsCreateWalkInButton" class="secondary" type="button">Create Walk-in</button>
+              <button id="visitorsStaffSignInButton" class="secondary" type="button">Staff Sign-in</button>
+              <button id="visitorsStaffSignOutButton" class="secondary" type="button">Staff Sign-out</button>
+            </div>
+          </section>
+
+          <section class="visitors-section" aria-labelledby="visitorsLinksTitle">
+            <div class="visitors-section-heading">
+              <div>
+                <h2 id="visitorsLinksTitle">Visitor Tools</h2>
+                <p>Open existing governed reporting and configuration areas.</p>
+              </div>
+            </div>
+            <div class="visitors-tool-grid">
+              <article id="visitorsReportsShortcut" class="visitor-tool-card">
+                <span class="report-status available">Available</span>
+                <h3>Visitor Reports</h3>
+                <p>Open visitor history and existing reporting tools.</p>
+                <button id="visitorsReportsButton" type="button">Open Visitor Reports</button>
+              </article>
+
+              <article id="visitorsConfigurationShortcut" class="visitor-tool-card">
+                <span class="report-status available">Available</span>
+                <h3>Visitor Configuration</h3>
+                <p>Open the existing settings and configuration workspace.</p>
+                <button id="visitorsConfigurationButton" type="button">Open Configuration</button>
+              </article>
+
+              <article class="visitor-tool-card visitor-tool-legacy">
+                <span class="report-status coming-soon">Temporary</span>
+                <h3>Legacy VMS</h3>
+                <p>Use the established VMS for workflows not yet native to Operations Hub.</p>
+                <button id="visitorsToolLegacyButton" class="secondary" type="button">Open Legacy VMS</button>
+              </article>
+            </div>
+          </section>
+        </div>
+      </section>
+      <div id="legacyVmsWorkspace" class="app-shell hidden" aria-label="Legacy Visitor Management System">
+  <div class="legacy-vms-banner no-print">
+    <strong>Legacy VMS — temporary internal workspace</strong>
+    <span>Existing visitor workflows remain here while the native Operations Hub Visitors app is migrated.</span>
+  </div>
   <div class="topbar">
     <div class="brand">
       <div class="brand-mark"><img id="brandLogoImg" alt="Logo" style="display:none;width:100%;height:100%;object-fit:contain;border-radius:12px;"><span id="brandLogoFallback">V</span></div>

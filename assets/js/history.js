@@ -11,6 +11,7 @@ import {
   loadSecurityPlanned,
   loadSuperPlanned
 } from "./plannedVisits.js";
+import { hasCapability } from "./capabilities.js";
 
 let historyDependencies;
 let originalEditRecord = null;
@@ -22,6 +23,13 @@ export function configureHistory(dependencies) {
 export async function searchHistory(targetBoxId, fromDate, toDate, name, allowEdit, allowDelete, securityOnly, filters) {
   filters = filters || {};
   const today = todayDate();
+  const box = $(targetBoxId);
+
+  if (!hasCapability("visitor.history.view")) {
+    if (box) box.innerHTML = "You do not have permission to view visitor history.";
+    showMessage("You do not have permission to view visitor history.", "error");
+    return [];
+  }
 
   let query = supabaseClient
     .from("visit_log")
@@ -35,8 +43,6 @@ export async function searchHistory(targetBoxId, fromDate, toDate, name, allowEd
   if (filters.contact) query = query.ilike("onsite_contact", "%" + formatPersonName(filters.contact) + "%");
 
   const result = await query;
-  const box = $(targetBoxId);
-
   if (result.error) {
     box.innerHTML = "Could not search history.";
     console.error(result.error);
@@ -98,7 +104,7 @@ export function renderHistoryResults(box, data, allowEdit, allowDelete, security
     const actions = document.createElement("div");
     actions.className = "button-row";
 
-    if (allowEdit || securityOnly) {
+    if ((allowEdit || securityOnly) && hasCapability("visitor.history.edit")) {
       const edit = document.createElement("button");
       edit.textContent = securityOnly ? "Edit Pass ID" : "Edit";
       edit.type = "button";
@@ -106,7 +112,7 @@ export function renderHistoryResults(box, data, allowEdit, allowDelete, security
       actions.appendChild(edit);
     }
 
-    if (allowDelete) {
+    if (allowDelete && hasCapability("visitor.history.edit") && hasCapability("visitor.delete")) {
       const del = document.createElement("button");
       del.textContent = "Delete";
       del.type = "button";
@@ -143,6 +149,12 @@ function fromDateTimeLocalValue(value) {
 }
 
 export function openEditModal(table, record, mode) {
+  const requiredCapability = table === "visit_log" ? "visitor.history.edit" : "visitor.edit";
+  if (!hasCapability(requiredCapability)) {
+    showMessage("You do not have permission to edit this visitor record.", "error");
+    return;
+  }
+
   clearEditModalMessage();
   originalEditRecord = JSON.parse(JSON.stringify(record || {}));
   if ($("editChangeReason")) $("editChangeReason").value = "";
@@ -163,7 +175,7 @@ export function openEditModal(table, record, mode) {
   $("editContact").value = record.onsite_contact || "";
   $("editSecurityPass").value = record.security_pass_id || "";
 
-  const canEditLogAdvanced = table === "visit_log" && mode === "full" && AppState.currentProfile && AppState.currentProfile.role === "super_user";
+  const canEditLogAdvanced = table === "visit_log" && mode === "full" && hasCapability("visitor.history.edit");
   ["editSignInTime","editSignOutTime","editVisitStatus","editVisitOrigin"].forEach(id => $(id).classList.toggle("hidden", !canEditLogAdvanced));
   $("editSignInTime").value = canEditLogAdvanced ? toDateTimeLocalValue(record.sign_in_time) : "";
   $("editSignOutTime").value = canEditLogAdvanced ? toDateTimeLocalValue(record.sign_out_time) : "";
@@ -187,6 +199,11 @@ export async function saveEdit() {
     const table = $("editTableName").value;
     const id = $("editRecordId").value;
     const mode = $("editMode").value;
+    const requiredCapability = table === "visit_log" ? "visitor.history.edit" : "visitor.edit";
+    if (!hasCapability(requiredCapability)) {
+      showEditModalMessage("You do not have permission to save this visitor record.", "error");
+      return;
+    }
     const changeReason = $("editChangeReason") ? $("editChangeReason").value.trim() : "";
 
     if (!changeReason) {
@@ -232,7 +249,7 @@ export async function saveEdit() {
         payload.expected_time = $("editExpectedTime").value || null;
       }
 
-      if (table === "visit_log" && AppState.currentProfile && AppState.currentProfile.role === "super_user") {
+      if (table === "visit_log" && hasCapability("visitor.history.edit")) {
         payload.sign_in_time = fromDateTimeLocalValue($("editSignInTime").value);
         payload.sign_out_time = fromDateTimeLocalValue($("editSignOutTime").value);
         if ($("editVisitStatus").value) payload.visit_status = $("editVisitStatus").value;
@@ -296,6 +313,11 @@ export async function saveEdit() {
 }
 
 export async function deleteHistory(id) {
+  if (!hasCapability("visitor.history.edit") || !hasCapability("visitor.delete")) {
+    showMessage("You do not have permission to delete visitor history.", "error");
+    return;
+  }
+
   if (!confirm("Delete this visit history row?")) return;
 
   const result = await supabaseClient.from("visit_log").delete().eq("id", id);

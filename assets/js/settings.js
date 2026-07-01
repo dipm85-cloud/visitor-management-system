@@ -1,5 +1,6 @@
 import { getDefaultAppSettings } from "./config.js";
 import { AppState } from "./state.js";
+import { hasCapability } from "./capabilities.js";
 import { supabaseClient } from "./api.js";
 import { $ } from "./dom.js";
 import { showMessage, clearMessage, showWalkInModalMessage } from "./messages.js";
@@ -341,8 +342,8 @@ export async function saveSetting(key, value, description) {
 export async function saveSettingsForm() {
   clearMessage();
 
-  if (!AppState.currentProfile || AppState.currentProfile.role !== "super_user") {
-    showMessage("Only Super Users can save settings.", "error");
+  if (!hasCapability("settings.edit")) {
+    showMessage("You do not have permission to edit settings.", "error");
     return;
   }
 
@@ -423,8 +424,8 @@ export async function saveSettingsForm() {
 }
 
 export async function resetSettingsDefaults() {
-  if (!AppState.currentProfile || AppState.currentProfile.role !== "super_user") {
-    showMessage("Only Super Users can reset settings.", "error");
+  if (!hasCapability("settings.edit")) {
+    showMessage("You do not have permission to reset settings.", "error");
     return;
   }
 

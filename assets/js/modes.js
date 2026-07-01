@@ -39,7 +39,7 @@ export function detectEntryMode() {
 
 export function enterKioskMode() {
   setDocumentMode(KIOSK_MODE);
-  modeDependencies.showVisitorWorkspace();
+  modeDependencies.showLegacyVmsWorkspace();
   showScreen("homeScreen");
   modeDependencies.updateHomeAccess();
   return KIOSK_MODE;
@@ -59,7 +59,7 @@ export async function enterWorkspaceMode() {
     await modeDependencies.openStaffAreaFromProfile();
     modeDependencies.showDashboardWorkspace();
   } else {
-    modeDependencies.showVisitorWorkspace();
+    modeDependencies.showLegacyVmsWorkspace();
     showScreen("homeScreen");
     modeDependencies.updateHomeAccess();
   }

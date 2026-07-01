@@ -530,6 +530,7 @@ async function refreshCurrentUserCapabilitiesIfNeeded(role) {
   await loadUserCapabilities(AppState.currentProfile);
   syncNavigationCapabilityVisibility();
   syncAccessControlVisibility();
+  window.dispatchEvent(new CustomEvent("oh:capabilities-changed"));
 }
 
 export async function saveRolePresetCapabilities() {

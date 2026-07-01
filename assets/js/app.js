@@ -171,11 +171,17 @@ import {
 } from "./organisations.js";
 import {
   showVisitorWorkspace,
+  showLegacyVmsWorkspace,
   showDashboardWorkspace,
   closeAccountMenu,
   syncNavigationCapabilityVisibility,
   shouldShowPeopleNavigation
 } from "./shell.js";
+import {
+  configureVisitors,
+  initialiseVisitorsWorkspace,
+  syncVisitorsWorkspaceCapabilities
+} from "./visitors.js";
 import {
   openReferenceDataWorkspace,
   selectReferenceEntity,
@@ -204,7 +210,7 @@ import {
   syncAccessControlVisibility,
   openAccessControlWorkspace
 } from "./accessControl.js";
-import { hasAnyCapability } from "./capabilities.js";
+import { hasAnyCapability, hasCapability } from "./capabilities.js";
 
 window.addEventListener("load", async function () {
   try {
@@ -234,6 +240,105 @@ window.addEventListener("load", async function () {
     let signaturePadState = { drawing: false, hasInk: false };
     let opportunisticMaintenanceCheckedThisSession = false;
     let superKioskTestMode = false;
+
+    function requireCapability(capability, actionLabel) {
+      if (hasCapability(capability)) return true;
+      showToast(
+        "You do not have permission",
+        (actionLabel || "This action") + " requires " + capability + ".",
+        "error"
+      );
+      return false;
+    }
+
+    function runWithCapability(capability, actionLabel, action) {
+      if (!requireCapability(capability, actionLabel)) return;
+      return action();
+    }
+
+    function setCapabilityVisibility(ids, capability) {
+      ids.forEach(id => {
+        const element = $(id);
+        if (element) element.classList.toggle("hidden", !hasCapability(capability));
+      });
+    }
+
+    function syncVisitorCapabilityVisibility() {
+      // Public kiosk controls are intentionally excluded from this list.
+      setCapabilityVisibility(["createPlannedButton"], "visitor.create");
+      setCapabilityVisibility([
+        "generalSearchButton",
+        "securityLoadPlannedButton",
+        "superSearchPlannedButton"
+      ], "visitor.view");
+      setCapabilityVisibility([
+        "securityHistorySearchButton",
+        "securityOverdueButton",
+        "securityCurrentSignedInButton",
+        "superSearchHistoryButton",
+        "superOverdueButton",
+        "superCurrentSignedInButton"
+      ], "visitor.history.view");
+      setCapabilityVisibility([
+        "securityDownloadPlannedButton",
+        "securityExcelPlannedButton",
+        "securityDownloadHistoryButton",
+        "securityExcelHistoryButton",
+        "superDownloadPlannedButton",
+        "superExcelPlannedButton",
+        "superDownloadHistoryButton",
+        "superExcelHistoryButton",
+        "securityAgreementDownloadCsvButton",
+        "securityAgreementDownloadExcelButton",
+        "downloadMissingAgreementsCsvButton",
+        "downloadAgreementMatrixCsvButton",
+        "downloadOutstandingInductionsCsvButton",
+        "downloadAgreementSearchCsvButton",
+        "downloadAgreementSearchExcelButton"
+      ], "visitor.export");
+      setCapabilityVisibility([
+        "securityPrintPlannedButton",
+        "superPrintPlannedButton",
+        "printAgreementEvidenceButton"
+      ], "visitor.print");
+      setCapabilityVisibility(["downloadEvidenceAuditCsvButton"], "audit.export");
+      setCapabilityVisibility([
+        "securityRunAutoSignOutButton",
+        "superRunAutoSignOutButton",
+        "superOpenKioskSignOutButton"
+      ], "visitor.sign_out");
+      setCapabilityVisibility(["superOpenKioskSignInButton"], "visitor.sign_in");
+      setCapabilityVisibility([
+        "saveSettingsButton",
+        "saveFieldRulesButton",
+        "resetFieldRulesButton",
+        "saveKioskBehaviourButton",
+        "resetKioskBehaviourButton",
+        "saveMessagesButton",
+        "resetMessagesButton",
+        "saveBrandingButton",
+        "resetBrandingButton",
+        "saveOperationalRulesButton",
+        "resetOperationalRulesButton",
+        "saveDeploymentSettingsButton",
+        "savePlannedLifecycleButton",
+        "saveRetentionSettingsButton",
+        "resetRetentionSettingsButton",
+        "savePrivacyNoticeButton",
+        "resetPrivacyNoticeButton",
+        "saveAgreementSettingsButton"
+      ], "settings.edit");
+      setCapabilityVisibility(["loadAuditEventsButton"], "audit.view");
+      setCapabilityVisibility([
+        "downloadAuditCsvButton",
+        "downloadAuditExcelButton"
+      ], "audit.export");
+
+      const canViewSettings = hasAnyCapability(["settings.view", "settings.edit"]);
+      const settingsNav = $("superNavSettings");
+      if (settingsNav) settingsNav.classList.toggle("hidden", !canViewSettings && !hasCapability("audit.view"));
+    }
+
     function isSuperKioskTestProfile() {
       return AppState.currentProfile && AppState.currentProfile.active && AppState.currentProfile.role === "super_user" && superKioskTestMode === true;
     }
@@ -284,12 +389,19 @@ window.addEventListener("load", async function () {
       updateHomeAccess,
       openStaffAreaFromProfile,
       showDashboardWorkspace,
-      showVisitorWorkspace
+      showVisitorWorkspace,
+      showLegacyVmsWorkspace
     });
     configureDashboard({
       openVisitors: showVisitorWorkspace,
       openPeople: openPeopleWorkspace,
       openReferenceData: openReferenceDataWorkspace
+    });
+    configureVisitors({
+      async openLegacyVms() {
+        showLegacyVmsWorkspace();
+        await openStaffAreaFromProfile();
+      }
     });
     configureVisitorFlow({
       appSettings,
@@ -330,6 +442,8 @@ window.addEventListener("load", async function () {
       syncNavigationCapabilityVisibility() {
         syncNavigationCapabilityVisibility();
         syncAccessControlVisibility();
+        syncVisitorCapabilityVisibility();
+        syncVisitorsWorkspaceCapabilities();
       },
       shouldShowPeopleNavigation,
       enterKioskMode,
@@ -450,8 +564,8 @@ window.addEventListener("load", async function () {
     async function saveSettingsGroup(groupName, label) {
       clearMessage();
 
-      if (!AppState.currentProfile || AppState.currentProfile.role !== "super_user") {
-        showMessage("Only Super Users can save settings.", "error");
+      if (!hasCapability("settings.edit")) {
+        showMessage("You do not have permission to edit settings.", "error");
         return;
       }
 
@@ -511,8 +625,8 @@ window.addEventListener("load", async function () {
     }
 
     async function resetSettingsGroup(groupName, label) {
-      if (!AppState.currentProfile || AppState.currentProfile.role !== "super_user") {
-        showMessage("Only Super Users can reset settings.", "error");
+      if (!hasCapability("settings.edit")) {
+        showMessage("You do not have permission to reset settings.", "error");
         return;
       }
 
@@ -2115,6 +2229,10 @@ window.addEventListener("load", async function () {
     async function loadEvidenceAudit() {
       const box = $("evidenceAuditResults");
       if (!box) return;
+      if (!requireCapability("audit.view", "View agreement evidence audit")) {
+        box.innerHTML = "You do not have permission to view agreement evidence audit.";
+        return;
+      }
       box.innerHTML = "Loading evidence audit...";
       setLocalStatus("evidenceAuditStatus", "Loading evidence audit...", "info");
       const result = await supabaseClient.rpc("search_agreement_evidence_audit", {
@@ -2222,12 +2340,15 @@ window.addEventListener("load", async function () {
 
       const visitorShortcuts = ["visitor-history", "visitor-csv", "visitor-excel"];
       if (visitorShortcuts.includes(shortcut)) {
-        if (!["security", "super_user"].includes(profile.role)) {
-          showToast("Report unavailable", "Visitor history reports require Security or SuperUser access.", "error");
+        const requiredCapability = shortcut === "visitor-history"
+          ? "visitor.history.view"
+          : "visitor.export";
+        if (!hasCapability(requiredCapability)) {
+          showToast("Report unavailable", "This visitor report requires " + requiredCapability + ".", "error");
           return;
         }
 
-        showVisitorWorkspace();
+        showLegacyVmsWorkspace();
         await openStaffAreaFromProfile();
         const visitorControlByRole = {
           super_user: {
@@ -2241,7 +2362,12 @@ window.addEventListener("load", async function () {
             "visitor-excel": "securityExcelHistoryButton"
           }
         };
-        focusExistingReportControl(visitorControlByRole[profile.role][shortcut]);
+        const roleControls = visitorControlByRole[profile.role];
+        if (!roleControls) {
+          showToast("Report unavailable", "This legacy report has no workspace for the current role yet.", "error");
+          return;
+        }
+        focusExistingReportControl(roleControls[shortcut]);
         return;
       }
 
@@ -2250,7 +2376,7 @@ window.addEventListener("load", async function () {
           showToast("Report unavailable", "Visitor Analytics is currently available to SuperUsers only.", "error");
           return;
         }
-        showVisitorWorkspace();
+        showLegacyVmsWorkspace();
         await openStaffAreaFromProfile();
         showSuperSection("reporting");
         focusExistingReportControl("superLoadAnalyticsButton");
@@ -2263,11 +2389,16 @@ window.addEventListener("load", async function () {
         "audit-excel": "downloadAuditExcelButton"
       };
       if (auditControlByShortcut[shortcut]) {
-        if (profile.role !== "super_user") {
-          showToast("Report unavailable", "Audit reports are currently available to SuperUsers only.", "error");
+        const requiredCapability = shortcut === "audit-search" ? "audit.view" : "audit.export";
+        if (!hasCapability(requiredCapability)) {
+          showToast("Report unavailable", "This audit report requires " + requiredCapability + ".", "error");
           return;
         }
-        showVisitorWorkspace();
+        if (profile.role !== "super_user") {
+          showToast("Report unavailable", "Audit still uses the legacy SuperUser workspace layout in this migration phase.", "error");
+          return;
+        }
+        showLegacyVmsWorkspace();
         await openStaffAreaFromProfile();
         showSuperSection("settings");
         focusExistingReportControl(auditControlByShortcut[shortcut]);
@@ -2275,6 +2406,7 @@ window.addEventListener("load", async function () {
     }
 
     async function openSuperKioskSignIn() {
+      if (!requireCapability("visitor.sign_in", "Staff kiosk-test sign-in")) return;
       superKioskTestMode = true;
       document.body.classList.add("kiosk-mode");
       try {
@@ -2290,6 +2422,7 @@ window.addEventListener("load", async function () {
     }
 
     async function openSuperKioskSignOut() {
+      if (!requireCapability("visitor.sign_out", "Staff kiosk-test sign-out")) return;
       superKioskTestMode = true;
       document.body.classList.add("kiosk-mode");
       try {
@@ -2322,6 +2455,7 @@ window.addEventListener("load", async function () {
       $("securityPanel").classList.toggle("active", role === "security");
       $("superPanel").classList.toggle("active", role === "super");
       if ($("kioskTestPanel")) $("kioskTestPanel").classList.toggle("active", role === "kiosk");
+      syncVisitorCapabilityVisibility();
 
       if (role === "security") {
         runOpportunisticAutoSignOutCheck();
@@ -4513,7 +4647,7 @@ window.addEventListener("load", async function () {
       if (AppState.opportunisticAutoSignOutChecked) return;
       AppState.opportunisticAutoSignOutChecked = true;
 
-      if (!AppState.currentProfile || !(AppState.currentProfile.role === "security" || AppState.currentProfile.role === "super_user")) return;
+      if (!hasCapability("visitor.sign_out")) return;
 
       const enabled = settingValue("auto_end_of_day_sign_out_enabled", true);
       if (!enabled) return;
@@ -4541,6 +4675,7 @@ window.addEventListener("load", async function () {
     async function runAutoSignOut(statusElementId) {
       clearMessage();
 
+      if (!requireCapability("visitor.sign_out", "Staff sign-out")) return;
       if (!confirm("Automatically sign out overdue active visitors?")) return;
 
       const statusBox = $(statusElementId);
@@ -4576,9 +4711,12 @@ window.addEventListener("load", async function () {
     $("openStaffHomeButton").addEventListener("click", openStaffAreaFromProfile);
     if ($("kioskStaffLoginButton")) $("kioskStaffLoginButton").addEventListener("click", openLoginModal);
     initialiseVisitorIdentityLookups();
+    initialiseVisitorsWorkspace();
     initialiseDashboard();
     initialiseReportingCentre();
     initialiseAccessControl();
+    window.addEventListener("oh:capabilities-changed", syncVisitorCapabilityVisibility);
+    window.addEventListener("oh:legacy-vms-opened", openStaffAreaFromProfile);
     window.addEventListener("oh:report-shortcut-requested", event => {
       openExistingReportShortcut(event.detail && event.detail.shortcut);
     });
@@ -4709,34 +4847,38 @@ window.addEventListener("load", async function () {
     if ($("superOpenKioskSignOutButton")) $("superOpenKioskSignOutButton").addEventListener("click", openSuperKioskSignOut);
     if ($("superExitKioskTestButton")) $("superExitKioskTestButton").addEventListener("click", exitSuperKioskTestMode);
 
-    $("generalSearchButton").addEventListener("click", () => searchPlanned("generalResults", $("generalSearchDate").value, "", true, true, false));
+    $("generalSearchButton").addEventListener("click", () => runWithCapability(
+      "visitor.view",
+      "View planned visits",
+      () => searchPlanned("generalResults", $("generalSearchDate").value, "", true, true, false)
+    ));
 
-    $("securityLoadPlannedButton").addEventListener("click", loadSecurityPlanned);
-    $("securityHistorySearchButton").addEventListener("click", loadSecurityHistory);
+    $("securityLoadPlannedButton").addEventListener("click", () => runWithCapability("visitor.view", "View planned visits", loadSecurityPlanned));
+    $("securityHistorySearchButton").addEventListener("click", () => runWithCapability("visitor.history.view", "View visitor history", loadSecurityHistory));
     $("securityRunAutoSignOutButton").addEventListener("click", () => runAutoSignOut("securityAutoSignOutStatus"));
-    $("securityOverdueButton").addEventListener("click", showSecurityOverdue);
-    $("securityCurrentSignedInButton").addEventListener("click", showSecurityCurrentlySignedIn);
-    $("securityPrintPlannedButton").addEventListener("click", () => printPlannedList(AppState.securityPlannedCache, $("securityPlannedDate").value));
-    $("securityDownloadPlannedButton").addEventListener("click", () => downloadCsv("planned_visits.csv", AppState.securityPlannedCache));
-    $("securityExcelPlannedButton").addEventListener("click", () => exportToExcel(AppState.securityPlannedCache, "VMS_PlannedVisitors_" + ($("securityPlannedDate").value || exportDateStamp()) + ".xlsx", "planned"));
-    $("securityDownloadHistoryButton").addEventListener("click", () => downloadCsv("visit_history.csv", AppState.securityHistoryCache));
-    $("securityExcelHistoryButton").addEventListener("click", () => exportToExcel(AppState.securityHistoryCache, "VMS_VisitHistory_" + exportDateStamp() + ".xlsx", "history"));
+    $("securityOverdueButton").addEventListener("click", () => runWithCapability("visitor.history.view", "View visitor history", showSecurityOverdue));
+    $("securityCurrentSignedInButton").addEventListener("click", () => runWithCapability("visitor.history.view", "View visitor history", showSecurityCurrentlySignedIn));
+    $("securityPrintPlannedButton").addEventListener("click", () => runWithCapability("visitor.print", "Print visitor records", () => printPlannedList(AppState.securityPlannedCache, $("securityPlannedDate").value)));
+    $("securityDownloadPlannedButton").addEventListener("click", () => runWithCapability("visitor.export", "Export visitor records", () => downloadCsv("planned_visits.csv", AppState.securityPlannedCache)));
+    $("securityExcelPlannedButton").addEventListener("click", () => runWithCapability("visitor.export", "Export visitor records", () => exportToExcel(AppState.securityPlannedCache, "VMS_PlannedVisitors_" + ($("securityPlannedDate").value || exportDateStamp()) + ".xlsx", "planned")));
+    $("securityDownloadHistoryButton").addEventListener("click", () => runWithCapability("visitor.export", "Export visitor records", () => downloadCsv("visit_history.csv", AppState.securityHistoryCache)));
+    $("securityExcelHistoryButton").addEventListener("click", () => runWithCapability("visitor.export", "Export visitor records", () => exportToExcel(AppState.securityHistoryCache, "VMS_VisitHistory_" + exportDateStamp() + ".xlsx", "history")));
 
-    $("superSearchPlannedButton").addEventListener("click", loadSuperPlanned);
-    $("superSearchHistoryButton").addEventListener("click", loadSuperHistory);
+    $("superSearchPlannedButton").addEventListener("click", () => runWithCapability("visitor.view", "View planned visits", loadSuperPlanned));
+    $("superSearchHistoryButton").addEventListener("click", () => runWithCapability("visitor.history.view", "View visitor history", loadSuperHistory));
     $("superRunAutoSignOutButton").addEventListener("click", () => runAutoSignOut("superAutoSignOutStatus"));
-    $("superOverdueButton").addEventListener("click", showSuperOverdue);
-    $("superCurrentSignedInButton").addEventListener("click", showSuperCurrentlySignedIn);
-    if ($("superPrintPlannedButton")) $("superPrintPlannedButton").addEventListener("click", () => printPlannedList(AppState.superPlannedCache, $("superPlannedDate").value));
-    $("superDownloadPlannedButton").addEventListener("click", () => downloadCsv("super_planned_visits.csv", AppState.superPlannedCache));
-    $("superExcelPlannedButton").addEventListener("click", () => exportToExcel(AppState.superPlannedCache, "VMS_Super_PlannedVisits_" + exportDateStamp() + ".xlsx", "planned"));
-    $("superDownloadHistoryButton").addEventListener("click", () => downloadCsv("super_visit_history.csv", AppState.superHistoryCache));
-    $("superExcelHistoryButton").addEventListener("click", () => exportToExcel(AppState.superHistoryCache, "VMS_Super_VisitHistory_" + exportDateStamp() + ".xlsx", "history"));
+    $("superOverdueButton").addEventListener("click", () => runWithCapability("visitor.history.view", "View visitor history", showSuperOverdue));
+    $("superCurrentSignedInButton").addEventListener("click", () => runWithCapability("visitor.history.view", "View visitor history", showSuperCurrentlySignedIn));
+    if ($("superPrintPlannedButton")) $("superPrintPlannedButton").addEventListener("click", () => runWithCapability("visitor.print", "Print visitor records", () => printPlannedList(AppState.superPlannedCache, $("superPlannedDate").value)));
+    $("superDownloadPlannedButton").addEventListener("click", () => runWithCapability("visitor.export", "Export visitor records", () => downloadCsv("super_planned_visits.csv", AppState.superPlannedCache)));
+    $("superExcelPlannedButton").addEventListener("click", () => runWithCapability("visitor.export", "Export visitor records", () => exportToExcel(AppState.superPlannedCache, "VMS_Super_PlannedVisits_" + exportDateStamp() + ".xlsx", "planned")));
+    $("superDownloadHistoryButton").addEventListener("click", () => runWithCapability("visitor.export", "Export visitor records", () => downloadCsv("super_visit_history.csv", AppState.superHistoryCache)));
+    $("superExcelHistoryButton").addEventListener("click", () => runWithCapability("visitor.export", "Export visitor records", () => exportToExcel(AppState.superHistoryCache, "VMS_Super_VisitHistory_" + exportDateStamp() + ".xlsx", "history")));
 
     if ($("securityLoadPendingAgreementsButton")) $("securityLoadPendingAgreementsButton").addEventListener("click", () => loadPendingAgreements("security"));
     if ($("securityAgreementSearchButton")) $("securityAgreementSearchButton").addEventListener("click", loadSecurityAgreementSearch);
-    if ($("securityAgreementDownloadCsvButton")) $("securityAgreementDownloadCsvButton").addEventListener("click", () => downloadCsv("visitor_agreements_security.csv", agreementExportRows(securityAgreementSearchCache)));
-    if ($("securityAgreementDownloadExcelButton")) $("securityAgreementDownloadExcelButton").addEventListener("click", () => exportToExcel(agreementExportRows(securityAgreementSearchCache), "VMS_VisitorAgreements_Security_" + exportDateStamp() + ".xlsx", "agreements"));
+    if ($("securityAgreementDownloadCsvButton")) $("securityAgreementDownloadCsvButton").addEventListener("click", () => runWithCapability("visitor.export", "Export visitor records", () => downloadCsv("visitor_agreements_security.csv", agreementExportRows(securityAgreementSearchCache))));
+    if ($("securityAgreementDownloadExcelButton")) $("securityAgreementDownloadExcelButton").addEventListener("click", () => runWithCapability("visitor.export", "Export visitor records", () => exportToExcel(agreementExportRows(securityAgreementSearchCache), "VMS_VisitorAgreements_Security_" + exportDateStamp() + ".xlsx", "agreements")));
     if ($("superNavAgreements")) $("superNavAgreements").addEventListener("click", () => showSuperSection("agreements"));
     if ($("agreementTabPending")) $("agreementTabPending").addEventListener("click", () => showAgreementTab("pending"));
     if ($("agreementTabSearch")) $("agreementTabSearch").addEventListener("click", () => showAgreementTab("search"));
@@ -4746,19 +4888,19 @@ window.addEventListener("load", async function () {
 
     if ($("loadAgreementComplianceButton")) $("loadAgreementComplianceButton").addEventListener("click", loadAgreementComplianceSummary);
     if ($("loadMissingAgreementsButton")) $("loadMissingAgreementsButton").addEventListener("click", loadMissingRequiredAgreements);
-    if ($("downloadMissingAgreementsCsvButton")) $("downloadMissingAgreementsCsvButton").addEventListener("click", () => downloadCsv("VMS_MissingAgreements_" + exportDateStamp() + ".csv", agreementComplianceMissingCache));
+    if ($("downloadMissingAgreementsCsvButton")) $("downloadMissingAgreementsCsvButton").addEventListener("click", () => runWithCapability("visitor.export", "Export visitor records", () => downloadCsv("VMS_MissingAgreements_" + exportDateStamp() + ".csv", agreementComplianceMissingCache)));
     if ($("loadAgreementMatrixButton")) $("loadAgreementMatrixButton").addEventListener("click", loadAgreementComplianceMatrix);
     if ($("agreementMatrixTextFilter")) $("agreementMatrixTextFilter").addEventListener("input", renderAgreementComplianceMatrix);
     if ($("agreementMatrixCurrentOnly")) $("agreementMatrixCurrentOnly").addEventListener("change", loadAgreementComplianceMatrix);
-    if ($("downloadAgreementMatrixCsvButton")) $("downloadAgreementMatrixCsvButton").addEventListener("click", () => downloadCsv("VMS_AgreementComplianceMatrix_" + exportDateStamp() + ".csv", matrixExportRows()));
+    if ($("downloadAgreementMatrixCsvButton")) $("downloadAgreementMatrixCsvButton").addEventListener("click", () => runWithCapability("visitor.export", "Export visitor records", () => downloadCsv("VMS_AgreementComplianceMatrix_" + exportDateStamp() + ".csv", matrixExportRows())));
     if ($("loadOutstandingInductionsButton")) $("loadOutstandingInductionsButton").addEventListener("click", loadOutstandingInductions);
-    if ($("downloadOutstandingInductionsCsvButton")) $("downloadOutstandingInductionsCsvButton").addEventListener("click", () => downloadCsv("VMS_OutstandingInductions_" + exportDateStamp() + ".csv", outstandingInductionsCache));
+    if ($("downloadOutstandingInductionsCsvButton")) $("downloadOutstandingInductionsCsvButton").addEventListener("click", () => runWithCapability("visitor.export", "Export visitor records", () => downloadCsv("VMS_OutstandingInductions_" + exportDateStamp() + ".csv", outstandingInductionsCache)));
     if ($("loadEvidenceAuditButton")) $("loadEvidenceAuditButton").addEventListener("click", loadEvidenceAudit);
-    if ($("downloadEvidenceAuditCsvButton")) $("downloadEvidenceAuditCsvButton").addEventListener("click", () => downloadCsv("VMS_AgreementEvidenceAudit_" + exportDateStamp() + ".csv", evidenceAuditExportRows(evidenceAuditCache)));
+    if ($("downloadEvidenceAuditCsvButton")) $("downloadEvidenceAuditCsvButton").addEventListener("click", () => runWithCapability("audit.export", "Export audit records", () => downloadCsv("VMS_AgreementEvidenceAudit_" + exportDateStamp() + ".csv", evidenceAuditExportRows(evidenceAuditCache))));
 
     if ($("loadAgreementSearchButton")) $("loadAgreementSearchButton").addEventListener("click", loadAgreementSearch);
-    if ($("downloadAgreementSearchCsvButton")) $("downloadAgreementSearchCsvButton").addEventListener("click", () => downloadCsv("visitor_agreements.csv", agreementExportRows(agreementSearchCache)));
-    if ($("downloadAgreementSearchExcelButton")) $("downloadAgreementSearchExcelButton").addEventListener("click", () => exportToExcel(agreementExportRows(agreementSearchCache), "VMS_VisitorAgreements_" + exportDateStamp() + ".xlsx", "agreements"));
+    if ($("downloadAgreementSearchCsvButton")) $("downloadAgreementSearchCsvButton").addEventListener("click", () => runWithCapability("visitor.export", "Export visitor records", () => downloadCsv("visitor_agreements.csv", agreementExportRows(agreementSearchCache))));
+    if ($("downloadAgreementSearchExcelButton")) $("downloadAgreementSearchExcelButton").addEventListener("click", () => runWithCapability("visitor.export", "Export visitor records", () => exportToExcel(agreementExportRows(agreementSearchCache), "VMS_VisitorAgreements_" + exportDateStamp() + ".xlsx", "agreements")));
     if ($("createAgreementVersionButton")) $("createAgreementVersionButton").addEventListener("click", createAgreementVersionFromForm);
     if ($("updateExistingAgreementVersionButton")) $("updateExistingAgreementVersionButton").addEventListener("click", updateExistingAgreementVersionFromForm);
     if ($("loadAgreementVersionsButton")) $("loadAgreementVersionsButton").addEventListener("click", loadAgreementVersions);
@@ -4781,7 +4923,7 @@ window.addEventListener("load", async function () {
     if ($("loadAgreementTypesButton")) $("loadAgreementTypesButton").addEventListener("click", loadAgreementTypes);
     if ($("closeAgreementEvidenceModalButton")) $("closeAgreementEvidenceModalButton").addEventListener("click", closeAgreementEvidenceModal);
     if ($("closeAgreementEvidenceBottomButton")) $("closeAgreementEvidenceBottomButton").addEventListener("click", closeAgreementEvidenceModal);
-    if ($("printAgreementEvidenceButton")) $("printAgreementEvidenceButton").addEventListener("click", printAgreementEvidence);
+    if ($("printAgreementEvidenceButton")) $("printAgreementEvidenceButton").addEventListener("click", () => runWithCapability("visitor.print", "Print visitor records", printAgreementEvidence));
     if ($("agreementConfirmOkButton")) $("agreementConfirmOkButton").addEventListener("click", () => closeAgreementConfirmModal(true));
     if ($("agreementConfirmCancelButton")) $("agreementConfirmCancelButton").addEventListener("click", () => closeAgreementConfirmModal(false));
     if ($("agreementConfirmCloseButton")) $("agreementConfirmCloseButton").addEventListener("click", () => closeAgreementConfirmModal(false));
@@ -4824,7 +4966,7 @@ window.addEventListener("load", async function () {
     if ($("loadProfilesButton")) $("loadProfilesButton").addEventListener("click", loadProfiles);
     if ($("createKioskDeviceButton")) $("createKioskDeviceButton").addEventListener("click", createKioskDevice);
     if ($("loadKioskDevicesButton")) $("loadKioskDevicesButton").addEventListener("click", loadKioskDevices);
-    if ($("loadAuditEventsButton")) $("loadAuditEventsButton").addEventListener("click", loadAuditEvents);
+    if ($("loadAuditEventsButton")) $("loadAuditEventsButton").addEventListener("click", () => runWithCapability("audit.view", "View audit events", loadAuditEvents));
     if ($("loadAnalyticsButton")) $("loadAnalyticsButton").addEventListener("click", () => loadAnalytics(""));
 
     if ($("openGdprCaseModalButton")) $("openGdprCaseModalButton").addEventListener("click", () => openGdprCaseModal(null));
@@ -4907,8 +5049,8 @@ window.addEventListener("load", async function () {
     if ($("cancelPrivacyNoticeButton")) $("cancelPrivacyNoticeButton").addEventListener("click", () => closePrivacyNoticeModal(false));
     if ($("closePrivacyNoticeModalButton")) $("closePrivacyNoticeModalButton").addEventListener("click", () => closePrivacyNoticeModal(false));
     if ($("superLoadAnalyticsButton")) $("superLoadAnalyticsButton").addEventListener("click", () => loadAnalytics("super"));
-    if ($("downloadAuditCsvButton")) $("downloadAuditCsvButton").addEventListener("click", () => downloadCsv("audit_events.csv", normaliseAuditExportRows(AppState.auditEventsCache)));
-    if ($("downloadAuditExcelButton")) $("downloadAuditExcelButton").addEventListener("click", () => exportToExcel(AppState.auditEventsCache, "VMS_AuditEvents_" + exportDateStamp() + ".xlsx", "audit"));
+    if ($("downloadAuditCsvButton")) $("downloadAuditCsvButton").addEventListener("click", () => runWithCapability("audit.export", "Export audit events", () => downloadCsv("audit_events.csv", normaliseAuditExportRows(AppState.auditEventsCache))));
+    if ($("downloadAuditExcelButton")) $("downloadAuditExcelButton").addEventListener("click", () => runWithCapability("audit.export", "Export audit events", () => exportToExcel(AppState.auditEventsCache, "VMS_AuditEvents_" + exportDateStamp() + ".xlsx", "audit")));
 
 
     ["settingPlannedReasonVisible","settingPlannedReasonRequired","settingPlannedVehicleVisible","settingPlannedVehicleRequired",

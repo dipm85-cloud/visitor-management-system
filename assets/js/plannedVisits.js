@@ -6,6 +6,7 @@ import { todayDate, safe, formatPersonName, normalisePlate } from "./utils.js";
 import { writeAuditEvent } from "./audit.js";
 import { refreshCoreData } from "./visitorFlow.js";
 import { resetVisitorIdentitySelection, visitorDisplayName } from "./visitorIdentity.js";
+import { hasCapability } from "./capabilities.js";
 
 let plannedVisitDependencies;
 
@@ -31,6 +32,11 @@ export function plannedVisitStatusLabel(visit) {
 
 export async function createPlannedVisit() {
   clearMessage();
+
+  if (!hasCapability("visitor.create")) {
+    showMessage("You do not have permission to create planned visits.", "error");
+    return;
+  }
 
   const name = formatPersonName($("plannedName").value);
   const visitDate = $("plannedDate").value;
@@ -103,6 +109,13 @@ async function getProfileNameMap(ids) {
 }
 
 export async function searchPlanned(targetBoxId, date, name, allowEdit, allowDelete, securityOnly) {
+  const box = $(targetBoxId);
+  if (!hasCapability("visitor.view")) {
+    if (box) box.innerHTML = "You do not have permission to view planned visits.";
+    showMessage("You do not have permission to view planned visits.", "error");
+    return [];
+  }
+
   let query = supabaseClient
     .from("planned_visits")
     .select("id, visitor_name, company, visit_date, expected_time, visit_reason, vehicle_plate, onsite_contact, security_pass_id, created_by, modified_by, modified_at")
@@ -112,8 +125,6 @@ export async function searchPlanned(targetBoxId, date, name, allowEdit, allowDel
   if (name) query = query.ilike("visitor_name", "%" + formatPersonName(name) + "%");
 
   const result = await query;
-  const box = $(targetBoxId);
-
   if (result.error) {
     box.innerHTML = "Could not search planned visits.";
     console.error(result.error);
@@ -126,8 +137,7 @@ export async function searchPlanned(targetBoxId, date, name, allowEdit, allowDel
     ...data.map(v => v.created_by),
     ...data.map(v => v.modified_by)
   ]);
-  const isSuper = AppState.currentProfile && AppState.currentProfile.role === "super_user";
-  renderPlannedResults(box, data, allowEdit || isSuper, allowDelete || isSuper, securityOnly, statusMap, profileMap);
+  renderPlannedResults(box, data, allowEdit, allowDelete, securityOnly, statusMap, profileMap);
   return data;
 }
 
@@ -179,7 +189,9 @@ export function renderPlannedResults(box, data, allowEdit, allowDelete, security
       statusInfo.status === "signed_in" ? "status-in" :
       statusInfo.status === "signed_out" ? "status-out" :
       "status-pending";
-    const isSuper = AppState.currentProfile && AppState.currentProfile.role === "super_user";
+    const canEdit = hasCapability("visitor.edit");
+    const canDelete = hasCapability("visitor.delete");
+    const canOverrideStartedLock = AppState.currentProfile && AppState.currentProfile.role === "super_user";
 
     const row = document.createElement("div");
     row.className = "row";
@@ -201,14 +213,14 @@ export function renderPlannedResults(box, data, allowEdit, allowDelete, security
     const actions = document.createElement("div");
     actions.className = "button-row";
 
-    if (securityOnly) {
+    if (securityOnly && canEdit) {
       const edit = document.createElement("button");
       edit.textContent = "Edit Pass ID";
       edit.type = "button";
       edit.addEventListener("click", () => plannedVisitDependencies.openEditModal("planned_visits", visit, "security"));
       actions.appendChild(edit);
     } else {
-      if ((allowEdit || isSuper) && (!hasStarted || isSuper)) {
+      if (allowEdit && canEdit && (!hasStarted || canOverrideStartedLock)) {
         const edit = document.createElement("button");
         edit.textContent = "Edit";
         edit.type = "button";
@@ -216,7 +228,7 @@ export function renderPlannedResults(box, data, allowEdit, allowDelete, security
         actions.appendChild(edit);
       }
 
-      if ((allowDelete || isSuper) && (!hasStarted || isSuper)) {
+      if (allowDelete && canDelete && (!hasStarted || canOverrideStartedLock)) {
         const del = document.createElement("button");
         del.textContent = "Delete";
         del.type = "button";
@@ -225,7 +237,7 @@ export function renderPlannedResults(box, data, allowEdit, allowDelete, security
         actions.appendChild(del);
       }
 
-      if ((allowEdit || allowDelete) && hasStarted && !isSuper) {
+      if (((allowEdit && canEdit) || (allowDelete && canDelete)) && hasStarted && !canOverrideStartedLock) {
         const note = document.createElement("div");
         note.className = "lock-note";
         note.textContent = "Locked: visitor has already signed in.";
@@ -245,6 +257,11 @@ export function renderPlannedResults(box, data, allowEdit, allowDelete, security
 }
 
 export async function deletePlannedVisit(id) {
+  if (!hasCapability("visitor.delete")) {
+    showMessage("You do not have permission to delete planned visits.", "error");
+    return;
+  }
+
   if (!confirm("Delete this planned visit and any linked history?")) return;
 
   const logDelete = await supabaseClient.from("visit_log").delete().eq("planned_visit_id", id);

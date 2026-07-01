@@ -8,6 +8,7 @@ const navToggle = document.getElementById("ohNavToggle");
 const navScrim = document.getElementById("ohNavScrim");
 const dashboardNav = document.getElementById("ohDashboardNav");
 const visitorsNav = document.getElementById("ohVisitorsNav");
+const legacyVmsNav = document.getElementById("ohLegacyVmsNav");
 const peopleNav = document.getElementById("ohPeopleNav");
 const organisationsNav = document.getElementById("ohOrganisationsNav");
 const reportingNav = document.getElementById("ohReportingNav");
@@ -104,6 +105,7 @@ function setActiveApp(appName) {
   const labels = {
     dashboard: "Dashboard",
     visitors: "Visitors",
+    legacyVms: "Legacy VMS",
     people: "People",
     organisations: "Organisations",
     reporting: "Reporting Centre",
@@ -113,6 +115,7 @@ function setActiveApp(appName) {
   [
     ["dashboard", dashboardNav],
     ["visitors", visitorsNav],
+    ["legacyVms", legacyVmsNav],
     ["people", peopleNav],
     ["organisations", organisationsNav],
     ["reporting", reportingNav],
@@ -156,6 +159,7 @@ function ensureVisibleWorkspace() {
   const activeNav = [
     dashboardNav,
     visitorsNav,
+    legacyVmsNav,
     peopleNav,
     organisationsNav,
     reportingNav,
@@ -168,6 +172,8 @@ function ensureVisibleWorkspace() {
     showDashboardWorkspace();
   } else if (visitorsNav && !visitorsNav.classList.contains("hidden")) {
     showVisitorWorkspace();
+  } else if (legacyVmsNav && !legacyVmsNav.classList.contains("hidden")) {
+    showLegacyVmsWorkspace();
   } else if (peopleNav && !peopleNav.classList.contains("hidden")) {
     showPeopleWorkspace();
   } else if (organisationsNav && !organisationsNav.classList.contains("hidden")) {
@@ -186,7 +192,8 @@ export function syncNavigationCapabilityVisibility() {
 
   if (!activeStaffProfile) {
     setNavItemCapabilityVisibility(dashboardNav, true);
-    setNavItemCapabilityVisibility(visitorsNav, true);
+    setNavItemCapabilityVisibility(visitorsNav, false);
+    setNavItemCapabilityVisibility(legacyVmsNav, false);
     setNavItemCapabilityVisibility(
       peopleNav,
       shouldShowPeopleNavigation()
@@ -203,6 +210,7 @@ export function syncNavigationCapabilityVisibility() {
 
   setNavItemCapabilityVisibility(dashboardNav, hasCapability("dashboard.view"));
   setNavItemCapabilityVisibility(visitorsNav, hasCapability("visitor.view"));
+  setNavItemCapabilityVisibility(legacyVmsNav, hasCapability("visitor.view"));
   setNavItemCapabilityVisibility(peopleNav, shouldShowPeopleNavigation());
   setNavItemCapabilityVisibility(
     organisationsNav,
@@ -217,6 +225,7 @@ function showOnlyWorkspace(workspaceId, appName) {
   [
     "dashboardWorkspace",
     "visitorsWorkspace",
+    "legacyVmsWorkspace",
     "peopleWorkspace",
     "organisationsWorkspace",
     "reportingWorkspace",
@@ -238,6 +247,12 @@ export function showDashboardWorkspace() {
 
 export function showVisitorWorkspace() {
   showOnlyWorkspace("visitorsWorkspace", "visitors");
+  document.getElementById("operationsHubWorkspace").focus({ preventScroll: true });
+  window.dispatchEvent(new CustomEvent("oh:visitors-opened"));
+}
+
+export function showLegacyVmsWorkspace() {
+  showOnlyWorkspace("legacyVmsWorkspace", "legacyVms");
 }
 
 export function showPeopleWorkspace() {
@@ -261,22 +276,8 @@ export function showAdministrationWorkspace() {
   document.getElementById("operationsHubWorkspace").focus({ preventScroll: true });
 }
 
-function showVisitorsHome() {
-  showVisitorWorkspace();
-  const backHomeButton = document.querySelector(".backHomeButton");
-  const homeScreen = document.getElementById("homeScreen");
-
-  if (backHomeButton) {
-    backHomeButton.click();
-  } else if (homeScreen) {
-    homeScreen.style.display = "grid";
-  }
-
-  document.getElementById("operationsHubWorkspace").focus({ preventScroll: true });
-}
-
 function openExistingSettingsArea() {
-  showVisitorWorkspace();
+  showLegacyVmsWorkspace();
   const staffButton = document.getElementById("staffButton");
   if (!staffButton || staffButton.classList.contains("hidden")) return;
 
@@ -345,7 +346,11 @@ function setEnvironmentLabel() {
 navToggle.addEventListener("click", toggleNavigation);
 navScrim.addEventListener("click", () => setNavigationOpen(false));
 dashboardNav.addEventListener("click", showDashboardWorkspace);
-visitorsNav.addEventListener("click", showVisitorsHome);
+visitorsNav.addEventListener("click", showVisitorWorkspace);
+legacyVmsNav.addEventListener("click", () => {
+  showLegacyVmsWorkspace();
+  window.dispatchEvent(new CustomEvent("oh:legacy-vms-opened"));
+});
 if (organisationsNav) organisationsNav.addEventListener("click", () => {
   window.dispatchEvent(new CustomEvent("oh:organisations-nav-requested"));
 });

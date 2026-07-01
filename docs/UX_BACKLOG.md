@@ -16,3 +16,9 @@ Deferred polish items captured during OH-015. These are intentionally outside th
 
 - More complete workspace breadcrumbs once cross-app navigation patterns settle.
 - Expanded dashboard quick actions and status widgets once related capabilities and data contracts are stable.
+
+## Visitors Coexistence
+
+- The native Visitors workspace foundation is active with today, planned, signed-in, walk-in and overdue summaries.
+- Legacy VMS is retained as a temporary internal application until planned visits, walk-ins, staff sign-in/sign-out, history, reports, configuration, agreements, GDPR, exports and printing are migrated and regression-tested.
+- Replace each “Open Legacy VMS” handoff incrementally; do not remove the legacy destination until kiosk and staff workflow parity is confirmed.

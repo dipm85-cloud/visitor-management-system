@@ -12,6 +12,7 @@ import { ensureKioskToken } from "./kiosk.js";
 import { showScreen } from "./navigation.js";
 import { todayDate, safe, formatPersonName, normalisePlate } from "./utils.js";
 import { settingValue } from "./settings.js";
+import { hasCapability } from "./capabilities.js";
 
 let appSettings;
 let visitorDependencies;
@@ -248,6 +249,11 @@ async function findVisitLogIdAfterWalkInSignIn(visitorName, rpcData) {
 export async function signInPlanned(visit, actionButton) {
   clearMessage();
 
+  if (!isPublicKioskFlow() && !hasCapability("visitor.sign_in")) {
+    showToast("You do not have permission", "Staff sign-in requires visitor.sign_in.", "error");
+    return;
+  }
+
   if (!beginKioskAction(actionButton, "Signing in...", "Sign In")) {
     showToast("Please wait", "A kiosk action is already running.", "info");
     return;
@@ -319,6 +325,14 @@ export async function signInPlanned(visit, actionButton) {
 
 export async function signInWalkIn() {
   clearMessage();
+  if (!isPublicKioskFlow() && (!hasCapability("visitor.create") || !hasCapability("visitor.sign_in"))) {
+    showToast(
+      "You do not have permission",
+      "Staff walk-in sign-in requires visitor.create and visitor.sign_in.",
+      "error"
+    );
+    return;
+  }
   const actionButton = $("walkInButton");
   if (!beginKioskAction(actionButton, "Signing in...", "Sign In Walk-In")) {
     showWalkInModalMessage("Signing in, please wait...", "success");
@@ -499,6 +513,11 @@ async function getVisitMissingAgreementSummary(visitLogId) {
 
 export async function signOut(id, actionButton) {
   clearMessage();
+
+  if (!isPublicKioskFlow() && !hasCapability("visitor.sign_out")) {
+    showToast("You do not have permission", "Staff sign-out requires visitor.sign_out.", "error");
+    return;
+  }
 
   if (!beginKioskAction(actionButton, "Signing out...", "Sign Out")) {
     showToast("Please wait", "A kiosk action is already running.", "info");

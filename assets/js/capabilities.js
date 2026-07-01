@@ -6,7 +6,8 @@ const fallbackCapabilitiesByRole = {
     "dashboard.view",
     "visitor.view",
     "visitor.create",
-    "visitor.edit"
+    "visitor.edit",
+    "visitor.delete"
   ],
   security: [
     "dashboard.view",

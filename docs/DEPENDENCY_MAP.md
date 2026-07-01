@@ -23,6 +23,15 @@ flowchart LR
     app --> api["api.js"]
     app --> navigation["navigation.js"]
     app --> auth["auth.js"]
+    app --> visitors["visitors.js"]
+    visitors --> api
+    visitors --> capabilities["capabilities.js"]
+    visitors --> state
+    visitors --> dom
+    visitors --> messages
+    visitors --> utils
+    capabilities --> api
+    capabilities --> state
 
     api --> config
 
@@ -45,8 +54,8 @@ The corresponding topological layers are:
 
 1. `config.js`, `state.js`, `utils.js`, and `dom.js`
 2. `api.js` and `messages.js`
-3. `navigation.js`
-4. `auth.js`
+3. `navigation.js` and `capabilities.js`
+4. `auth.js` and `visitors.js`
 5. `app.js`
 
 ## Runtime Configuration Edges
@@ -76,6 +85,7 @@ These edges avoid static cycles, but they require configuration to finish before
 | `api.js` | `supabaseClient` |
 | `navigation.js` | `configureNavigation`, `showScreen` |
 | `auth.js` | `configureAuth`, `openLoginModal`, `closeLoginModal`, `roleLabel`, `isKioskProfile`, `updateHomeAccess`, `updateTopbarStaffStatus`, `getCurrentSessionAndProfile`, `loginStaff`, `openChangePasswordModal`, `closeChangePasswordModal`, `changeOwnPassword`, `logoutStaff`, `openStaffAreaFromProfile` |
+| `visitors.js` | `configureVisitors`, `initialiseVisitorsWorkspace`, `syncVisitorsWorkspaceCapabilities`, `loadVisitorsWorkspace` |
 
 ## Private Responsibilities
 
@@ -89,6 +99,8 @@ These edges avoid static cycles, but they require configuration to finish before
 - Retains role-panel and Super User section switching.
 - Retains audit context, audit administration, and most audit writes.
 - Retains planned visits, visit history, kiosk sign-in/sign-out, analytics, dashboards, agreements, GDPR, retention, notifications, deployment health, exports, and printing.
+- Applies loaded staff capabilities to legacy Visitor action visibility and re-applies that visibility after login or an in-session role-preset refresh; public kiosk controls are deliberately excluded.
+- Composes the native Visitors summary workspace with the temporary Legacy VMS destination; kiosk mode continues to target Legacy VMS directly.
 - Retains feature caches and workflow state not yet moved into `AppState`.
 
 ### `config.js`
@@ -138,6 +150,12 @@ These edges avoid static cycles, but they require configuration to finish before
 - Owns private staff-profile checks, identity-chip rendering, and staff search-cache cleanup during logout.
 - Uses injected callbacks for audit writes, kiosk verification/heartbeat, daily maintenance, walk-in cleanup, role selection, agreement loading, and Super User section selection.
 - Uses `AppState.currentProfile` as the shared profile source.
+
+### `visitors.js`
+
+- Owns native Visitors workspace capability visibility, safe summary counts and workflow shortcuts.
+- Reads existing `planned_visits` and `visit_log` records without changing visitor workflows or backend contracts.
+- Delegates operational actions to Legacy VMS until native equivalents are migrated.
 
 ## Circular Dependency Assessment
 

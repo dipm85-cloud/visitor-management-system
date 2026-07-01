@@ -356,13 +356,17 @@ The Access Control administration workspace allows authorised SuperUsers to edit
 
 Capability Migration Phase 1 is complete for People, Reference Data, Access Control navigation and Administration navigation. These UI boundaries use the capability engine rather than role comparisons. `people.view` governs People visibility and `people.manage` governs People creation, editing and lifecycle actions.
 
-Organisation capability migration is complete. `organisation.view` governs Organisation navigation, lists, search and detail access. `organisation.manage` governs Organisation creation, editing, activation and deactivation. Organisation UI checks no longer use `people.view` or `people.manage`. Existing legacy Visitors, Reporting, Dashboard, Audit and Kiosk role checks remain unchanged for later governed migration phases.
+Organisation capability migration is complete. `organisation.view` governs Organisation navigation, lists, search and detail access. `organisation.manage` governs Organisation creation, editing, activation and deactivation. Organisation UI checks no longer use `people.view` or `people.manage`. Existing legacy Reporting, Dashboard and Kiosk role checks remain for later governed migration phases.
 
 Organisation Details treat Contracts, assigned People and Sites as optional related summaries. A user with `organisation.view` can open the Organisation record even when existing Contracts or Work Assignment policies do not expose those related rows; unavailable summaries do not block or close the detail view.
 
 Assignment capability migration is complete. `assignment.view` governs Assignment subsection visibility and read-only current/historical lists within an authorised People workspace. `assignment.manage` governs Assignment creation, editing, ending and reactivation. Assignment UI checks no longer use `people.manage`; People records remain independently governed by `people.view` and `people.manage`.
 
 Reference Data capability migration is complete in both the UI and table policies. `settings.view` and `settings.edit` expose the Reference Data Administration child; `settings.view` permits read-only lists and search, while `settings.edit` permits creation, editing, activation and deactivation. Access Control remains independently governed by `access_control.view` and `access_control.manage`, and the Administration parent is visible only when at least one of those two child areas is available.
+
+Visitor capability migration has begun at the staff UI/action boundary. Visitor navigation and planned-visit viewing use `visitor.view`; creation, editing and deletion use `visitor.create`, `visitor.edit` and `visitor.delete`; history viewing/editing, staff sign-out, export and print actions use their corresponding `visitor.*` capabilities. Visitor configuration actions use `settings.edit`, while audit search/export actions use `audit.view` and `audit.export`. Legacy role panels remain as layout and workflow scopes during this transition. Public anonymous and `kiosk_user` sign-in/sign-out flows are unchanged, and database/RLS enforcement remains a separate trusted-boundary concern.
+
+The native Operations Hub Visitors workspace has started as a shell and summary foundation. It provides capability-aware visitor summaries and shortcuts, while the existing Visitor Management Solution remains available as the clearly labelled temporary `Legacy VMS` application. Planned visits, walk-ins, staff sign-in/sign-out, history, reports, configuration, agreements, GDPR, exports and printing continue to delegate to Legacy VMS until each workflow is migrated and verified. Public kiosk routing continues to open Legacy VMS directly.
 
 ## 7. UI Philosophy
 
