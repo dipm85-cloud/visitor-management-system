@@ -1,6 +1,10 @@
 import { supabaseClient } from "./api.js";
 import { writeAuditEvent } from "./audit.js";
-import { loadUserCapabilities } from "./capabilities.js";
+import {
+  hasCapability,
+  loadUserCapabilities,
+  rolePresetCodeForProfileRole
+} from "./capabilities.js";
 import { $ } from "./dom.js";
 import { showMessage, clearMessage } from "./messages.js";
 import { showScreen } from "./navigation.js";
@@ -16,6 +20,24 @@ function syncCapabilityConsumers() {
   if (authDependencies && authDependencies.syncNavigationCapabilityVisibility) {
     authDependencies.syncNavigationCapabilityVisibility();
   }
+}
+
+function logStaffCapabilityDiagnostic(profile) {
+  if (!profile || !profile.active || profile.role === "kiosk_user") return;
+
+  const peopleNavigationVisible = authDependencies &&
+    authDependencies.shouldShowPeopleNavigation
+    ? authDependencies.shouldShowPeopleNavigation()
+    : hasCapability("people.view") || hasCapability("people.manage");
+
+  console.log("[OH-021 staff capability diagnostic]", {
+    currentProfileRole: profile.role,
+    mappedRolePresetCode: rolePresetCodeForProfileRole(profile.role),
+    loadedCapabilityCodes: Array.from(AppState.userCapabilities || []).sort(),
+    hasPeopleView: hasCapability("people.view"),
+    hasPeopleManage: hasCapability("people.manage"),
+    peopleNavigationVisible
+  });
 }
 
 export function openLoginModal() {
@@ -119,6 +141,9 @@ export async function getCurrentSessionAndProfile() {
 
   AppState.currentProfile = profileResult.data;
   await loadUserCapabilities(AppState.currentProfile);
+  logStaffCapabilityDiagnostic(AppState.currentProfile);
+  // The shell DOM is created before the asynchronous capability query finishes.
+  // Always re-apply navigation visibility after the final capability set is ready.
   syncCapabilityConsumers();
   updateTopbarStaffStatus();
   return AppState.currentProfile;

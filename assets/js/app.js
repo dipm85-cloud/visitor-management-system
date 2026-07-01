@@ -173,7 +173,8 @@ import {
   showVisitorWorkspace,
   showDashboardWorkspace,
   closeAccountMenu,
-  syncNavigationCapabilityVisibility
+  syncNavigationCapabilityVisibility,
+  shouldShowPeopleNavigation
 } from "./shell.js";
 import {
   openReferenceDataWorkspace,
@@ -330,6 +331,7 @@ window.addEventListener("load", async function () {
         syncNavigationCapabilityVisibility();
         syncAccessControlVisibility();
       },
+      shouldShowPeopleNavigation,
       enterKioskMode,
       enterWorkspaceMode,
       returnToEntryMode

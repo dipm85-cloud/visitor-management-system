@@ -32,23 +32,60 @@ const fallbackCapabilitiesByRole = {
   super_user: ["*"]
 };
 
+let capabilityLoadSequence = 0;
+
+function logCapabilityQueryStart(step, source, filters) {
+  console.log("[OH-021 capability query start]", {
+    step,
+    source,
+    filters: filters || {}
+  });
+}
+
+function logCapabilityQueryResult(step, source, result) {
+  if (result.error) {
+    console.error("[OH-021 capability query failed]", {
+      step,
+      source,
+      error: result.error
+    });
+    return;
+  }
+
+  console.log("[OH-021 capability query succeeded]", {
+    step,
+    source,
+    rowCount: Array.isArray(result.data) ? result.data.length : null
+  });
+}
+
 function normaliseCapabilityCode(code) {
   return String(code || "").trim();
 }
 
 function setLoadedCapabilities(codes) {
-  AppState.userCapabilities = new Set((codes || []).map(normaliseCapabilityCode).filter(Boolean));
+  AppState.userCapabilities = new Set(
+    Array.from(codes || []).map(normaliseCapabilityCode).filter(Boolean)
+  );
+}
+
+export function rolePresetCodeForProfileRole(profileRole) {
+  return rolePresetByProfileRole[profileRole] || null;
 }
 
 async function loadRolePresetCapabilities(profile) {
-  const rolePresetCode = rolePresetByProfileRole[profile.role];
+  const rolePresetCode = rolePresetCodeForProfileRole(profile.role);
   if (!rolePresetCode) return [];
 
+  const step = "load_role_preset_capabilities";
+  const source = "view:public.v_role_preset_capabilities";
+  logCapabilityQueryStart(step, source, { role_code: rolePresetCode });
   const result = await supabaseClient
     .from("v_role_preset_capabilities")
     .select("capability_code")
     .eq("role_code", rolePresetCode);
 
+  logCapabilityQueryResult(step, source, result);
   if (result.error) throw result.error;
   return (result.data || []).map(row => row.capability_code);
 }
@@ -56,11 +93,15 @@ async function loadRolePresetCapabilities(profile) {
 async function applyProfileCapabilityOverrides(profile, capabilitySet) {
   if (!profile || !profile.id) return;
 
+  const step = "load_profile_capability_overrides";
+  const source = "table:public.profile_capabilities + relation:public.capabilities";
+  logCapabilityQueryStart(step, source, { profile_id: profile.id });
   const result = await supabaseClient
     .from("profile_capabilities")
     .select("grant_state, capabilities(capability_code)")
     .eq("profile_id", profile.id);
 
+  logCapabilityQueryResult(step, source, result);
   if (result.error) throw result.error;
 
   (result.data || []).forEach(row => {
@@ -73,6 +114,8 @@ async function applyProfileCapabilityOverrides(profile, capabilitySet) {
 }
 
 export async function loadUserCapabilities(profile) {
+  const loadSequence = ++capabilityLoadSequence;
+
   if (!profile || !profile.active || profile.role === "kiosk_user") {
     setLoadedCapabilities([]);
     return AppState.userCapabilities;
@@ -82,9 +125,26 @@ export async function loadUserCapabilities(profile) {
 
   try {
     const capabilitySet = new Set(await loadRolePresetCapabilities(profile));
-    await applyProfileCapabilityOverrides(profile, capabilitySet);
+
+    try {
+      await applyProfileCapabilityOverrides(profile, capabilitySet);
+    } catch (err) {
+      // A role preset is independently authoritative. An unavailable optional
+      // profile-override read must not discard capabilities already loaded
+      // from that preset (notably for non-SuperUser profiles).
+      console.warn("Profile capability overrides unavailable; using role preset capabilities.", err);
+    }
+
+    if (loadSequence !== capabilityLoadSequence) return AppState.userCapabilities;
     setLoadedCapabilities(capabilitySet);
   } catch (err) {
+    if (loadSequence !== capabilityLoadSequence) return AppState.userCapabilities;
+    console.error("[OH-021 capability fallback activated]", {
+      step: "load_role_preset_capabilities",
+      profileRole: profile.role,
+      mappedRolePresetCode: rolePresetCodeForProfileRole(profile.role),
+      error: err
+    });
     console.warn("Capability load unavailable; using current role compatibility defaults.", err);
     setLoadedCapabilities(fallbackCapabilities);
   }

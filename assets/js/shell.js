@@ -135,6 +135,37 @@ function setNavItemCapabilityVisibility(item, visible) {
   item.classList.toggle("hidden", !visible);
 }
 
+export function shouldShowPeopleNavigation() {
+  return hasAnyCapability(["people.view", "people.manage"]);
+}
+
+function ensureVisibleWorkspace() {
+  const activeNav = [
+    dashboardNav,
+    visitorsNav,
+    peopleNav,
+    organisationsNav,
+    reportingNav,
+    administrationNav
+  ].find(item => item && item.classList.contains("active"));
+
+  if (!activeNav || !activeNav.classList.contains("hidden")) return;
+
+  if (dashboardNav && !dashboardNav.classList.contains("hidden")) {
+    showDashboardWorkspace();
+  } else if (visitorsNav && !visitorsNav.classList.contains("hidden")) {
+    showVisitorWorkspace();
+  } else if (peopleNav && !peopleNav.classList.contains("hidden")) {
+    showPeopleWorkspace();
+  } else if (organisationsNav && !organisationsNav.classList.contains("hidden")) {
+    showOrganisationsWorkspace();
+  } else if (reportingNav && !reportingNav.classList.contains("hidden")) {
+    showReportingWorkspace();
+  } else if (administrationNav && !administrationNav.classList.contains("hidden")) {
+    showAdministrationWorkspace();
+  }
+}
+
 export function syncNavigationCapabilityVisibility() {
   const activeStaffProfile = AppState.currentProfile &&
     AppState.currentProfile.active &&
@@ -145,7 +176,7 @@ export function syncNavigationCapabilityVisibility() {
     setNavItemCapabilityVisibility(visitorsNav, true);
     setNavItemCapabilityVisibility(
       peopleNav,
-      hasAnyCapability(["people.view", "people.manage"])
+      shouldShowPeopleNavigation()
     );
     setNavItemCapabilityVisibility(
       organisationsNav,
@@ -162,12 +193,13 @@ export function syncNavigationCapabilityVisibility() {
       "access_control.view",
       "access_control.manage"
     ]));
+    ensureVisibleWorkspace();
     return;
   }
 
   setNavItemCapabilityVisibility(dashboardNav, hasCapability("dashboard.view"));
   setNavItemCapabilityVisibility(visitorsNav, hasCapability("visitor.view"));
-  setNavItemCapabilityVisibility(peopleNav, hasAnyCapability(["people.view", "people.manage"]));
+  setNavItemCapabilityVisibility(peopleNav, shouldShowPeopleNavigation());
   setNavItemCapabilityVisibility(
     organisationsNav,
     hasAnyCapability(["people.view", "people.manage"])
@@ -183,6 +215,7 @@ export function syncNavigationCapabilityVisibility() {
     "access_control.view",
     "access_control.manage"
   ]));
+  ensureVisibleWorkspace();
 }
 
 function showOnlyWorkspace(workspaceId, appName) {
