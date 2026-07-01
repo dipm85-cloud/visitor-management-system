@@ -143,6 +143,15 @@ export function shouldShowOrganisationNavigation() {
   return hasAnyCapability(["organisation.view", "organisation.manage"]);
 }
 
+export function shouldShowAdministrationNavigation() {
+  return hasAnyCapability([
+    "settings.view",
+    "settings.edit",
+    "access_control.view",
+    "access_control.manage"
+  ]);
+}
+
 function ensureVisibleWorkspace() {
   const activeNav = [
     dashboardNav,
@@ -187,16 +196,7 @@ export function syncNavigationCapabilityVisibility() {
       shouldShowOrganisationNavigation()
     );
     setNavItemCapabilityVisibility(reportingNav, true);
-    setNavItemCapabilityVisibility(administrationNav, hasAnyCapability([
-      "settings.view",
-      "settings.edit",
-      "users.view",
-      "users.manage",
-      "devices.view",
-      "devices.manage",
-      "access_control.view",
-      "access_control.manage"
-    ]));
+    setNavItemCapabilityVisibility(administrationNav, shouldShowAdministrationNavigation());
     ensureVisibleWorkspace();
     return;
   }
@@ -209,16 +209,7 @@ export function syncNavigationCapabilityVisibility() {
     shouldShowOrganisationNavigation()
   );
   setNavItemCapabilityVisibility(reportingNav, hasCapability("reports.view"));
-  setNavItemCapabilityVisibility(administrationNav, hasAnyCapability([
-    "settings.view",
-    "settings.edit",
-    "users.view",
-    "users.manage",
-    "devices.view",
-    "devices.manage",
-    "access_control.view",
-    "access_control.manage"
-  ]));
+  setNavItemCapabilityVisibility(administrationNav, shouldShowAdministrationNavigation());
   ensureVisibleWorkspace();
 }
 

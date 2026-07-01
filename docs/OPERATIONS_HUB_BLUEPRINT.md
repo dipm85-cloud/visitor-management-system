@@ -362,6 +362,8 @@ Organisation Details treat Contracts, assigned People and Sites as optional rela
 
 Assignment capability migration is complete. `assignment.view` governs Assignment subsection visibility and read-only current/historical lists within an authorised People workspace. `assignment.manage` governs Assignment creation, editing, ending and reactivation. Assignment UI checks no longer use `people.manage`; People records remain independently governed by `people.view` and `people.manage`.
 
+Reference Data capability migration is complete in both the UI and table policies. `settings.view` and `settings.edit` expose the Reference Data Administration child; `settings.view` permits read-only lists and search, while `settings.edit` permits creation, editing, activation and deactivation. Access Control remains independently governed by `access_control.view` and `access_control.manage`, and the Administration parent is visible only when at least one of those two child areas is available.
+
 ## 7. UI Philosophy
 
 ### Responsive-first

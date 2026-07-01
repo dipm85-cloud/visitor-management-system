@@ -91,6 +91,7 @@ function setAdministrationSection(sectionName) {
 
 export function showReferenceDataAdministrationSection() {
   syncAccessControlVisibility();
+  if (!hasAnyCapability(["settings.view", "settings.edit"])) return;
   setAdministrationSection("reference");
 }
 
@@ -102,6 +103,12 @@ export function syncAccessControlVisibility() {
   if (!visible && !$("accessControlSection").classList.contains("hidden")) {
     closeRolePresetCapabilityEditor(false);
     if (referenceVisible) setAdministrationSection("reference");
+  } else if (
+    !referenceVisible &&
+    !$("referenceDataSection").classList.contains("hidden") &&
+    visible
+  ) {
+    setAdministrationSection("access");
   }
 }
 

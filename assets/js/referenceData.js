@@ -217,22 +217,22 @@ function referenceRecordCode(record, definition) {
   return codeField && record ? record[codeField.key] || null : null;
 }
 
-function hasAdministrationAccess() {
+function hasReferenceDataAccess() {
   return hasAnyCapability(["settings.view", "settings.edit"]);
 }
 
-function hasAdministrationEditAccess() {
+function hasReferenceDataEditAccess() {
   return hasCapability("settings.edit");
 }
 
-function requireAdministrationAccess() {
-  if (hasAdministrationAccess()) return true;
+function requireReferenceDataAccess() {
+  if (hasReferenceDataAccess()) return true;
   showToast("You do not have permission", "Reference Data requires settings.view.", "error");
   return false;
 }
 
-function requireAdministrationEditAccess() {
-  if (hasAdministrationEditAccess()) return true;
+function requireReferenceDataEditAccess() {
+  if (hasReferenceDataEditAccess()) return true;
   showToast("You do not have permission", "This action requires settings.edit.", "error");
   return false;
 }
@@ -279,7 +279,7 @@ async function loadReferenceLookups(definition) {
     ...new Set(definition.fields.filter(field => field.lookup).map(field => field.lookup))
   ];
 
-  await Promise.all(requiredLookups.map(async lookupName => {
+  const results = await Promise.allSettled(requiredLookups.map(async lookupName => {
     if (lookupName === "sites") {
       const result = await supabaseClient
         .from("sites")
@@ -309,6 +309,12 @@ async function loadReferenceLookups(definition) {
       }));
     }
   }));
+
+  results.forEach((result, index) => {
+    if (result.status === "rejected") {
+      lookupCache[requiredLookups[index]] = [];
+    }
+  });
 }
 
 function createFieldControl(field) {
@@ -444,16 +450,16 @@ function recordSearchText(record, definition) {
 }
 
 export async function openReferenceDataWorkspace() {
-  if (!requireAdministrationAccess()) return;
+  if (!requireReferenceDataAccess()) return;
   showAdministrationWorkspace();
   showReferenceDataAdministrationSection();
-  $("referenceCreateButton").classList.toggle("hidden", !hasAdministrationEditAccess());
+  $("referenceCreateButton").classList.toggle("hidden", !hasReferenceDataEditAccess());
   closeReferenceDataPanel();
   await selectReferenceEntity(currentEntityKey);
 }
 
 export async function selectReferenceEntity(entityKey) {
-  if (!entityDefinitions[entityKey] || !requireAdministrationAccess()) return;
+  if (!entityDefinitions[entityKey] || !requireReferenceDataAccess()) return;
   currentEntityKey = entityKey;
   $("referenceSearch").value = "";
   closeReferenceDataPanel();
@@ -463,7 +469,7 @@ export async function selectReferenceEntity(entityKey) {
 }
 
 export async function loadReferenceData() {
-  if (!requireAdministrationAccess()) return;
+  if (!requireReferenceDataAccess()) return;
 
   const requestedEntityKey = currentEntityKey;
   const definition = entityDefinitions[requestedEntityKey];
@@ -546,7 +552,7 @@ export function renderReferenceDataList() {
     editButton.textContent = "Edit";
     editButton.setAttribute("aria-label", "Edit " + recordLabel);
     editButton.addEventListener("click", () => openReferenceDataPanel(record.id));
-    if (hasAdministrationEditAccess()) actionCell.appendChild(editButton);
+    if (hasReferenceDataEditAccess()) actionCell.appendChild(editButton);
 
     const activeButton = document.createElement("button");
     activeButton.className = "secondary";
@@ -557,7 +563,9 @@ export function renderReferenceDataList() {
       (record.active ? "Deactivate " : "Activate ") + recordLabel
     );
     activeButton.addEventListener("click", () => setReferenceRecordActive(record.id, !record.active));
-    if (hasAdministrationEditAccess()) actionCell.appendChild(activeButton);
+    if (hasReferenceDataEditAccess()) actionCell.appendChild(activeButton);
+
+    if (!hasReferenceDataEditAccess()) actionCell.textContent = "Read only";
 
     row.appendChild(actionCell);
     body.appendChild(row);
@@ -567,13 +575,15 @@ export function renderReferenceDataList() {
   $("referenceEmptyState").textContent = query
     ? "No " + definition.plural.toLowerCase() +
       " match this search. Try a different code or name."
-    : "No " + definition.plural.toLowerCase() + " yet. Create the first " +
-      definition.singular.toLowerCase() + " to establish this reference list.";
+    : hasReferenceDataEditAccess()
+      ? "No " + definition.plural.toLowerCase() + " yet. Create the first " +
+        definition.singular.toLowerCase() + " to establish this reference list."
+      : "No " + definition.plural.toLowerCase() + " are available.";
   setListStatus(filtered.length + " of " + records.length + " records shown.");
 }
 
 export function openReferenceDataPanel(recordId) {
-  if (!requireAdministrationEditAccess()) return;
+  if (!requireReferenceDataEditAccess()) return;
 
   clearReferenceForm();
   const definition = currentDefinition();
@@ -663,7 +673,7 @@ function fieldValue(field) {
 }
 
 export async function saveReferenceRecord() {
-  if (!requireAdministrationEditAccess()) return;
+  if (!requireReferenceDataEditAccess()) return;
 
   const entityKey = currentEntityKey;
   const definition = currentDefinition();
@@ -745,7 +755,7 @@ export async function saveReferenceRecord() {
 }
 
 export async function setReferenceRecordActive(recordId, active) {
-  if (!requireAdministrationEditAccess()) return;
+  if (!requireReferenceDataEditAccess()) return;
 
   const entityKey = currentEntityKey;
   const definition = currentDefinition();
