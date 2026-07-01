@@ -354,11 +354,13 @@ Capability changes, preset changes and user assignments must be historically att
 
 The Access Control administration workspace allows authorised SuperUsers to edit capability assignments for existing role presets. Access Control is transitioning the platform from role-based to capability-based authorisation, but some legacy role checks remain until their enforcement boundaries are migrated. `access_control.manage` is recovery-critical and must remain assigned to SuperUser alongside the protected administration capabilities. Role preset identity, capability definitions, capability groups and user overrides remain read-only until future governed editing adds appropriate validation, enforcement and audit history.
 
-Capability Migration Phase 1 is complete for People, Assignments, Reference Data, Access Control navigation and Administration navigation. These UI boundaries use the capability engine rather than role comparisons. `people.view` governs People visibility and `people.manage` governs People and, temporarily, Assignment actions until dedicated Assignment capabilities are introduced.
+Capability Migration Phase 1 is complete for People, Reference Data, Access Control navigation and Administration navigation. These UI boundaries use the capability engine rather than role comparisons. `people.view` governs People visibility and `people.manage` governs People creation, editing and lifecycle actions.
 
 Organisation capability migration is complete. `organisation.view` governs Organisation navigation, lists, search and detail access. `organisation.manage` governs Organisation creation, editing, activation and deactivation. Organisation UI checks no longer use `people.view` or `people.manage`. Existing legacy Visitors, Reporting, Dashboard, Audit and Kiosk role checks remain unchanged for later governed migration phases.
 
 Organisation Details treat Contracts, assigned People and Sites as optional related summaries. A user with `organisation.view` can open the Organisation record even when existing Contracts or Work Assignment policies do not expose those related rows; unavailable summaries do not block or close the detail view.
+
+Assignment capability migration is complete. `assignment.view` governs Assignment subsection visibility and read-only current/historical lists within an authorised People workspace. `assignment.manage` governs Assignment creation, editing, ending and reactivation. Assignment UI checks no longer use `people.manage`; People records remain independently governed by `people.view` and `people.manage`.
 
 ## 7. UI Philosophy
 

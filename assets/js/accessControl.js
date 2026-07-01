@@ -22,6 +22,7 @@ const REQUIRED_SUPERUSER_CAPABILITIES = [
   "users.manage",
   "people.manage",
   "organisation.manage",
+  "assignment.manage",
   "audit.view"
 ];
 let accessControlData = {

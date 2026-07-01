@@ -3,7 +3,7 @@ import { $ } from "./dom.js";
 import { showToast } from "./messages.js";
 import { todayDate } from "./utils.js";
 import { auditDiffSummary, buildFieldDiff, writeAuditEvent } from "./audit.js";
-import { hasCapability } from "./capabilities.js";
+import { hasAnyCapability, hasCapability } from "./capabilities.js";
 
 const ASSIGNMENT_COLUMNS = [
   "id",
@@ -130,14 +130,28 @@ let assignmentPendingEnd = null;
 const ASSIGNMENT_DETAIL_ROW_ID = "inlineAssignmentDetailRow";
 
 function hasAssignmentAccess() {
-  return hasCapability("people.manage");
+  return hasAnyCapability(["assignment.view", "assignment.manage"]);
 }
 
-function requireAssignmentAccess() {
+function hasAssignmentManageAccess() {
+  return hasCapability("assignment.manage");
+}
+
+function requireAssignmentViewAccess() {
   if (hasAssignmentAccess()) return true;
   showToast(
     "You do not have permission",
-    "Assignment actions currently require people.manage.",
+    "Assignments require assignment.view.",
+    "error"
+  );
+  return false;
+}
+
+function requireAssignmentManageAccess() {
+  if (hasAssignmentManageAccess()) return true;
+  showToast(
+    "You do not have permission",
+    "This action requires assignment.manage.",
     "error"
   );
   return false;
@@ -176,7 +190,7 @@ function populateLookup(lookupName) {
 
 export async function loadAssignmentLookups() {
   const entries = Object.entries(lookupDefinitions);
-  const results = await Promise.all(entries.map(async ([lookupName, definition]) => {
+  const results = await Promise.allSettled(entries.map(async ([lookupName, definition]) => {
     const result = await supabaseClient
       .from(definition.table)
       .select(definition.columns)
@@ -193,7 +207,9 @@ export async function loadAssignmentLookups() {
     ];
   }));
 
-  results.forEach(([lookupName, records]) => {
+  results.forEach((result, index) => {
+    const lookupName = entries[index][0];
+    const records = result.status === "fulfilled" ? result.value[1] : [];
     assignmentLookups[lookupName] = records;
     populateLookup(lookupName);
   });
@@ -220,8 +236,9 @@ export function syncAssignmentInlinePlacement() {
   if (existingRow) existingRow.remove();
   if (!section) return false;
 
-  if (!selectedPersonId) {
+  if (!hasAssignmentAccess() || !selectedPersonId) {
     section.classList.add("hidden");
+    closeAssignmentEditor();
     return false;
   }
 
@@ -248,12 +265,13 @@ export function syncAssignmentInlinePlacement() {
 }
 
 export async function selectPersonForAssignments(personId, displayName) {
-  if (!requireAssignmentAccess()) return;
+  if (!requireAssignmentViewAccess()) return;
 
   selectedPersonId = personId;
   selectedPersonName = displayName || "Selected person";
   assignmentsLoadedSuccessfully = false;
   $("personAssignmentsName").textContent = selectedPersonName;
+  $("assignmentCreateButton").classList.toggle("hidden", !hasAssignmentManageAccess());
   closeAssignmentEditor();
 
   document.querySelectorAll("#peopleResults tr[data-person-id]").forEach(row => {
@@ -266,7 +284,7 @@ export async function selectPersonForAssignments(personId, displayName) {
 }
 
 export async function loadAssignments() {
-  if (!requireAssignmentAccess() || !selectedPersonId) return;
+  if (!requireAssignmentViewAccess() || !selectedPersonId) return;
 
   $("assignmentListStatus").textContent = "Loading assignments…";
   assignmentsLoadedSuccessfully = false;
@@ -332,57 +350,62 @@ export function renderAssignmentList() {
 
     const actionCell = document.createElement("td");
     actionCell.className = "assignment-row-action";
-    const actionGroup = document.createElement("div");
-    actionGroup.className = "assignment-row-actions";
-    const editButton = document.createElement("button");
-    editButton.className = "ghost";
-    editButton.type = "button";
-    editButton.textContent = "Edit";
-    editButton.setAttribute("aria-label", "Edit assignment");
-    editButton.addEventListener("click", () => openAssignmentEditor(assignment.id));
-    actionGroup.appendChild(editButton);
+    if (hasAssignmentManageAccess()) {
+      const actionGroup = document.createElement("div");
+      actionGroup.className = "assignment-row-actions";
+      const editButton = document.createElement("button");
+      editButton.className = "ghost";
+      editButton.type = "button";
+      editButton.textContent = "Edit";
+      editButton.setAttribute("aria-label", "Edit assignment");
+      editButton.addEventListener("click", () => openAssignmentEditor(assignment.id));
+      actionGroup.appendChild(editButton);
 
-    if (assignment.active) {
-      const endButton = document.createElement("button");
-      endButton.className = "secondary";
-      endButton.type = "button";
-      endButton.textContent = "End Assignment";
-      endButton.addEventListener("click", event => {
-        openEndAssignmentDialog(assignment.id, event.currentTarget);
-      });
-      actionGroup.appendChild(endButton);
+      if (assignment.active) {
+        const endButton = document.createElement("button");
+        endButton.className = "secondary";
+        endButton.type = "button";
+        endButton.textContent = "End Assignment";
+        endButton.addEventListener("click", event => {
+          openEndAssignmentDialog(assignment.id, event.currentTarget);
+        });
+        actionGroup.appendChild(endButton);
+      } else {
+        const reactivateButton = document.createElement("button");
+        reactivateButton.className = "secondary";
+        reactivateButton.type = "button";
+        reactivateButton.textContent = "Reactivate";
+        reactivateButton.disabled = hasActiveAssignment;
+        if (hasActiveAssignment) {
+          reactivateButton.title = "End the current active assignment before reactivating this one.";
+          reactivateButton.setAttribute(
+            "aria-label",
+            "Reactivate assignment unavailable: end the current active assignment first"
+          );
+        }
+        reactivateButton.addEventListener("click", () => reactivateAssignment(assignment.id));
+        actionGroup.appendChild(reactivateButton);
+        if (hasActiveAssignment) {
+          const unavailableReason = document.createElement("span");
+          unavailableReason.className = "assignment-action-note";
+          unavailableReason.textContent = "End current assignment first";
+          actionGroup.appendChild(unavailableReason);
+        }
+      }
+      actionCell.appendChild(actionGroup);
     } else {
-      const reactivateButton = document.createElement("button");
-      reactivateButton.className = "secondary";
-      reactivateButton.type = "button";
-      reactivateButton.textContent = "Reactivate";
-      reactivateButton.disabled = hasActiveAssignment;
-      if (hasActiveAssignment) {
-        reactivateButton.title = "End the current active assignment before reactivating this one.";
-        reactivateButton.setAttribute(
-          "aria-label",
-          "Reactivate assignment unavailable: end the current active assignment first"
-        );
-      }
-      reactivateButton.addEventListener("click", () => reactivateAssignment(assignment.id));
-      actionGroup.appendChild(reactivateButton);
-      if (hasActiveAssignment) {
-        const unavailableReason = document.createElement("span");
-        unavailableReason.className = "assignment-action-note";
-        unavailableReason.textContent = "End current assignment first";
-        actionGroup.appendChild(unavailableReason);
-      }
+      actionCell.textContent = "Read only";
     }
-    actionCell.appendChild(actionGroup);
     row.appendChild(actionCell);
 
     body.appendChild(row);
   });
 
   $("assignmentEmptyState").classList.toggle("hidden", assignmentsCache.length > 0);
-  $("assignmentEmptyState").textContent =
-    "No assignments yet for " + selectedPersonName +
-    ". Create one to add current or historical work context.";
+  $("assignmentEmptyState").textContent = hasAssignmentManageAccess()
+    ? "No assignments yet for " + selectedPersonName +
+      ". Create one to add current or historical work context."
+    : "No assignments are available for " + selectedPersonName + ".";
   $("assignmentListStatus").textContent =
     assignmentsCache.length + " assignment" + (assignmentsCache.length === 1 ? "" : "s") + " shown.";
 }
@@ -398,7 +421,7 @@ function setLookupValues(assignment) {
 }
 
 export function openAssignmentEditor(sourceAssignmentId) {
-  if (!requireAssignmentAccess() || !selectedPersonId) return;
+  if (!requireAssignmentManageAccess() || !selectedPersonId) return;
 
   assignmentEditorTrigger = document.activeElement instanceof HTMLElement
     ? document.activeElement
@@ -488,7 +511,7 @@ function assignmentAuditDetails(beforeAssignment, afterAssignment) {
 }
 
 export async function saveAssignment() {
-  if (!requireAssignmentAccess() || !selectedPersonId) return;
+  if (!requireAssignmentManageAccess() || !selectedPersonId) return;
 
   if (!assignmentsLoadedSuccessfully) {
     showToast(
@@ -645,7 +668,7 @@ async function rollbackIfActivationConflicted(assignmentId, previousEndDate) {
 }
 
 export function openEndAssignmentDialog(assignmentId, trigger) {
-  if (!requireAssignmentAccess()) return;
+  if (!requireAssignmentManageAccess()) return;
   const assignment = assignmentsCache.find(record => record.id === assignmentId);
   if (!assignment || !assignment.active) return;
 
@@ -668,7 +691,7 @@ export function closeEndAssignmentDialog() {
 }
 
 export async function confirmEndAssignment() {
-  if (!requireAssignmentAccess() || !assignmentPendingEnd) return;
+  if (!requireAssignmentManageAccess() || !assignmentPendingEnd) return;
   const assignment = assignmentPendingEnd;
   const endDate = $("assignmentEndDate").value;
 
@@ -721,7 +744,7 @@ export async function confirmEndAssignment() {
 }
 
 export async function reactivateAssignment(assignmentId) {
-  if (!requireAssignmentAccess() || !selectedPersonId) return;
+  if (!requireAssignmentManageAccess() || !selectedPersonId) return;
   const assignment = assignmentsCache.find(record => record.id === assignmentId);
   if (!assignment || assignment.active) return;
 

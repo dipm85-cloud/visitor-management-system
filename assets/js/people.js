@@ -49,6 +49,10 @@ function hasPeopleManageAccess() {
   return hasCapability("people.manage");
 }
 
+function hasAssignmentSectionAccess() {
+  return hasAnyCapability(["assignment.view", "assignment.manage"]);
+}
+
 function requirePeopleAccess() {
   if (hasPeopleAccess()) return true;
   showToast("You do not have permission", "People requires people.view.", "error");
@@ -157,7 +161,7 @@ export function renderPeopleList() {
     assignmentsButton.addEventListener("click", () => {
       selectPersonForAssignments(person.id, person.display_name);
     });
-    if (hasPeopleManageAccess()) actionCell.appendChild(assignmentsButton);
+    if (hasAssignmentSectionAccess()) actionCell.appendChild(assignmentsButton);
 
     const editButton = document.createElement("button");
     editButton.className = "ghost";
