@@ -358,6 +358,8 @@ Capability Migration Phase 1 is complete for People, Assignments, Reference Data
 
 Organisation capability migration is complete. `organisation.view` governs Organisation navigation, lists, search and detail access. `organisation.manage` governs Organisation creation, editing, activation and deactivation. Organisation UI checks no longer use `people.view` or `people.manage`. Existing legacy Visitors, Reporting, Dashboard, Audit and Kiosk role checks remain unchanged for later governed migration phases.
 
+Organisation Details treat Contracts, assigned People and Sites as optional related summaries. A user with `organisation.view` can open the Organisation record even when existing Contracts or Work Assignment policies do not expose those related rows; unavailable summaries do not block or close the detail view.
+
 ## 7. UI Philosophy
 
 ### Responsive-first

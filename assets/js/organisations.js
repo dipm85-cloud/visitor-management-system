@@ -198,23 +198,29 @@ async function loadOrganisationRelationships(organisationId) {
   setRelationshipValue("organisationContractsCount", "Loading");
   setRelationshipValue("organisationPeopleCount", "Loading");
   setRelationshipValue("organisationSitesCount", "Loading");
-  setRelationshipValue("organisationVisitorsCount", "Future");
+  setRelationshipValue("organisationVisitorsCount", "Coming soon");
 
-  try {
-    const [contractsCount, assignmentCounts] = await Promise.all([
-      countRows("contracts", "customer_organisation_id", organisationId),
-      loadAssignmentRelationshipCounts(organisationId)
-    ]);
+  const [contractsResult, assignmentsResult] = await Promise.allSettled([
+    countRows("contracts", "customer_organisation_id", organisationId),
+    loadAssignmentRelationshipCounts(organisationId)
+  ]);
 
-    setRelationshipValue("organisationContractsCount", String(contractsCount));
-    setRelationshipValue("organisationPeopleCount", String(assignmentCounts.people));
-    setRelationshipValue("organisationSitesCount", String(assignmentCounts.sites));
-  } catch (err) {
-    setRelationshipValue("organisationContractsCount", "-");
-    setRelationshipValue("organisationPeopleCount", "-");
-    setRelationshipValue("organisationSitesCount", "-");
-    showToast("Relationship summary unavailable", err.message || "Could not load organisation relationships.", "error");
-  }
+  setRelationshipValue(
+    "organisationContractsCount",
+    contractsResult.status === "fulfilled" ? String(contractsResult.value) : "Unavailable"
+  );
+  setRelationshipValue(
+    "organisationPeopleCount",
+    assignmentsResult.status === "fulfilled"
+      ? String(assignmentsResult.value.people)
+      : "Unavailable"
+  );
+  setRelationshipValue(
+    "organisationSitesCount",
+    assignmentsResult.status === "fulfilled"
+      ? String(assignmentsResult.value.sites)
+      : "Unavailable"
+  );
 }
 
 export async function selectOrganisation(organisationId) {
