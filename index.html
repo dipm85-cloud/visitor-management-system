@@ -458,10 +458,11 @@
               <label>
                 <span>Status</span>
                 <select id="visitorsPlannedStatusFilter">
-                  <option value="all">All statuses</option>
+                  <option value="active">Active planned visits</option>
                   <option value="pending">Pending</option>
                   <option value="signed_in">Signed in</option>
-                  <option value="signed_out">Signed out</option>
+                  <option value="inactive">Inactive / completed</option>
+                  <option value="all">All statuses</option>
                 </select>
               </label>
               <div class="visitors-planned-filter-actions">
@@ -599,7 +600,15 @@
             <form id="visitorsPlannedForm" class="visitors-planned-form" novalidate>
               <input id="visitorsPlannedRecordId" type="hidden" />
               <input id="visitorsPlannedEditMode" type="hidden" value="full" />
-              <label data-native-planned-field="full"><span>Visitor name *</span><input id="visitorsPlannedVisitorName" autocomplete="name" required /></label>
+              <label data-native-planned-field="full">
+                <span>Visitor name *</span>
+                <div class="identity-lookup-field">
+                  <input id="visitorsPlannedVisitorName" autocomplete="off" required />
+                  <input id="visitorsPlannedPersonId" type="hidden" />
+                  <div id="visitorsPlannedPersonLookupResults" class="identity-lookup-results hidden" role="listbox"></div>
+                  <div id="visitorsPlannedPersonLookupStatus" class="identity-lookup-status" aria-live="polite"></div>
+                </div>
+              </label>
               <label data-native-planned-field="full"><span>Company</span><input id="visitorsPlannedCompany" autocomplete="organization" /></label>
               <div class="visitors-planned-form-row" data-native-planned-field="full">
                 <label><span>Visit date *</span><input id="visitorsPlannedVisitDate" type="date" required /></label>

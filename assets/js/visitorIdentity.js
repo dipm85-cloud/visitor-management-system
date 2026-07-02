@@ -2,6 +2,7 @@ import { supabaseClient } from "./api.js";
 import { $ } from "./dom.js";
 import { showToast } from "./messages.js";
 import { formatPersonName, safe } from "./utils.js";
+import { hasAnyCapability, hasCapability } from "./capabilities.js";
 
 const PERSON_COLUMNS = "id, external_person_number, first_name, last_name, preferred_name, display_name, email, phone, active";
 const ORGANISATION_COLUMNS = "id, organisation_code, organisation_name, organisation_type, email, phone, active";
@@ -130,12 +131,22 @@ function renderPersonResults(state, rows, query) {
   });
 
   const exactMatch = rows.some(person => String(person.display_name || "").toLowerCase() === query.toLowerCase());
-  if (query && !exactMatch) {
+  if (query && !exactMatch && hasCapability("people.manage")) {
     const createButton = createResultButton("Create new person", query, async () => {
       await createPersonFromLookup(state, query);
     });
     createButton.classList.add("identity-lookup-create");
     state.list.appendChild(createButton);
+  }
+
+  if (query) {
+    const keepTyped = createResultButton("Use typed visitor name", query, () => {
+      state.selectedId.value = "";
+      state.input.value = formatPersonName(query);
+      setStatus(state, "Visitor name will be saved with this planned visit.");
+      clearList(state.list);
+    });
+    state.list.appendChild(keepTyped);
   }
 
   state.list.classList.toggle("hidden", state.list.childElementCount === 0);
@@ -168,6 +179,10 @@ function renderOrganisationResults(state, rows, query) {
 }
 
 async function createPersonFromLookup(state, query) {
+  if (!hasCapability("people.manage")) {
+    showToast("You do not have permission", "Creating People records requires people.manage.", "error");
+    return;
+  }
   const parsed = splitPersonName(query);
   if (!parsed.displayName) return;
 
@@ -201,6 +216,7 @@ async function createPersonFromLookup(state, query) {
 }
 
 function bindLookup(config) {
+  if (lookupState[config.inputId]) return;
   const state = {
     input: $(config.inputId),
     selectedId: $(config.selectedId),
@@ -228,6 +244,15 @@ function bindLookup(config) {
       return;
     }
 
+    if (
+      state.kind === "person" &&
+      !hasAnyCapability(["people.view", "people.manage"])
+    ) {
+      clearList(state.list);
+      setStatus(state, "Type the visitor name. People lookup is not available with your current permissions.");
+      return;
+    }
+
     state.timer = window.setTimeout(async () => {
       try {
         const rows = state.kind === "person"
@@ -238,9 +263,15 @@ function bindLookup(config) {
         else renderOrganisationResults(state, rows, query);
       } catch (err) {
         clearList(state.list);
-        setStatus(state, state.kind === "person"
+        const unavailableMessage = state.kind === "person"
           ? "Person lookup unavailable. The typed visitor name will still be saved."
-          : "Organisation lookup unavailable. The typed company will still be saved.");
+          : "Organisation lookup unavailable. The typed company will still be saved.";
+        setStatus(state, unavailableMessage);
+        showToast(
+          state.kind === "person" ? "People lookup unavailable" : "Organisation lookup unavailable",
+          unavailableMessage,
+          "error"
+        );
         console.warn("Visitor identity lookup unavailable:", err);
       }
     }, 200);
@@ -280,15 +311,28 @@ export function initialiseVisitorIdentityLookups() {
     statusId: "editOrganisationLookupStatus",
     kind: "organisation"
   });
+  bindLookup({
+    inputId: "visitorsPlannedVisitorName",
+    selectedId: "visitorsPlannedPersonId",
+    listId: "visitorsPlannedPersonLookupResults",
+    statusId: "visitorsPlannedPersonLookupStatus",
+    kind: "person"
+  });
 }
 
 export function resetVisitorIdentitySelection(scope) {
-  const ids = scope === "edit"
-    ? ["editPersonId", "editOrganisationId"]
-    : ["plannedPersonId", "plannedOrganisationId"];
-  const lists = scope === "edit"
-    ? ["editPersonLookupResults", "editOrganisationLookupResults"]
-    : ["plannedPersonLookupResults", "plannedOrganisationLookupResults"];
+  const native = scope === "native_planned";
+  const edit = scope === "edit";
+  const ids = native
+    ? ["visitorsPlannedPersonId"]
+    : edit
+      ? ["editPersonId", "editOrganisationId"]
+      : ["plannedPersonId", "plannedOrganisationId"];
+  const lists = native
+    ? ["visitorsPlannedPersonLookupResults"]
+    : edit
+      ? ["editPersonLookupResults", "editOrganisationLookupResults"]
+      : ["plannedPersonLookupResults", "plannedOrganisationLookupResults"];
 
   ids.forEach(id => {
     if ($(id)) $(id).value = "";
@@ -298,10 +342,13 @@ export function resetVisitorIdentitySelection(scope) {
     if ($(id)) clearList($(id));
   });
 
-  [
-    scope === "edit" ? "editPersonLookupStatus" : "plannedPersonLookupStatus",
-    scope === "edit" ? "editOrganisationLookupStatus" : "plannedOrganisationLookupStatus"
-  ].forEach(id => {
+  const statuses = native
+    ? ["visitorsPlannedPersonLookupStatus"]
+    : [
+        edit ? "editPersonLookupStatus" : "plannedPersonLookupStatus",
+        edit ? "editOrganisationLookupStatus" : "plannedOrganisationLookupStatus"
+      ];
+  statuses.forEach(id => {
     if ($(id)) $(id).textContent = "";
   });
 }

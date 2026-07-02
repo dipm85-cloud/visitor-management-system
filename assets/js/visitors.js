@@ -5,7 +5,12 @@ import { showToast } from "./messages.js";
 import { AppState } from "./state.js";
 import { settingValue } from "./settings.js";
 import { buildFieldDiff, auditDiffSummary, writeAuditEvent } from "./audit.js";
-import { getPlannedVisitStatusMap } from "./plannedVisits.js";
+import {
+  getPlannedVisitStatusMap,
+  plannedVisitDisplayStatus,
+  plannedVisitStatusLabel
+} from "./plannedVisits.js";
+import { resetVisitorIdentitySelection } from "./visitorIdentity.js";
 import { formatPersonName, normalisePlate, todayDate } from "./utils.js";
 
 let visitorsDependencies = {};
@@ -54,13 +59,24 @@ function textOrDash(value) {
 }
 
 function plannedStatusFor(visit) {
-  return visit.native_status || "pending";
+  const status = visit.native_status || plannedVisitDisplayStatus(visit);
+  return status === "planned" ? "pending" : status;
 }
 
 function plannedStatusLabel(status) {
-  if (status === "signed_in") return "Signed in";
-  if (status === "signed_out") return "Signed out";
-  return "Pending";
+  return plannedVisitStatusLabel({ status });
+}
+
+function isActivePlannedStatus(status) {
+  return status === "pending" || status === "signed_in";
+}
+
+function isSuperUserRecoveryAllowed(visit) {
+  return AppState.currentProfile &&
+    AppState.currentProfile.role === "super_user" &&
+    hasCapability("visitor.edit") &&
+    hasCapability("visitor.delete") &&
+    plannedStatusFor(visit) === "pending";
 }
 
 function setPlannedListState(state) {
@@ -112,9 +128,15 @@ function renderNativePlannedVisits() {
       visit.visit_reason,
       visit.vehicle_plate
     ].join(" ").toLowerCase();
+    const visitStatus = plannedStatusFor(visit);
+    const statusMatches =
+      status === "all" ||
+      (status === "active" && isActivePlannedStatus(visitStatus)) ||
+      (status === "inactive" && !isActivePlannedStatus(visitStatus)) ||
+      visitStatus === status;
     return (!search || searchable.includes(search)) &&
       (!date || visit.visit_date === date) &&
-      (status === "all" || plannedStatusFor(visit) === status);
+      statusMatches;
   });
 
   if (!filtered.length) {
@@ -138,7 +160,11 @@ function renderNativePlannedVisits() {
     const statusBadge = document.createElement("span");
     const visitStatus = plannedStatusFor(visit);
     statusBadge.className = "visitors-planned-status " +
-      (visitStatus === "signed_in" ? "status-in" : visitStatus === "signed_out" ? "status-out" : "");
+      (visitStatus === "signed_in"
+        ? "status-in"
+        : isActivePlannedStatus(visitStatus)
+          ? ""
+          : "status-inactive");
     statusBadge.textContent = plannedStatusLabel(visitStatus);
     statusCell.appendChild(statusBadge);
     row.appendChild(statusCell);
@@ -161,6 +187,14 @@ function renderNativePlannedVisits() {
       locked.className = "visitors-planned-table-secondary";
       locked.textContent = "Locked after sign-in";
       actionCell.appendChild(locked);
+    }
+    if (isSuperUserRecoveryAllowed(visit)) {
+      const cancelButton = document.createElement("button");
+      cancelButton.type = "button";
+      cancelButton.className = "danger";
+      cancelButton.textContent = "Cancel Visit";
+      cancelButton.addEventListener("click", () => cancelNativePlannedVisit(visit, cancelButton));
+      actionCell.appendChild(cancelButton);
     }
     row.appendChild(actionCell);
     body.appendChild(row);
@@ -190,11 +224,30 @@ async function loadNativePlannedVisits() {
   }
 
   const visits = result.data || [];
-  const statusMap = await getPlannedVisitStatusMap(visits.map(visit => visit.id));
+  let statusMap;
+  try {
+    statusMap = await getPlannedVisitStatusMap(
+      visits.map(visit => visit.id),
+      { throwOnError: true }
+    );
+  } catch (error) {
+    if (loadSequence !== nativePlannedLoadSequence) return;
+    nativePlannedVisits = [];
+    setPlannedListState("error");
+    showToast(
+      "Planned visit statuses unavailable",
+      "The active planned visit list could not be verified safely.",
+      "error"
+    );
+    console.error("[OH-027A planned visit status load failed]", error);
+    return;
+  }
   if (loadSequence !== nativePlannedLoadSequence) return;
   nativePlannedVisits = visits.map(visit => ({
     ...visit,
-    native_status: statusMap[visit.id] ? statusMap[visit.id].status : "pending"
+    native_status: statusMap[visit.id]
+      ? statusMap[visit.id].status
+      : plannedVisitDisplayStatus(visit)
   }));
   renderNativePlannedVisits();
 }
@@ -219,9 +272,85 @@ function applyNativePlannedFieldRules(mode) {
 
 function clearPlannedForm() {
   $("visitorsPlannedForm").reset();
+  resetVisitorIdentitySelection("native_planned");
   $("visitorsPlannedRecordId").value = "";
   $("visitorsPlannedEditMode").value = "full";
   $("visitorsPlannedVisitDate").value = todayDate();
+}
+
+async function cancelNativePlannedVisit(visit, sourceButton) {
+  if (!isSuperUserRecoveryAllowed(visit)) {
+    showToast("Planned visit not cancelled", "Only a SuperUser can cancel a pending planned visit.", "error");
+    return;
+  }
+  if (!confirm("Cancel this pending planned visit? It will be removed from the default active list.")) return;
+
+  sourceButton.disabled = true;
+  try {
+    const startedResult = await supabaseClient
+      .from("visit_log")
+      .select("id")
+      .eq("planned_visit_id", visit.id)
+      .not("sign_in_time", "is", null)
+      .limit(1);
+    if (startedResult.error) throw startedResult.error;
+    if ((startedResult.data || []).length) {
+      showToast(
+        "Planned visit not cancelled",
+        "This visitor has already signed in, so the planned visit is no longer pending.",
+        "error"
+      );
+      await loadNativePlannedVisits();
+      return;
+    }
+
+    const payload = {
+      status: "cancelled",
+      modified_by: AppState.currentProfile.id,
+      modified_at: new Date().toISOString()
+    };
+    let query = supabaseClient
+      .from("planned_visits")
+      .update(payload)
+      .eq("id", visit.id);
+    query = visit.status == null
+      ? query.is("status", null)
+      : query.eq("status", visit.status);
+    const result = await query.select("id, status").maybeSingle();
+    if (result.error || !result.data) {
+      if (result.error) console.error("[OH-027A planned visit cancel failed]", result.error);
+      showToast(
+        "Planned visit not cancelled",
+        "The visit changed or the current security rules rejected the action.",
+        "error"
+      );
+      await loadNativePlannedVisits();
+      return;
+    }
+
+    const changes = buildFieldDiff(visit, { ...visit, ...payload }, ["status"]);
+    await writeAuditEvent("visit_changed", "planned_visits", visit.id, {
+      mode: "super_user_recovery",
+      action: "cancel",
+      changes,
+      summary: auditDiffSummary(changes)
+    });
+    showToast(
+      "Planned visit cancelled",
+      "The visit was closed and removed from the active list.",
+      "success"
+    );
+    await Promise.all([loadNativePlannedVisits(), loadVisitorsWorkspaceMetrics()]);
+  } catch (error) {
+    showToast(
+      "Planned visit not cancelled",
+      "The planned visit could not be cancelled. Please try again.",
+      "error"
+    );
+    console.error("[OH-027A unexpected planned visit cancel failure]", error);
+  } finally {
+    sourceButton.disabled = false;
+  }
 }
 
 function openPlannedPanel(visit, mode, returnFocus) {
@@ -626,7 +755,7 @@ export function initialiseVisitorsWorkspace() {
     $("visitorsPlannedClearFilters").addEventListener("click", () => {
       $("visitorsPlannedSearch").value = "";
       $("visitorsPlannedDateFilter").value = "";
-      $("visitorsPlannedStatusFilter").value = "all";
+      $("visitorsPlannedStatusFilter").value = "active";
       renderNativePlannedVisits();
     });
   }

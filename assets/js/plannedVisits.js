@@ -15,11 +15,21 @@ export function configurePlannedVisits(dependencies) {
 }
 
 export function plannedVisitDisplayStatus(visit) {
-  const rawStatus = String(visit.status || "").toLowerCase();
+  const rawStatus = String(visit.status || visit.visit_status || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
 
   if (visit.sign_out_time || rawStatus === "signed_out") return "signed_out";
+  if (["cancelled", "canceled"].includes(rawStatus)) return "cancelled";
+  if (["completed", "complete"].includes(rawStatus)) return "completed";
+  if (["closed", "close"].includes(rawStatus)) return "closed";
+  if (["archived", "inactive"].includes(rawStatus)) return "inactive";
   if (visit.sign_in_time || visit.visit_log_id || rawStatus === "signed_in") return "signed_in";
-  return rawStatus || "planned";
+  if (["", "planned", "pending", "upcoming", "expected", "scheduled", "active", "open"].includes(rawStatus)) {
+    return "planned";
+  }
+  return rawStatus;
 }
 
 export function plannedVisitStatusLabel(visit) {
@@ -27,7 +37,15 @@ export function plannedVisitStatusLabel(visit) {
   if (status === "signed_in") return "Signed in";
   if (status === "signed_out") return "Signed out";
   if (status === "cancelled") return "Cancelled";
-  return "Pending";
+  if (status === "completed") return "Completed";
+  if (status === "closed") return "Closed";
+  if (status === "inactive") return "Inactive";
+  if (status === "planned" || status === "pending") return "Pending";
+  return status
+    .split("_")
+    .filter(Boolean)
+    .map(part => part[0].toUpperCase() + part.slice(1))
+    .join(" ") || "Pending";
 }
 
 export async function createPlannedVisit() {
@@ -141,30 +159,31 @@ export async function searchPlanned(targetBoxId, date, name, allowEdit, allowDel
   return data;
 }
 
-export async function getPlannedVisitStatusMap(ids) {
+export async function getPlannedVisitStatusMap(ids, options) {
   if (!ids || ids.length === 0) return {};
 
   const result = await supabaseClient
     .from("visit_log")
     .select("planned_visit_id, sign_in_time, sign_out_time, visit_status, visit_origin")
-    .in("planned_visit_id", ids);
+    .in("planned_visit_id", ids)
+    .order("sign_in_time", { ascending: true });
+
+  if (result.error) {
+    if (options && options.throwOnError) throw result.error;
+    console.warn("Could not derive linked planned visit statuses.", result.error);
+    return {};
+  }
 
   const statusMap = {};
   if (result.data) {
     result.data.forEach(log => {
-      if (!log.planned_visit_id || !log.sign_in_time) return;
-
-      if (log.sign_out_time) {
-        statusMap[log.planned_visit_id] = {
-          status: "signed_out",
-          label: "Signed out"
-        };
-      } else {
-        statusMap[log.planned_visit_id] = {
-          status: "signed_in",
-          label: "Currently signed in"
-        };
-      }
+      if (!log.planned_visit_id) return;
+      const status = plannedVisitDisplayStatus(log);
+      if (status === "planned") return;
+      statusMap[log.planned_visit_id] = {
+        status,
+        label: plannedVisitStatusLabel({ ...log, status })
+      };
     });
   }
 

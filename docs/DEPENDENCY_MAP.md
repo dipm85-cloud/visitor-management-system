@@ -153,8 +153,8 @@ These edges avoid static cycles, but they require configuration to finish before
 
 ### `visitors.js`
 
-- Owns native Visitors capability visibility, safe summary counts, planned-visit list/filter/create/edit actions and workflow shortcuts.
-- Reuses existing `planned_visits`, `visit_log`, audit, field-rule, capability and RLS contracts.
+- Owns native Visitors capability visibility, safe summary counts, authoritative active-state filtering, planned-visit list/filter/create/edit actions, SuperUser cancellation and workflow shortcuts.
+- Reuses existing `planned_visits`, `visit_log`, shared People lookup, audit, field-rule, capability and RLS contracts.
 - Delegates visitor actions other than planned-visit management to Legacy VMS until native equivalents are migrated.
 
 ## Circular Dependency Assessment
