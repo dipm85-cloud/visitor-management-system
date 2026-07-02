@@ -100,7 +100,7 @@ These edges avoid static cycles, but they require configuration to finish before
 - Retains audit context, audit administration, and most audit writes.
 - Retains planned visits, visit history, kiosk sign-in/sign-out, analytics, dashboards, agreements, GDPR, retention, notifications, deployment health, exports, and printing.
 - Applies loaded staff capabilities to legacy Visitor action visibility and re-applies that visibility after login or an in-session role-preset refresh; public kiosk controls are deliberately excluded.
-- Composes the native Visitors summary workspace with the temporary Legacy VMS destination; kiosk mode continues to target Legacy VMS directly.
+- Composes the native Visitors workspace with the temporary Legacy VMS destination; kiosk mode continues to target Legacy VMS directly.
 - Retains feature caches and workflow state not yet moved into `AppState`.
 
 ### `config.js`
@@ -153,9 +153,9 @@ These edges avoid static cycles, but they require configuration to finish before
 
 ### `visitors.js`
 
-- Owns native Visitors workspace capability visibility, safe summary counts and workflow shortcuts.
-- Reads existing `planned_visits` and `visit_log` records without changing visitor workflows or backend contracts.
-- Delegates operational actions to Legacy VMS until native equivalents are migrated.
+- Owns native Visitors capability visibility, safe summary counts, planned-visit list/filter/create/edit actions and workflow shortcuts.
+- Reuses existing `planned_visits`, `visit_log`, audit, field-rule, capability and RLS contracts.
+- Delegates visitor actions other than planned-visit management to Legacy VMS until native equivalents are migrated.
 
 ## Circular Dependency Assessment
 

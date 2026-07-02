@@ -433,7 +433,7 @@
           <div>
             <p class="oh-app-eyebrow">Operations Hub</p>
             <h1 id="visitorsPageTitle">Visitors</h1>
-            <p>Today’s visitor position and safe shortcuts while operational workflows move into the native Hub experience.</p>
+            <p>Plan upcoming visits and review today’s visitor position.</p>
           </div>
           <button id="visitorsRefreshButton" class="secondary" type="button">Refresh</button>
         </header>
@@ -443,13 +443,56 @@
         </div>
 
         <div id="visitorsWorkspaceContent">
-          <div class="visitors-migration-notice">
-            <div>
-              <strong>Native Visitors workspace foundation</strong>
-              <span>Operational workflows remain available in Legacy VMS during migration.</span>
+          <section class="visitors-section visitors-planned-workflow" aria-labelledby="visitorsPlannedTitle">
+            <div class="visitors-section-heading">
+              <div>
+                <h2 id="visitorsPlannedTitle">Planned Visits</h2>
+                <p>Search, create and maintain visits using the existing visitor controls and permissions.</p>
+              </div>
+              <button id="visitorsCreatePlannedButton" type="button">Create Planned Visit</button>
             </div>
-            <button id="visitorsOpenLegacyButton" class="secondary" type="button">Open Legacy VMS</button>
-          </div>
+
+            <div class="visitors-planned-filters" role="search" aria-label="Filter planned visits">
+              <label><span>Search</span><input id="visitorsPlannedSearch" type="search" placeholder="Visitor, company or contact" /></label>
+              <label><span>Date</span><input id="visitorsPlannedDateFilter" type="date" /></label>
+              <label>
+                <span>Status</span>
+                <select id="visitorsPlannedStatusFilter">
+                  <option value="all">All statuses</option>
+                  <option value="pending">Pending</option>
+                  <option value="signed_in">Signed in</option>
+                  <option value="signed_out">Signed out</option>
+                </select>
+              </label>
+              <div class="visitors-planned-filter-actions">
+                <button id="visitorsPlannedApplyFilters" class="secondary" type="button">Apply Filters</button>
+                <button id="visitorsPlannedClearFilters" class="ghost" type="button">Clear</button>
+              </div>
+            </div>
+
+            <div id="visitorsPlannedLoading" class="visitors-planned-state hidden" role="status">Loading planned visits…</div>
+            <div id="visitorsPlannedError" class="visitors-planned-state visitors-planned-error hidden" role="alert">Planned visits could not be loaded.</div>
+            <div id="visitorsPlannedEmpty" class="visitors-planned-state hidden">
+              <strong>No planned visits found</strong>
+              <span>Adjust the filters or create a planned visit.</span>
+            </div>
+            <div id="visitorsPlannedTableWrap" class="visitors-planned-table-wrap hidden">
+              <table class="visitors-planned-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Visitor</th>
+                    <th scope="col">Date and time</th>
+                    <th scope="col">Host / contact</th>
+                    <th scope="col">Reason</th>
+                    <th scope="col">Vehicle</th>
+                    <th scope="col">Status</th>
+                    <th scope="col"><span class="sr-only">Actions</span></th>
+                  </tr>
+                </thead>
+                <tbody id="visitorsPlannedTableBody"></tbody>
+              </table>
+            </div>
+          </section>
 
           <section class="visitors-section" aria-labelledby="visitorsTodayTitle">
             <div class="visitors-section-heading">
@@ -472,7 +515,7 @@
                 <span>Planned Visits</span>
                 <strong id="visitorsPlannedCount">-</strong>
                 <p>Planned visits dated today.</p>
-                <button id="visitorsPlannedLegacyButton" class="secondary" type="button">Open in Legacy VMS</button>
+                <span class="visitor-card-state">Native workflow</span>
               </article>
 
               <article class="visitor-summary-card">
@@ -502,11 +545,10 @@
             <div class="visitors-section-heading">
               <div>
                 <h2 id="visitorsQuickActionsTitle">Quick Actions</h2>
-                <p>Actions open the established workflow in Legacy VMS until native workflows are migrated.</p>
+                <p>Workflows not yet migrated continue to open in Legacy VMS.</p>
               </div>
             </div>
             <div class="visitors-quick-actions">
-              <button id="visitorsCreatePlannedButton" type="button">Create Planned Visit</button>
               <button id="visitorsCreateWalkInButton" class="secondary" type="button">Create Walk-in</button>
               <button id="visitorsStaffSignInButton" class="secondary" type="button">Staff Sign-in</button>
               <button id="visitorsStaffSignOutButton" class="secondary" type="button">Staff Sign-out</button>
@@ -543,6 +585,37 @@
               </article>
             </div>
           </section>
+        </div>
+
+        <div id="visitorsPlannedPanelBackdrop" class="visitors-panel-backdrop hidden">
+          <aside id="visitorsPlannedPanel" class="visitors-side-panel" aria-labelledby="visitorsPlannedPanelTitle" aria-modal="true" role="dialog">
+            <header class="visitors-side-panel-header">
+              <div>
+                <p class="oh-app-eyebrow">Planned Visits</p>
+                <h2 id="visitorsPlannedPanelTitle">Create Planned Visit</h2>
+              </div>
+              <button id="visitorsPlannedPanelClose" class="ghost" type="button" aria-label="Close planned visit panel">Close</button>
+            </header>
+            <form id="visitorsPlannedForm" class="visitors-planned-form" novalidate>
+              <input id="visitorsPlannedRecordId" type="hidden" />
+              <input id="visitorsPlannedEditMode" type="hidden" value="full" />
+              <label data-native-planned-field="full"><span>Visitor name *</span><input id="visitorsPlannedVisitorName" autocomplete="name" required /></label>
+              <label data-native-planned-field="full"><span>Company</span><input id="visitorsPlannedCompany" autocomplete="organization" /></label>
+              <div class="visitors-planned-form-row" data-native-planned-field="full">
+                <label><span>Visit date *</span><input id="visitorsPlannedVisitDate" type="date" required /></label>
+                <label><span>Expected time</span><input id="visitorsPlannedExpectedTime" type="time" /></label>
+              </div>
+              <label id="visitorsPlannedContactField" data-native-planned-field="full"><span>Host / on-site contact</span><input id="visitorsPlannedContact" /></label>
+              <label id="visitorsPlannedReasonField" data-native-planned-field="full"><span>Reason / comments</span><textarea id="visitorsPlannedReason" rows="4"></textarea></label>
+              <label id="visitorsPlannedVehicleField" data-native-planned-field="full"><span>Vehicle registration</span><input id="visitorsPlannedVehicle" /></label>
+              <label id="visitorsPlannedPassField"><span>Security pass ID</span><input id="visitorsPlannedPass" /></label>
+              <label id="visitorsPlannedChangeReasonField" class="hidden"><span>Change reason *</span><textarea id="visitorsPlannedChangeReason" rows="3"></textarea></label>
+              <div class="visitors-side-panel-actions">
+                <button id="visitorsPlannedSave" type="submit">Create Planned Visit</button>
+                <button id="visitorsPlannedCancel" class="secondary" type="button">Cancel</button>
+              </div>
+            </form>
+          </aside>
         </div>
       </section>
       <div id="legacyVmsWorkspace" class="app-shell hidden" aria-label="Legacy Visitor Management System">
