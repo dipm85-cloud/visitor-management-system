@@ -323,6 +323,53 @@ export async function signInPlanned(visit, actionButton) {
   }
 }
 
+async function validateStaffWalkInVisitorName(name) {
+  const activeDuplicate = await supabaseClient
+    .from("visit_log")
+    .select("id")
+    .ilike("visitor_name", name)
+    .is("sign_out_time", null)
+    .limit(1);
+
+  if (activeDuplicate.error) {
+    console.warn("[OH-028 active walk-in duplicate check unavailable]", activeDuplicate.error);
+    return {
+      code: "validation_unavailable",
+      message: "Active visitor status could not be verified safely."
+    };
+  }
+  if ((activeDuplicate.data || []).length) {
+    return {
+      code: "active_duplicate",
+      message: "A visitor with this name is already signed in."
+    };
+  }
+
+  const availablePlanned = await supabaseClient.rpc("get_kiosk_available_planned_visits", {
+    p_visit_date: todayDate()
+  });
+  if (availablePlanned.error || !Array.isArray(availablePlanned.data)) {
+    if (availablePlanned.error) {
+      console.warn("[OH-028 planned visitor collision check unavailable]", availablePlanned.error);
+    }
+    return {
+      code: "validation_unavailable",
+      message: "Planned visitor status could not be verified safely."
+    };
+  }
+  const plannedDuplicate = availablePlanned.data.find(
+    visit => formatPersonName(visit.visitor_name) === name
+  );
+  if (plannedDuplicate) {
+    return {
+      code: "planned_duplicate",
+      message: "A planned visitor with this name is expected today."
+    };
+  }
+
+  return null;
+}
+
 export async function signInWalkIn() {
   clearMessage();
   if (!isPublicKioskFlow() && (!hasCapability("visitor.create") || !hasCapability("visitor.sign_in"))) {
@@ -431,6 +478,86 @@ export async function signInWalkIn() {
   } finally {
     endKioskAction(actionButton, "Sign In Walk-In");
   }
+}
+
+export async function createStaffWalkIn(input) {
+  if (!hasCapability("visitor.create") || !hasCapability("visitor.sign_in")) {
+    return {
+      ok: false,
+      code: "forbidden",
+      message: "Staff walk-in sign-in requires visitor.create and visitor.sign_in."
+    };
+  }
+
+  const name = formatPersonName(input && input.visitor_name);
+  if (!name) {
+    return { ok: false, code: "validation", message: "Visitor name is required." };
+  }
+
+  const duplicateValidation = await validateStaffWalkInVisitorName(name);
+  if (duplicateValidation) {
+    return {
+      ok: false,
+      code: duplicateValidation.code,
+      message: duplicateValidation.code === "planned_duplicate"
+        ? duplicateValidation.message + " Use the planned visitor workflow."
+        : duplicateValidation.message
+    };
+  }
+
+  const privacyOk = await visitorDependencies.requestPrivacyAcknowledgement();
+  if (!privacyOk) {
+    return {
+      ok: false,
+      code: "privacy_cancelled",
+      message: "Privacy acknowledgement was not completed."
+    };
+  }
+
+  const payload = {
+    visitor_name: name,
+    company: String(input.company || "").trim() || null,
+    visit_reason: String(input.visit_reason || "").trim() || null,
+    vehicle_plate: normalisePlate(input.vehicle_plate),
+    onsite_contact: formatPersonName(input.onsite_contact) || null,
+    security_pass_id: String(input.security_pass_id || "").trim() || null,
+    privacy_notice_version: latestPrivacyAcceptance ? latestPrivacyAcceptance.version : null,
+    privacy_notice_accepted_at: latestPrivacyAcceptance ? latestPrivacyAcceptance.acceptedAt : null,
+    sign_in_time: new Date().toISOString(),
+    sign_out_time: null,
+    visit_status: "signed_in",
+    visit_origin: "walk_in"
+  };
+  const result = await supabaseClient
+    .from("visit_log")
+    .insert(payload)
+    .select("id")
+    .maybeSingle();
+
+  if (result.error || !result.data) {
+    if (result.error) console.error("[OH-028 native walk-in insert failed]", result.error);
+    return {
+      ok: false,
+      code: result.error && result.error.code === "23505" ? "duplicate" : "rejected",
+      message: result.error && result.error.code === "23505"
+        ? "This visitor already has an active visit."
+        : "The walk-in was rejected by the current permissions or business rules."
+    };
+  }
+
+  await queueVisitorArrivalNotificationBestEffort(result.data.id);
+  await visitorDependencies.writeAuditEvent("visitor_signed_in", "visit_log", result.data.id, {
+    origin: "walk_in",
+    visitor_name: name,
+    source: "native_visitors"
+  });
+  await refreshCoreData();
+
+  return {
+    ok: true,
+    id: result.data.id,
+    visitor_name: name
+  };
 }
 
 export async function loadActiveVisits() {

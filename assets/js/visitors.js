@@ -17,12 +17,21 @@ let visitorsDependencies = {};
 let nativePlannedVisits = [];
 let nativePlannedLoadSequence = 0;
 let plannedPanelReturnFocus = null;
+let walkInPanelReturnFocus = null;
 
 const plannedFieldDefaults = {
   reason: { visible: true, required: false },
   vehicle: { visible: true, required: false },
   contact: { visible: true, required: true },
   pass: { visible: false, required: false }
+};
+
+const walkInFieldDefaults = {
+  company: { visible: true, required: false },
+  reason: { visible: true, required: false },
+  vehicle: { visible: true, required: false },
+  contact: { visible: true, required: false },
+  pass: { visible: true, required: false }
 };
 
 function isActiveStaffUser() {
@@ -50,6 +59,13 @@ function fieldRule(field, kind) {
   return settingIsTrue(
     "planned_" + field + "_" + kind,
     plannedFieldDefaults[field][kind]
+  );
+}
+
+function walkInFieldRule(field, kind) {
+  return settingIsTrue(
+    "walkin_" + field + "_" + kind,
+    walkInFieldDefaults[field][kind]
   );
 }
 
@@ -405,6 +421,140 @@ function closePlannedPanel() {
   plannedPanelReturnFocus = null;
 }
 
+function walkInFieldIds(field) {
+  const suffix = field === "pass"
+    ? "Pass"
+    : field[0].toUpperCase() + field.slice(1);
+  return {
+    wrapper: "visitorsWalkIn" + suffix + "Field",
+    input: "visitorsWalkIn" + suffix
+  };
+}
+
+function applyNativeWalkInFieldRules() {
+  ["company", "reason", "vehicle", "contact", "pass"].forEach(field => {
+    const ids = walkInFieldIds(field);
+    const wrapper = $(ids.wrapper);
+    const input = $(ids.input);
+    if (!wrapper || !input) return;
+    const visible = walkInFieldRule(field, "visible");
+    const required = visible && walkInFieldRule(field, "required");
+    wrapper.classList.toggle("hidden", !visible);
+    input.required = required;
+    const label = wrapper.querySelector("span");
+    if (label) {
+      const baseLabel = label.dataset.baseLabel || label.textContent.replace(/\s+\*$/, "");
+      label.dataset.baseLabel = baseLabel;
+      label.textContent = baseLabel + (required ? " *" : "");
+    }
+  });
+}
+
+function clearWalkInForm() {
+  $("visitorsWalkInForm").reset();
+  resetVisitorIdentitySelection("native_walk_in");
+}
+
+function openWalkInPanel(returnFocus) {
+  if (!hasCapability("visitor.create") || !hasCapability("visitor.sign_in")) {
+    showToast(
+      "You do not have permission",
+      "Creating a walk-in requires visitor.create and visitor.sign_in.",
+      "error"
+    );
+    return;
+  }
+  clearWalkInForm();
+  applyNativeWalkInFieldRules();
+  walkInPanelReturnFocus = returnFocus || document.activeElement;
+  $("visitorsWalkInPanelBackdrop").classList.remove("hidden");
+  document.body.style.overflow = "hidden";
+  $("visitorsWalkInVisitorName").focus();
+}
+
+function closeWalkInPanel() {
+  $("visitorsWalkInPanelBackdrop").classList.add("hidden");
+  document.body.style.overflow = "";
+  if (walkInPanelReturnFocus && typeof walkInPanelReturnFocus.focus === "function") {
+    walkInPanelReturnFocus.focus();
+  }
+  walkInPanelReturnFocus = null;
+}
+
+function nativeWalkInFieldValue(field) {
+  const ids = walkInFieldIds(field);
+  const wrapper = $(ids.wrapper);
+  const input = $(ids.input);
+  if (!wrapper || wrapper.classList.contains("hidden")) return "";
+  return String(input.value || "");
+}
+
+function nativeWalkInFormIsValid() {
+  const requiredInputs = Array.from(
+    $("visitorsWalkInForm").querySelectorAll("input[required], textarea[required]")
+  ).filter(input => !input.closest(".hidden"));
+  return requiredInputs.every(input => String(input.value || "").trim());
+}
+
+async function saveNativeWalkIn(event) {
+  event.preventDefault();
+  if (!hasCapability("visitor.create") || !hasCapability("visitor.sign_in")) {
+    showToast(
+      "You do not have permission",
+      "Creating a walk-in requires visitor.create and visitor.sign_in.",
+      "error"
+    );
+    return;
+  }
+  if (!nativeWalkInFormIsValid()) {
+    showToast(
+      "Check required fields",
+      "Visitor name and all configured required fields must be completed.",
+      "error"
+    );
+    return;
+  }
+  if (typeof visitorsDependencies.createWalkIn !== "function") {
+    showToast("Walk-in not created", "The walk-in service is unavailable.", "error");
+    return;
+  }
+
+  const saveButton = $("visitorsWalkInSave");
+  saveButton.disabled = true;
+  try {
+    const result = await visitorsDependencies.createWalkIn({
+      visitor_name: $("visitorsWalkInVisitorName").value,
+      company: nativeWalkInFieldValue("company"),
+      onsite_contact: nativeWalkInFieldValue("contact"),
+      visit_reason: nativeWalkInFieldValue("reason"),
+      vehicle_plate: nativeWalkInFieldValue("vehicle"),
+      security_pass_id: nativeWalkInFieldValue("pass")
+    });
+    if (!result || result.ok !== true) {
+      const privacyCancelled = result && result.code === "privacy_cancelled";
+      showToast(
+        privacyCancelled ? "Walk-in not completed" : "Walk-in not created",
+        result && result.message ? result.message : "The walk-in could not be created.",
+        privacyCancelled ? "info" : "error"
+      );
+      return;
+    }
+
+    closeWalkInPanel();
+    showToast(
+      "Walk-in visitor signed in",
+      result.visitor_name + " was signed in successfully.",
+      "success"
+    );
+    await loadVisitorsWorkspace();
+  } catch (error) {
+    showToast("Walk-in not created", "The walk-in could not be created. Please try again.", "error");
+    console.error("[OH-028 unexpected native walk-in failure]", error);
+  } finally {
+    saveButton.disabled = false;
+  }
+}
+
 function nativePlannedFieldValue(field) {
   const wrapper = $("visitorsPlanned" + (field === "pass" ? "Pass" : field[0].toUpperCase() + field.slice(1)) + "Field");
   const input = $("visitorsPlanned" + (field === "pass" ? "Pass" : field[0].toUpperCase() + field.slice(1)));
@@ -622,7 +772,10 @@ export function syncVisitorsWorkspaceCapabilities() {
   setVisible("visitorsWorkspaceContent", canView);
 
   setVisible("visitorsCreatePlannedButton", canView && hasCapability("visitor.create"));
-  setVisible("visitorsCreateWalkInButton", canView && hasCapability("visitor.create"));
+  setVisible(
+    "visitorsCreateWalkInButton",
+    canView && hasCapability("visitor.create") && hasCapability("visitor.sign_in")
+  );
   setVisible("visitorsStaffSignInButton", canView && hasCapability("visitor.sign_in"));
   setVisible("visitorsStaffSignOutButton", canView && hasCapability("visitor.sign_out"));
   setVisible("visitorsReportsShortcut", canView && hasCapability("visitor.history.view"));
@@ -634,6 +787,13 @@ export function syncVisitorsWorkspaceCapabilities() {
     if ($("visitorsPlannedPanelBackdrop") && !$("visitorsPlannedPanelBackdrop").classList.contains("hidden")) {
       closePlannedPanel();
     }
+  }
+  if (
+    (!canView || !hasCapability("visitor.create") || !hasCapability("visitor.sign_in")) &&
+    $("visitorsWalkInPanelBackdrop") &&
+    !$("visitorsWalkInPanelBackdrop").classList.contains("hidden")
+  ) {
+    closeWalkInPanel();
   }
   if (canView && $("visitorsPlannedTableBody")) renderNativePlannedVisits();
 }
@@ -732,7 +892,6 @@ export function initialiseVisitorsWorkspace() {
   }
 
   [
-    ["visitorsCreateWalkInButton", "create-walk-in"],
     ["visitorsStaffSignInButton", "staff-sign-in"],
     ["visitorsStaffSignOutButton", "staff-sign-out"],
     ["visitorsToolLegacyButton", "legacy-home"],
@@ -746,6 +905,11 @@ export function initialiseVisitorsWorkspace() {
   if ($("visitorsCreatePlannedButton")) {
     $("visitorsCreatePlannedButton").addEventListener("click", event => {
       openPlannedPanel(null, "full", event.currentTarget);
+    });
+  }
+  if ($("visitorsCreateWalkInButton")) {
+    $("visitorsCreateWalkInButton").addEventListener("click", event => {
+      openWalkInPanel(event.currentTarget);
     });
   }
   if ($("visitorsPlannedApplyFilters")) {
@@ -770,12 +934,23 @@ export function initialiseVisitorsWorkspace() {
   if ($("visitorsPlannedForm")) {
     $("visitorsPlannedForm").addEventListener("submit", saveNativePlannedVisit);
   }
+  if ($("visitorsWalkInForm")) {
+    $("visitorsWalkInForm").addEventListener("submit", saveNativeWalkIn);
+  }
   ["visitorsPlannedPanelClose", "visitorsPlannedCancel"].forEach(id => {
     if ($(id)) $(id).addEventListener("click", closePlannedPanel);
   });
   if ($("visitorsPlannedPanelBackdrop")) {
     $("visitorsPlannedPanelBackdrop").addEventListener("click", event => {
       if (event.target === event.currentTarget) closePlannedPanel();
+    });
+  }
+  ["visitorsWalkInPanelClose", "visitorsWalkInCancel"].forEach(id => {
+    if ($(id)) $(id).addEventListener("click", closeWalkInPanel);
+  });
+  if ($("visitorsWalkInPanelBackdrop")) {
+    $("visitorsWalkInPanelBackdrop").addEventListener("click", event => {
+      if (event.target === event.currentTarget) closeWalkInPanel();
     });
   }
   document.addEventListener("keydown", event => {
@@ -785,6 +960,13 @@ export function initialiseVisitorsWorkspace() {
       !$("visitorsPlannedPanelBackdrop").classList.contains("hidden")
     ) {
       closePlannedPanel();
+    }
+    if (
+      event.key === "Escape" &&
+      $("visitorsWalkInPanelBackdrop") &&
+      !$("visitorsWalkInPanelBackdrop").classList.contains("hidden")
+    ) {
+      closeWalkInPanel();
     }
   });
 

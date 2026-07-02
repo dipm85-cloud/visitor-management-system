@@ -626,6 +626,38 @@
             </form>
           </aside>
         </div>
+
+        <div id="visitorsWalkInPanelBackdrop" class="visitors-panel-backdrop hidden">
+          <aside id="visitorsWalkInPanel" class="visitors-side-panel" aria-labelledby="visitorsWalkInPanelTitle" aria-modal="true" role="dialog">
+            <header class="visitors-side-panel-header">
+              <div>
+                <p class="oh-app-eyebrow">Visitors</p>
+                <h2 id="visitorsWalkInPanelTitle">Create Walk-in Visitor</h2>
+              </div>
+              <button id="visitorsWalkInPanelClose" class="ghost" type="button" aria-label="Close walk-in visitor panel">Close</button>
+            </header>
+            <form id="visitorsWalkInForm" class="visitors-planned-form" novalidate>
+              <label>
+                <span>Visitor name *</span>
+                <div class="identity-lookup-field">
+                  <input id="visitorsWalkInVisitorName" autocomplete="off" required />
+                  <input id="visitorsWalkInPersonId" type="hidden" />
+                  <div id="visitorsWalkInPersonLookupResults" class="identity-lookup-results hidden" role="listbox"></div>
+                  <div id="visitorsWalkInPersonLookupStatus" class="identity-lookup-status" aria-live="polite"></div>
+                </div>
+              </label>
+              <label id="visitorsWalkInCompanyField"><span>Company</span><input id="visitorsWalkInCompany" autocomplete="organization" /></label>
+              <label id="visitorsWalkInContactField"><span>Host / on-site contact</span><input id="visitorsWalkInContact" /></label>
+              <label id="visitorsWalkInReasonField"><span>Reason / comments</span><textarea id="visitorsWalkInReason" rows="4"></textarea></label>
+              <label id="visitorsWalkInVehicleField"><span>Vehicle registration</span><input id="visitorsWalkInVehicle" /></label>
+              <label id="visitorsWalkInPassField"><span>Security pass ID</span><input id="visitorsWalkInPass" /></label>
+              <div class="visitors-side-panel-actions">
+                <button id="visitorsWalkInSave" type="submit">Sign In Walk-in</button>
+                <button id="visitorsWalkInCancel" class="secondary" type="button">Cancel</button>
+              </div>
+            </form>
+          </aside>
+        </div>
       </section>
       <div id="legacyVmsWorkspace" class="app-shell hidden" aria-label="Legacy Visitor Management System">
   <div class="legacy-vms-banner no-print">

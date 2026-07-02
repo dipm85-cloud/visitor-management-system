@@ -19,6 +19,6 @@ Deferred polish items captured during OH-015. These are intentionally outside th
 
 ## Visitors Coexistence
 
-- The native Visitors workspace includes Planned Visits list, filter, create and permitted edit actions alongside today, signed-in, walk-in and overdue summaries.
-- Legacy VMS is retained as a temporary internal application until walk-ins, staff sign-in/sign-out, history, reports, configuration, agreements, GDPR, exports and printing are migrated and regression-tested.
+- The native Visitors workspace includes Planned Visits management and authenticated staff Walk-in creation alongside today, signed-in, walk-in and overdue summaries.
+- Legacy VMS is retained as a temporary internal application until sign-in/sign-out management, history, reports, configuration, agreements, GDPR, exports and printing are migrated and regression-tested.
 - Replace each “Open Legacy VMS” handoff incrementally; do not remove the legacy destination until kiosk and staff workflow parity is confirmed.

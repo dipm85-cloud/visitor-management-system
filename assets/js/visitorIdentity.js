@@ -318,17 +318,29 @@ export function initialiseVisitorIdentityLookups() {
     statusId: "visitorsPlannedPersonLookupStatus",
     kind: "person"
   });
+  bindLookup({
+    inputId: "visitorsWalkInVisitorName",
+    selectedId: "visitorsWalkInPersonId",
+    listId: "visitorsWalkInPersonLookupResults",
+    statusId: "visitorsWalkInPersonLookupStatus",
+    kind: "person"
+  });
 }
 
 export function resetVisitorIdentitySelection(scope) {
   const native = scope === "native_planned";
+  const nativeWalkIn = scope === "native_walk_in";
   const edit = scope === "edit";
-  const ids = native
+  const ids = nativeWalkIn
+    ? ["visitorsWalkInPersonId"]
+    : native
     ? ["visitorsPlannedPersonId"]
     : edit
       ? ["editPersonId", "editOrganisationId"]
       : ["plannedPersonId", "plannedOrganisationId"];
-  const lists = native
+  const lists = nativeWalkIn
+    ? ["visitorsWalkInPersonLookupResults"]
+    : native
     ? ["visitorsPlannedPersonLookupResults"]
     : edit
       ? ["editPersonLookupResults", "editOrganisationLookupResults"]
@@ -342,7 +354,9 @@ export function resetVisitorIdentitySelection(scope) {
     if ($(id)) clearList($(id));
   });
 
-  const statuses = native
+  const statuses = nativeWalkIn
+    ? ["visitorsWalkInPersonLookupStatus"]
+    : native
     ? ["visitorsPlannedPersonLookupStatus"]
     : [
         edit ? "editPersonLookupStatus" : "plannedPersonLookupStatus",
