@@ -142,5 +142,6 @@ export function initialiseDashboard() {
   });
 
   window.addEventListener("oh:dashboard-opened", loadDashboard);
+  window.addEventListener("oh:visitor-data-changed", loadDashboard);
   syncDashboardCapabilities();
 }

@@ -97,6 +97,8 @@ import {
   renderPlannedVisitorList,
   signInWalkIn,
   createStaffWalkIn,
+  signInStaffPlannedVisit,
+  signOutStaffVisit,
   loadActiveVisits,
   renderActiveVisitorList
 } from "./visitorFlow.js";
@@ -403,7 +405,9 @@ window.addEventListener("load", async function () {
         showLegacyVmsWorkspace();
         await openStaffAreaFromProfile();
       },
-      createWalkIn: createStaffWalkIn
+      createWalkIn: createStaffWalkIn,
+      signInPlannedVisit: signInStaffPlannedVisit,
+      signOutVisit: signOutStaffVisit
     });
     configureVisitorFlow({
       appSettings,

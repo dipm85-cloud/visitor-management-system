@@ -1508,6 +1508,10 @@ body.kiosk-mode .results-scroll {
   margin-bottom: 18px;
 }
 
+.visitors-on-site-filters {
+  grid-template-columns: minmax(240px, 1.5fr) minmax(180px, .7fr) auto;
+}
+
 .visitors-planned-filters label,
 .visitors-planned-form label {
   display: flex;
@@ -1624,6 +1628,11 @@ body.kiosk-mode .results-scroll {
   background: #fef3f2;
 }
 
+.visitors-planned-status.status-overdue {
+  color: #b54708;
+  background: #fffaeb;
+}
+
 .visitors-panel-backdrop {
   position: fixed;
   z-index: 1200;
@@ -1685,6 +1694,32 @@ body.kiosk-mode .results-scroll {
   background: var(--oh-shell-surface);
 }
 
+.visitors-details-list {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 18px 0 28px;
+}
+
+.visitors-details-list > div {
+  display: grid;
+  grid-template-columns: minmax(130px, .7fr) minmax(0, 1.3fr);
+  gap: 16px;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--oh-shell-border);
+}
+
+.visitors-details-list dt {
+  color: var(--oh-shell-muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.visitors-details-list dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 900px) {
   .visitors-planned-filters {
     grid-template-columns: 1fr 1fr;
@@ -1700,6 +1735,11 @@ body.kiosk-mode .results-scroll {
   .visitors-planned-filters,
   .visitors-planned-form-row {
     grid-template-columns: 1fr;
+  }
+
+  .visitors-details-list > div {
+    grid-template-columns: 1fr;
+    gap: 5px;
   }
 }
 

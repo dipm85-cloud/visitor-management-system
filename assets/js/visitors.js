@@ -16,8 +16,11 @@ import { formatPersonName, normalisePlate, todayDate } from "./utils.js";
 let visitorsDependencies = {};
 let nativePlannedVisits = [];
 let nativePlannedLoadSequence = 0;
+let nativeActiveVisitors = [];
+let nativeActiveLoadSequence = 0;
 let plannedPanelReturnFocus = null;
 let walkInPanelReturnFocus = null;
+let detailsPanelReturnFocus = null;
 
 const plannedFieldDefaults = {
   reason: { visible: true, required: false },
@@ -80,6 +83,9 @@ function plannedStatusFor(visit) {
 }
 
 function plannedStatusLabel(status) {
+  if (status === "pending") return "Planned";
+  if (status === "signed_in") return "Signed In";
+  if (status === "signed_out") return "Signed Out";
   return plannedVisitStatusLabel({ status });
 }
 
@@ -189,6 +195,23 @@ function renderNativePlannedVisits() {
     actionCell.className = "visitors-planned-row-action";
     const mode = editModeForCurrentUser();
     if (
+      visitStatus === "pending" &&
+      visit.visit_date === todayDate() &&
+      hasCapability("visitor.sign_in")
+    ) {
+      const signInButton = document.createElement("button");
+      signInButton.type = "button";
+      signInButton.textContent = "Sign In";
+      signInButton.addEventListener("click", () => signInNativePlannedVisit(visit, signInButton));
+      actionCell.appendChild(signInButton);
+    }
+    const detailsButton = document.createElement("button");
+    detailsButton.type = "button";
+    detailsButton.className = "secondary";
+    detailsButton.textContent = "View Details";
+    detailsButton.addEventListener("click", () => openVisitorDetails(visit, visitStatus, detailsButton));
+    actionCell.appendChild(detailsButton);
+    if (
       hasCapability("visitor.edit") &&
       (mode === "security" || canOpenFullPlannedEdit(visit))
     ) {
@@ -217,6 +240,118 @@ function renderNativePlannedVisits() {
   });
 
   setPlannedListState("ready");
+}
+
+function activeVisitorStatus(visit) {
+  if (!visit || !visit.sign_in_time) return "signed_in";
+  const signedInAt = new Date(visit.sign_in_time).getTime();
+  const todayStartedAt = new Date(localDayBounds().start).getTime();
+  return signedInAt < todayStartedAt ? "overdue" : "signed_in";
+}
+
+function activeVisitorStatusLabel(status) {
+  return status === "overdue" ? "Overdue" : "Signed In";
+}
+
+function visitorOrigin(record) {
+  return record.visit_origin || (record.planned_visit_id || record.visit_date ? "planned" : "walk_in");
+}
+
+function setActiveListState(state) {
+  setVisible("visitorsOnSiteLoading", state === "loading");
+  setVisible("visitorsOnSiteError", state === "error");
+  setVisible("visitorsOnSiteEmpty", state === "empty");
+  setVisible("visitorsOnSiteTableWrap", state === "ready");
+}
+
+function renderNativeActiveVisitors() {
+  const body = $("visitorsOnSiteTableBody");
+  if (!body) return;
+  body.replaceChildren();
+  const search = String($("visitorsOnSiteSearch").value || "").trim().toLowerCase();
+  const statusFilter = $("visitorsOnSiteStatusFilter").value;
+  const filtered = nativeActiveVisitors.filter(visit => {
+    const status = activeVisitorStatus(visit);
+    const searchable = [
+      visit.visitor_name,
+      visit.company,
+      visit.onsite_contact,
+      visit.security_pass_id,
+      visit.vehicle_plate
+    ].join(" ").toLowerCase();
+    return (!search || searchable.includes(search)) &&
+      (statusFilter === "all" || statusFilter === status);
+  });
+
+  if (!filtered.length) {
+    setActiveListState("empty");
+    return;
+  }
+
+  filtered.forEach(visit => {
+    const row = document.createElement("tr");
+    appendTextCell(row, visit.visitor_name, visit.company || "");
+    appendTextCell(
+      row,
+      visit.sign_in_time ? new Date(visit.sign_in_time).toLocaleString() : null
+    );
+    appendTextCell(row, visit.onsite_contact);
+    appendTextCell(
+      row,
+      visitorOrigin(visit) === "walk_in" ? "Walk-in" : "Planned"
+    );
+
+    const status = activeVisitorStatus(visit);
+    const statusCell = document.createElement("td");
+    const badge = document.createElement("span");
+    badge.className = "visitors-planned-status " +
+      (status === "overdue" ? "status-overdue" : "status-in");
+    badge.textContent = activeVisitorStatusLabel(status);
+    statusCell.appendChild(badge);
+    row.appendChild(statusCell);
+
+    const actionCell = document.createElement("td");
+    actionCell.className = "visitors-planned-row-action";
+    const detailsButton = document.createElement("button");
+    detailsButton.type = "button";
+    detailsButton.className = "secondary";
+    detailsButton.textContent = "View Details";
+    detailsButton.addEventListener("click", () => openVisitorDetails(visit, status, detailsButton));
+    actionCell.appendChild(detailsButton);
+    if (hasCapability("visitor.sign_out")) {
+      const signOutButton = document.createElement("button");
+      signOutButton.type = "button";
+      signOutButton.className = "danger";
+      signOutButton.textContent = "Sign Out";
+      signOutButton.addEventListener("click", () => signOutNativeVisitor(visit, signOutButton));
+      actionCell.appendChild(signOutButton);
+    }
+    row.appendChild(actionCell);
+    body.appendChild(row);
+  });
+
+  setActiveListState("ready");
+}
+
+async function loadNativeActiveVisitors() {
+  if (!isActiveStaffUser() || !hasCapability("visitor.view")) return;
+  const loadSequence = ++nativeActiveLoadSequence;
+  setActiveListState("loading");
+  const result = await supabaseClient
+    .from("visit_log")
+    .select("id, planned_visit_id, visitor_name, company, visit_reason, vehicle_plate, onsite_contact, security_pass_id, privacy_notice_version, privacy_notice_accepted_at, sign_in_time, sign_out_time, visit_status, visit_origin")
+    .is("sign_out_time", null)
+    .order("sign_in_time", { ascending: true });
+  if (loadSequence !== nativeActiveLoadSequence) return;
+  if (result.error) {
+    nativeActiveVisitors = [];
+    setActiveListState("error");
+    showToast("Active visitors unavailable", "The currently on-site list could not be loaded.", "error");
+    console.error("[OH-029 active visitors load failed]", result.error);
+    return;
+  }
+  nativeActiveVisitors = result.data || [];
+  renderNativeActiveVisitors();
 }
 
 async function loadNativePlannedVisits() {
@@ -259,12 +394,17 @@ async function loadNativePlannedVisits() {
     return;
   }
   if (loadSequence !== nativePlannedLoadSequence) return;
-  nativePlannedVisits = visits.map(visit => ({
-    ...visit,
-    native_status: statusMap[visit.id]
-      ? statusMap[visit.id].status
-      : plannedVisitDisplayStatus(visit)
-  }));
+  nativePlannedVisits = visits.map(visit => {
+    const statusInfo = statusMap[visit.id] || null;
+    return {
+      ...visit,
+      native_status: statusInfo
+        ? statusInfo.status
+        : plannedVisitDisplayStatus(visit),
+      sign_in_time: statusInfo ? statusInfo.sign_in_time : null,
+      sign_out_time: statusInfo ? statusInfo.sign_out_time : null
+    };
+  });
   renderNativePlannedVisits();
 }
 
@@ -481,6 +621,121 @@ function closeWalkInPanel() {
   walkInPanelReturnFocus = null;
 }
 
+function formatVisitorDateTime(value) {
+  if (!value) return "—";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString();
+}
+
+function openVisitorDetails(record, status, returnFocus) {
+  detailsPanelReturnFocus = returnFocus || document.activeElement;
+  setText("visitorsDetailsPanelTitle", textOrDash(record.visitor_name));
+  setText(
+    "visitorsDetailsStatus",
+    status === "overdue" ? "Overdue" : plannedStatusLabel(status)
+  );
+  setText("visitorsDetailsCompany", textOrDash(record.company));
+  setText("visitorsDetailsVisitDate", textOrDash(record.visit_date));
+  setText(
+    "visitorsDetailsExpectedTime",
+    record.expected_time ? String(record.expected_time).slice(0, 5) : "—"
+  );
+  setText("visitorsDetailsSignIn", formatVisitorDateTime(record.sign_in_time));
+  setText("visitorsDetailsSignOut", formatVisitorDateTime(record.sign_out_time));
+  setText("visitorsDetailsContact", textOrDash(record.onsite_contact));
+  setText("visitorsDetailsReason", textOrDash(record.visit_reason || record.notes));
+  setText("visitorsDetailsVehicle", textOrDash(record.vehicle_plate));
+  setText("visitorsDetailsPass", textOrDash(record.security_pass_id));
+  setText(
+    "visitorsDetailsOrigin",
+    visitorOrigin(record) === "walk_in"
+      ? "Walk-in"
+      : "Planned"
+  );
+  $("visitorsDetailsPanelBackdrop").classList.remove("hidden");
+  document.body.style.overflow = "hidden";
+  $("visitorsDetailsPanelClose").focus();
+}
+
+function closeVisitorDetails() {
+  $("visitorsDetailsPanelBackdrop").classList.add("hidden");
+  document.body.style.overflow = "";
+  if (detailsPanelReturnFocus && typeof detailsPanelReturnFocus.focus === "function") {
+    detailsPanelReturnFocus.focus();
+  }
+  detailsPanelReturnFocus = null;
+}
+
+async function refreshNativeVisitorWorkflows() {
+  await loadVisitorsWorkspace();
+  window.dispatchEvent(new CustomEvent("oh:visitor-data-changed"));
+}
+
+async function signInNativePlannedVisit(visit, sourceButton) {
+  if (!hasCapability("visitor.sign_in")) {
+    showToast("You do not have permission", "Signing in visitors requires visitor.sign_in.", "error");
+    return;
+  }
+  if (typeof visitorsDependencies.signInPlannedVisit !== "function") {
+    showToast("Visitor not signed in", "The planned visitor sign-in service is unavailable.", "error");
+    return;
+  }
+
+  sourceButton.disabled = true;
+  try {
+    const result = await visitorsDependencies.signInPlannedVisit(visit.id);
+    if (!result || result.ok !== true) {
+      const privacyCancelled = result && result.code === "privacy_cancelled";
+      showToast(
+        privacyCancelled ? "Sign-in not completed" : "Visitor not signed in",
+        result && result.message ? result.message : "The visitor could not be signed in.",
+        privacyCancelled ? "info" : "error"
+      );
+      return;
+    }
+    showToast("Visitor signed in", result.visitor_name + " is now on site.", "success");
+    await refreshNativeVisitorWorkflows();
+  } catch (error) {
+    showToast("Visitor not signed in", "The visitor could not be signed in. Please try again.", "error");
+    console.error("[OH-029 unexpected planned sign-in failure]", error);
+  } finally {
+    sourceButton.disabled = false;
+  }
+}
+
+async function signOutNativeVisitor(visit, sourceButton) {
+  if (!hasCapability("visitor.sign_out")) {
+    showToast("You do not have permission", "Signing out visitors requires visitor.sign_out.", "error");
+    return;
+  }
+  if (typeof visitorsDependencies.signOutVisit !== "function") {
+    showToast("Visitor not signed out", "The visitor sign-out service is unavailable.", "error");
+    return;
+  }
+  if (!confirm("Sign out " + textOrDash(visit.visitor_name) + "?")) return;
+
+  sourceButton.disabled = true;
+  try {
+    const result = await visitorsDependencies.signOutVisit(visit.id);
+    if (!result || result.ok !== true) {
+      showToast(
+        "Visitor not signed out",
+        result && result.message ? result.message : "The visitor could not be signed out.",
+        "error"
+      );
+      return;
+    }
+    if (result.warning) showToast("Compliance warning", result.warning, "info");
+    showToast("Visitor signed out", result.visitor_name + " has left the site.", "success");
+    await refreshNativeVisitorWorkflows();
+  } catch (error) {
+    showToast("Visitor not signed out", "The visitor could not be signed out. Please try again.", "error");
+    console.error("[OH-029 unexpected sign-out failure]", error);
+  } finally {
+    sourceButton.disabled = false;
+  }
+}
+
 function nativeWalkInFieldValue(field) {
   const ids = walkInFieldIds(field);
   const wrapper = $(ids.wrapper);
@@ -546,7 +801,7 @@ async function saveNativeWalkIn(event) {
       result.visitor_name + " was signed in successfully.",
       "success"
     );
-    await loadVisitorsWorkspace();
+    await refreshNativeVisitorWorkflows();
   } catch (error) {
     showToast("Walk-in not created", "The walk-in could not be created. Please try again.", "error");
     console.error("[OH-028 unexpected native walk-in failure]", error);
@@ -795,7 +1050,11 @@ export function syncVisitorsWorkspaceCapabilities() {
   ) {
     closeWalkInPanel();
   }
+  if (!canView && $("visitorsDetailsPanelBackdrop") && !$("visitorsDetailsPanelBackdrop").classList.contains("hidden")) {
+    closeVisitorDetails();
+  }
   if (canView && $("visitorsPlannedTableBody")) renderNativePlannedVisits();
+  if (canView && $("visitorsOnSiteTableBody")) renderNativeActiveVisitors();
 }
 
 async function loadMetric(id, loader) {
@@ -853,7 +1112,23 @@ async function loadVisitorsWorkspaceMetrics() {
 export async function loadVisitorsWorkspace() {
   syncVisitorsWorkspaceCapabilities();
   if (!isActiveStaffUser() || !hasCapability("visitor.view")) return;
-  await Promise.all([loadVisitorsWorkspaceMetrics(), loadNativePlannedVisits()]);
+  await Promise.all([
+    loadVisitorsWorkspaceMetrics(),
+    loadNativePlannedVisits(),
+    loadNativeActiveVisitors()
+  ]);
+}
+
+function showNativeOnSite(status) {
+  $("visitorsOnSiteStatusFilter").value = status || "all";
+  renderNativeActiveVisitors();
+  $("visitorsOnSiteSection").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function showNativePlannedSignIn() {
+  $("visitorsPlannedStatusFilter").value = "pending";
+  renderNativePlannedVisits();
+  $("visitorsPlannedTitle").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function openLegacy(action) {
@@ -892,12 +1167,8 @@ export function initialiseVisitorsWorkspace() {
   }
 
   [
-    ["visitorsStaffSignInButton", "staff-sign-in"],
-    ["visitorsStaffSignOutButton", "staff-sign-out"],
     ["visitorsToolLegacyButton", "legacy-home"],
-    ["visitorsSignedInLegacyButton", "signed-in"],
-    ["visitorsWalkInLegacyButton", "walk-ins"],
-    ["visitorsOverdueLegacyButton", "overdue"]
+    ["visitorsWalkInLegacyButton", "walk-ins"]
   ].forEach(([id, action]) => {
     if ($(id)) $(id).addEventListener("click", () => openLegacy(action));
   });
@@ -911,6 +1182,18 @@ export function initialiseVisitorsWorkspace() {
     $("visitorsCreateWalkInButton").addEventListener("click", event => {
       openWalkInPanel(event.currentTarget);
     });
+  }
+  if ($("visitorsStaffSignInButton")) {
+    $("visitorsStaffSignInButton").addEventListener("click", showNativePlannedSignIn);
+  }
+  if ($("visitorsStaffSignOutButton")) {
+    $("visitorsStaffSignOutButton").addEventListener("click", () => showNativeOnSite("all"));
+  }
+  if ($("visitorsSignedInNativeButton")) {
+    $("visitorsSignedInNativeButton").addEventListener("click", () => showNativeOnSite("all"));
+  }
+  if ($("visitorsOverdueNativeButton")) {
+    $("visitorsOverdueNativeButton").addEventListener("click", () => showNativeOnSite("overdue"));
   }
   if ($("visitorsPlannedApplyFilters")) {
     $("visitorsPlannedApplyFilters").addEventListener("click", renderNativePlannedVisits);
@@ -928,6 +1211,27 @@ export function initialiseVisitorsWorkspace() {
       if (event.key === "Enter") {
         event.preventDefault();
         renderNativePlannedVisits();
+      }
+    });
+  }
+  if ($("visitorsOnSiteRefresh")) {
+    $("visitorsOnSiteRefresh").addEventListener("click", loadNativeActiveVisitors);
+  }
+  if ($("visitorsOnSiteApplyFilters")) {
+    $("visitorsOnSiteApplyFilters").addEventListener("click", renderNativeActiveVisitors);
+  }
+  if ($("visitorsOnSiteClearFilters")) {
+    $("visitorsOnSiteClearFilters").addEventListener("click", () => {
+      $("visitorsOnSiteSearch").value = "";
+      $("visitorsOnSiteStatusFilter").value = "all";
+      renderNativeActiveVisitors();
+    });
+  }
+  if ($("visitorsOnSiteSearch")) {
+    $("visitorsOnSiteSearch").addEventListener("keydown", event => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        renderNativeActiveVisitors();
       }
     });
   }
@@ -953,6 +1257,14 @@ export function initialiseVisitorsWorkspace() {
       if (event.target === event.currentTarget) closeWalkInPanel();
     });
   }
+  if ($("visitorsDetailsPanelClose")) {
+    $("visitorsDetailsPanelClose").addEventListener("click", closeVisitorDetails);
+  }
+  if ($("visitorsDetailsPanelBackdrop")) {
+    $("visitorsDetailsPanelBackdrop").addEventListener("click", event => {
+      if (event.target === event.currentTarget) closeVisitorDetails();
+    });
+  }
   document.addEventListener("keydown", event => {
     if (
       event.key === "Escape" &&
@@ -967,6 +1279,13 @@ export function initialiseVisitorsWorkspace() {
       !$("visitorsWalkInPanelBackdrop").classList.contains("hidden")
     ) {
       closeWalkInPanel();
+    }
+    if (
+      event.key === "Escape" &&
+      $("visitorsDetailsPanelBackdrop") &&
+      !$("visitorsDetailsPanelBackdrop").classList.contains("hidden")
+    ) {
+      closeVisitorDetails();
     }
   });
 

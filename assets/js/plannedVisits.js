@@ -182,7 +182,9 @@ export async function getPlannedVisitStatusMap(ids, options) {
       if (status === "planned") return;
       statusMap[log.planned_visit_id] = {
         status,
-        label: plannedVisitStatusLabel({ ...log, status })
+        label: plannedVisitStatusLabel({ ...log, status }),
+        sign_in_time: log.sign_in_time || null,
+        sign_out_time: log.sign_out_time || null
       };
     });
   }

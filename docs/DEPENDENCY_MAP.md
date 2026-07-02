@@ -153,9 +153,9 @@ These edges avoid static cycles, but they require configuration to finish before
 
 ### `visitors.js`
 
-- Owns native Visitors capability visibility, safe summary counts, authoritative active-state filtering, planned-visit management, native walk-in creation and workflow shortcuts.
-- Reuses existing `planned_visits`, `visit_log`, shared People lookup, walk-in validation/privacy/notification helpers, audit, field-rule, capability and RLS contracts.
-- Delegates sign-in/sign-out management, visitor history and other visitor actions to Legacy VMS until native equivalents are migrated.
+- Owns native Visitors capability visibility, safe summary counts, authoritative active-state filtering, planned-visit management, walk-in creation, visitor details, on-site lists and staff sign-in/sign-out actions.
+- Reuses existing `planned_visits`, `visit_log`, shared People lookup, privacy/compliance/notification helpers, audit, field-rule, capability and RLS contracts.
+- Delegates visitor history, reporting and other visitor actions to Legacy VMS until native equivalents are migrated.
 
 ## Circular Dependency Assessment
 

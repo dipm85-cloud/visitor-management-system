@@ -201,7 +201,7 @@
           <div class="dashboard-section-heading">
             <div>
               <h2 id="dashboardQuickActionsTitle">Quick Actions</h2>
-              <p>Open existing Operations Hub apps without adding new workflows.</p>
+              <p>Open native Operations Hub workflows.</p>
             </div>
           </div>
           <div class="dashboard-quick-actions">
@@ -495,6 +495,52 @@
             </div>
           </section>
 
+          <section id="visitorsOnSiteSection" class="visitors-section visitors-planned-workflow" aria-labelledby="visitorsOnSiteTitle">
+            <div class="visitors-section-heading">
+              <div>
+                <h2 id="visitorsOnSiteTitle">Currently On Site</h2>
+                <p>Active visitors who have signed in and have not yet signed out.</p>
+              </div>
+              <button id="visitorsOnSiteRefresh" class="secondary" type="button">Refresh</button>
+            </div>
+            <div class="visitors-planned-filters visitors-on-site-filters" role="search" aria-label="Filter visitors currently on site">
+              <label><span>Search</span><input id="visitorsOnSiteSearch" type="search" placeholder="Visitor, company, contact or pass ID" /></label>
+              <label>
+                <span>Status</span>
+                <select id="visitorsOnSiteStatusFilter">
+                  <option value="all">All on-site visitors</option>
+                  <option value="signed_in">Signed in today</option>
+                  <option value="overdue">Overdue</option>
+                </select>
+              </label>
+              <div class="visitors-planned-filter-actions">
+                <button id="visitorsOnSiteApplyFilters" class="secondary" type="button">Apply Filters</button>
+                <button id="visitorsOnSiteClearFilters" class="ghost" type="button">Clear</button>
+              </div>
+            </div>
+            <div id="visitorsOnSiteLoading" class="visitors-planned-state hidden" role="status">Loading active visitors…</div>
+            <div id="visitorsOnSiteError" class="visitors-planned-state visitors-planned-error hidden" role="alert">Active visitors could not be loaded.</div>
+            <div id="visitorsOnSiteEmpty" class="visitors-planned-state hidden">
+              <strong>No visitors currently on site</strong>
+              <span>Active signed-in visitors will appear here.</span>
+            </div>
+            <div id="visitorsOnSiteTableWrap" class="visitors-planned-table-wrap hidden">
+              <table class="visitors-planned-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Visitor</th>
+                    <th scope="col">Signed in</th>
+                    <th scope="col">Host / contact</th>
+                    <th scope="col">Origin</th>
+                    <th scope="col">Status</th>
+                    <th scope="col"><span class="sr-only">Actions</span></th>
+                  </tr>
+                </thead>
+                <tbody id="visitorsOnSiteTableBody"></tbody>
+              </table>
+            </div>
+          </section>
+
           <section class="visitors-section" aria-labelledby="visitorsTodayTitle">
             <div class="visitors-section-heading">
               <div>
@@ -523,7 +569,7 @@
                 <span>Currently Signed In</span>
                 <strong id="visitorsSignedInCount">-</strong>
                 <p>Active visits without a sign-out time.</p>
-                <button id="visitorsSignedInLegacyButton" class="secondary" type="button">Open in Legacy VMS</button>
+                <button id="visitorsSignedInNativeButton" class="secondary" type="button">View Currently On Site</button>
               </article>
 
               <article class="visitor-summary-card">
@@ -537,7 +583,7 @@
                 <span>Overdue Visitors</span>
                 <strong id="visitorsOverdueCount">-</strong>
                 <p>Visitors signed in before today who remain active.</p>
-                <button id="visitorsOverdueLegacyButton" class="secondary" type="button">Review in Legacy VMS</button>
+                <button id="visitorsOverdueNativeButton" class="secondary" type="button">Review Overdue Visitors</button>
               </article>
             </div>
           </section>
@@ -546,7 +592,7 @@
             <div class="visitors-section-heading">
               <div>
                 <h2 id="visitorsQuickActionsTitle">Quick Actions</h2>
-                <p>Workflows not yet migrated continue to open in Legacy VMS.</p>
+                <p>Start native visitor actions from the current operational context.</p>
               </div>
             </div>
             <div class="visitors-quick-actions">
@@ -656,6 +702,31 @@
                 <button id="visitorsWalkInCancel" class="secondary" type="button">Cancel</button>
               </div>
             </form>
+          </aside>
+        </div>
+
+        <div id="visitorsDetailsPanelBackdrop" class="visitors-panel-backdrop hidden">
+          <aside id="visitorsDetailsPanel" class="visitors-side-panel" aria-labelledby="visitorsDetailsPanelTitle" aria-modal="true" role="dialog">
+            <header class="visitors-side-panel-header">
+              <div>
+                <p class="oh-app-eyebrow">Visitor Details</p>
+                <h2 id="visitorsDetailsPanelTitle">Visitor</h2>
+              </div>
+              <button id="visitorsDetailsPanelClose" class="ghost" type="button" aria-label="Close visitor details panel">Close</button>
+            </header>
+            <dl class="visitors-details-list">
+              <div><dt>Status</dt><dd id="visitorsDetailsStatus">—</dd></div>
+              <div><dt>Company</dt><dd id="visitorsDetailsCompany">—</dd></div>
+              <div><dt>Visit date</dt><dd id="visitorsDetailsVisitDate">—</dd></div>
+              <div><dt>Expected time</dt><dd id="visitorsDetailsExpectedTime">—</dd></div>
+              <div><dt>Signed in</dt><dd id="visitorsDetailsSignIn">—</dd></div>
+              <div><dt>Signed out</dt><dd id="visitorsDetailsSignOut">—</dd></div>
+              <div><dt>Host / contact</dt><dd id="visitorsDetailsContact">—</dd></div>
+              <div><dt>Reason / comments</dt><dd id="visitorsDetailsReason">—</dd></div>
+              <div><dt>Vehicle registration</dt><dd id="visitorsDetailsVehicle">—</dd></div>
+              <div><dt>Security pass ID</dt><dd id="visitorsDetailsPass">—</dd></div>
+              <div><dt>Origin</dt><dd id="visitorsDetailsOrigin">—</dd></div>
+            </dl>
           </aside>
         </div>
       </section>

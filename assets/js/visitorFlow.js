@@ -560,6 +560,129 @@ export async function createStaffWalkIn(input) {
   };
 }
 
+export async function signInStaffPlannedVisit(plannedVisitId) {
+  if (!hasCapability("visitor.sign_in")) {
+    return {
+      ok: false,
+      code: "forbidden",
+      message: "Signing in a planned visitor requires visitor.sign_in."
+    };
+  }
+
+  const plannedResult = await supabaseClient
+    .from("planned_visits")
+    .select("id, visitor_name, company, visit_reason, vehicle_plate, onsite_contact, security_pass_id, visit_date, expected_time, status")
+    .eq("id", plannedVisitId)
+    .maybeSingle();
+  if (plannedResult.error || !plannedResult.data) {
+    if (plannedResult.error) console.warn("[OH-029 planned visit lookup failed]", plannedResult.error);
+    return {
+      ok: false,
+      code: "unavailable",
+      message: "The planned visit is unavailable or cannot be accessed."
+    };
+  }
+
+  const plannedVisit = plannedResult.data;
+  const rawStatus = String(plannedVisit.status || "planned").trim().toLowerCase();
+  if (!["", "planned", "pending", "upcoming", "expected", "scheduled", "active", "open"].includes(rawStatus)) {
+    return {
+      ok: false,
+      code: "invalid_state",
+      message: "Only an active planned visit can be signed in."
+    };
+  }
+  if (plannedVisit.visit_date !== todayDate()) {
+    return {
+      ok: false,
+      code: "invalid_date",
+      message: "Only planned visits scheduled for today can be signed in."
+    };
+  }
+
+  const activeByPlan = await supabaseClient
+    .from("visit_log")
+    .select("id")
+    .eq("planned_visit_id", plannedVisit.id)
+    .is("sign_out_time", null)
+    .limit(1);
+  const activeByName = await supabaseClient
+    .from("visit_log")
+    .select("id")
+    .ilike("visitor_name", formatPersonName(plannedVisit.visitor_name))
+    .is("sign_out_time", null)
+    .limit(1);
+  if (activeByPlan.error || activeByName.error) {
+    console.warn("[OH-029 planned sign-in duplicate check unavailable]", activeByPlan.error || activeByName.error);
+    return {
+      ok: false,
+      code: "validation_unavailable",
+      message: "Active visitor status could not be verified safely."
+    };
+  }
+  if ((activeByPlan.data || []).length || (activeByName.data || []).length) {
+    return {
+      ok: false,
+      code: "active_duplicate",
+      message: "This visitor is already signed in."
+    };
+  }
+
+  const privacyOk = await visitorDependencies.requestPrivacyAcknowledgement();
+  if (!privacyOk) {
+    return {
+      ok: false,
+      code: "privacy_cancelled",
+      message: "Privacy acknowledgement was not completed."
+    };
+  }
+
+  const payload = {
+    planned_visit_id: plannedVisit.id,
+    visitor_name: formatPersonName(plannedVisit.visitor_name),
+    company: String(plannedVisit.company || "").trim() || null,
+    visit_reason: String(plannedVisit.visit_reason || "").trim() || null,
+    vehicle_plate: normalisePlate(plannedVisit.vehicle_plate),
+    onsite_contact: formatPersonName(plannedVisit.onsite_contact) || null,
+    security_pass_id: String(plannedVisit.security_pass_id || "").trim() || null,
+    privacy_notice_version: latestPrivacyAcceptance ? latestPrivacyAcceptance.version : null,
+    privacy_notice_accepted_at: latestPrivacyAcceptance ? latestPrivacyAcceptance.acceptedAt : null,
+    sign_in_time: new Date().toISOString(),
+    sign_out_time: null,
+    visit_status: "signed_in",
+    visit_origin: "planned"
+  };
+  const result = await supabaseClient
+    .from("visit_log")
+    .insert(payload)
+    .select("id")
+    .maybeSingle();
+  if (result.error || !result.data) {
+    if (result.error) console.error("[OH-029 native planned sign-in failed]", result.error);
+    return {
+      ok: false,
+      code: result.error && result.error.code === "23505" ? "active_duplicate" : "rejected",
+      message: result.error && result.error.code === "23505"
+        ? "This visitor is already signed in."
+        : "Sign-in was rejected by the current permissions or business rules."
+    };
+  }
+
+  await queueVisitorArrivalNotificationBestEffort(result.data.id);
+  await visitorDependencies.writeAuditEvent("visitor_signed_in", "visit_log", result.data.id, {
+    origin: "planned",
+    visitor_name: payload.visitor_name,
+    planned_visit_id: plannedVisit.id,
+    source: "native_visitors"
+  });
+  await refreshCoreData();
+  return {
+    ok: true,
+    id: result.data.id,
+    visitor_name: payload.visitor_name
+  };
+}
+
 export async function loadActiveVisits() {
   const result = await supabaseClient
     .from("visit_log")
@@ -636,6 +759,79 @@ async function getVisitMissingAgreementSummary(visitLogId) {
   } catch (err) {
     return { error: err };
   }
+}
+
+export async function signOutStaffVisit(visitLogId) {
+  if (!hasCapability("visitor.sign_out")) {
+    return {
+      ok: false,
+      code: "forbidden",
+      message: "Signing out a visitor requires visitor.sign_out."
+    };
+  }
+
+  const activeResult = await supabaseClient
+    .from("visit_log")
+    .select("id, visitor_name, sign_in_time")
+    .eq("id", visitLogId)
+    .is("sign_out_time", null)
+    .maybeSingle();
+  if (activeResult.error || !activeResult.data) {
+    if (activeResult.error) console.warn("[OH-029 active visitor lookup failed]", activeResult.error);
+    return {
+      ok: false,
+      code: "invalid_state",
+      message: "This visitor is no longer actively signed in."
+    };
+  }
+
+  let warning = null;
+  const complianceSummary = await getVisitMissingAgreementSummary(visitLogId);
+  if (complianceSummary && complianceSummary.error) {
+    warning = "Agreement compliance could not be checked before sign-out.";
+  } else if (complianceSummary && Number(complianceSummary.missing_count || 0) > 0) {
+    const missingText = complianceSummary.missing_agreements || "required agreement(s)";
+    if (settingValue("block_sign_out_if_required_agreements_missing", false)) {
+      return {
+        ok: false,
+        code: "compliance_blocked",
+        message: "Sign-out is blocked. Missing required agreement(s): " + missingText
+      };
+    }
+    warning = "Visitor signed out with missing required agreement(s): " + missingText;
+  }
+
+  const signOutTime = new Date().toISOString();
+  const result = await supabaseClient
+    .from("visit_log")
+    .update({
+      sign_out_time: signOutTime,
+      visit_status: "signed_out"
+    })
+    .eq("id", visitLogId)
+    .is("sign_out_time", null)
+    .select("id")
+    .maybeSingle();
+  if (result.error || !result.data) {
+    if (result.error) console.error("[OH-029 native sign-out failed]", result.error);
+    return {
+      ok: false,
+      code: "rejected",
+      message: "Sign-out was rejected by the current permissions or business rules."
+    };
+  }
+
+  await visitorDependencies.writeAuditEvent("visitor_signed_out", "visit_log", visitLogId, {
+    visitor_name: activeResult.data.visitor_name,
+    source: "native_visitors"
+  });
+  await refreshCoreData();
+  return {
+    ok: true,
+    id: visitLogId,
+    visitor_name: activeResult.data.visitor_name,
+    warning
+  };
 }
 
 export async function signOut(id, actionButton) {
