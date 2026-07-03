@@ -238,7 +238,7 @@
                 <span class="report-status available">Available</span>
               </div>
               <h3>Visitor History</h3>
-              <p>Search current and historical visitor records using the existing Advanced History tools.</p>
+              <p>Search current and historical visitor records in the native Visitors workspace.</p>
               <button type="button" data-report-shortcut="visitor-history">Open History</button>
             </article>
             <article class="report-card" data-report-card>
@@ -247,7 +247,7 @@
                 <span class="report-status available">Available</span>
               </div>
               <h3>Visitor CSV Export</h3>
-              <p>Open the existing visitor history CSV export controls.</p>
+              <p>Open native filtered visitor reports and CSV export controls.</p>
               <button type="button" data-report-shortcut="visitor-csv">Open CSV Export</button>
             </article>
             <article class="report-card" data-report-card>
@@ -256,7 +256,7 @@
                 <span class="report-status available">Available</span>
               </div>
               <h3>Visitor Excel Export</h3>
-              <p>Open the existing visitor history Excel export controls.</p>
+              <p>Open native filtered visitor reports and Excel export controls.</p>
               <button type="button" data-report-shortcut="visitor-excel">Open Excel Export</button>
             </article>
             <article class="report-card" data-report-card>
@@ -613,6 +613,96 @@
             </div>
           </section>
 
+          <section id="visitorsReportingSection" class="visitors-section visitors-planned-workflow hidden" aria-labelledby="visitorsReportingTitle">
+            <div class="visitors-section-heading">
+              <div>
+                <h2 id="visitorsReportingTitle">Visitor Reporting</h2>
+                <p>Prepare operational visitor reports from the records available under your current access.</p>
+              </div>
+              <button id="visitorsReportingRefresh" class="secondary" type="button">Refresh Data</button>
+            </div>
+
+            <div class="visitors-planned-filters visitors-reporting-filters" role="search" aria-label="Filter visitor reporting">
+              <label><span>Search</span><input id="visitorsReportingSearch" type="search" placeholder="Visitor, company or host / contact" /></label>
+              <label><span>From</span><input id="visitorsReportingFromDate" type="date" /></label>
+              <label><span>To</span><input id="visitorsReportingToDate" type="date" /></label>
+              <label>
+                <span>Status</span>
+                <select id="visitorsReportingStatus">
+                  <option value="all">All statuses</option>
+                  <option value="planned">Planned</option>
+                  <option value="signed_in">Signed in</option>
+                  <option value="signed_out">Signed out</option>
+                  <option value="overdue">Overdue</option>
+                  <option value="closed">Cancelled / closed</option>
+                </select>
+              </label>
+              <label>
+                <span>Origin</span>
+                <select id="visitorsReportingOrigin">
+                  <option value="all">All origins</option>
+                  <option value="planned">Planned</option>
+                  <option value="walk_in">Walk-in</option>
+                </select>
+              </label>
+              <div class="visitors-planned-filter-actions">
+                <button id="visitorsReportingApplyFilters" class="secondary" type="button">Apply Filters</button>
+                <button id="visitorsReportingClearFilters" class="ghost" type="button">Clear</button>
+              </div>
+            </div>
+
+            <div class="visitors-report-card-grid">
+              <article class="visitors-report-card active" data-native-report="history">
+                <span>Visitor history export</span>
+                <strong id="visitorsReportHistoryCount">0</strong>
+                <p>All visitor activity matching the current filters.</p>
+                <button class="secondary" type="button" data-native-report-select="history">Use Report</button>
+              </article>
+              <article class="visitors-report-card" data-native-report="on_site">
+                <span>Currently on site</span>
+                <strong id="visitorsReportOnSiteCount">0</strong>
+                <p>Signed-in and overdue visitors without a sign-out time.</p>
+                <button class="secondary" type="button" data-native-report-select="on_site">Use Report</button>
+              </article>
+              <article class="visitors-report-card" data-native-report="overdue">
+                <span>Overdue visitors</span>
+                <strong id="visitorsReportOverdueCount">0</strong>
+                <p>Visitors signed in before today who remain on site.</p>
+                <button class="secondary" type="button" data-native-report-select="overdue">Use Report</button>
+              </article>
+              <article class="visitors-report-card" data-native-report="planned">
+                <span>Planned visits</span>
+                <strong id="visitorsReportPlannedCount">0</strong>
+                <p>Planned visits that have not started.</p>
+                <button class="secondary" type="button" data-native-report-select="planned">Use Report</button>
+              </article>
+              <article class="visitors-report-card" data-native-report="signed_out">
+                <span>Signed-out visitors</span>
+                <strong id="visitorsReportSignedOutCount">0</strong>
+                <p>Completed visitor activity with a sign-out time.</p>
+                <button class="secondary" type="button" data-native-report-select="signed_out">Use Report</button>
+              </article>
+              <article class="visitors-report-card" data-native-report="walk_ins">
+                <span>Walk-ins</span>
+                <strong id="visitorsReportWalkInsCount">0</strong>
+                <p>Visitor activity recorded as walk-in.</p>
+                <button class="secondary" type="button" data-native-report-select="walk_ins">Use Report</button>
+              </article>
+            </div>
+
+            <div class="visitors-report-export-bar">
+              <div>
+                <span>Selected report</span>
+                <strong id="visitorsReportingSelection">Visitor history export</strong>
+                <small id="visitorsReportingResultSummary" aria-live="polite">0 records match the current filters.</small>
+              </div>
+              <div class="visitors-report-export-actions">
+                <button id="visitorsReportingCsv" type="button">Export CSV</button>
+                <button id="visitorsReportingExcel" class="secondary" type="button">Export Excel</button>
+              </div>
+            </div>
+          </section>
+
           <section class="visitors-section" aria-labelledby="visitorsTodayTitle">
             <div class="visitors-section-heading">
               <div>
@@ -694,6 +784,13 @@
                 <h3>Visitor Configuration</h3>
                 <p>Open the existing settings and configuration workspace.</p>
                 <button id="visitorsConfigurationButton" type="button">Open Configuration</button>
+              </article>
+
+              <article id="visitorsReportingShortcut" class="visitor-tool-card">
+                <span class="report-status available">Available</span>
+                <h3>Visitor Reporting</h3>
+                <p>Prepare filtered operational reports and exports.</p>
+                <button id="visitorsReportingButton" type="button">Open Visitor Reporting</button>
               </article>
 
               <article class="visitor-tool-card visitor-tool-legacy">

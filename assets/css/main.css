@@ -1529,7 +1529,8 @@ body.kiosk-mode .results-scroll {
   color: var(--oh-shell-focus);
 }
 
-.visitors-history-filters {
+.visitors-history-filters,
+.visitors-reporting-filters {
   grid-template-columns:
     minmax(220px, 1.5fr)
     minmax(135px, .65fr)
@@ -1537,6 +1538,85 @@ body.kiosk-mode .results-scroll {
     minmax(150px, .75fr)
     minmax(130px, .65fr)
     auto;
+}
+
+.visitors-report-card-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.visitors-report-card {
+  display: flex;
+  min-width: 0;
+  min-height: 190px;
+  flex-direction: column;
+  padding: 16px;
+  border: 1px solid var(--oh-shell-border);
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.visitors-report-card.active {
+  border-color: var(--oh-shell-focus);
+  background: #f5f9fd;
+  box-shadow: inset 0 0 0 1px var(--oh-shell-focus);
+}
+
+.visitors-report-card > span {
+  color: var(--oh-shell-muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.visitors-report-card > strong {
+  margin-top: 9px;
+  font-size: 30px;
+  line-height: 1;
+}
+
+.visitors-report-card p {
+  margin: 9px 0 16px;
+  color: var(--oh-shell-muted);
+  line-height: 1.4;
+}
+
+.visitors-report-card button {
+  width: 100%;
+  margin-top: auto;
+}
+
+.visitors-report-export-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid var(--oh-shell-border);
+  border-radius: 12px;
+  background: var(--oh-shell-surface);
+}
+
+.visitors-report-export-bar > div:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.visitors-report-export-bar span,
+.visitors-report-export-bar small {
+  color: var(--oh-shell-muted);
+}
+
+.visitors-report-export-bar span {
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.visitors-report-export-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .visitors-planned-filters label,
@@ -1772,7 +1852,12 @@ body.kiosk-mode .results-scroll {
 
 @media (max-width: 900px) {
   .visitors-planned-filters,
-  .visitors-history-filters {
+  .visitors-history-filters,
+  .visitors-reporting-filters {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .visitors-report-card-grid {
     grid-template-columns: 1fr 1fr;
   }
 }
@@ -1785,6 +1870,20 @@ body.kiosk-mode .results-scroll {
 
   .visitors-planned-filters,
   .visitors-planned-form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .visitors-report-card-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .visitors-report-export-bar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .visitors-report-export-actions {
+    display: grid;
     grid-template-columns: 1fr;
   }
 

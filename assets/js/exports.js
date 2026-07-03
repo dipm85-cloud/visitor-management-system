@@ -57,6 +57,7 @@ export function normaliseExportRows(rows, type) {
     "Visitor": row.visitor_name || "",
     "Company": row.company || "",
     "Origin": (row.visit_origin || (row.planned_visit_id ? "planned" : "walk_in")).replace("_", " "),
+    "Visit Date": row.visit_date || (row.sign_in_time ? String(row.sign_in_time).slice(0, 10) : ""),
     "Security Pass": row.security_pass_id || "",
     "Vehicle": row.vehicle_plate || "",
     "On-site Contact": row.onsite_contact || "",

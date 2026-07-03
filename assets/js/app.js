@@ -2356,30 +2356,20 @@ window.addEventListener("load", async function () {
 
       const visitorShortcuts = ["visitor-csv", "visitor-excel"];
       if (visitorShortcuts.includes(shortcut)) {
-        const requiredCapability = "visitor.export";
-        if (!hasCapability(requiredCapability)) {
-          showToast("Report unavailable", "This visitor report requires " + requiredCapability + ".", "error");
+        const requiredCapabilities = [
+          "reports.view",
+          "visitor.history.view",
+          "visitor.export"
+        ];
+        const missingCapability = requiredCapabilities.find(code => !hasCapability(code));
+        if (missingCapability) {
+          showToast("Report unavailable", "This visitor report requires " + missingCapability + ".", "error");
           return;
         }
-
-        showLegacyVmsWorkspace();
-        await openStaffAreaFromProfile();
-        const visitorControlByRole = {
-          super_user: {
-            "visitor-csv": "superDownloadHistoryButton",
-            "visitor-excel": "superExcelHistoryButton"
-          },
-          security: {
-            "visitor-csv": "securityDownloadHistoryButton",
-            "visitor-excel": "securityExcelHistoryButton"
-          }
-        };
-        const roleControls = visitorControlByRole[profile.role];
-        if (!roleControls) {
-          showToast("Report unavailable", "This legacy report has no workspace for the current role yet.", "error");
-          return;
-        }
-        focusExistingReportControl(roleControls[shortcut]);
+        showVisitorWorkspace();
+        window.dispatchEvent(new CustomEvent("oh:visitor-reporting-requested", {
+          detail: { shortcut }
+        }));
         return;
       }
 

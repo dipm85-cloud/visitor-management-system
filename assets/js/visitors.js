@@ -11,7 +11,17 @@ import {
   plannedVisitStatusLabel
 } from "./plannedVisits.js";
 import { resetVisitorIdentitySelection } from "./visitorIdentity.js";
-import { formatPersonName, normalisePlate, todayDate } from "./utils.js";
+import {
+  exportDateStamp,
+  formatPersonName,
+  normalisePlate,
+  todayDate
+} from "./utils.js";
+import {
+  downloadCsv,
+  exportToExcel,
+  normaliseExportRows
+} from "./exports.js";
 
 let visitorsDependencies = {};
 let nativePlannedVisits = [];
@@ -21,6 +31,8 @@ let nativeActiveLoadSequence = 0;
 let nativeHistoryRecords = [];
 let nativeHistoryLoadSequence = 0;
 let activeHistoryQuickFilter = null;
+let selectedNativeReportType = "history";
+let nativeReportRows = [];
 let plannedPanelReturnFocus = null;
 let walkInPanelReturnFocus = null;
 let detailsPanelReturnFocus = null;
@@ -561,6 +573,7 @@ async function loadNativeHistory() {
   if (logsResult.error || plannedResult.error) {
     nativeHistoryRecords = [];
     setHistoryListState("error");
+    renderNativeReporting();
     showToast("Visitor history unavailable", "Visitor activity could not be loaded.", "error");
     console.error("[OH-030 native visitor history load failed]", logsResult.error || plannedResult.error);
     return;
@@ -571,6 +584,7 @@ async function loadNativeHistory() {
     plannedResult.data || []
   );
   renderNativeHistory();
+  renderNativeReporting();
 }
 
 function localDateValue(date) {
@@ -609,6 +623,174 @@ function openNativeHistory() {
   if (!section) return;
   section.scrollIntoView({ behavior: "smooth", block: "start" });
   setTimeout(() => $("visitorsHistorySearch").focus({ preventScroll: true }), 0);
+}
+
+const nativeReportDefinitions = {
+  history: {
+    label: "Visitor history export",
+    countId: "visitorsReportHistoryCount"
+  },
+  on_site: {
+    label: "Currently on site",
+    countId: "visitorsReportOnSiteCount"
+  },
+  overdue: {
+    label: "Overdue visitors",
+    countId: "visitorsReportOverdueCount"
+  },
+  planned: {
+    label: "Planned visits",
+    countId: "visitorsReportPlannedCount"
+  },
+  signed_out: {
+    label: "Signed-out visitors",
+    countId: "visitorsReportSignedOutCount"
+  },
+  walk_ins: {
+    label: "Walk-ins",
+    countId: "visitorsReportWalkInsCount"
+  }
+};
+
+function nativeReportTypeMatches(record, reportType) {
+  const status = historyRecordStatus(record);
+  if (reportType === "on_site") return status === "signed_in" || status === "overdue";
+  if (reportType === "overdue") return status === "overdue";
+  if (reportType === "planned") return status === "planned";
+  if (reportType === "signed_out") return status === "signed_out";
+  if (reportType === "walk_ins") return visitorOrigin(record) === "walk_in";
+  return true;
+}
+
+function nativeReportingFilteredRows() {
+  const search = String($("visitorsReportingSearch").value || "").trim().toLowerCase();
+  const fromDate = $("visitorsReportingFromDate").value;
+  const toDate = $("visitorsReportingToDate").value;
+  const statusFilter = $("visitorsReportingStatus").value;
+  const originFilter = $("visitorsReportingOrigin").value;
+  const closedStatuses = ["cancelled", "closed", "completed", "inactive"];
+
+  return nativeHistoryRecords.filter(record => {
+    const status = historyRecordStatus(record);
+    const date = historyRecordDate(record);
+    const origin = visitorOrigin(record);
+    const searchable = [
+      record.visitor_name,
+      record.company,
+      record.onsite_contact
+    ].join(" ").toLowerCase();
+    const statusMatches =
+      statusFilter === "all" ||
+      status === statusFilter ||
+      (statusFilter === "closed" && closedStatuses.includes(status));
+    return (!search || searchable.includes(search)) &&
+      (!fromDate || (date && date >= fromDate)) &&
+      (!toDate || (date && date <= toDate)) &&
+      statusMatches &&
+      (originFilter === "all" || origin === originFilter);
+  });
+}
+
+function renderNativeReporting() {
+  if (!$("visitorsReportingSection")) return;
+  const filteredRows = nativeReportingFilteredRows();
+
+  Object.entries(nativeReportDefinitions).forEach(([reportType, definition]) => {
+    const reportRows = filteredRows.filter(record =>
+      nativeReportTypeMatches(record, reportType)
+    );
+    setText(definition.countId, reportRows.length);
+  });
+
+  nativeReportRows = filteredRows.filter(record =>
+    nativeReportTypeMatches(record, selectedNativeReportType)
+  );
+  document.querySelectorAll("[data-native-report]").forEach(card => {
+    card.classList.toggle(
+      "active",
+      card.dataset.nativeReport === selectedNativeReportType
+    );
+  });
+  const definition = nativeReportDefinitions[selectedNativeReportType];
+  setText("visitorsReportingSelection", definition.label);
+  setText(
+    "visitorsReportingResultSummary",
+    nativeReportRows.length + " records match the current filters."
+  );
+}
+
+function selectNativeReport(reportType) {
+  if (!nativeReportDefinitions[reportType]) return;
+  selectedNativeReportType = reportType;
+  renderNativeReporting();
+}
+
+function resetNativeReportingFilters() {
+  $("visitorsReportingSearch").value = "";
+  $("visitorsReportingFromDate").value = "";
+  $("visitorsReportingToDate").value = "";
+  $("visitorsReportingStatus").value = "all";
+  $("visitorsReportingOrigin").value = "all";
+  selectedNativeReportType = "history";
+  renderNativeReporting();
+}
+
+function nativeReportExportSource() {
+  return nativeReportRows.map(record => ({
+    ...record,
+    visit_date: historyRecordDate(record),
+    visit_status: historyRecordStatus(record),
+    visit_origin: visitorOrigin(record)
+  }));
+}
+
+function exportNativeReport(format) {
+  if (!hasCapability("visitor.export")) {
+    showToast("You do not have permission", "Visitor exports require visitor.export.", "error");
+    return;
+  }
+  renderNativeReporting();
+  const rows = nativeReportExportSource();
+  if (!rows.length) {
+    showToast("Nothing to export", "No records match the selected report and filters.", "error");
+    return;
+  }
+  const reportName = selectedNativeReportType.replace(/_/g, "-");
+  const filename = "VMS_" + reportName + "_" + exportDateStamp();
+
+  if (format === "excel") {
+    if (!window.XLSX) {
+      showToast("Excel export unavailable", "The Excel export library could not be loaded.", "error");
+      return;
+    }
+    exportToExcel(rows, filename + ".xlsx", "history");
+    showToast("Excel export ready", rows.length + " visitor records were exported.", "success");
+    return;
+  }
+
+  downloadCsv(filename + ".csv", normaliseExportRows(rows, "history"));
+  showToast("CSV export ready", rows.length + " visitor records were exported.", "success");
+}
+
+function openNativeReporting(event) {
+  if (!hasCapability("reports.view") || !hasCapability("visitor.history.view")) {
+    showToast(
+      "You do not have permission",
+      "Visitor reporting requires reports.view and visitor.history.view.",
+      "error"
+    );
+    return;
+  }
+  const section = $("visitorsReportingSection");
+  if (!section) return;
+  section.scrollIntoView({ behavior: "smooth", block: "start" });
+  const shortcut = event && event.detail ? event.detail.shortcut : null;
+  const focusTarget = shortcut === "visitor-excel"
+    ? $("visitorsReportingExcel")
+    : shortcut === "visitor-csv"
+      ? $("visitorsReportingCsv")
+      : $("visitorsReportingSearch");
+  setTimeout(() => focusTarget.focus({ preventScroll: true }), 0);
 }
 
 async function loadNativePlannedVisits() {
@@ -1299,9 +1481,12 @@ function setMetricLoading() {
 export function syncVisitorsWorkspaceCapabilities() {
   const canView = isActiveStaffUser() && hasCapability("visitor.view");
   const canViewHistory = canView && hasCapability("visitor.history.view");
+  const canViewReporting = canViewHistory && hasCapability("reports.view");
+  const canExportVisitors = canViewReporting && hasCapability("visitor.export");
   setVisible("visitorsPermissionState", !canView);
   setVisible("visitorsWorkspaceContent", canView);
   setVisible("visitorsHistorySection", canViewHistory);
+  setVisible("visitorsReportingSection", canViewReporting);
 
   setVisible("visitorsCreatePlannedButton", canView && hasCapability("visitor.create"));
   setVisible(
@@ -1311,6 +1496,9 @@ export function syncVisitorsWorkspaceCapabilities() {
   setVisible("visitorsStaffSignInButton", canView && hasCapability("visitor.sign_in"));
   setVisible("visitorsStaffSignOutButton", canView && hasCapability("visitor.sign_out"));
   setVisible("visitorsReportsShortcut", canView && hasCapability("visitor.history.view"));
+  setVisible("visitorsReportingShortcut", canViewReporting);
+  setVisible("visitorsReportingCsv", canExportVisitors);
+  setVisible("visitorsReportingExcel", canExportVisitors);
   setVisible(
     "visitorsConfigurationShortcut",
     canView && hasAnyCapability(["settings.view", "settings.edit"])
@@ -1333,6 +1521,7 @@ export function syncVisitorsWorkspaceCapabilities() {
   if (canView && $("visitorsPlannedTableBody")) renderNativePlannedVisits();
   if (canView && $("visitorsOnSiteTableBody")) renderNativeActiveVisitors();
   if (canViewHistory && $("visitorsHistoryTableBody")) renderNativeHistory();
+  if (canViewReporting && $("visitorsReportingSection")) renderNativeReporting();
 }
 
 async function loadMetric(id, loader) {
@@ -1441,6 +1630,7 @@ export function initialiseVisitorsWorkspace() {
   if (!workspace || workspace.dataset.visitorsInitialised === "true") return;
   workspace.dataset.visitorsInitialised = "true";
   resetNativeHistoryFilters();
+  resetNativeReportingFilters();
 
   if ($("visitorsRefreshButton")) {
     $("visitorsRefreshButton").addEventListener("click", loadVisitorsWorkspace);
@@ -1540,6 +1730,33 @@ export function initialiseVisitorsWorkspace() {
       applyNativeHistoryQuickFilter(button.dataset.historyQuickFilter);
     });
   });
+  if ($("visitorsReportingRefresh")) {
+    $("visitorsReportingRefresh").addEventListener("click", loadNativeHistory);
+  }
+  if ($("visitorsReportingApplyFilters")) {
+    $("visitorsReportingApplyFilters").addEventListener("click", renderNativeReporting);
+  }
+  if ($("visitorsReportingClearFilters")) {
+    $("visitorsReportingClearFilters").addEventListener("click", resetNativeReportingFilters);
+  }
+  if ($("visitorsReportingSearch")) {
+    $("visitorsReportingSearch").addEventListener("keydown", event => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      renderNativeReporting();
+    });
+  }
+  document.querySelectorAll("[data-native-report-select]").forEach(button => {
+    button.addEventListener("click", () => {
+      selectNativeReport(button.dataset.nativeReportSelect);
+    });
+  });
+  if ($("visitorsReportingCsv")) {
+    $("visitorsReportingCsv").addEventListener("click", () => exportNativeReport("csv"));
+  }
+  if ($("visitorsReportingExcel")) {
+    $("visitorsReportingExcel").addEventListener("click", () => exportNativeReport("excel"));
+  }
   if ($("visitorsPlannedForm")) {
     $("visitorsPlannedForm").addEventListener("submit", saveNativePlannedVisit);
   }
@@ -1606,6 +1823,10 @@ export function initialiseVisitorsWorkspace() {
     });
   }
 
+  if ($("visitorsReportingButton")) {
+    $("visitorsReportingButton").addEventListener("click", openNativeReporting);
+  }
+
   if ($("visitorsConfigurationButton")) {
     $("visitorsConfigurationButton").addEventListener("click", () => {
       if (!hasAnyCapability(["settings.view", "settings.edit"])) {
@@ -1619,6 +1840,7 @@ export function initialiseVisitorsWorkspace() {
 
   window.addEventListener("oh:visitors-opened", loadVisitorsWorkspace);
   window.addEventListener("oh:visitor-history-requested", openNativeHistory);
+  window.addEventListener("oh:visitor-reporting-requested", openNativeReporting);
   window.addEventListener("oh:capabilities-changed", syncVisitorsWorkspaceCapabilities);
   syncVisitorsWorkspaceCapabilities();
 }
