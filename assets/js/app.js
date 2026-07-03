@@ -213,6 +213,13 @@ import {
   syncAccessControlVisibility,
   openAccessControlWorkspace
 } from "./accessControl.js";
+import {
+  finaliseModuleConfigurationRegistrations,
+  initialiseModuleConfigurationFramework,
+  openModuleConfigurationAdministration,
+  syncModuleConfigurationVisibility
+} from "./moduleConfiguration.js";
+import { registerInitialModuleConfigurations } from "./moduleConfigurations.js";
 import { hasAnyCapability, hasCapability } from "./capabilities.js";
 
 window.addEventListener("load", async function () {
@@ -448,6 +455,7 @@ window.addEventListener("load", async function () {
       syncNavigationCapabilityVisibility() {
         syncNavigationCapabilityVisibility();
         syncAccessControlVisibility();
+        syncModuleConfigurationVisibility();
         syncVisitorCapabilityVisibility();
         syncVisitorsWorkspaceCapabilities();
       },
@@ -571,7 +579,7 @@ window.addEventListener("load", async function () {
       clearMessage();
 
       if (!hasCapability("settings.edit")) {
-        showMessage("You do not have permission to edit settings.", "error");
+        showToast("You do not have permission", "Editing settings requires settings.edit.", "error");
         return;
       }
 
@@ -622,17 +630,17 @@ window.addEventListener("load", async function () {
         }
         setLocalStatus(statusTarget, label + " saved.", "success");
         if ($("settingsStatus")) $("settingsStatus").textContent = label + " saved.";
-        showMessage(label + " saved.", "success");
+        showToast(label + " saved", "The configuration settings were updated.", "success");
       } catch (err) {
         setLocalStatus(statusTarget, "Could not save " + label + ": " + err.message, "error");
         if ($("settingsStatus")) $("settingsStatus").textContent = err.message;
-        showMessage("Could not save " + label + ": " + err.message, "error");
+        showToast("Could not save " + label, err.message, "error");
       }
     }
 
     async function resetSettingsGroup(groupName, label) {
       if (!hasCapability("settings.edit")) {
-        showMessage("You do not have permission to reset settings.", "error");
+        showToast("You do not have permission", "Resetting settings requires settings.edit.", "error");
         return;
       }
 
@@ -750,9 +758,9 @@ window.addEventListener("load", async function () {
             summary: auditDiffSummary(changes)
           });
         }
-        showMessage(label + " restored to defaults.", "success");
+        showToast(label + " restored", "Default configuration values were applied.", "success");
       } catch (err) {
-        showMessage("Could not restore " + label + ": " + err.message, "error");
+        showToast("Could not restore " + label, err.message, "error");
       }
     }
 
@@ -4716,6 +4724,8 @@ window.addEventListener("load", async function () {
     initialiseVisitorsWorkspace();
     initialiseDashboard();
     initialiseReportingCentre();
+    registerInitialModuleConfigurations();
+    initialiseModuleConfigurationFramework();
     initialiseAccessControl();
     window.addEventListener("oh:capabilities-changed", syncVisitorCapabilityVisibility);
     window.addEventListener("oh:legacy-vms-opened", openStaffAreaFromProfile);
@@ -4745,6 +4755,13 @@ window.addEventListener("load", async function () {
     });
     if ($("ohAdministrationNav")) {
       $("ohAdministrationNav").addEventListener("click", () => {
+        if (hasAnyCapability([
+          "module_configuration.view",
+          "module_configuration.manage"
+        ])) {
+          openModuleConfigurationAdministration();
+          return;
+        }
         if (hasAnyCapability(["settings.view", "settings.edit"])) {
           openReferenceDataWorkspace();
           return;
@@ -5092,6 +5109,7 @@ window.addEventListener("load", async function () {
 
     await loadSystemSettings();
     initialiseCollapsibleSettings();
+    finaliseModuleConfigurationRegistrations();
 
     supabaseClient.auth.onAuthStateChange(async function (event) {
       await getCurrentSessionAndProfile();

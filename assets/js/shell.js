@@ -150,6 +150,8 @@ export function shouldShowAdministrationNavigation() {
   return hasAnyCapability([
     "settings.view",
     "settings.edit",
+    "module_configuration.view",
+    "module_configuration.manage",
     "access_control.view",
     "access_control.manage"
   ]);

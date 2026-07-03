@@ -3217,6 +3217,134 @@ button.oh-nav-scrim {
   color: #234d77;
 }
 
+.module-configuration-heading {
+  margin-bottom: 18px;
+}
+
+.module-configuration-heading h2,
+.module-configuration-workspace-header h2,
+.module-configuration-group h3 {
+  margin: 0;
+}
+
+.module-configuration-heading p,
+.module-configuration-workspace-header p,
+.module-configuration-group-heading p {
+  margin: 5px 0 0;
+  color: var(--oh-shell-muted);
+  line-height: 1.45;
+}
+
+.module-configuration-card-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.module-configuration-card {
+  display: flex;
+  min-width: 0;
+  min-height: 210px;
+  flex-direction: column;
+  padding: 18px;
+  border: 1px solid var(--oh-shell-border);
+  border-radius: 14px;
+  background: var(--oh-shell-surface);
+  box-shadow: 0 8px 22px rgba(16, 24, 40, .05);
+}
+
+.module-configuration-card.placeholder {
+  border-style: dashed;
+  background: #f8fafc;
+}
+
+.module-configuration-card-icon,
+.module-configuration-workspace-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--oh-shell-border);
+  border-radius: 10px;
+  background: #f8fafc;
+  font-weight: 900;
+}
+
+.module-configuration-card-icon {
+  width: 42px;
+  height: 42px;
+  margin-bottom: 14px;
+}
+
+.module-configuration-card h3 {
+  margin: 0;
+  font-size: 19px;
+}
+
+.module-configuration-card p {
+  margin: 7px 0 16px;
+  color: var(--oh-shell-muted);
+  line-height: 1.45;
+}
+
+.module-configuration-card button {
+  width: 100%;
+  min-height: 42px;
+  margin-top: auto;
+}
+
+.module-configuration-workspace-header {
+  display: grid;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.module-configuration-workspace-header > button {
+  justify-self: start;
+}
+
+.module-configuration-workspace-title {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.module-configuration-workspace-icon {
+  width: 48px;
+  height: 48px;
+  flex: 0 0 auto;
+}
+
+.module-configuration-content {
+  display: grid;
+  gap: 16px;
+}
+
+.module-configuration-group {
+  padding: 18px;
+  border: 1px solid var(--oh-shell-border);
+  border-radius: 14px;
+  background: var(--oh-shell-surface);
+}
+
+.module-configuration-group-heading {
+  margin-bottom: 12px;
+}
+
+.module-configuration-group .settings-section {
+  margin-top: 12px;
+}
+
+.module-configuration-read-only button,
+.module-configuration-read-only input,
+.module-configuration-read-only select,
+.module-configuration-read-only textarea {
+  pointer-events: none;
+}
+
+.module-configuration-read-only button {
+  opacity: .55;
+}
+
 .reference-data-heading {
   display: flex;
   align-items: flex-start;
@@ -3675,10 +3803,12 @@ input[data-reference-field="cycle_length_days"][readonly] {
 @media (max-width: 1023px) {
   .reference-data-panel { width: min(480px, calc(100% - 40px)); }
   .access-control-role-grid { grid-template-columns: 1fr; }
+  .module-configuration-card-grid { grid-template-columns: 1fr 1fr; }
 }
 
 @media (max-width: 599px) {
   .administration-section-nav { margin-bottom: 18px; }
+  .module-configuration-card-grid { grid-template-columns: 1fr; }
   .reference-data-heading h2 { font-size: 22px; }
   .access-control-heading {
     align-items: stretch;

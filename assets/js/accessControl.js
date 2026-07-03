@@ -16,6 +16,8 @@ const SUPER_USER_ROLE_CODE = "super_user";
 const REQUIRED_SUPERUSER_CAPABILITIES = [
   "access_control.view",
   "access_control.manage",
+  "module_configuration.view",
+  "module_configuration.manage",
   "settings.view",
   "settings.edit",
   "users.view",
@@ -74,16 +76,20 @@ function requireAccessControlManageAccess() {
 
 function setAdministrationSection(sectionName) {
   const referenceSelected = sectionName === "reference";
+  const accessSelected = sectionName === "access";
   $("referenceDataSection").classList.toggle("hidden", !referenceSelected);
-  $("accessControlSection").classList.toggle("hidden", referenceSelected);
+  $("moduleConfigurationSection").classList.add("hidden");
+  $("accessControlSection").classList.toggle("hidden", !accessSelected);
 
   $("administrationReferenceNav").classList.toggle("active", referenceSelected);
-  $("administrationAccessControlNav").classList.toggle("active", !referenceSelected);
+  $("administrationModuleConfigurationNav").classList.remove("active");
+  $("administrationAccessControlNav").classList.toggle("active", accessSelected);
+  $("administrationModuleConfigurationNav").removeAttribute("aria-current");
 
   if (referenceSelected) {
     $("administrationReferenceNav").setAttribute("aria-current", "page");
     $("administrationAccessControlNav").removeAttribute("aria-current");
-  } else {
+  } else if (accessSelected) {
     $("administrationAccessControlNav").setAttribute("aria-current", "page");
     $("administrationReferenceNav").removeAttribute("aria-current");
   }

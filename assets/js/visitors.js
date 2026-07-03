@@ -1574,7 +1574,10 @@ export function syncVisitorsWorkspaceCapabilities() {
   setVisible("visitorsReportingExcel", canExportVisitors);
   setVisible(
     "visitorsConfigurationShortcut",
-    canView && hasAnyCapability(["settings.view", "settings.edit"])
+    canView && hasAnyCapability([
+      "module_configuration.view",
+      "module_configuration.manage"
+    ])
   );
   if (!canView || (!hasCapability("visitor.create") && !hasCapability("visitor.edit"))) {
     if ($("visitorsPlannedPanelBackdrop") && !$("visitorsPlannedPanelBackdrop").classList.contains("hidden")) {
@@ -1906,12 +1909,20 @@ export function initialiseVisitorsWorkspace() {
 
   if ($("visitorsConfigurationButton")) {
     $("visitorsConfigurationButton").addEventListener("click", () => {
-      if (!hasAnyCapability(["settings.view", "settings.edit"])) {
-        showToast("You do not have permission", "Visitor configuration requires settings.view or settings.edit.", "error");
+      if (!hasAnyCapability([
+        "module_configuration.view",
+        "module_configuration.manage"
+      ])) {
+        showToast(
+          "You do not have permission",
+          "Visitor configuration requires module_configuration.view.",
+          "error"
+        );
         return;
       }
-      const settingsShortcut = $("ohSettingsShortcut");
-      if (settingsShortcut) settingsShortcut.click();
+      window.dispatchEvent(new CustomEvent("oh:module-configuration-requested", {
+        detail: { moduleId: "visitors" }
+      }));
     });
   }
 

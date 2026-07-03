@@ -805,7 +805,7 @@
               <article id="visitorsConfigurationShortcut" class="visitor-tool-card">
                 <span class="report-status available">Available</span>
                 <h3>Visitor Configuration</h3>
-                <p>Open the existing settings and configuration workspace.</p>
+                <p>Open Visitors configuration in Administration Module Configuration.</p>
                 <button id="visitorsConfigurationButton" type="button">Open Configuration</button>
               </article>
 
@@ -3081,8 +3081,44 @@
 
         <nav class="administration-section-nav" aria-label="Administration sections">
           <button id="administrationReferenceNav" class="active" type="button" aria-current="page">Reference Data</button>
+          <button id="administrationModuleConfigurationNav" class="hidden" type="button">Module Configuration</button>
           <button id="administrationAccessControlNav" class="hidden" type="button">Access Control</button>
         </nav>
+
+        <section id="moduleConfigurationSection" class="hidden" aria-labelledby="moduleConfigurationTitle">
+          <div class="module-configuration-heading">
+            <div>
+              <p class="oh-app-eyebrow">Administration</p>
+              <h2 id="moduleConfigurationTitle">Module Configuration</h2>
+              <p>Configure Operations Hub modules through one reusable administration framework.</p>
+            </div>
+          </div>
+
+          <div id="moduleConfigurationCatalogue">
+            <div id="moduleConfigurationCards" class="module-configuration-card-grid"></div>
+            <div id="moduleConfigurationEmpty" class="people-empty-state hidden">
+              No module configuration pages are available for your current capabilities.
+            </div>
+          </div>
+
+          <section id="moduleConfigurationWorkspace" class="module-configuration-workspace hidden" aria-labelledby="moduleConfigurationWorkspaceTitle">
+            <header class="module-configuration-workspace-header">
+              <button id="moduleConfigurationBackButton" class="secondary" type="button">Back to Modules</button>
+              <div class="module-configuration-workspace-title">
+                <span id="moduleConfigurationWorkspaceIcon" class="module-configuration-workspace-icon" aria-hidden="true"></span>
+                <div>
+                  <p class="oh-app-eyebrow">Module Configuration</p>
+                  <h2 id="moduleConfigurationWorkspaceTitle">Module</h2>
+                  <p id="moduleConfigurationWorkspaceDescription"></p>
+                </div>
+              </div>
+            </header>
+            <div id="moduleConfigurationReadOnlyNotice" class="callout info hidden">
+              You can review this module configuration, but editing requires module_configuration.manage and settings.edit.
+            </div>
+            <div id="moduleConfigurationContent" class="module-configuration-content"></div>
+          </section>
+        </section>
 
         <section id="referenceDataSection" aria-labelledby="referenceDataTitle">
           <div class="reference-data-heading">
