@@ -90,8 +90,12 @@ export function resetKioskIdleTimer() {
 
 export function ensureKioskToken() {
   const superUserKioskTestAllowed = kioskDependencies.isSuperKioskTestProfile();
-  if (!kioskDependencies.isKioskProfile() && !superUserKioskTestAllowed) {
-    throw new Error("Kiosk login is required before public sign-in/out can be used.");
+  const registeredTerminal = !!(
+    AppState.terminalRegistration &&
+    AppState.terminalRegistration.registered
+  );
+  if (!kioskDependencies.isKioskProfile() && !registeredTerminal && !superUserKioskTestAllowed) {
+    throw new Error("A registered terminal is required before public sign-in/out can be used.");
   }
 
   const token = getKioskToken();

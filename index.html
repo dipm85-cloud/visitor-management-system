@@ -9,7 +9,7 @@
 </head>
 
 <body>
-<div id="operationsHubShell" class="operations-hub">
+<div id="operationsHubShell" class="operations-hub oh-startup-pending">
   <header class="oh-header">
     <div class="oh-header-start">
       <button id="ohNavToggle" class="oh-icon-button oh-nav-toggle no-print" type="button" aria-label="Toggle application navigation" aria-controls="ohNavigation" aria-expanded="false">
@@ -115,6 +115,30 @@
 
     <main id="operationsHubWorkspace" class="oh-workspace" tabindex="-1">
       <div id="ohWorkspaceCue" class="oh-location-cue">Operations Hub / Visitors</div>
+      <section id="terminalHomeWorkspace" class="terminal-home hidden" aria-labelledby="terminalHomeTitle">
+        <div class="terminal-home-hero">
+          <p class="terminal-eyebrow">Operations Hub Shared Terminal</p>
+          <h1 id="terminalHomeTitle">How can we help?</h1>
+          <p>Select an available workflow below.</p>
+        </div>
+        <div id="terminalWorkflowCards" class="terminal-workflow-grid"></div>
+        <div id="terminalWorkflowEmpty" class="terminal-empty-state hidden">
+          No terminal workflows are currently enabled.
+        </div>
+        <button id="terminalHomeStaffLoginButton" class="terminal-staff-login secondary" type="button">
+          Staff Login
+        </button>
+      </section>
+
+      <section id="staffLoginWorkspace" class="staff-login-workspace hidden" aria-labelledby="staffLoginWorkspaceTitle">
+        <div class="staff-login-card">
+          <p class="oh-app-eyebrow">Operations Hub</p>
+          <h1 id="staffLoginWorkspaceTitle">Staff Login</h1>
+          <p>Sign in with your staff account to open the Operations Hub Dashboard.</p>
+          <button id="staffLoginWorkspaceButton" type="button">Open Staff Login</button>
+        </div>
+      </section>
+
       <section id="dashboardWorkspace" class="oh-app-page oh-dashboard-page hidden" aria-labelledby="dashboardPageTitle">
         <header class="oh-app-page-header">
           <div>
@@ -986,6 +1010,7 @@
           <span>End this authenticated session</span>
         </button>
       </div>
+      <button id="terminalReturnHomeButton" class="secondary hidden" type="button">Return to Terminal Home</button>
     </section>
   <div id="appVersionFooter" class="version-footer">Version <span id="appVersionText">VMS_035A.1</span></div>
 </main>

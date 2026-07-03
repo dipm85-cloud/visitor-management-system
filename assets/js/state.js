@@ -11,5 +11,9 @@ export const AppState = {
   currentProfile: null,
   userCapabilities: new Set(),
   systemSettingsRaw: {},
-  kioskIdleTimer: null
+  kioskIdleTimer: null,
+  terminalRegistration: {
+    checked: false,
+    registered: false
+  }
 };

@@ -109,7 +109,9 @@ function setActiveApp(appName) {
     people: "People",
     organisations: "Organisations",
     reporting: "Reporting Centre",
-    administration: "Administration"
+    administration: "Administration",
+    terminal: "Terminal Home",
+    login: "Staff Login"
   };
 
   [
@@ -231,7 +233,9 @@ function showOnlyWorkspace(workspaceId, appName) {
     "peopleWorkspace",
     "organisationsWorkspace",
     "reportingWorkspace",
-    "administrationWorkspace"
+    "administrationWorkspace",
+    "terminalHomeWorkspace",
+    "staffLoginWorkspace"
   ].forEach(id => {
     document.getElementById(id).classList.toggle("hidden", id !== workspaceId);
   });
@@ -245,6 +249,16 @@ export function showDashboardWorkspace() {
   showOnlyWorkspace("dashboardWorkspace", "dashboard");
   document.getElementById("operationsHubWorkspace").focus({ preventScroll: true });
   window.dispatchEvent(new CustomEvent("oh:dashboard-opened"));
+}
+
+export function showTerminalHomeWorkspace() {
+  showOnlyWorkspace("terminalHomeWorkspace", "terminal");
+  document.getElementById("operationsHubWorkspace").focus({ preventScroll: true });
+}
+
+export function showStaffLoginWorkspace() {
+  showOnlyWorkspace("staffLoginWorkspace", "login");
+  document.getElementById("operationsHubWorkspace").focus({ preventScroll: true });
 }
 
 export function showVisitorWorkspace() {

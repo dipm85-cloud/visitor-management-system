@@ -9,6 +9,7 @@ import { $ } from "./dom.js";
 import { showMessage, clearMessage } from "./messages.js";
 import { showScreen } from "./navigation.js";
 import { AppState } from "./state.js";
+import { isRegisteredTerminal } from "./terminal.js";
 
 let authDependencies;
 
@@ -79,11 +80,15 @@ function updateIdentityChip() {
 export function updateHomeAccess() {
   const loggedOut = !AppState.currentProfile || !AppState.currentProfile.active;
   const kiosk = isKioskProfile();
+  const terminal = isRegisteredTerminal();
   const staff = isStaffProfile();
 
-  $("loggedOutHomeActions").classList.toggle("hidden", !loggedOut);
-  $("kioskHomeActions").classList.toggle("hidden", !kiosk);
+  $("loggedOutHomeActions").classList.toggle("hidden", !loggedOut || terminal);
+  $("kioskHomeActions").classList.toggle("hidden", !kiosk && !terminal);
   $("staffHomeActions").classList.toggle("hidden", !staff);
+  if ($("terminalReturnHomeButton")) {
+    $("terminalReturnHomeButton").classList.toggle("hidden", !terminal);
+  }
 
   if ($("staffButton")) {
     $("staffButton").classList.toggle("hidden", kiosk);
@@ -91,9 +96,10 @@ export function updateHomeAccess() {
 
   updateIdentityChip();
 
-  document.body.classList.toggle("kiosk-mode", kiosk);
+  document.body.classList.toggle("kiosk-mode", kiosk || terminal);
 
-  if (loggedOut) $("homeSubtitle").textContent = "Please login to continue.";
+  if (loggedOut && !terminal) $("homeSubtitle").textContent = "Please login to continue.";
+  if (loggedOut && terminal) $("homeSubtitle").textContent = "Visitor terminal ready. Choose sign in or sign out.";
   if (kiosk) $("homeSubtitle").textContent = "Kiosk mode active and device verified. Visitors can sign in or sign out.";
   if (staff) $("homeSubtitle").textContent = "Staff session active. Open the staff area or logout.";
 }

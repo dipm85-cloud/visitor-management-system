@@ -150,9 +150,11 @@ import {
 import {
   configureModes,
   enterKioskMode,
+  enterStaffLoginMode,
+  enterTerminalMode,
   enterWorkspaceMode,
   returnToEntryMode,
-  detectEntryMode
+  resolveStartupMode
 } from "./modes.js";
 import {
   loadPeople,
@@ -176,6 +178,8 @@ import {
   showVisitorWorkspace,
   showLegacyVmsWorkspace,
   showDashboardWorkspace,
+  showStaffLoginWorkspace,
+  showTerminalHomeWorkspace,
   closeAccountMenu,
   syncNavigationCapabilityVisibility,
   shouldShowPeopleNavigation
@@ -220,6 +224,8 @@ import {
   syncModuleConfigurationVisibility
 } from "./moduleConfiguration.js";
 import { registerInitialModuleConfigurations } from "./moduleConfigurations.js";
+import { isRegisteredTerminal } from "./terminal.js";
+import { registerInitialTerminalWorkflows } from "./terminalWorkflows.js";
 import { hasAnyCapability, hasCapability } from "./capabilities.js";
 
 window.addEventListener("load", async function () {
@@ -359,7 +365,9 @@ window.addEventListener("load", async function () {
     configureKiosk({
       appSettings,
       dependencies: {
-        isKioskProfile,
+        isKioskProfile() {
+          return isKioskProfile() || isRegisteredTerminal();
+        },
         isSuperKioskTestProfile
       }
     });
@@ -400,7 +408,10 @@ window.addEventListener("load", async function () {
       openStaffAreaFromProfile,
       showDashboardWorkspace,
       showVisitorWorkspace,
-      showLegacyVmsWorkspace
+      showLegacyVmsWorkspace,
+      showTerminalHomeWorkspace,
+      showStaffLoginWorkspace,
+      openLoginModal
     });
     configureDashboard({
       openVisitors: showVisitorWorkspace,
@@ -848,6 +859,7 @@ window.addEventListener("load", async function () {
       const token = getKioskToken();
 
       if (!token) {
+        AppState.terminalRegistration = { checked: true, registered: false };
         await supabaseClient.auth.signOut();
         AppState.currentProfile = null;
         updateTopbarStaffStatus();
@@ -859,12 +871,14 @@ window.addEventListener("load", async function () {
       });
 
       if (result.error || result.data !== true) {
+        AppState.terminalRegistration = { checked: true, registered: false };
         await supabaseClient.auth.signOut();
         AppState.currentProfile = null;
         updateTopbarStaffStatus();
         throw new Error("This kiosk device token is invalid or disabled. Ask a SuperUser to set or replace this tablet token.");
       }
 
+      AppState.terminalRegistration = { checked: true, registered: true };
       return true;
     }
 
@@ -4715,12 +4729,16 @@ window.addEventListener("load", async function () {
     });
 
     $("homeLoginButton").addEventListener("click", openLoginModal);
+    $("terminalHomeStaffLoginButton").addEventListener("click", openLoginModal);
+    $("staffLoginWorkspaceButton").addEventListener("click", openLoginModal);
+    $("terminalReturnHomeButton").addEventListener("click", enterTerminalMode);
     $("homeRefreshButton").addEventListener("click", async () => { await loadSystemSettings(); updateHomeAccess(); showMessage("Refreshed.", "success"); });
     $("homeLogoutButton").addEventListener("click", requestProtectedLogout);
 
     $("openStaffHomeButton").addEventListener("click", openStaffAreaFromProfile);
     if ($("kioskStaffLoginButton")) $("kioskStaffLoginButton").addEventListener("click", openLoginModal);
     initialiseVisitorIdentityLookups();
+    registerInitialTerminalWorkflows();
     initialiseVisitorsWorkspace();
     initialiseDashboard();
     initialiseReportingCentre();
@@ -4731,6 +4749,13 @@ window.addEventListener("load", async function () {
     window.addEventListener("oh:legacy-vms-opened", openStaffAreaFromProfile);
     window.addEventListener("oh:report-shortcut-requested", event => {
       openExistingReportShortcut(event.detail && event.detail.shortcut);
+    });
+    window.addEventListener("oh:terminal-workflow-requested", event => {
+      const workflowId = event.detail && event.detail.workflowId;
+      if (workflowId !== "visitors" || !isRegisteredTerminal()) return;
+      showLegacyVmsWorkspace();
+      showScreen("homeScreen");
+      updateHomeAccess();
     });
     if ($("ohPeopleNav")) $("ohPeopleNav").addEventListener("click", openPeopleWorkspace);
     if ($("peopleCreateButton")) $("peopleCreateButton").addEventListener("click", () => openPeoplePanel(null));
@@ -4810,14 +4835,14 @@ window.addEventListener("load", async function () {
     }
 
     $("openSignInButton").addEventListener("click", () => {
-      if (!isKioskProfile() && !isSuperKioskTestProfile()) { openLoginModal(); return; }
+      if (!isKioskProfile() && !isRegisteredTerminal() && !isSuperKioskTestProfile()) { openLoginModal(); return; }
       try { ensureKioskToken(); } catch (err) { showMessage(err.message, "error"); return; }
       $("plannedFilter").value = "";
       showScreen("signInScreen"); refreshCoreData(); renderPlannedVisitorList();
       setTimeout(() => { if ($("plannedFilter")) $("plannedFilter").focus(); }, 80);
     });
     $("openSignOutButton").addEventListener("click", () => {
-      if (!isKioskProfile() && !isSuperKioskTestProfile()) { openLoginModal(); return; }
+      if (!isKioskProfile() && !isRegisteredTerminal() && !isSuperKioskTestProfile()) { openLoginModal(); return; }
       try { ensureKioskToken(); } catch (err) { showMessage(err.message, "error"); return; }
 
       if ($("signOutFilter")) $("signOutFilter").value = "";
@@ -5120,14 +5145,13 @@ window.addEventListener("load", async function () {
     });
 
     await getCurrentSessionAndProfile();
-    if (detectEntryMode() === "kiosk") {
-      enterKioskMode();
-    } else {
-      await enterWorkspaceMode();
-    }
+    const startupMode = await resolveStartupMode();
+    if (startupMode === "workspace") await enterWorkspaceMode();
+    else if (startupMode === "terminal") enterTerminalMode();
+    else enterStaffLoginMode();
     updateKioskTokenWarning();
     debugInfo.textContent = "Script loaded. Settings loaded.";
-    refreshCoreData();
+    if (startupMode !== "login") refreshCoreData();
 
   } catch (err) {
     document.getElementById("message").textContent = "Page script error: " + err.message;
