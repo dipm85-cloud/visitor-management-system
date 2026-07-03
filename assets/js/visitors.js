@@ -22,10 +22,15 @@ import {
   exportToExcel,
   normaliseExportRows
 } from "./exports.js";
+import {
+  buildDailyPlannedVisitorPrintHtml,
+  openPrintDocument
+} from "./printing.js";
 
 let visitorsDependencies = {};
 let nativePlannedVisits = [];
 let nativePlannedLoadSequence = 0;
+let nativePlannedVisitsLoaded = false;
 let nativeActiveVisitors = [];
 let nativeActiveLoadSequence = 0;
 let nativeHistoryRecords = [];
@@ -793,6 +798,71 @@ function openNativeReporting(event) {
   setTimeout(() => focusTarget.focus({ preventScroll: true }), 0);
 }
 
+function dailyPlannedDocumentRows(selectedDate) {
+  const excludedStatuses = [
+    "cancelled",
+    "canceled",
+    "closed",
+    "inactive",
+    "no_show",
+    "no-show",
+    "noshow"
+  ];
+  return nativePlannedVisits
+    .filter(visit => {
+      const status = plannedStatusFor(visit);
+      return visit.visit_date === selectedDate && !excludedStatuses.includes(status);
+    })
+    .sort((a, b) => {
+      const timeOrder = String(a.expected_time || "").localeCompare(String(b.expected_time || ""));
+      return timeOrder || String(a.visitor_name || "").localeCompare(String(b.visitor_name || ""));
+    })
+    .map(visit => ({
+      ...visit,
+      document_status: plannedStatusLabel(plannedStatusFor(visit))
+    }));
+}
+
+async function printDailyPlannedVisitorList() {
+  if (!hasCapability("reports.view")) {
+    showToast("You do not have permission", "Operational documents require reports.view.", "error");
+    return;
+  }
+  const selectedDate = $("visitorsDailyPlannedDate").value;
+  if (!selectedDate) {
+    showToast("Select a date", "Choose a planned visit date before printing.", "error");
+    return;
+  }
+  if (!nativePlannedVisitsLoaded) await loadNativePlannedVisits();
+  if (!nativePlannedVisitsLoaded) {
+    showToast("Document unavailable", "Planned visits could not be loaded.", "error");
+    return;
+  }
+
+  const rows = dailyPlannedDocumentRows(selectedDate);
+  if (!rows.length) {
+    showToast("Nothing to print", "No eligible planned visits were found for the selected date.", "error");
+    return;
+  }
+
+  const profile = AppState.currentProfile;
+  const printedBy = profile
+    ? profile.display_name || profile.email || profile.id
+    : "";
+  const html = buildDailyPlannedVisitorPrintHtml(rows, {
+    selectedDate,
+    printedBy,
+    companyName: settingValue("company_name", "Visitor Management"),
+    siteName: settingValue("site_name", settingValue("default_site_name", "")),
+    logoUrl: settingValue("logo_url", "")
+  });
+  if (!openPrintDocument(html)) {
+    showToast("Print window blocked", "Allow pop-ups for this site, then try again.", "error");
+    return;
+  }
+  showToast("Print document opened", rows.length + " planned visitors are ready to print.", "success");
+}
+
 async function loadNativePlannedVisits() {
   if (!isActiveStaffUser() || !hasCapability("visitor.view")) return;
   const loadSequence = ++nativePlannedLoadSequence;
@@ -807,6 +877,7 @@ async function loadNativePlannedVisits() {
   if (loadSequence !== nativePlannedLoadSequence) return;
   if (result.error) {
     nativePlannedVisits = [];
+    nativePlannedVisitsLoaded = false;
     setPlannedListState("error");
     showToast("Planned visits unavailable", "The planned visits list could not be loaded.", "error");
     console.error("[OH-027 planned visits load failed]", result.error);
@@ -823,6 +894,7 @@ async function loadNativePlannedVisits() {
   } catch (error) {
     if (loadSequence !== nativePlannedLoadSequence) return;
     nativePlannedVisits = [];
+    nativePlannedVisitsLoaded = false;
     setPlannedListState("error");
     showToast(
       "Planned visit statuses unavailable",
@@ -844,6 +916,7 @@ async function loadNativePlannedVisits() {
       sign_out_time: statusInfo ? statusInfo.sign_out_time : null
     };
   });
+  nativePlannedVisitsLoaded = true;
   renderNativePlannedVisits();
 }
 
@@ -1631,6 +1704,7 @@ export function initialiseVisitorsWorkspace() {
   workspace.dataset.visitorsInitialised = "true";
   resetNativeHistoryFilters();
   resetNativeReportingFilters();
+  $("visitorsDailyPlannedDate").value = todayDate();
 
   if ($("visitorsRefreshButton")) {
     $("visitorsRefreshButton").addEventListener("click", loadVisitorsWorkspace);
@@ -1756,6 +1830,9 @@ export function initialiseVisitorsWorkspace() {
   }
   if ($("visitorsReportingExcel")) {
     $("visitorsReportingExcel").addEventListener("click", () => exportNativeReport("excel"));
+  }
+  if ($("visitorsDailyPlannedPrint")) {
+    $("visitorsDailyPlannedPrint").addEventListener("click", printDailyPlannedVisitorList);
   }
   if ($("visitorsPlannedForm")) {
     $("visitorsPlannedForm").addEventListener("submit", saveNativePlannedVisit);

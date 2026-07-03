@@ -54,6 +54,83 @@ export function buildCompactPlannedPrintHtml(rows, selectedDate, printedBy) {
     "</body></html>";
 }
 
+export function buildDailyPlannedVisitorPrintHtml(rows, options) {
+  options = options || {};
+  const generatedAt = options.generatedAt || new Date().toLocaleString();
+  const companyName = options.companyName || "Visitor Management";
+  const siteName = options.siteName || "";
+  const logoUrl = options.logoUrl || "";
+  const bodyRows = (rows || []).map(row => {
+    return "<tr>" +
+      "<td class='visitor'>" + printEscape(row.visitor_name) + "</td>" +
+      "<td class='company-col'>" + printEscape(row.company) + "</td>" +
+      "<td class='contact'>" + printEscape(row.onsite_contact) + "</td>" +
+      "<td class='time'>" + printEscape(formatPrintTime(row.expected_time)) + "</td>" +
+      "<td class='vehicle'>" + printEscape(row.vehicle_plate) + "</td>" +
+      "<td class='pass'>" + printEscape(row.security_pass_id) + "</td>" +
+      "<td class='status'>" + printEscape(row.document_status) + "</td>" +
+      "<td class='notes'>" + printEscape(row.notes || row.visit_reason) + "</td>" +
+    "</tr>";
+  }).join("");
+  const logo = logoUrl
+    ? "<img class='logo' src='" + printEscape(logoUrl) + "' alt='" + printEscape(companyName) + " logo'>"
+    : "<div class='logo-fallback'>OH</div>";
+
+  return "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Daily Planned Visitor List</title>" +
+    "<style>" +
+    "@page{size:A4 landscape;margin:10mm;}" +
+    "*{box-sizing:border-box;}" +
+    "html,body{margin:0;padding:0;}" +
+    "body{font-family:Arial,Helvetica,sans-serif;color:#111;font-size:9.5px;line-height:1.3;}" +
+    ".document-header{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;border-bottom:2px solid #111;padding-bottom:8px;margin-bottom:8px;}" +
+    ".brand-block{display:flex;align-items:flex-start;gap:10px;min-width:0;}" +
+    ".logo{width:64px;height:44px;object-fit:contain;object-position:left top;}" +
+    ".logo-fallback{display:flex;width:44px;height:44px;align-items:center;justify-content:center;border:2px solid #111;font-size:15px;font-weight:900;}" +
+    ".hub{font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;}" +
+    ".company-name{margin-top:2px;font-size:17px;font-weight:900;line-height:1.1;}" +
+    "h1{margin:3px 0 0;font-size:15px;line-height:1.15;}" +
+    ".site{margin-top:3px;font-weight:700;}" +
+    ".meta{text-align:right;font-size:9px;line-height:1.45;white-space:nowrap;}" +
+    ".document-summary{display:flex;justify-content:space-between;gap:12px;padding:5px 0 7px;border-bottom:1px solid #777;margin-bottom:7px;font-weight:700;}" +
+    "table{width:100%;border-collapse:collapse;table-layout:fixed;}" +
+    "thead{display:table-header-group;}" +
+    "tfoot{display:table-footer-group;}" +
+    "tr{break-inside:avoid;page-break-inside:avoid;}" +
+    "th{padding:5px 5px;border:1px solid #555;text-align:left;font-size:8.5px;text-transform:uppercase;letter-spacing:.025em;background:#eee;color:#111;}" +
+    "td{padding:5px;border:1px solid #999;vertical-align:top;overflow-wrap:anywhere;}" +
+    ".visitor{width:14%;}.company-col{width:13%;}.contact{width:16%;}.time{width:7%;}.vehicle{width:11%;}.pass{width:9%;}.status{width:9%;}.notes{width:21%;}" +
+    ".document-footer{display:flex;justify-content:space-between;gap:12px;margin-top:7px;padding-top:5px;border-top:1px solid #777;color:#444;font-size:8px;}" +
+    "@media print{.no-print{display:none!important;}body{-webkit-print-color-adjust:economy;print-color-adjust:economy;}}" +
+    "</style></head><body>" +
+    "<header class='document-header'><div class='brand-block'>" + logo +
+    "<div><div class='hub'>Operations Hub / Visitors</div><div class='company-name'>" + printEscape(companyName) + "</div>" +
+    "<h1>Daily Planned Visitor List</h1>" +
+    (siteName ? "<div class='site'>Site: " + printEscape(siteName) + "</div>" : "") +
+    "</div></div><div class='meta'>Planned visit date: <strong>" + printEscape(formatPrintDate(options.selectedDate)) +
+    "</strong><br>Printed: " + printEscape(generatedAt) +
+    "<br>Printed by: " + printEscape(options.printedBy || "-") + "</div></header>" +
+    "<div class='document-summary'><span>Planned visitors: " + (rows || []).length +
+    "</span><span>Reception / Security operational document</span></div>" +
+    "<table><thead><tr><th class='visitor'>Visitor</th><th class='company-col'>Company</th>" +
+    "<th class='contact'>Host / On-site Contact</th><th class='time'>Expected Time</th>" +
+    "<th class='vehicle'>Vehicle Registration</th><th class='pass'>Security Pass</th>" +
+    "<th class='status'>Status</th><th class='notes'>Notes</th></tr></thead><tbody>" +
+    bodyRows + "</tbody></table>" +
+    "<footer class='document-footer'><span>Operations Hub visitor operations</span>" +
+    "<span>Generated " + printEscape(generatedAt) + "</span></footer>" +
+    "<script>window.addEventListener('load',function(){var images=Array.from(document.images);Promise.all(images.map(function(image){return image.complete?Promise.resolve():new Promise(function(resolve){image.addEventListener('load',resolve,{once:true});image.addEventListener('error',resolve,{once:true});});})).then(function(){setTimeout(function(){window.focus();window.print();},100);});});<\/script>" +
+    "</body></html>";
+}
+
+export function openPrintDocument(html) {
+  const printWindow = window.open("", "_blank", "width=1200,height=800");
+  if (!printWindow || !printWindow.document) return false;
+  printWindow.document.open("text/html", "replace");
+  printWindow.document.write(html);
+  printWindow.document.close();
+  return true;
+}
+
 export function printPlannedList(rows, selectedDate) {
   if (!rows || rows.length === 0) {
     showMessage("No planned visits are loaded. Please load or search a planned visitor list before printing.", "error");
