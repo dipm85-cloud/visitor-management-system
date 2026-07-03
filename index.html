@@ -541,6 +541,78 @@
             </div>
           </section>
 
+          <section id="visitorsHistorySection" class="visitors-section visitors-planned-workflow hidden" aria-labelledby="visitorsHistoryTitle">
+            <div class="visitors-section-heading">
+              <div>
+                <h2 id="visitorsHistoryTitle">Visitor History</h2>
+                <p>Review recent and historical visitor activity available under your current access.</p>
+              </div>
+              <button id="visitorsHistoryRefresh" class="secondary" type="button">Refresh</button>
+            </div>
+
+            <div class="visitors-history-quick-filters" aria-label="Visitor history quick filters">
+              <button type="button" class="secondary" data-history-quick-filter="today" aria-pressed="false">Today</button>
+              <button type="button" class="secondary" data-history-quick-filter="on_site" aria-pressed="false">Currently on site</button>
+              <button type="button" class="secondary" data-history-quick-filter="overdue" aria-pressed="false">Overdue</button>
+              <button type="button" class="secondary" data-history-quick-filter="signed_out_today" aria-pressed="false">Signed out today</button>
+              <button type="button" class="secondary" data-history-quick-filter="planned" aria-pressed="false">Planned visits</button>
+            </div>
+
+            <div class="visitors-planned-filters visitors-history-filters" role="search" aria-label="Filter visitor history">
+              <label><span>Search</span><input id="visitorsHistorySearch" type="search" placeholder="Visitor, company or host / contact" /></label>
+              <label><span>From</span><input id="visitorsHistoryFromDate" type="date" /></label>
+              <label><span>To</span><input id="visitorsHistoryToDate" type="date" /></label>
+              <label>
+                <span>Status</span>
+                <select id="visitorsHistoryStatus">
+                  <option value="all">All statuses</option>
+                  <option value="planned">Planned</option>
+                  <option value="signed_in">Signed in</option>
+                  <option value="signed_out">Signed out</option>
+                  <option value="overdue">Overdue</option>
+                  <option value="closed">Cancelled / closed</option>
+                </select>
+              </label>
+              <label>
+                <span>Origin</span>
+                <select id="visitorsHistoryOrigin">
+                  <option value="all">All origins</option>
+                  <option value="planned">Planned</option>
+                  <option value="walk_in">Walk-in</option>
+                </select>
+              </label>
+              <div class="visitors-planned-filter-actions">
+                <button id="visitorsHistoryApplyFilters" class="secondary" type="button">Apply Filters</button>
+                <button id="visitorsHistoryClearFilters" class="ghost" type="button">Reset</button>
+              </div>
+            </div>
+
+            <div id="visitorsHistoryLoading" class="visitors-planned-state hidden" role="status">Loading visitor history...</div>
+            <div id="visitorsHistoryError" class="visitors-planned-state visitors-planned-error hidden" role="alert">Visitor history could not be loaded.</div>
+            <div id="visitorsHistoryEmpty" class="visitors-planned-state hidden">
+              <strong>No visitor history found</strong>
+              <span>Adjust the filters to review a different period.</span>
+            </div>
+            <div id="visitorsHistoryTableWrap" class="visitors-planned-table-wrap hidden">
+              <div id="visitorsHistoryResultSummary" class="visitors-history-result-summary" aria-live="polite"></div>
+              <table class="visitors-planned-table visitors-history-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Visitor</th>
+                    <th scope="col">Visit date</th>
+                    <th scope="col">Host / contact</th>
+                    <th scope="col">Sign in</th>
+                    <th scope="col">Sign out</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Origin</th>
+                    <th scope="col">Pass ID</th>
+                  </tr>
+                </thead>
+                <tbody id="visitorsHistoryTableBody"></tbody>
+              </table>
+            </div>
+          </section>
+
           <section class="visitors-section" aria-labelledby="visitorsTodayTitle">
             <div class="visitors-section-heading">
               <div>
@@ -612,9 +684,9 @@
             <div class="visitors-tool-grid">
               <article id="visitorsReportsShortcut" class="visitor-tool-card">
                 <span class="report-status available">Available</span>
-                <h3>Visitor Reports</h3>
-                <p>Open visitor history and existing reporting tools.</p>
-                <button id="visitorsReportsButton" type="button">Open Visitor Reports</button>
+                <h3>Visitor History</h3>
+                <p>Search and review native visitor activity records.</p>
+                <button id="visitorsReportsButton" type="button">Open Visitor History</button>
               </article>
 
               <article id="visitorsConfigurationShortcut" class="visitor-tool-card">
@@ -726,6 +798,13 @@
               <div><dt>Vehicle registration</dt><dd id="visitorsDetailsVehicle">—</dd></div>
               <div><dt>Security pass ID</dt><dd id="visitorsDetailsPass">—</dd></div>
               <div><dt>Origin</dt><dd id="visitorsDetailsOrigin">—</dd></div>
+              <div><dt>Record ID</dt><dd id="visitorsDetailsRecordId">—</dd></div>
+              <div><dt>Planned visit ID</dt><dd id="visitorsDetailsPlannedId">—</dd></div>
+              <div><dt>Privacy accepted</dt><dd id="visitorsDetailsPrivacy">—</dd></div>
+              <div><dt>Last updated</dt><dd id="visitorsDetailsLastUpdated">—</dd></div>
+              <div><dt>Created by</dt><dd id="visitorsDetailsCreatedBy">—</dd></div>
+              <div><dt>Modified by</dt><dd id="visitorsDetailsModifiedBy">—</dd></div>
+              <div><dt>Automatic sign-out</dt><dd id="visitorsDetailsAutomaticSignOut">—</dd></div>
             </dl>
           </aside>
         </div>

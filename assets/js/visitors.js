@@ -18,6 +18,9 @@ let nativePlannedVisits = [];
 let nativePlannedLoadSequence = 0;
 let nativeActiveVisitors = [];
 let nativeActiveLoadSequence = 0;
+let nativeHistoryRecords = [];
+let nativeHistoryLoadSequence = 0;
+let activeHistoryQuickFilter = null;
 let plannedPanelReturnFocus = null;
 let walkInPanelReturnFocus = null;
 let detailsPanelReturnFocus = null;
@@ -354,6 +357,260 @@ async function loadNativeActiveVisitors() {
   renderNativeActiveVisitors();
 }
 
+function historyRecordStatus(record) {
+  if (record.sign_out_time) return "signed_out";
+  if (record.sign_in_time) return activeVisitorStatus(record);
+  const status = plannedVisitDisplayStatus(record);
+  return status === "pending" ? "planned" : status;
+}
+
+function historyStatusLabel(status) {
+  if (status === "overdue") return "Overdue";
+  if (status === "planned") return "Planned";
+  return plannedStatusLabel(status);
+}
+
+function historyStatusClass(status) {
+  if (status === "overdue") return "status-overdue";
+  if (status === "signed_in") return "status-in";
+  if (status === "signed_out") return "status-inactive";
+  if (["cancelled", "closed", "completed", "inactive"].includes(status)) return "status-inactive";
+  return "";
+}
+
+function historyRecordDate(record) {
+  if (record.visit_date) return String(record.visit_date).slice(0, 10);
+  if (record.sign_in_time) return String(record.sign_in_time).slice(0, 10);
+  return "";
+}
+
+function historySortValue(record) {
+  return record.sign_in_time ||
+    (historyRecordDate(record) + "T" + (record.expected_time || "00:00:00"));
+}
+
+function mergeNativeHistoryRecords(logs, plannedVisits) {
+  const plannedById = new Map(
+    (plannedVisits || []).map(visit => [visit.id, visit])
+  );
+  const startedPlannedIds = new Set();
+  const records = (logs || []).map(log => {
+    const plannedVisit = log.planned_visit_id
+      ? plannedById.get(log.planned_visit_id)
+      : null;
+    if (log.planned_visit_id) startedPlannedIds.add(log.planned_visit_id);
+    return {
+      ...(plannedVisit || {}),
+      ...log,
+      visit_date: plannedVisit && plannedVisit.visit_date
+        ? plannedVisit.visit_date
+        : historyRecordDate(log),
+      expected_time: plannedVisit ? plannedVisit.expected_time : null,
+      notes: plannedVisit ? plannedVisit.notes : null,
+      history_record_type: "visit_log"
+    };
+  });
+
+  (plannedVisits || []).forEach(visit => {
+    if (startedPlannedIds.has(visit.id)) return;
+    records.push({
+      ...visit,
+      planned_visit_id: visit.id,
+      history_record_type: "planned_visit",
+      visit_origin: "planned",
+      sign_in_time: null,
+      sign_out_time: null
+    });
+  });
+
+  return records.sort((a, b) =>
+    String(historySortValue(b)).localeCompare(String(historySortValue(a)))
+  );
+}
+
+function setHistoryListState(state) {
+  setVisible("visitorsHistoryLoading", state === "loading");
+  setVisible("visitorsHistoryError", state === "error");
+  setVisible("visitorsHistoryEmpty", state === "empty");
+  setVisible("visitorsHistoryTableWrap", state === "ready");
+}
+
+function updateHistoryQuickFilterButtons() {
+  document.querySelectorAll("[data-history-quick-filter]").forEach(button => {
+    const active = button.dataset.historyQuickFilter === activeHistoryQuickFilter;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+}
+
+function historyMatchesQuickFilter(record, status) {
+  const today = todayDate();
+  if (activeHistoryQuickFilter === "today") return historyRecordDate(record) === today;
+  if (activeHistoryQuickFilter === "on_site") {
+    return status === "signed_in" || status === "overdue";
+  }
+  if (activeHistoryQuickFilter === "overdue") return status === "overdue";
+  if (activeHistoryQuickFilter === "signed_out_today") {
+    return status === "signed_out" &&
+      String(record.sign_out_time || "").slice(0, 10) === today;
+  }
+  if (activeHistoryQuickFilter === "planned") return status === "planned";
+  return true;
+}
+
+function renderNativeHistory() {
+  const body = $("visitorsHistoryTableBody");
+  if (!body) return;
+  body.replaceChildren();
+
+  const search = String($("visitorsHistorySearch").value || "").trim().toLowerCase();
+  const fromDate = $("visitorsHistoryFromDate").value;
+  const toDate = $("visitorsHistoryToDate").value;
+  const statusFilter = $("visitorsHistoryStatus").value;
+  const originFilter = $("visitorsHistoryOrigin").value;
+  const closedStatuses = ["cancelled", "closed", "completed", "inactive"];
+  const filtered = nativeHistoryRecords.filter(record => {
+    const status = historyRecordStatus(record);
+    const origin = visitorOrigin(record);
+    const date = historyRecordDate(record);
+    const searchable = [
+      record.visitor_name,
+      record.company,
+      record.onsite_contact
+    ].join(" ").toLowerCase();
+    const statusMatches =
+      statusFilter === "all" ||
+      status === statusFilter ||
+      (statusFilter === "closed" && closedStatuses.includes(status));
+    return (!search || searchable.includes(search)) &&
+      (!fromDate || (date && date >= fromDate)) &&
+      (!toDate || (date && date <= toDate)) &&
+      statusMatches &&
+      (originFilter === "all" || origin === originFilter) &&
+      historyMatchesQuickFilter(record, status);
+  });
+
+  updateHistoryQuickFilterButtons();
+  if (!filtered.length) {
+    setHistoryListState("empty");
+    return;
+  }
+
+  filtered.forEach(record => {
+    const status = historyRecordStatus(record);
+    const row = document.createElement("tr");
+    row.className = "visitors-history-row";
+    row.tabIndex = 0;
+    row.setAttribute("role", "button");
+    row.setAttribute("aria-label", "Open visitor history details for " + textOrDash(record.visitor_name));
+    appendTextCell(row, record.visitor_name, record.company || "");
+    appendTextCell(
+      row,
+      historyRecordDate(record),
+      record.expected_time ? String(record.expected_time).slice(0, 5) : ""
+    );
+    appendTextCell(row, record.onsite_contact);
+    appendTextCell(row, formatVisitorDateTime(record.sign_in_time));
+    appendTextCell(row, formatVisitorDateTime(record.sign_out_time));
+
+    const statusCell = document.createElement("td");
+    const badge = document.createElement("span");
+    badge.className = "visitors-planned-status " + historyStatusClass(status);
+    badge.textContent = historyStatusLabel(status);
+    statusCell.appendChild(badge);
+    row.appendChild(statusCell);
+    appendTextCell(row, visitorOrigin(record) === "walk_in" ? "Walk-in" : "Planned");
+    appendTextCell(row, record.security_pass_id);
+
+    const openDetails = () => openVisitorDetails(record, status, row);
+    row.addEventListener("click", openDetails);
+    row.addEventListener("keydown", event => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      openDetails();
+    });
+    body.appendChild(row);
+  });
+
+  setText(
+    "visitorsHistoryResultSummary",
+    filtered.length + " of " + nativeHistoryRecords.length + " available records shown"
+  );
+  setHistoryListState("ready");
+}
+
+async function loadNativeHistory() {
+  if (!isActiveStaffUser() || !hasCapability("visitor.history.view")) return;
+  const loadSequence = ++nativeHistoryLoadSequence;
+  setHistoryListState("loading");
+
+  const [logsResult, plannedResult] = await Promise.all([
+    supabaseClient
+      .from("visit_log")
+      .select("id, planned_visit_id, visitor_name, company, visit_reason, vehicle_plate, onsite_contact, security_pass_id, privacy_notice_version, privacy_notice_accepted_at, sign_in_time, sign_out_time, visit_status, visit_origin, signed_out_automatically, automatic_sign_out_reason")
+      .order("sign_in_time", { ascending: false })
+      .limit(1000),
+    supabaseClient
+      .from("planned_visits")
+      .select("id, visitor_name, company, host_id, visit_date, expected_time, visit_reason, vehicle_plate, onsite_contact, security_pass_id, notes, status, created_by, modified_by, modified_at")
+      .order("visit_date", { ascending: false })
+      .limit(1000)
+  ]);
+
+  if (loadSequence !== nativeHistoryLoadSequence) return;
+  if (logsResult.error || plannedResult.error) {
+    nativeHistoryRecords = [];
+    setHistoryListState("error");
+    showToast("Visitor history unavailable", "Visitor activity could not be loaded.", "error");
+    console.error("[OH-030 native visitor history load failed]", logsResult.error || plannedResult.error);
+    return;
+  }
+
+  nativeHistoryRecords = mergeNativeHistoryRecords(
+    logsResult.data || [],
+    plannedResult.data || []
+  );
+  renderNativeHistory();
+}
+
+function localDateValue(date) {
+  const offsetDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
+  return offsetDate.toISOString().slice(0, 10);
+}
+
+function resetNativeHistoryFilters() {
+  const recentStart = new Date();
+  recentStart.setDate(recentStart.getDate() - 30);
+  $("visitorsHistorySearch").value = "";
+  $("visitorsHistoryFromDate").value = localDateValue(recentStart);
+  $("visitorsHistoryToDate").value = todayDate();
+  $("visitorsHistoryStatus").value = "all";
+  $("visitorsHistoryOrigin").value = "all";
+  activeHistoryQuickFilter = null;
+  renderNativeHistory();
+}
+
+function applyNativeHistoryQuickFilter(filter) {
+  activeHistoryQuickFilter = filter;
+  $("visitorsHistorySearch").value = "";
+  $("visitorsHistoryFromDate").value = "";
+  $("visitorsHistoryToDate").value = "";
+  $("visitorsHistoryStatus").value = "all";
+  $("visitorsHistoryOrigin").value = filter === "planned" ? "planned" : "all";
+  renderNativeHistory();
+}
+
+function openNativeHistory() {
+  if (!hasCapability("visitor.history.view")) {
+    showToast("You do not have permission", "Visitor history requires visitor.history.view.", "error");
+    return;
+  }
+  const section = $("visitorsHistorySection");
+  if (!section) return;
+  section.scrollIntoView({ behavior: "smooth", block: "start" });
+  setTimeout(() => $("visitorsHistorySearch").focus({ preventScroll: true }), 0);
+}
+
 async function loadNativePlannedVisits() {
   if (!isActiveStaffUser() || !hasCapability("visitor.view")) return;
   const loadSequence = ++nativePlannedLoadSequence;
@@ -635,7 +892,7 @@ function openVisitorDetails(record, status, returnFocus) {
     status === "overdue" ? "Overdue" : plannedStatusLabel(status)
   );
   setText("visitorsDetailsCompany", textOrDash(record.company));
-  setText("visitorsDetailsVisitDate", textOrDash(record.visit_date));
+  setText("visitorsDetailsVisitDate", textOrDash(historyRecordDate(record)));
   setText(
     "visitorsDetailsExpectedTime",
     record.expected_time ? String(record.expected_time).slice(0, 5) : "—"
@@ -651,6 +908,24 @@ function openVisitorDetails(record, status, returnFocus) {
     visitorOrigin(record) === "walk_in"
       ? "Walk-in"
       : "Planned"
+  );
+  setText("visitorsDetailsRecordId", textOrDash(record.id));
+  setText("visitorsDetailsPlannedId", textOrDash(record.planned_visit_id));
+  setText(
+    "visitorsDetailsPrivacy",
+    record.privacy_notice_accepted_at
+      ? formatVisitorDateTime(record.privacy_notice_accepted_at) +
+        (record.privacy_notice_version ? " (" + record.privacy_notice_version + ")" : "")
+      : "—"
+  );
+  setText("visitorsDetailsLastUpdated", formatVisitorDateTime(record.modified_at));
+  setText("visitorsDetailsCreatedBy", textOrDash(record.created_by));
+  setText("visitorsDetailsModifiedBy", textOrDash(record.modified_by));
+  setText(
+    "visitorsDetailsAutomaticSignOut",
+    record.signed_out_automatically
+      ? "Yes" + (record.automatic_sign_out_reason ? " — " + record.automatic_sign_out_reason : "")
+      : "No"
   );
   $("visitorsDetailsPanelBackdrop").classList.remove("hidden");
   document.body.style.overflow = "hidden";
@@ -1023,8 +1298,10 @@ function setMetricLoading() {
 
 export function syncVisitorsWorkspaceCapabilities() {
   const canView = isActiveStaffUser() && hasCapability("visitor.view");
+  const canViewHistory = canView && hasCapability("visitor.history.view");
   setVisible("visitorsPermissionState", !canView);
   setVisible("visitorsWorkspaceContent", canView);
+  setVisible("visitorsHistorySection", canViewHistory);
 
   setVisible("visitorsCreatePlannedButton", canView && hasCapability("visitor.create"));
   setVisible(
@@ -1055,6 +1332,7 @@ export function syncVisitorsWorkspaceCapabilities() {
   }
   if (canView && $("visitorsPlannedTableBody")) renderNativePlannedVisits();
   if (canView && $("visitorsOnSiteTableBody")) renderNativeActiveVisitors();
+  if (canViewHistory && $("visitorsHistoryTableBody")) renderNativeHistory();
 }
 
 async function loadMetric(id, loader) {
@@ -1115,7 +1393,8 @@ export async function loadVisitorsWorkspace() {
   await Promise.all([
     loadVisitorsWorkspaceMetrics(),
     loadNativePlannedVisits(),
-    loadNativeActiveVisitors()
+    loadNativeActiveVisitors(),
+    loadNativeHistory()
   ]);
 }
 
@@ -1161,6 +1440,7 @@ export function initialiseVisitorsWorkspace() {
   const workspace = $("visitorsWorkspace");
   if (!workspace || workspace.dataset.visitorsInitialised === "true") return;
   workspace.dataset.visitorsInitialised = "true";
+  resetNativeHistoryFilters();
 
   if ($("visitorsRefreshButton")) {
     $("visitorsRefreshButton").addEventListener("click", loadVisitorsWorkspace);
@@ -1235,6 +1515,31 @@ export function initialiseVisitorsWorkspace() {
       }
     });
   }
+  if ($("visitorsHistoryRefresh")) {
+    $("visitorsHistoryRefresh").addEventListener("click", loadNativeHistory);
+  }
+  if ($("visitorsHistoryApplyFilters")) {
+    $("visitorsHistoryApplyFilters").addEventListener("click", () => {
+      activeHistoryQuickFilter = null;
+      renderNativeHistory();
+    });
+  }
+  if ($("visitorsHistoryClearFilters")) {
+    $("visitorsHistoryClearFilters").addEventListener("click", resetNativeHistoryFilters);
+  }
+  if ($("visitorsHistorySearch")) {
+    $("visitorsHistorySearch").addEventListener("keydown", event => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      activeHistoryQuickFilter = null;
+      renderNativeHistory();
+    });
+  }
+  document.querySelectorAll("[data-history-quick-filter]").forEach(button => {
+    button.addEventListener("click", () => {
+      applyNativeHistoryQuickFilter(button.dataset.historyQuickFilter);
+    });
+  });
   if ($("visitorsPlannedForm")) {
     $("visitorsPlannedForm").addEventListener("submit", saveNativePlannedVisit);
   }
@@ -1313,6 +1618,7 @@ export function initialiseVisitorsWorkspace() {
   }
 
   window.addEventListener("oh:visitors-opened", loadVisitorsWorkspace);
+  window.addEventListener("oh:visitor-history-requested", openNativeHistory);
   window.addEventListener("oh:capabilities-changed", syncVisitorsWorkspaceCapabilities);
   syncVisitorsWorkspaceCapabilities();
 }

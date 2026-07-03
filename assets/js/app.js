@@ -2344,11 +2344,19 @@ window.addEventListener("load", async function () {
         return;
       }
 
-      const visitorShortcuts = ["visitor-history", "visitor-csv", "visitor-excel"];
+      if (shortcut === "visitor-history") {
+        if (!hasCapability("visitor.history.view")) {
+          showToast("Report unavailable", "This visitor report requires visitor.history.view.", "error");
+          return;
+        }
+        showVisitorWorkspace();
+        window.dispatchEvent(new CustomEvent("oh:visitor-history-requested"));
+        return;
+      }
+
+      const visitorShortcuts = ["visitor-csv", "visitor-excel"];
       if (visitorShortcuts.includes(shortcut)) {
-        const requiredCapability = shortcut === "visitor-history"
-          ? "visitor.history.view"
-          : "visitor.export";
+        const requiredCapability = "visitor.export";
         if (!hasCapability(requiredCapability)) {
           showToast("Report unavailable", "This visitor report requires " + requiredCapability + ".", "error");
           return;
@@ -2358,12 +2366,10 @@ window.addEventListener("load", async function () {
         await openStaffAreaFromProfile();
         const visitorControlByRole = {
           super_user: {
-            "visitor-history": "superSearchHistoryButton",
             "visitor-csv": "superDownloadHistoryButton",
             "visitor-excel": "superExcelHistoryButton"
           },
           security: {
-            "visitor-history": "securityHistorySearchButton",
             "visitor-csv": "securityDownloadHistoryButton",
             "visitor-excel": "securityExcelHistoryButton"
           }
