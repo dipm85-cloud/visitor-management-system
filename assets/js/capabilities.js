@@ -27,6 +27,16 @@ const fallbackCapabilitiesByRole = {
   super_user: ["*"]
 };
 
+const compatibilityCapabilitiesByRole = {
+  // SuperUser must remain able to reach newly introduced administration
+  // foundations while the matching database migration is being deployed.
+  // Profile-level deny overrides are applied after these defaults.
+  super_user: [
+    "module_configuration.view",
+    "module_configuration.manage"
+  ]
+};
+
 let capabilityLoadSequence = 0;
 
 function logCapabilityQueryStart(step, source, filters) {
@@ -121,6 +131,9 @@ export async function loadUserCapabilities(profile) {
 
   try {
     const capabilitySet = new Set(await loadRolePresetCapabilities(profile));
+    (compatibilityCapabilitiesByRole[profile.role] || []).forEach(code => {
+      capabilitySet.add(code);
+    });
 
     try {
       await applyProfileCapabilityOverrides(profile, capabilitySet);
