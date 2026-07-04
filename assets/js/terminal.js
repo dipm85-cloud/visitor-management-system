@@ -2,6 +2,10 @@ import { validateTerminalToken } from "./api.js";
 import { $ } from "./dom.js";
 import { getKioskToken } from "./kiosk.js";
 import { AppState } from "./state.js";
+import {
+  recordTerminalValidationCalled,
+  recordTerminalValidationResult
+} from "./startupDebug.js";
 
 const terminalWorkflowRegistry = new Map();
 let terminalRegistrationCheck = null;
@@ -42,7 +46,9 @@ export async function refreshTerminalRegistration() {
 
   terminalRegistrationToken = token;
   terminalRegistrationCheck = (async function () {
+    recordTerminalValidationCalled();
     const result = await validateTerminalToken(token);
+    recordTerminalValidationResult(result.data, result.error);
     const registered = !result.error && result.data === true;
     const tokenIsCurrent = getKioskToken() === token;
 

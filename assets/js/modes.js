@@ -4,6 +4,7 @@ import {
   renderTerminalHome
 } from "./terminal.js";
 import { AppState } from "./state.js";
+import { recordAppliedRoute } from "./startupDebug.js";
 
 const STAFF_MODE = "workspace";
 const TERMINAL_MODE = "terminal";
@@ -23,8 +24,9 @@ function activeStaffSession() {
   );
 }
 
-function setDocumentMode(mode) {
+function setDocumentMode(mode, source) {
   document.body.dataset.operationsHubMode = mode;
+  recordAppliedRoute(mode, source);
 
   const shell = document.getElementById("operationsHubShell");
   if (shell) {
@@ -50,8 +52,8 @@ export async function resolveStartupMode() {
   return registeredTerminal ? TERMINAL_MODE : LOGIN_MODE;
 }
 
-export function enterTerminalMode() {
-  setDocumentMode(TERMINAL_MODE);
+export function enterTerminalMode(source) {
+  setDocumentMode(TERMINAL_MODE, source || "terminal-entry");
   modeDependencies.showTerminalHomeWorkspace();
   renderTerminalHome();
   modeDependencies.updateHomeAccess();
@@ -59,31 +61,34 @@ export function enterTerminalMode() {
 }
 
 // Compatibility export for the existing kiosk-profile login path.
-export function enterKioskMode() {
-  return enterTerminalMode();
+export function enterKioskMode(source) {
+  return enterTerminalMode(source || "kiosk-login");
 }
 
-export function enterStaffLoginMode() {
-  setDocumentMode(LOGIN_MODE);
+export function enterStaffLoginMode(source) {
+  setDocumentMode(LOGIN_MODE, source || "staff-login-entry");
   modeDependencies.showStaffLoginWorkspace();
   modeDependencies.updateHomeAccess();
   modeDependencies.openLoginModal();
   return LOGIN_MODE;
 }
 
-export async function enterWorkspaceMode() {
-  if (!activeStaffSession()) return returnToEntryMode();
+export async function enterWorkspaceMode(source) {
+  if (!activeStaffSession()) {
+    return returnToEntryMode((source || "workspace-entry") + ":no-staff-session");
+  }
 
-  setDocumentMode(STAFF_MODE);
+  setDocumentMode(STAFF_MODE, source || "workspace-entry");
   modeDependencies.showDashboardWorkspace();
   await modeDependencies.openStaffAreaFromProfile();
   modeDependencies.showDashboardWorkspace();
   return STAFF_MODE;
 }
 
-export async function returnToEntryMode() {
+export async function returnToEntryMode(source) {
   const destination = await resolveStartupMode();
-  if (destination === STAFF_MODE) return enterWorkspaceMode();
-  if (destination === TERMINAL_MODE) return enterTerminalMode();
-  return enterStaffLoginMode();
+  const routeSource = source || "return-to-entry";
+  if (destination === STAFF_MODE) return enterWorkspaceMode(routeSource);
+  if (destination === TERMINAL_MODE) return enterTerminalMode(routeSource);
+  return enterStaffLoginMode(routeSource);
 }

@@ -3,6 +3,7 @@ import { AppState } from "./state.js";
 import { $ } from "./dom.js";
 import { showMessage } from "./messages.js";
 import { showScreen } from "./navigation.js";
+import { recordTerminalTokenLookup } from "./startupDebug.js";
 
 let appSettings;
 let kioskDependencies;
@@ -13,7 +14,9 @@ export function configureKiosk(options) {
 }
 
 export function getKioskToken() {
-  return localStorage.getItem(KIOSK_TOKEN_STORAGE_KEY) || "";
+  const token = localStorage.getItem(KIOSK_TOKEN_STORAGE_KEY) || "";
+  recordTerminalTokenLookup(token);
+  return token;
 }
 
 export function setKioskToken(token) {

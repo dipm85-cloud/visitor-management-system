@@ -10,6 +10,7 @@ import { showMessage, clearMessage } from "./messages.js";
 import { showScreen } from "./navigation.js";
 import { AppState } from "./state.js";
 import { isRegisteredTerminal } from "./terminal.js";
+import { recordStaffSession } from "./startupDebug.js";
 
 let authDependencies;
 
@@ -121,6 +122,7 @@ export function updateTopbarStaffStatus() {
 export async function getCurrentSessionAndProfile() {
   const sessionResult = await supabaseClient.auth.getSession();
   const session = sessionResult.data ? sessionResult.data.session : null;
+  recordStaffSession(!!(session && session.user));
 
   if (!session || !session.user) {
     AppState.currentProfile = null;
@@ -244,7 +246,7 @@ export async function loginStaff() {
   }
 
   await writeAuditEvent("login_success", "profiles", profile.id, { role: profile.role, login_type: "staff" });
-  await enterWorkspaceMode();
+  await enterWorkspaceMode("staff-login");
   await runDailyMaintenanceIfDue("opportunistic_staff_login");
   $("loginPassword").value = "";
   closeLoginModal();
@@ -339,7 +341,7 @@ export async function logoutStaff() {
 
   clearStaffSearchCaches();
   clearWalkInForm();
-  await returnToEntryMode();
+  await returnToEntryMode("logout");
   showMessage("Logged out.", "success");
   closeLoginModal();
 }

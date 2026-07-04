@@ -227,9 +227,15 @@ import { registerInitialModuleConfigurations } from "./moduleConfigurations.js";
 import { isRegisteredTerminal } from "./terminal.js";
 import { registerInitialTerminalWorkflows } from "./terminalWorkflows.js";
 import { hasAnyCapability, hasCapability } from "./capabilities.js";
+import {
+  initialiseStartupDebug,
+  recordFinalStartupRoute,
+  recordStartupAuthEvent
+} from "./startupDebug.js";
 
 window.addEventListener("load", async function () {
   try {
+    initialiseStartupDebug();
     const APP_VERSION = getDefaultAppSettings().currentAppVersion;
     let lastSettingsRefreshAt = null;
     let lastDataRefreshAt = null;
@@ -824,12 +830,10 @@ window.addEventListener("load", async function () {
           trigger: triggerReason || "timer"
         });
 
-        clearKioskToken();
         await supabaseClient.auth.signOut({ scope: "local" });
         AppState.currentProfile = null;
         updateTopbarStaffStatus();
-      if (AppState.currentProfile && AppState.currentProfile.role === "kiosk_user") startKioskHeartbeat();
-        await returnToEntryMode();
+        await returnToEntryMode("remote-kiosk-logout");
         showMessage("This kiosk device was remotely logged out by a SuperUser.", "error");
       }
 
@@ -5136,19 +5140,30 @@ window.addEventListener("load", async function () {
     initialiseCollapsibleSettings();
     finaliseModuleConfigurationRegistrations();
 
-    supabaseClient.auth.onAuthStateChange(async function (event) {
-      await getCurrentSessionAndProfile();
+    let initialStartupComplete = false;
+    supabaseClient.auth.onAuthStateChange(function (event) {
+      const receivedDuringStartup = !initialStartupComplete;
+      recordStartupAuthEvent(event, receivedDuringStartup);
 
-      if (event === "SIGNED_OUT") {
-        await returnToEntryMode();
-      }
+      // Supabase auth callbacks run while auth state is being updated. Defer
+      // follow-up work and let the initial startup sequence own its first route.
+      window.setTimeout(async function () {
+        if (receivedDuringStartup) return;
+        await getCurrentSessionAndProfile();
+
+        if (event === "SIGNED_OUT") {
+          await returnToEntryMode("auth:signed-out");
+        }
+      }, 0);
     });
 
     await getCurrentSessionAndProfile();
     const startupMode = await resolveStartupMode();
-    if (startupMode === "workspace") await enterWorkspaceMode();
-    else if (startupMode === "terminal") enterTerminalMode();
-    else enterStaffLoginMode();
+    recordFinalStartupRoute(startupMode);
+    if (startupMode === "workspace") await enterWorkspaceMode("startup");
+    else if (startupMode === "terminal") enterTerminalMode("startup");
+    else enterStaffLoginMode("startup");
+    initialStartupComplete = true;
     updateKioskTokenWarning();
     debugInfo.textContent = "Script loaded. Settings loaded.";
     if (startupMode !== "login") refreshCoreData();
