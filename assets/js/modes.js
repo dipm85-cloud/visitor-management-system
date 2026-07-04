@@ -1,5 +1,6 @@
 import {
   isRegisteredTerminal,
+  openSingleEnabledTerminalWorkflow,
   refreshTerminalRegistration,
   renderTerminalHome
 } from "./terminal.js";
@@ -52,11 +53,17 @@ export async function resolveStartupMode() {
   return registeredTerminal ? TERMINAL_MODE : LOGIN_MODE;
 }
 
-export function enterTerminalMode(source) {
+export function enterTerminalMode(source, options) {
   setDocumentMode(TERMINAL_MODE, source || "terminal-entry");
+  modeDependencies.updateHomeAccess();
+  if (
+    (!options || options.showTerminalHome !== true) &&
+    openSingleEnabledTerminalWorkflow("visitors")
+  ) {
+    return TERMINAL_MODE;
+  }
   modeDependencies.showTerminalHomeWorkspace();
   renderTerminalHome();
-  modeDependencies.updateHomeAccess();
   return TERMINAL_MODE;
 }
 

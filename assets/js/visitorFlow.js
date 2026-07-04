@@ -1,4 +1,7 @@
-import { supabaseClient } from "./api.js";
+import {
+  callAnonymousTerminalRpc,
+  supabaseClient
+} from "./api.js";
 import { AppState } from "./state.js";
 import { $ } from "./dom.js";
 import {
@@ -10,7 +13,14 @@ import {
 } from "./messages.js";
 import { ensureKioskToken } from "./kiosk.js";
 import { showScreen } from "./navigation.js";
-import { todayDate, safe, formatPersonName, normalisePlate } from "./utils.js";
+import {
+  todayDate,
+  safe,
+  formatPersonName,
+  isValidVisitorFullName,
+  normalisePlate,
+  VISITOR_FULL_NAME_MESSAGE
+} from "./utils.js";
 import { settingValue } from "./settings.js";
 import { hasCapability } from "./capabilities.js";
 
@@ -114,6 +124,23 @@ function showKioskFlowMessage(message, type) {
   }
 }
 
+function callPublicKioskRpc(functionName, parameters, fallbackError, testFunctionName) {
+  if (
+    testFunctionName &&
+    visitorDependencies.isSuperKioskTestProfile()
+  ) {
+    return supabaseClient.rpc(testFunctionName, parameters);
+  }
+  if (isPublicKioskContext()) {
+    return callAnonymousTerminalRpc(
+      functionName,
+      parameters,
+      fallbackError
+    );
+  }
+  return supabaseClient.rpc(functionName, parameters);
+}
+
 function showStaffComplianceToast(title, body, type) {
   if (isPublicKioskContext()) {
     console.warn(title + ": " + body);
@@ -135,9 +162,11 @@ export async function loadPlannedVisits(options) {
 
   // Preferred path: backend-controlled list that excludes any planned visit already used today.
   // This avoids showing signed-out/completed planned visitors to kiosk users.
-  const availableResult = await supabaseClient.rpc("get_kiosk_available_planned_visits", {
-    p_visit_date: today
-  });
+  const availableResult = await callPublicKioskRpc(
+    "get_kiosk_available_planned_visits",
+    { p_visit_date: today },
+    "Planned visitor search failed."
+  );
 
   if (!availableResult.error && Array.isArray(availableResult.data)) {
     AppState.plannedTodayCache = availableResult.data || [];
@@ -308,16 +337,17 @@ export async function signInPlanned(visit, actionButton) {
       actionButton.parentElement.appendChild(waitNote);
     }
 
-    const plannedSignInRpc = visitorDependencies.isSuperKioskTestProfile()
-      ? "superuser_test_kiosk_sign_in_planned"
-      : "kiosk_sign_in_planned";
-
-    const result = await supabaseClient.rpc(plannedSignInRpc, {
-      p_kiosk_token: kioskToken,
-      p_planned_visit_id: visit.id,
-      p_privacy_notice_version: latestPrivacyAcceptance ? latestPrivacyAcceptance.version : null,
-      p_privacy_notice_accepted_at: latestPrivacyAcceptance ? latestPrivacyAcceptance.acceptedAt : null
-    });
+    const result = await callPublicKioskRpc(
+      "kiosk_sign_in_planned",
+      {
+        p_kiosk_token: kioskToken,
+        p_planned_visit_id: visit.id,
+        p_privacy_notice_version: latestPrivacyAcceptance ? latestPrivacyAcceptance.version : null,
+        p_privacy_notice_accepted_at: latestPrivacyAcceptance ? latestPrivacyAcceptance.acceptedAt : null
+      },
+      "Planned visitor sign-in failed.",
+      "superuser_test_kiosk_sign_in_planned"
+    );
 
     if (result.error) {
       const msg = "Could not sign in planned visitor: " + result.error.message;
@@ -421,7 +451,16 @@ export async function signInWalkIn() {
   const name = formatPersonName($("walkInName").value);
 
   if (!name) {
-    showWalkInModalMessage("Please enter visitor name.", "error");
+    showWalkInModalMessage(
+      isPublicKioskFlow()
+        ? VISITOR_FULL_NAME_MESSAGE
+        : "Please enter visitor name.",
+      "error"
+    );
+    return;
+  }
+  if (isPublicKioskFlow() && !isValidVisitorFullName(name)) {
+    showWalkInModalMessage(VISITOR_FULL_NAME_MESSAGE, "error");
     return;
   }
 
@@ -468,21 +507,22 @@ export async function signInWalkIn() {
 
   showWalkInModalMessage("Signing you in, please wait...", "success");
 
-  const walkInSignInRpc = visitorDependencies.isSuperKioskTestProfile()
-    ? "superuser_test_kiosk_sign_in_walk_in"
-    : "kiosk_sign_in_walk_in";
-
-  const result = await supabaseClient.rpc(walkInSignInRpc, {
-    p_kiosk_token: kioskToken,
-    p_visitor_name: name,
-    p_company: visitorDependencies.fieldValueIfVisible("walkInCompany").trim() || null,
-    p_visit_reason: visitorDependencies.fieldValueIfVisible("walkInReason").trim() || null,
-    p_vehicle_plate: normalisePlate(visitorDependencies.fieldValueIfVisible("walkInVehicle")),
-    p_onsite_contact: formatPersonName(visitorDependencies.fieldValueIfVisible("walkInContact")) || null,
-    p_security_pass_id: visitorDependencies.fieldValueIfVisible("walkInSecurityPass").trim() || null,
-    p_privacy_notice_version: latestPrivacyAcceptance ? latestPrivacyAcceptance.version : null,
-    p_privacy_notice_accepted_at: latestPrivacyAcceptance ? latestPrivacyAcceptance.acceptedAt : null
-  });
+  const result = await callPublicKioskRpc(
+    "kiosk_sign_in_walk_in",
+    {
+      p_kiosk_token: kioskToken,
+      p_visitor_name: name,
+      p_company: visitorDependencies.fieldValueIfVisible("walkInCompany").trim() || null,
+      p_visit_reason: visitorDependencies.fieldValueIfVisible("walkInReason").trim() || null,
+      p_vehicle_plate: normalisePlate(visitorDependencies.fieldValueIfVisible("walkInVehicle")),
+      p_onsite_contact: formatPersonName(visitorDependencies.fieldValueIfVisible("walkInContact")) || null,
+      p_security_pass_id: visitorDependencies.fieldValueIfVisible("walkInSecurityPass").trim() || null,
+      p_privacy_notice_version: latestPrivacyAcceptance ? latestPrivacyAcceptance.version : null,
+      p_privacy_notice_accepted_at: latestPrivacyAcceptance ? latestPrivacyAcceptance.acceptedAt : null
+    },
+    "Walk-in visitor sign-in failed.",
+    "superuser_test_kiosk_sign_in_walk_in"
+  );
 
   if (result.error) {
     showWalkInModalMessage("Could not sign in walk-in visitor: " + result.error.message, "error");
@@ -910,14 +950,15 @@ export async function signOut(id, actionButton) {
 
   showKioskFlowMessage("Signing you out, please wait...", "success");
 
-  const signOutRpc = visitorDependencies.isSuperKioskTestProfile()
-    ? "superuser_test_kiosk_sign_out"
-    : "kiosk_sign_out";
-
-  const result = await supabaseClient.rpc(signOutRpc, {
-    p_kiosk_token: kioskToken,
-    p_visit_log_id: id
-  });
+  const result = await callPublicKioskRpc(
+    "kiosk_sign_out",
+    {
+      p_kiosk_token: kioskToken,
+      p_visit_log_id: id
+    },
+    "Visitor sign-out failed.",
+    "superuser_test_kiosk_sign_out"
+  );
 
   if (result.error) {
     showKioskFlowMessage("Could not sign visitor out: " + result.error.message, "error");

@@ -26,6 +26,32 @@ export function formatPersonName(value) {
   return titleCaseText(value);
 }
 
+export const VISITOR_FULL_NAME_MESSAGE =
+  "Please enter your full name, for example John Smith.";
+
+export function isValidVisitorFullName(value) {
+  const parts = String(value || "").trim().split(/\s+/).filter(Boolean);
+  if (parts.length < 2) return false;
+
+  const placeholderParts = new Set([
+    "test",
+    "visitor",
+    "temp",
+    "temporary",
+    "unknown",
+    "guest",
+    "sample",
+    "demo",
+    "none"
+  ]);
+  const alphabeticNamePart = /^[\p{L}]+(?:['’\-][\p{L}]+)*$/u;
+
+  return parts.every(part =>
+    alphabeticNamePart.test(part) &&
+    !placeholderParts.has(part.toLocaleLowerCase())
+  );
+}
+
 export function normaliseBusinessCode(value) {
   const text = String(value || "").trim().toUpperCase();
   return text || null;

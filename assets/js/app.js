@@ -464,7 +464,9 @@ window.addEventListener("load", async function () {
     });
     configureVisitorKiosk({
       showWorkspace: showVisitorKioskWorkspace,
-      returnToTerminalHome: enterTerminalMode,
+      returnToTerminalHome() {
+        enterTerminalMode("visitor-kiosk", { showTerminalHome: true });
+      },
       openWalkInModal,
       loadPlannedVisits,
       signInPlanned,
@@ -4759,7 +4761,10 @@ window.addEventListener("load", async function () {
     $("homeLoginButton").addEventListener("click", openLoginModal);
     $("terminalHomeStaffLoginButton").addEventListener("click", openLoginModal);
     $("staffLoginWorkspaceButton").addEventListener("click", openLoginModal);
-    $("terminalReturnHomeButton").addEventListener("click", enterTerminalMode);
+    $("terminalReturnHomeButton").addEventListener(
+      "click",
+      () => enterTerminalMode("legacy-terminal-return")
+    );
     $("homeRefreshButton").addEventListener("click", async () => { await loadSystemSettings(); updateHomeAccess(); showMessage("Refreshed.", "success"); });
     $("homeLogoutButton").addEventListener("click", requestProtectedLogout);
 

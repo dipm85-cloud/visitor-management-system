@@ -143,16 +143,12 @@
             </button>
           </header>
           <div class="visitor-kiosk-actions" aria-label="Visitor actions">
-            <button id="visitorKioskPlannedButton" class="visitor-kiosk-action" type="button">
-              <strong>Planned Visitor</strong>
-              <span>Find today’s visit and sign in</span>
-            </button>
-            <button id="visitorKioskWalkInButton" class="visitor-kiosk-action" type="button">
-              <strong>Walk-In Visitor</strong>
-              <span>Register without a planned visit</span>
+            <button id="visitorKioskSignInButton" class="visitor-kiosk-action" type="button">
+              <strong>Sign In</strong>
+              <span>Find today’s visit or register as a walk-in</span>
             </button>
             <button id="visitorKioskSignOutButton" class="visitor-kiosk-action accent" type="button">
-              <strong>Visitor Sign Out</strong>
+              <strong>Sign Out</strong>
               <span>Finish your visit</span>
             </button>
           </div>
@@ -167,8 +163,8 @@
             <button class="visitorKioskBackButton secondary" type="button">Back</button>
           </header>
           <label class="visitor-kiosk-search">
-            <span>Your name or company</span>
-            <input id="visitorKioskPlannedSearch" type="search" autocomplete="off" placeholder="Start typing…" />
+            <span>Your full name</span>
+            <input id="visitorKioskPlannedSearch" type="search" autocomplete="off" placeholder="For example John Smith" />
           </label>
           <div id="visitorKioskPlannedResults" class="visitor-kiosk-results" aria-live="polite"></div>
         </div>

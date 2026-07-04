@@ -2,7 +2,11 @@ import { AppState } from "./state.js";
 import { $ } from "./dom.js";
 import { settingValue } from "./settings.js";
 import { isRegisteredTerminal } from "./terminal.js";
-import { formatPersonName } from "./utils.js";
+import {
+  formatPersonName,
+  isValidVisitorFullName,
+  VISITOR_FULL_NAME_MESSAGE
+} from "./utils.js";
 
 let visitorKioskDependencies;
 let visitorKioskInitialised = false;
@@ -93,14 +97,21 @@ function renderPlannedMatches() {
     setListMessage(
       "visitorKioskPlannedResults",
       "Type at least 2 letters",
-      "Search using your name or company."
+      "Enter your full name."
+    );
+    return;
+  }
+  if (!isValidVisitorFullName(filterInput.value)) {
+    setListMessage(
+      "visitorKioskPlannedResults",
+      "Full name required",
+      VISITOR_FULL_NAME_MESSAGE
     );
     return;
   }
 
   const matches = AppState.plannedTodayCache.filter(visit =>
-    formatPersonName(visit.visitor_name).includes(filter) ||
-    formatPersonName(visit.company).includes(filter)
+    formatPersonName(visit.visitor_name).includes(filter)
   );
 
   list.replaceChildren();
@@ -118,6 +129,10 @@ function renderPlannedMatches() {
       walkIn.className = "visitor-kiosk-inline-action";
       walkIn.textContent = "Continue as Walk-In";
       walkIn.addEventListener("click", () => {
+        if (!isValidVisitorFullName(filterInput.value)) {
+          showVisitorKioskStatus(VISITOR_FULL_NAME_MESSAGE, "error");
+          return;
+        }
         visitorKioskDependencies.openWalkInModal(filterInput.value);
       });
       list.appendChild(walkIn);
@@ -242,29 +257,9 @@ async function openVisitorSignOut() {
   $("visitorKioskSignOutSearch").focus();
 }
 
-function openWalkIn() {
-  if (!publicTerminalAvailable() || !walkInsAllowed()) return;
-  showVisitorKioskStatus("");
-  visitorKioskDependencies.openWalkInModal("");
-}
-
-function syncWalkInAvailability() {
-  const button = $("visitorKioskWalkInButton");
-  const available = walkInsAllowed();
-  button.disabled = !available;
-  button.setAttribute("aria-disabled", String(!available));
-  const detail = button.querySelector("span");
-  if (detail) {
-    detail.textContent = available
-      ? "Register without a planned visit"
-      : "Walk-in registration is unavailable";
-  }
-}
-
 export function returnToVisitorKioskHome() {
   if (!publicTerminalAvailable()) return;
   visitorKioskDependencies.showWorkspace();
-  syncWalkInAvailability();
   setView("home");
   $("visitorKioskWorkspace").focus({ preventScroll: true });
 }
@@ -285,8 +280,7 @@ export function initialiseVisitorKiosk() {
   document.querySelectorAll(".visitorKioskBackButton").forEach(button => {
     button.addEventListener("click", returnToVisitorKioskHome);
   });
-  $("visitorKioskPlannedButton").addEventListener("click", openPlannedSignIn);
-  $("visitorKioskWalkInButton").addEventListener("click", openWalkIn);
+  $("visitorKioskSignInButton").addEventListener("click", openPlannedSignIn);
   $("visitorKioskSignOutButton").addEventListener("click", openVisitorSignOut);
   $("visitorKioskPlannedSearch").addEventListener("input", renderPlannedMatches);
   $("visitorKioskSignOutSearch").addEventListener("input", renderSignOutMatches);

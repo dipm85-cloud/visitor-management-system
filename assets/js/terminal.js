@@ -97,12 +97,27 @@ function openWorkflow(workflow) {
   if (typeof workflow.open === "function") workflow.open();
 }
 
+function enabledTerminalWorkflows() {
+  return Array.from(terminalWorkflowRegistry.values()).filter(workflowEnabled);
+}
+
+export function openSingleEnabledTerminalWorkflow(workflowId) {
+  const workflows = enabledTerminalWorkflows();
+  if (
+    workflows.length !== 1 ||
+    (workflowId && workflows[0].id !== workflowId)
+  ) {
+    return false;
+  }
+  openWorkflow(workflows[0]);
+  return true;
+}
+
 export function renderTerminalHome() {
   const container = $("terminalWorkflowCards");
   if (!container) return;
   container.replaceChildren();
-  const workflows = Array.from(terminalWorkflowRegistry.values())
-    .filter(workflowEnabled);
+  const workflows = enabledTerminalWorkflows();
 
   workflows.forEach(workflow => {
     const card = document.createElement("article");
