@@ -19,6 +19,7 @@ function createDiagnostic() {
     staffSessionExists: null,
     terminalValidationRpcCalled: false,
     terminalValidationResult: null,
+    terminalValidationSqlDiagnostic: null,
     finalChosenStartupRoute: null,
     currentRoute: null,
     laterRouteOverrides: [],
@@ -82,6 +83,21 @@ export function recordTerminalValidationResult(result, error) {
     ? { valid: false, error: "request_failed" }
     : { valid: result === true, error: null };
   logDebug("terminal-validation-result", state.terminalValidationResult);
+}
+
+export function startupDebugEnabled() {
+  return debugEnabled();
+}
+
+export function recordTerminalSqlDiagnostic(result, error) {
+  const state = diagnostic();
+  state.terminalValidationSqlDiagnostic = error
+    ? { error: "request_failed" }
+    : result;
+  logDebug(
+    "terminal-validation-sql-diagnostic",
+    state.terminalValidationSqlDiagnostic
+  );
 }
 
 export function recordFinalStartupRoute(route) {

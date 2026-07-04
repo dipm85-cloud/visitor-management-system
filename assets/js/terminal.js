@@ -1,10 +1,15 @@
-import { validateTerminalToken } from "./api.js";
+import {
+  diagnoseTerminalToken,
+  validateTerminalToken
+} from "./api.js";
 import { $ } from "./dom.js";
 import { getKioskToken } from "./kiosk.js";
 import { AppState } from "./state.js";
 import {
   recordTerminalValidationCalled,
-  recordTerminalValidationResult
+  recordTerminalValidationResult,
+  recordTerminalSqlDiagnostic,
+  startupDebugEnabled
 } from "./startupDebug.js";
 
 const terminalWorkflowRegistry = new Map();
@@ -49,6 +54,10 @@ export async function refreshTerminalRegistration() {
     recordTerminalValidationCalled();
     const result = await validateTerminalToken(token);
     recordTerminalValidationResult(result.data, result.error);
+    if (startupDebugEnabled()) {
+      const sqlDiagnostic = await diagnoseTerminalToken(token);
+      recordTerminalSqlDiagnostic(sqlDiagnostic.data, sqlDiagnostic.error);
+    }
     const registered = !result.error && result.data === true;
     const tokenIsCurrent = getKioskToken() === token;
 

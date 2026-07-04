@@ -2,12 +2,10 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config.js";
 
 export const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// Terminal registration is device-token based and must not inherit a staff
-// session that is still loading, refreshing, or signing out.
-export async function validateTerminalToken(token) {
+async function callAnonymousRpc(functionName, parameters, fallbackError) {
   try {
     const response = await fetch(
-      SUPABASE_URL.replace(/\/+$/, "") + "/rest/v1/rpc/validate_kiosk_device_token",
+      SUPABASE_URL.replace(/\/+$/, "") + "/rest/v1/rpc/" + functionName,
       {
         method: "POST",
         headers: {
@@ -15,7 +13,7 @@ export async function validateTerminalToken(token) {
           Authorization: "Bearer " + SUPABASE_ANON_KEY,
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({ p_kiosk_token: token })
+        body: JSON.stringify(parameters)
       }
     );
     const data = await response.json();
@@ -26,7 +24,7 @@ export async function validateTerminalToken(token) {
         error: {
           message: data && data.message
             ? data.message
-            : "Terminal token validation failed."
+            : fallbackError
         }
       };
     }
@@ -35,4 +33,24 @@ export async function validateTerminalToken(token) {
   } catch (error) {
     return { data: null, error };
   }
+}
+
+// Terminal registration is device-token based and must not inherit a staff
+// session that is still loading, refreshing, or signing out.
+export function validateTerminalToken(token) {
+  return callAnonymousRpc(
+    "validate_kiosk_device_token",
+    { p_kiosk_token: token },
+    "Terminal token validation failed."
+  );
+}
+
+// Called only while the explicit startup debug flag is enabled. The RPC
+// returns lengths and row counts, never the token itself.
+export function diagnoseTerminalToken(token) {
+  return callAnonymousRpc(
+    "diagnose_kiosk_device_token",
+    { p_kiosk_token: token },
+    "Terminal token SQL diagnostic failed."
+  );
 }
