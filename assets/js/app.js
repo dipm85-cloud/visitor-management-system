@@ -95,12 +95,14 @@ import {
   refreshCoreData,
   loadPlannedVisits,
   renderPlannedVisitorList,
+  signInPlanned,
   signInWalkIn,
   createStaffWalkIn,
   signInStaffPlannedVisit,
   signOutStaffVisit,
   loadActiveVisits,
-  renderActiveVisitorList
+  renderActiveVisitorList,
+  signOut
 } from "./visitorFlow.js";
 import {
   configurePlannedVisits,
@@ -180,6 +182,7 @@ import {
   showDashboardWorkspace,
   showStaffLoginWorkspace,
   showTerminalHomeWorkspace,
+  showVisitorKioskWorkspace,
   closeAccountMenu,
   syncNavigationCapabilityVisibility,
   shouldShowPeopleNavigation
@@ -226,6 +229,13 @@ import {
 import { registerInitialModuleConfigurations } from "./moduleConfigurations.js";
 import { isRegisteredTerminal } from "./terminal.js";
 import { registerInitialTerminalWorkflows } from "./terminalWorkflows.js";
+import {
+  configureVisitorKiosk,
+  initialiseVisitorKiosk,
+  openVisitorKiosk,
+  returnToVisitorKioskHome,
+  showVisitorKioskStatus
+} from "./visitorKiosk.js";
 import { hasAnyCapability, hasCapability } from "./capabilities.js";
 import {
   initialiseStartupDebug,
@@ -447,8 +457,19 @@ window.addEventListener("load", async function () {
         isSuperKioskTestProfile,
         queueVisitorArrivalNotification,
         sendKioskHeartbeat,
-        writeAuditEvent
+        writeAuditEvent,
+        returnToVisitorKiosk: returnToVisitorKioskHome,
+        showVisitorKioskStatus
       }
+    });
+    configureVisitorKiosk({
+      showWorkspace: showVisitorKioskWorkspace,
+      returnToTerminalHome: enterTerminalMode,
+      openWalkInModal,
+      loadPlannedVisits,
+      signInPlanned,
+      loadActiveVisits,
+      signOut
     });
     configureHistory({
       loadSecurityDashboard,
@@ -2509,7 +2530,10 @@ window.addEventListener("load", async function () {
 
     function openWalkInModal(nameFromSearch) {
       clearWalkInModalMessage();
-      $("walkInName").value = formatPersonName(nameFromSearch || $("plannedFilter").value || "");
+      const initialName = typeof nameFromSearch === "string"
+        ? nameFromSearch
+        : $("plannedFilter").value || "";
+      $("walkInName").value = formatPersonName(initialName);
       applyFieldRules();
       updateWalkInEmbeddedPrivacy();
       $("walkInModalBackdrop").classList.add("active");
@@ -4743,6 +4767,7 @@ window.addEventListener("load", async function () {
     if ($("kioskStaffLoginButton")) $("kioskStaffLoginButton").addEventListener("click", openLoginModal);
     initialiseVisitorIdentityLookups();
     registerInitialTerminalWorkflows();
+    initialiseVisitorKiosk();
     initialiseVisitorsWorkspace();
     initialiseDashboard();
     initialiseReportingCentre();
@@ -4757,9 +4782,7 @@ window.addEventListener("load", async function () {
     window.addEventListener("oh:terminal-workflow-requested", event => {
       const workflowId = event.detail && event.detail.workflowId;
       if (workflowId !== "visitors" || !isRegisteredTerminal()) return;
-      showLegacyVmsWorkspace();
-      showScreen("homeScreen");
-      updateHomeAccess();
+      openVisitorKiosk();
     });
     if ($("ohPeopleNav")) $("ohPeopleNav").addEventListener("click", openPeopleWorkspace);
     if ($("peopleCreateButton")) $("peopleCreateButton").addEventListener("click", () => openPeoplePanel(null));

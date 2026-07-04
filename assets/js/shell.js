@@ -111,6 +111,7 @@ function setActiveApp(appName) {
     reporting: "Reporting Centre",
     administration: "Administration",
     terminal: "Terminal Home",
+    visitorKiosk: "Visitor Kiosk",
     login: "Staff Login"
   };
 
@@ -235,6 +236,7 @@ function showOnlyWorkspace(workspaceId, appName) {
     "reportingWorkspace",
     "administrationWorkspace",
     "terminalHomeWorkspace",
+    "visitorKioskWorkspace",
     "staffLoginWorkspace"
   ].forEach(id => {
     document.getElementById(id).classList.toggle("hidden", id !== workspaceId);
@@ -253,6 +255,11 @@ export function showDashboardWorkspace() {
 
 export function showTerminalHomeWorkspace() {
   showOnlyWorkspace("terminalHomeWorkspace", "terminal");
+  document.getElementById("operationsHubWorkspace").focus({ preventScroll: true });
+}
+
+export function showVisitorKioskWorkspace() {
+  showOnlyWorkspace("visitorKioskWorkspace", "visitorKiosk");
   document.getElementById("operationsHubWorkspace").focus({ preventScroll: true });
 }
 

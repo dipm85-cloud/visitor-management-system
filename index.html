@@ -130,6 +130,65 @@
         </button>
       </section>
 
+      <section id="visitorKioskWorkspace" class="visitor-kiosk hidden" tabindex="-1" aria-labelledby="visitorKioskTitle">
+        <div id="visitorKioskStatus" class="visitor-kiosk-status hidden" role="status" aria-live="polite"></div>
+        <div class="visitor-kiosk-view" data-visitor-kiosk-view="home">
+          <header class="visitor-kiosk-header">
+            <div>
+              <p class="terminal-eyebrow">Operations Hub Visitors</p>
+              <h1 id="visitorKioskTitle">Welcome</h1>
+            </div>
+            <button id="visitorKioskTerminalHomeButton" class="secondary" type="button">
+              Terminal Home
+            </button>
+          </header>
+          <div class="visitor-kiosk-actions" aria-label="Visitor actions">
+            <button id="visitorKioskPlannedButton" class="visitor-kiosk-action" type="button">
+              <strong>Planned Visitor</strong>
+              <span>Find today’s visit and sign in</span>
+            </button>
+            <button id="visitorKioskWalkInButton" class="visitor-kiosk-action" type="button">
+              <strong>Walk-In Visitor</strong>
+              <span>Register without a planned visit</span>
+            </button>
+            <button id="visitorKioskSignOutButton" class="visitor-kiosk-action accent" type="button">
+              <strong>Visitor Sign Out</strong>
+              <span>Finish your visit</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="visitor-kiosk-view hidden" data-visitor-kiosk-view="planned">
+          <header class="visitor-kiosk-header">
+            <div>
+              <p class="terminal-eyebrow">Visitor Sign In</p>
+              <h1>Find your planned visit</h1>
+            </div>
+            <button class="visitorKioskBackButton secondary" type="button">Back</button>
+          </header>
+          <label class="visitor-kiosk-search">
+            <span>Your name or company</span>
+            <input id="visitorKioskPlannedSearch" type="search" autocomplete="off" placeholder="Start typing…" />
+          </label>
+          <div id="visitorKioskPlannedResults" class="visitor-kiosk-results" aria-live="polite"></div>
+        </div>
+
+        <div class="visitor-kiosk-view hidden" data-visitor-kiosk-view="sign-out">
+          <header class="visitor-kiosk-header">
+            <div>
+              <p class="terminal-eyebrow">Visitor Sign Out</p>
+              <h1>Find your visit</h1>
+            </div>
+            <button class="visitorKioskBackButton secondary" type="button">Back</button>
+          </header>
+          <label class="visitor-kiosk-search">
+            <span>Your name, company, or security pass</span>
+            <input id="visitorKioskSignOutSearch" type="search" autocomplete="off" placeholder="Start typing…" />
+          </label>
+          <div id="visitorKioskSignOutResults" class="visitor-kiosk-results" aria-live="polite"></div>
+        </div>
+      </section>
+
       <section id="staffLoginWorkspace" class="staff-login-workspace hidden" aria-labelledby="staffLoginWorkspaceTitle">
         <div class="staff-login-card">
           <p class="oh-app-eyebrow">Operations Hub</p>

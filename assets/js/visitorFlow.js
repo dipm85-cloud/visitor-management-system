@@ -89,6 +89,31 @@ function isPublicKioskContext() {
   return !superKioskTest && (!AppState.currentProfile || AppState.currentProfile.role === "kiosk_user");
 }
 
+function isPublicKioskFlow() {
+  return isPublicKioskContext();
+}
+
+function returnFromPublicVisitorAction() {
+  if (
+    isPublicKioskContext() &&
+    typeof visitorDependencies.returnToVisitorKiosk === "function"
+  ) {
+    visitorDependencies.returnToVisitorKiosk();
+    return;
+  }
+  showScreen("homeScreen");
+}
+
+function showKioskFlowMessage(message, type) {
+  showMessage(message, type);
+  if (
+    isPublicKioskContext() &&
+    typeof visitorDependencies.showVisitorKioskStatus === "function"
+  ) {
+    visitorDependencies.showVisitorKioskStatus(message, type);
+  }
+}
+
 function showStaffComplianceToast(title, body, type) {
   if (isPublicKioskContext()) {
     console.warn(title + ": " + body);
@@ -104,7 +129,8 @@ export async function refreshCoreData() {
   $("debugInfo").textContent = "Last refreshed: " + new Date().toLocaleTimeString();
 }
 
-export async function loadPlannedVisits() {
+export async function loadPlannedVisits(options) {
+  const renderLegacyList = !options || options.renderLegacyList !== false;
   const today = todayDate();
 
   // Preferred path: backend-controlled list that excludes any planned visit already used today.
@@ -115,8 +141,8 @@ export async function loadPlannedVisits() {
 
   if (!availableResult.error && Array.isArray(availableResult.data)) {
     AppState.plannedTodayCache = availableResult.data || [];
-    renderPlannedVisitorList();
-    return;
+    if (renderLegacyList) renderPlannedVisitorList();
+    return AppState.plannedTodayCache;
   }
 
   if (availableResult.error) {
@@ -130,9 +156,9 @@ export async function loadPlannedVisits() {
     .order("expected_time", { ascending: true });
 
   if (plannedResult.error) {
-    $("plannedVisits").innerHTML = "Could not load planned visits.";
+    if (renderLegacyList) $("plannedVisits").innerHTML = "Could not load planned visits.";
     console.error(plannedResult.error);
-    return;
+    return null;
   }
 
   const logsResult = await supabaseClient
@@ -157,7 +183,8 @@ export async function loadPlannedVisits() {
     const statusAllowsKioskSignIn = ["", "planned", "pending"].includes(status);
     return statusAllowsKioskSignIn && !used[v.id];
   });
-  renderPlannedVisitorList();
+  if (renderLegacyList) renderPlannedVisitorList();
+  return AppState.plannedTodayCache;
 }
 
 export function renderPlannedVisitorList() {
@@ -269,11 +296,11 @@ export async function signInPlanned(visit, actionButton) {
     try {
       kioskToken = ensureKioskToken();
     } catch (err) {
-      showMessage(err.message, "error");
+      showKioskFlowMessage(err.message, "error");
       return;
     }
 
-    showMessage("Signing you in, please wait...", "success");
+    showKioskFlowMessage("Signing you in, please wait...", "success");
     if (actionButton && actionButton.parentElement) {
       const waitNote = document.createElement("div");
       waitNote.className = "row-meta kiosk-action-wait-note";
@@ -294,7 +321,7 @@ export async function signInPlanned(visit, actionButton) {
 
     if (result.error) {
       const msg = "Could not sign in planned visitor: " + result.error.message;
-      showMessage(msg, "error");
+      showKioskFlowMessage(msg, "error");
       console.error(result.error);
       return;
     }
@@ -310,13 +337,13 @@ export async function signInPlanned(visit, actionButton) {
       planned_visit_id: visit.id
     });
 
-    showMessage("Signed in successfully.", "success");
+    showKioskFlowMessage("Signed in successfully.", "success");
     showKioskConfirmation("Welcome, " + safe(visit.visitor_name), appSettings.plannedSignInMessage);
     resetPlannedSignInSearch();
     await refreshCoreData();
-    showScreen("homeScreen");
+    returnFromPublicVisitorAction();
   } catch (err) {
-    showMessage("Could not sign in planned visitor: " + err.message, "error");
+    showKioskFlowMessage("Could not sign in planned visitor: " + err.message, "error");
     console.error(err);
   } finally {
     endKioskAction(actionButton, "Sign In");
@@ -372,6 +399,10 @@ async function validateStaffWalkInVisitorName(name) {
 
 export async function signInWalkIn() {
   clearMessage();
+  if (isPublicKioskFlow() && !settingValue("allow_walk_ins", true)) {
+    showWalkInModalMessage("Walk-in registration is currently unavailable.", "error");
+    return;
+  }
   if (!isPublicKioskFlow() && (!hasCapability("visitor.create") || !hasCapability("visitor.sign_in"))) {
     showToast(
       "You do not have permission",
@@ -471,10 +502,10 @@ export async function signInWalkIn() {
 
   resetWalkInPublicFlow();
   visitorDependencies.closeWalkInModal();
-  showMessage("Walk-in visitor signed in successfully.", "success");
+  showKioskFlowMessage("Walk-in visitor signed in successfully.", "success");
   showKioskConfirmation("Welcome, " + safe(name), appSettings.walkInSignInMessage);
   await refreshCoreData();
-  showScreen("homeScreen");
+  returnFromPublicVisitorAction();
   } finally {
     endKioskAction(actionButton, "Sign In Walk-In");
   }
@@ -683,7 +714,8 @@ export async function signInStaffPlannedVisit(plannedVisitId) {
   };
 }
 
-export async function loadActiveVisits() {
+export async function loadActiveVisits(options) {
+  const renderLegacyList = !options || options.renderLegacyList !== false;
   const result = await supabaseClient
     .from("visit_log")
     .select("id, visitor_name, company, visit_reason, vehicle_plate, onsite_contact, security_pass_id, privacy_notice_version, privacy_notice_accepted_at, sign_in_time")
@@ -691,13 +723,14 @@ export async function loadActiveVisits() {
     .order("sign_in_time", { ascending: true });
 
   if (result.error) {
-    $("activeVisits").innerHTML = "Could not load active visitors.";
+    if (renderLegacyList) $("activeVisits").innerHTML = "Could not load active visitors.";
     console.error(result.error);
-    return;
+    return null;
   }
 
   AppState.activeVisitCache = result.data || [];
-  renderActiveVisitorList();
+  if (renderLegacyList) renderActiveVisitorList();
+  return AppState.activeVisitCache;
 }
 
 export function renderActiveVisitorList() {
@@ -852,7 +885,7 @@ export async function signOut(id, actionButton) {
   try {
     kioskToken = ensureKioskToken();
   } catch (err) {
-    showMessage(err.message, "error");
+    showKioskFlowMessage(err.message, "error");
     return;
   }
 
@@ -863,7 +896,7 @@ export async function signOut(id, actionButton) {
     const missingText = complianceSummary.missing_agreements || "required agreement(s)";
     const blockSignOut = !!settingValue("block_sign_out_if_required_agreements_missing", false);
     if (blockSignOut) {
-      showMessage(
+      showKioskFlowMessage(
         isPublicKioskContext()
           ? "Sign-out could not be completed. Please ask Security for help."
           : "Cannot sign out. Missing required agreement(s): " + missingText,
@@ -875,7 +908,7 @@ export async function signOut(id, actionButton) {
     showStaffComplianceToast("Compliance warning", "Signing out with missing required agreement(s): " + missingText, "error");
   }
 
-  showMessage("Signing you out, please wait...", "success");
+  showKioskFlowMessage("Signing you out, please wait...", "success");
 
   const signOutRpc = visitorDependencies.isSuperKioskTestProfile()
     ? "superuser_test_kiosk_sign_out"
@@ -887,7 +920,7 @@ export async function signOut(id, actionButton) {
   });
 
   if (result.error) {
-    showMessage("Could not sign visitor out: " + result.error.message, "error");
+    showKioskFlowMessage("Could not sign visitor out: " + result.error.message, "error");
     console.error(result.error);
     return;
   }
@@ -896,11 +929,11 @@ export async function signOut(id, actionButton) {
 
   await visitorDependencies.writeAuditEvent("visitor_signed_out", "visit_log", id, {});
 
-  showMessage("Visitor signed out successfully.", "success");
+  showKioskFlowMessage("Visitor signed out successfully.", "success");
   showKioskConfirmation("Thank you for your visit", appSettings.signOutMessage);
   resetSignOutSearch();
   await refreshCoreData();
-  showScreen("homeScreen");
+  returnFromPublicVisitorAction();
   } finally {
     endKioskAction(actionButton, "Sign Out");
   }
