@@ -1,4 +1,4 @@
-import { supabaseClient } from "./api.js";
+import { validateTerminalToken } from "./api.js";
 import { $ } from "./dom.js";
 import { getKioskToken } from "./kiosk.js";
 import { AppState } from "./state.js";
@@ -42,9 +42,7 @@ export async function refreshTerminalRegistration() {
 
   terminalRegistrationToken = token;
   terminalRegistrationCheck = (async function () {
-    const result = await supabaseClient.rpc("validate_kiosk_device_token", {
-      p_kiosk_token: token
-    });
+    const result = await validateTerminalToken(token);
     const registered = !result.error && result.data === true;
     const tokenIsCurrent = getKioskToken() === token;
 
