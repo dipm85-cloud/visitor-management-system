@@ -46,8 +46,8 @@ export function detectEntryMode() {
 
 export async function resolveStartupMode() {
   if (activeStaffSession()) return STAFF_MODE;
-  await refreshTerminalRegistration();
-  return detectEntryMode();
+  const registeredTerminal = await refreshTerminalRegistration();
+  return registeredTerminal ? TERMINAL_MODE : LOGIN_MODE;
 }
 
 export function enterTerminalMode() {

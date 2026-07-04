@@ -4,6 +4,8 @@ import { getKioskToken } from "./kiosk.js";
 import { AppState } from "./state.js";
 
 const terminalWorkflowRegistry = new Map();
+let terminalRegistrationCheck = null;
+let terminalRegistrationToken = null;
 
 export function registerTerminalWorkflow(workflow) {
   if (!workflow || !workflow.id || !workflow.name) {
@@ -34,18 +36,40 @@ export async function refreshTerminalRegistration() {
     return false;
   }
 
-  const result = await supabaseClient.rpc("validate_kiosk_device_token", {
-    p_kiosk_token: token
-  });
-  const registered = !result.error && result.data === true;
-  AppState.terminalRegistration = {
-    checked: true,
-    registered
-  };
-  if (result.error) {
-    console.warn("[OH-033 terminal registration check failed]", result.error);
+  if (terminalRegistrationCheck && terminalRegistrationToken === token) {
+    return terminalRegistrationCheck;
   }
-  return registered;
+
+  terminalRegistrationToken = token;
+  terminalRegistrationCheck = (async function () {
+    const result = await supabaseClient.rpc("validate_kiosk_device_token", {
+      p_kiosk_token: token
+    });
+    const registered = !result.error && result.data === true;
+    const tokenIsCurrent = getKioskToken() === token;
+
+    // Do not let a response for a replaced/cleared token overwrite the current
+    // device registration state.
+    if (tokenIsCurrent) {
+      AppState.terminalRegistration = {
+        checked: true,
+        registered
+      };
+    }
+    if (result.error) {
+      console.warn("[OH-033 terminal registration check failed]", result.error);
+    }
+    return tokenIsCurrent && registered;
+  })();
+
+  try {
+    return await terminalRegistrationCheck;
+  } finally {
+    if (terminalRegistrationToken === token) {
+      terminalRegistrationCheck = null;
+      terminalRegistrationToken = null;
+    }
+  }
 }
 
 function workflowEnabled(workflow) {
