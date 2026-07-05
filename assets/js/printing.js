@@ -1,6 +1,10 @@
 import { AppState } from "./state.js";
 import { showMessage } from "./messages.js";
 import { printEscape, formatPrintDate, formatPrintTime } from "./utils.js";
+import {
+  buildPlatformPrintFrame,
+  buildPlatformPrintStyles
+} from "./platformUi.js";
 
 let appSettings;
 let printingDependencies;
@@ -73,12 +77,31 @@ export function buildDailyPlannedVisitorPrintHtml(rows, options) {
     "</tr>";
   }).join("");
   const logo = logoUrl
-    ? "<img class='logo' src='" + printEscape(logoUrl) + "' alt='" + printEscape(companyName) + " logo'>"
+    ? "<img class='logo oh-print-logo' src='" + printEscape(logoUrl) + "' alt='" + printEscape(companyName) + " logo'>"
     : "<div class='logo-fallback'>OH</div>";
+  const headerHtml =
+    "<header class='document-header oh-print-document-header'><div class='brand-block'>" + logo +
+    "<div><div class='hub'>Operations Hub / Visitors</div><div class='company-name'>" + printEscape(companyName) + "</div>" +
+    "<h1>Daily Planned Visitor List</h1>" +
+    (siteName ? "<div class='site'>Site: " + printEscape(siteName) + "</div>" : "") +
+    "</div></div><div class='meta'>Planned visit date: <strong>" + printEscape(formatPrintDate(options.selectedDate)) +
+    "</strong><br>Printed: " + printEscape(generatedAt) +
+    "<br>Printed by: " + printEscape(options.printedBy || "-") + "</div></header>";
+  const bodyHtml =
+    "<div class='document-summary'><span>Planned visitors: " + (rows || []).length +
+    "</span><span>Reception / Security operational document</span></div>" +
+    "<table class='document-table'><thead><tr><th class='visitor'>Visitor</th><th class='company-col'>Company</th>" +
+    "<th class='contact'>Host / On-site Contact</th><th class='time'>Expected Time</th>" +
+    "<th class='vehicle'>Vehicle Registration</th><th class='pass'>Security Pass</th>" +
+    "<th class='status'>Status</th><th class='notes'>Notes</th></tr></thead><tbody>" +
+    bodyRows + "</tbody></table>";
+  const footerHtml =
+    "<footer class='document-footer oh-print-document-footer'><span>Operations Hub visitor operations</span>" +
+    "<span>Generated " + printEscape(generatedAt) + "</span></footer>";
 
   return "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Daily Planned Visitor List</title>" +
     "<style>" +
-    "@page{size:A4 landscape;margin:10mm;}" +
+    buildPlatformPrintStyles({ orientation: "landscape", margin: "10mm" }) +
     "*{box-sizing:border-box;}" +
     "html,body{margin:0;padding:0;}" +
     "body{font-family:Arial,Helvetica,sans-serif;color:#111;font-size:9.5px;line-height:1.3;}" +
@@ -92,32 +115,14 @@ export function buildDailyPlannedVisitorPrintHtml(rows, options) {
     ".site{margin-top:3px;font-weight:700;}" +
     ".meta{text-align:right;font-size:9px;line-height:1.45;white-space:nowrap;}" +
     ".document-summary{display:flex;justify-content:space-between;gap:12px;padding:5px 0 7px;border-bottom:1px solid #777;margin-bottom:7px;font-weight:700;}" +
-    "table{width:100%;border-collapse:collapse;table-layout:fixed;}" +
-    "thead{display:table-header-group;}" +
-    "tfoot{display:table-footer-group;}" +
-    "tr{break-inside:avoid;page-break-inside:avoid;}" +
+    ".document-table{width:100%;border-collapse:collapse;table-layout:fixed;}" +
     "th{padding:5px 5px;border:1px solid #555;text-align:left;font-size:8.5px;text-transform:uppercase;letter-spacing:.025em;background:#eee;color:#111;}" +
     "td{padding:5px;border:1px solid #999;vertical-align:top;overflow-wrap:anywhere;}" +
     ".visitor{width:14%;}.company-col{width:13%;}.contact{width:16%;}.time{width:7%;}.vehicle{width:11%;}.pass{width:9%;}.status{width:9%;}.notes{width:21%;}" +
     ".document-footer{display:flex;justify-content:space-between;gap:12px;margin-top:7px;padding-top:5px;border-top:1px solid #777;color:#444;font-size:8px;}" +
     "@media print{.no-print{display:none!important;}body{-webkit-print-color-adjust:economy;print-color-adjust:economy;}}" +
     "</style></head><body>" +
-    "<header class='document-header'><div class='brand-block'>" + logo +
-    "<div><div class='hub'>Operations Hub / Visitors</div><div class='company-name'>" + printEscape(companyName) + "</div>" +
-    "<h1>Daily Planned Visitor List</h1>" +
-    (siteName ? "<div class='site'>Site: " + printEscape(siteName) + "</div>" : "") +
-    "</div></div><div class='meta'>Planned visit date: <strong>" + printEscape(formatPrintDate(options.selectedDate)) +
-    "</strong><br>Printed: " + printEscape(generatedAt) +
-    "<br>Printed by: " + printEscape(options.printedBy || "-") + "</div></header>" +
-    "<div class='document-summary'><span>Planned visitors: " + (rows || []).length +
-    "</span><span>Reception / Security operational document</span></div>" +
-    "<table><thead><tr><th class='visitor'>Visitor</th><th class='company-col'>Company</th>" +
-    "<th class='contact'>Host / On-site Contact</th><th class='time'>Expected Time</th>" +
-    "<th class='vehicle'>Vehicle Registration</th><th class='pass'>Security Pass</th>" +
-    "<th class='status'>Status</th><th class='notes'>Notes</th></tr></thead><tbody>" +
-    bodyRows + "</tbody></table>" +
-    "<footer class='document-footer'><span>Operations Hub visitor operations</span>" +
-    "<span>Generated " + printEscape(generatedAt) + "</span></footer>" +
+    buildPlatformPrintFrame({ headerHtml, bodyHtml, footerHtml }) +
     "<script>window.addEventListener('load',function(){var images=Array.from(document.images);Promise.all(images.map(function(image){return image.complete?Promise.resolve():new Promise(function(resolve){image.addEventListener('load',resolve,{once:true});image.addEventListener('error',resolve,{once:true});});})).then(function(){setTimeout(function(){window.focus();window.print();},100);});});<\/script>" +
     "</body></html>";
 }

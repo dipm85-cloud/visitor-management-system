@@ -6,6 +6,7 @@ export function registerInitialTerminalWorkflows() {
     name: "Visitors",
     icon: "V",
     description: "Visitor sign-in and sign-out.",
+    surfaceId: "visitorKioskWorkspace",
     open() {
       window.dispatchEvent(new CustomEvent("oh:terminal-workflow-requested", {
         detail: { workflowId: "visitors" }

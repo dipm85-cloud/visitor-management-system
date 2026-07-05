@@ -1,6 +1,7 @@
 import { supabaseClient } from "./api.js";
 import { $ } from "./dom.js";
 import { showToast } from "./messages.js";
+import { renderEmptyState } from "./platformUi.js";
 import { showOrganisationsWorkspace } from "./shell.js";
 import { hasAnyCapability, hasCapability } from "./capabilities.js";
 import { auditDiffSummary, buildFieldDiff, writeAuditEvent } from "./audit.js";
@@ -160,9 +161,17 @@ export function renderOrganisationList() {
   });
 
   $("organisationEmptyState").classList.toggle("hidden", filtered.length > 0);
-  $("organisationEmptyState").textContent = query || statusFilter !== "all"
-    ? "No organisations match the current filters."
-    : "No organisation records yet. Create the first organisation to start the shared directory.";
+  if (!filtered.length) {
+    const filteredView = query || statusFilter !== "all";
+    renderEmptyState("organisationEmptyState", {
+      title: filteredView
+        ? "No organisations found"
+        : "No organisation records",
+      description: filteredView
+        ? "No organisations match the current filters."
+        : "Create the first organisation to start the shared directory."
+    });
+  }
   setListStatus(filtered.length + " of " + organisationsCache.length + " organisations shown.");
 }
 

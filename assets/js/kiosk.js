@@ -76,24 +76,31 @@ export function bindKioskIdleActivityReset() {
 
   containers.forEach(id => {
     const el = $(id);
-    if (!el || el.dataset.idleResetBound === "true") return;
-
-    resetEvents.forEach(eventName => {
-      el.addEventListener(eventName, () => {
-        if (
-          kioskDependencies.isKioskProfile() ||
-          (
-            AppState.terminalRegistration &&
-            AppState.terminalRegistration.registered
-          )
-        ) {
-          resetKioskIdleTimer();
-        }
-      }, true);
-    });
-
-    el.dataset.idleResetBound = "true";
+    if (el) el.dataset.ohTerminalSurface = "true";
   });
+
+  if (document.documentElement.dataset.ohTerminalIdleBound === "true") return;
+
+  resetEvents.forEach(eventName => {
+    document.addEventListener(eventName, event => {
+      const target = event.target;
+      const terminalSurface = target && typeof target.closest === "function"
+        ? target.closest("[data-oh-terminal-surface='true']")
+        : null;
+      if (!terminalSurface) return;
+      if (
+        kioskDependencies.isKioskProfile() ||
+        (
+          AppState.terminalRegistration &&
+          AppState.terminalRegistration.registered
+        )
+      ) {
+        resetKioskIdleTimer();
+      }
+    }, true);
+  });
+
+  document.documentElement.dataset.ohTerminalIdleBound = "true";
 }
 
 export function resetKioskIdleTimer() {
@@ -117,8 +124,19 @@ export function resetKioskIdleTimer() {
       (loginModal && loginModal.classList.contains("active"))
     )
   );
+  const onRegisteredTerminalSurface = !!(
+    AppState.terminalRegistration &&
+    AppState.terminalRegistration.registered &&
+    Array.from(document.querySelectorAll(
+      "[data-oh-terminal-surface='true']"
+    )).some(element =>
+      typeof element.getClientRects === "function" &&
+      element.getClientRects().length > 0
+    )
+  );
   const onKioskScreen = onNativeVisitorKiosk ||
     onTerminalStaffLogin ||
+    onRegisteredTerminalSurface ||
     $("signInScreen").classList.contains("active") ||
     $("signOutScreen").classList.contains("active");
 
@@ -133,7 +151,11 @@ export function resetKioskIdleTimer() {
     );
     if (activeStaffSession) return;
     if (
-      (onNativeVisitorKiosk || onTerminalStaffLogin) &&
+      (
+        onNativeVisitorKiosk ||
+        onTerminalStaffLogin ||
+        onRegisteredTerminalSurface
+      ) &&
       typeof kioskDependencies.returnToTerminalLanding === "function"
     ) {
       kioskDependencies.returnToTerminalLanding("inactivity-timeout");

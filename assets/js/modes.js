@@ -2,6 +2,7 @@ import {
   isRegisteredTerminal,
   openSingleEnabledTerminalWorkflow,
   refreshTerminalRegistration,
+  resetTerminalWorkflowState,
   renderTerminalHome,
   syncTerminalNavigation
 } from "./terminal.js";
@@ -56,6 +57,7 @@ export async function resolveStartupMode() {
 
 export function enterTerminalMode(source, options) {
   setDocumentMode(TERMINAL_MODE, source || "terminal-entry");
+  resetTerminalWorkflowState(source || "terminal-entry");
   modeDependencies.updateHomeAccess();
   syncTerminalNavigation();
   if (

@@ -5,6 +5,7 @@ import {
 import { $ } from "./dom.js";
 import { getKioskToken } from "./kiosk.js";
 import { AppState } from "./state.js";
+import { setActionAvailable } from "./platformUi.js";
 import {
   recordTerminalValidationCalled,
   recordTerminalValidationResult,
@@ -24,8 +25,15 @@ export function registerTerminalWorkflow(workflow) {
     description: "",
     icon: workflow.name.slice(0, 1),
     enabled: true,
+    surfaceId: "",
+    reset: null,
     ...workflow
   });
+
+  if (workflow.surfaceId) {
+    const surface = document.getElementById(workflow.surfaceId);
+    if (surface) surface.dataset.ohTerminalSurface = "true";
+  }
 }
 
 export function isRegisteredTerminal() {
@@ -105,14 +113,28 @@ export function hasMultipleEnabledTerminalWorkflows() {
   return enabledTerminalWorkflows().length > 1;
 }
 
+export function resetTerminalWorkflowState(reason) {
+  terminalWorkflowRegistry.forEach(workflow => {
+    if (typeof workflow.reset === "function") {
+      try {
+        workflow.reset(reason || "terminal-entry");
+      } catch (error) {
+        console.warn(
+          "Terminal workflow reset failed:",
+          workflow.id,
+          error
+        );
+      }
+    }
+  });
+}
+
 export function syncTerminalNavigation() {
   const homeButton = $("terminalHomeTopButton");
-  if (homeButton) {
-    homeButton.classList.toggle(
-      "hidden",
-      !hasMultipleEnabledTerminalWorkflows()
-    );
-  }
+  setActionAvailable(
+    homeButton,
+    hasMultipleEnabledTerminalWorkflows()
+  );
 }
 
 export function openSingleEnabledTerminalWorkflow(workflowId) {

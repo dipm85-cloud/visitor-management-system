@@ -1,6 +1,10 @@
 import { supabaseClient } from "./api.js";
 import { $ } from "./dom.js";
 import { showToast } from "./messages.js";
+import {
+  renderEmptyState,
+  setActionAvailable
+} from "./platformUi.js";
 import { showPeopleWorkspace } from "./shell.js";
 import { hasAnyCapability, hasCapability } from "./capabilities.js";
 import { auditDiffSummary, buildFieldDiff, writeAuditEvent } from "./audit.js";
@@ -83,7 +87,7 @@ function createCell(text) {
 export async function openPeopleWorkspace() {
   if (!requirePeopleAccess()) return;
   showPeopleWorkspace();
-  $("peopleCreateButton").classList.toggle("hidden", !hasPeopleManageAccess());
+  setActionAvailable("peopleCreateButton", hasPeopleManageAccess());
   closePeoplePanel();
   await loadPeople();
 }
@@ -178,9 +182,14 @@ export function renderPeopleList() {
   });
 
   $("peopleEmptyState").classList.toggle("hidden", filtered.length > 0);
-  $("peopleEmptyState").textContent = query
-    ? "No people match this search. Try a different name, number, email or phone."
-    : "No people records yet. Create the first person to start the shared directory.";
+  if (!filtered.length) {
+    renderEmptyState("peopleEmptyState", {
+      title: query ? "No people found" : "No people records",
+      description: query
+        ? "Try a different name, number, email or phone."
+        : "Create the first person to start the shared directory."
+    });
+  }
   setListStatus(filtered.length + " of " + peopleCache.length + " people shown.");
   syncAssignmentInlinePlacement();
 }

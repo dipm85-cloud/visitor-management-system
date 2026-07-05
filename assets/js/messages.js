@@ -49,6 +49,11 @@ export function showToast(title, body, type) {
 
   const toast = document.createElement("div");
   toast.className = "toast " + toastType;
+  toast.setAttribute("role", toastType === "error" ? "alert" : "status");
+  toast.setAttribute(
+    "aria-live",
+    toastType === "error" ? "assertive" : "polite"
+  );
 
   const content = document.createElement("div");
   content.innerHTML =

@@ -16,6 +16,10 @@ import {
   addOneMonthDate
 } from "./utils.js";
 import {
+  initialisePlatformUi,
+  setActionAvailable
+} from "./platformUi.js";
+import {
   $,
   buildResultSummary,
   setResultBox,
@@ -290,8 +294,7 @@ window.addEventListener("load", async function () {
 
     function setCapabilityVisibility(ids, capability) {
       ids.forEach(id => {
-        const element = $(id);
-        if (element) element.classList.toggle("hidden", !hasCapability(capability));
+        setActionAvailable(id, hasCapability(capability));
       });
     }
 
@@ -4814,6 +4817,7 @@ window.addEventListener("load", async function () {
     if ($("kioskStaffLoginButton")) $("kioskStaffLoginButton").addEventListener("click", openLoginModal);
     initialiseVisitorIdentityLookups();
     registerInitialTerminalWorkflows();
+    initialisePlatformUi();
     initialiseVisitorKiosk();
     bindKioskIdleActivityReset();
     initialiseVisitorsWorkspace();

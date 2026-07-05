@@ -59,14 +59,21 @@ function setListMessage(containerId, title, detail) {
   container.replaceChildren();
 
   const message = document.createElement("div");
-  message.className = "visitor-kiosk-empty";
+  message.className = "visitor-kiosk-empty oh-empty-state";
+
+  const icon = document.createElement("span");
+  icon.className = "oh-empty-state-icon";
+  icon.setAttribute("aria-hidden", "true");
+  icon.textContent = "—";
 
   const heading = document.createElement("strong");
+  heading.className = "oh-empty-state-title";
   heading.textContent = title;
-  message.appendChild(heading);
+  message.append(icon, heading);
 
   if (detail) {
     const description = document.createElement("span");
+    description.className = "oh-empty-state-description";
     description.textContent = detail;
     message.appendChild(description);
   }

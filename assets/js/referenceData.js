@@ -1,6 +1,7 @@
 import { supabaseClient } from "./api.js";
 import { $ } from "./dom.js";
 import { showToast } from "./messages.js";
+import { renderEmptyState } from "./platformUi.js";
 import { showAdministrationWorkspace } from "./shell.js";
 import { auditDiffSummary, buildFieldDiff, writeAuditEvent } from "./audit.js";
 import { showReferenceDataAdministrationSection } from "./accessControl.js";
@@ -572,13 +573,17 @@ export function renderReferenceDataList() {
   });
 
   $("referenceEmptyState").classList.toggle("hidden", filtered.length > 0);
-  $("referenceEmptyState").textContent = query
-    ? "No " + definition.plural.toLowerCase() +
-      " match this search. Try a different code or name."
-    : hasReferenceDataEditAccess()
-      ? "No " + definition.plural.toLowerCase() + " yet. Create the first " +
-        definition.singular.toLowerCase() + " to establish this reference list."
-      : "No " + definition.plural.toLowerCase() + " are available.";
+  if (!filtered.length) {
+    renderEmptyState("referenceEmptyState", {
+      title: "No " + definition.plural.toLowerCase() + " found",
+      description: query
+        ? "Try a different code or name."
+        : hasReferenceDataEditAccess()
+          ? "Create the first " + definition.singular.toLowerCase() +
+            " to establish this reference list."
+          : "No " + definition.plural.toLowerCase() + " are available."
+    });
+  }
   setListStatus(filtered.length + " of " + records.length + " records shown.");
 }
 

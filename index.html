@@ -31,7 +31,7 @@
     </div>
 
     <div class="oh-header-actions">
-      <button class="oh-header-action no-print" type="button" disabled title="Notifications are coming soon">
+      <button class="oh-header-action no-print hidden" type="button" disabled title="Notifications are coming soon">
         <span aria-hidden="true">●</span>
         <span class="oh-action-label">Notifications</span>
       </button>
@@ -94,12 +94,12 @@
           <span class="oh-nav-icon" aria-hidden="true">O</span>
           <span class="oh-nav-label">Organisations</span>
         </button>
-        <button class="oh-nav-item" type="button" disabled title="Labour is coming soon">
+        <button class="oh-nav-item hidden" type="button" disabled title="Labour is coming soon">
           <span class="oh-nav-icon" aria-hidden="true">L</span>
           <span class="oh-nav-label">Labour</span>
           <span class="oh-nav-status">Soon</span>
         </button>
-        <button class="oh-nav-item" type="button" disabled title="Planning is coming soon">
+        <button class="oh-nav-item hidden" type="button" disabled title="Planning is coming soon">
           <span class="oh-nav-icon" aria-hidden="true">P</span>
           <span class="oh-nav-label">Planning</span>
           <span class="oh-nav-status">Soon</span>
@@ -125,12 +125,12 @@
           <p>Select an available workflow below.</p>
         </div>
         <div id="terminalWorkflowCards" class="terminal-workflow-grid"></div>
-        <div id="terminalWorkflowEmpty" class="terminal-empty-state hidden">
+        <div id="terminalWorkflowEmpty" class="terminal-empty-state hidden" data-oh-empty-state data-oh-empty-title="No terminal workflows">
           No terminal workflows are currently enabled.
         </div>
       </section>
 
-      <section id="visitorKioskWorkspace" class="visitor-kiosk hidden" tabindex="-1" aria-labelledby="visitorKioskTitle">
+      <section id="visitorKioskWorkspace" class="visitor-kiosk hidden" tabindex="-1" aria-labelledby="visitorKioskTitle" data-oh-terminal-surface="true">
         <div id="visitorKioskStatus" class="visitor-kiosk-status hidden" role="status" aria-live="polite"></div>
         <div class="visitor-kiosk-view" data-visitor-kiosk-view="home">
           <header class="visitor-kiosk-header">
@@ -182,7 +182,7 @@
         </div>
       </section>
 
-      <section id="staffLoginWorkspace" class="staff-login-workspace hidden" aria-labelledby="staffLoginWorkspaceTitle">
+      <section id="staffLoginWorkspace" class="staff-login-workspace hidden" aria-labelledby="staffLoginWorkspaceTitle" data-oh-terminal-surface="true">
         <div class="staff-login-card">
           <p class="oh-app-eyebrow">Operations Hub</p>
           <h1 id="staffLoginWorkspaceTitle">Staff Login</h1>
@@ -224,7 +224,7 @@
             </div>
           </div>
 
-          <div id="dashboardNoWidgets" class="dashboard-empty-state hidden">
+          <div id="dashboardNoWidgets" class="dashboard-empty-state hidden" data-oh-empty-state data-oh-empty-title="No dashboard widgets">
             No dashboard widgets are available for your current capabilities.
           </div>
 
@@ -500,7 +500,7 @@
           </div>
         </section>
 
-        <div id="reportingEmptyState" class="reporting-empty-state hidden">
+        <div id="reportingEmptyState" class="reporting-empty-state hidden" data-oh-empty-state data-oh-empty-title="No reports found">
           No reports match this search.
         </div>
       </section>
@@ -553,7 +553,7 @@
               <strong>No planned visits found</strong>
               <span>Adjust the filters or create a planned visit.</span>
             </div>
-            <div id="visitorsPlannedTableWrap" class="visitors-planned-table-wrap hidden">
+            <div id="visitorsPlannedTableWrap" class="visitors-planned-table-wrap hidden" data-oh-scroll-region="operational" aria-label="Planned visits">
               <table class="visitors-planned-table">
                 <thead>
                   <tr>
@@ -600,7 +600,7 @@
               <strong>No visitors currently on site</strong>
               <span>Active signed-in visitors will appear here.</span>
             </div>
-            <div id="visitorsOnSiteTableWrap" class="visitors-planned-table-wrap hidden">
+            <div id="visitorsOnSiteTableWrap" class="visitors-planned-table-wrap hidden" data-oh-scroll-region="operational" aria-label="Visitors currently on site">
               <table class="visitors-planned-table">
                 <thead>
                   <tr>
@@ -669,7 +669,7 @@
               <strong>No visitor history found</strong>
               <span>Adjust the filters to review a different period.</span>
             </div>
-            <div id="visitorsHistoryTableWrap" class="visitors-planned-table-wrap hidden">
+            <div id="visitorsHistoryTableWrap" class="visitors-planned-table-wrap hidden" data-oh-scroll-region="history" aria-label="Visitor history">
               <div id="visitorsHistoryResultSummary" class="visitors-history-result-summary" aria-live="polite"></div>
               <table class="visitors-planned-table visitors-history-table">
                 <thead>
@@ -902,9 +902,9 @@
           </section>
         </div>
 
-        <div id="visitorsPlannedPanelBackdrop" class="visitors-panel-backdrop hidden">
-          <aside id="visitorsPlannedPanel" class="visitors-side-panel" aria-labelledby="visitorsPlannedPanelTitle" aria-modal="true" role="dialog">
-            <header class="visitors-side-panel-header">
+        <div id="visitorsPlannedPanelBackdrop" class="visitors-panel-backdrop hidden" data-oh-side-panel-backdrop>
+          <aside id="visitorsPlannedPanel" class="visitors-side-panel" aria-labelledby="visitorsPlannedPanelTitle" aria-modal="true" role="dialog" data-oh-side-panel>
+            <header class="visitors-side-panel-header" data-oh-side-panel-header>
               <div>
                 <p class="oh-app-eyebrow">Planned Visits</p>
                 <h2 id="visitorsPlannedPanelTitle">Create Planned Visit</h2>
@@ -933,7 +933,7 @@
               <label id="visitorsPlannedVehicleField" data-native-planned-field="full"><span>Vehicle registration</span><input id="visitorsPlannedVehicle" /></label>
               <label id="visitorsPlannedPassField"><span>Security pass ID</span><input id="visitorsPlannedPass" /></label>
               <label id="visitorsPlannedChangeReasonField" class="hidden"><span>Change reason *</span><textarea id="visitorsPlannedChangeReason" rows="3"></textarea></label>
-              <div class="visitors-side-panel-actions">
+              <div class="visitors-side-panel-actions" data-oh-side-panel-actions>
                 <button id="visitorsPlannedSave" type="submit">Create Planned Visit</button>
                 <button id="visitorsPlannedCancel" class="secondary" type="button">Cancel</button>
               </div>
@@ -941,9 +941,9 @@
           </aside>
         </div>
 
-        <div id="visitorsWalkInPanelBackdrop" class="visitors-panel-backdrop hidden">
-          <aside id="visitorsWalkInPanel" class="visitors-side-panel" aria-labelledby="visitorsWalkInPanelTitle" aria-modal="true" role="dialog">
-            <header class="visitors-side-panel-header">
+        <div id="visitorsWalkInPanelBackdrop" class="visitors-panel-backdrop hidden" data-oh-side-panel-backdrop>
+          <aside id="visitorsWalkInPanel" class="visitors-side-panel" aria-labelledby="visitorsWalkInPanelTitle" aria-modal="true" role="dialog" data-oh-side-panel>
+            <header class="visitors-side-panel-header" data-oh-side-panel-header>
               <div>
                 <p class="oh-app-eyebrow">Visitors</p>
                 <h2 id="visitorsWalkInPanelTitle">Create Walk-in Visitor</h2>
@@ -965,7 +965,7 @@
               <label id="visitorsWalkInReasonField"><span>Reason / comments</span><textarea id="visitorsWalkInReason" rows="4"></textarea></label>
               <label id="visitorsWalkInVehicleField"><span>Vehicle registration</span><input id="visitorsWalkInVehicle" /></label>
               <label id="visitorsWalkInPassField"><span>Security pass ID</span><input id="visitorsWalkInPass" /></label>
-              <div class="visitors-side-panel-actions">
+              <div class="visitors-side-panel-actions" data-oh-side-panel-actions>
                 <button id="visitorsWalkInSave" type="submit">Sign In Walk-in</button>
                 <button id="visitorsWalkInCancel" class="secondary" type="button">Cancel</button>
               </div>
@@ -973,9 +973,9 @@
           </aside>
         </div>
 
-        <div id="visitorsDetailsPanelBackdrop" class="visitors-panel-backdrop hidden">
-          <aside id="visitorsDetailsPanel" class="visitors-side-panel" aria-labelledby="visitorsDetailsPanelTitle" aria-modal="true" role="dialog">
-            <header class="visitors-side-panel-header">
+        <div id="visitorsDetailsPanelBackdrop" class="visitors-panel-backdrop hidden" data-oh-side-panel-backdrop>
+          <aside id="visitorsDetailsPanel" class="visitors-side-panel" aria-labelledby="visitorsDetailsPanelTitle" aria-modal="true" role="dialog" data-oh-side-panel>
+            <header class="visitors-side-panel-header" data-oh-side-panel-header>
               <div>
                 <p class="oh-app-eyebrow">Visitor Details</p>
                 <h2 id="visitorsDetailsPanelTitle">Visitor</h2>
@@ -2783,7 +2783,7 @@
               </div>
             </div>
 
-            <div class="people-table-wrap">
+            <div class="people-table-wrap" data-oh-scroll-region="operational" aria-label="People records">
               <table class="people-table">
                 <thead>
                   <tr>
@@ -2796,7 +2796,7 @@
                 </thead>
                 <tbody id="peopleResults"></tbody>
               </table>
-              <div id="peopleEmptyState" class="people-empty-state">
+              <div id="peopleEmptyState" class="people-empty-state" data-oh-empty-state>
                 No people records yet. Create the first person to start the shared directory.
               </div>
             </div>
@@ -2814,7 +2814,7 @@
 
             <p id="assignmentListStatus" class="assignment-list-status" aria-live="polite"></p>
 
-            <div class="assignment-table-wrap">
+            <div class="assignment-table-wrap" data-oh-scroll-region="history" aria-label="Assignment records">
               <table class="assignment-table" aria-labelledby="personAssignmentsTitle">
                 <thead>
                   <tr>
@@ -2832,14 +2832,14 @@
                 </thead>
                 <tbody id="assignmentResults"></tbody>
               </table>
-              <div id="assignmentEmptyState" class="people-empty-state">
+              <div id="assignmentEmptyState" class="people-empty-state" data-oh-empty-state>
                 Select a person to view current and historical assignments.
               </div>
             </div>
           </section>
 
-          <aside id="peoplePanel" class="reference-data-panel hidden" aria-labelledby="peoplePanelTitle" aria-hidden="true">
-            <div class="people-panel-header">
+          <aside id="peoplePanel" class="reference-data-panel hidden" aria-labelledby="peoplePanelTitle" aria-hidden="true" data-oh-side-panel>
+            <div class="people-panel-header" data-oh-side-panel-header>
               <div>
                 <p class="oh-app-eyebrow">Person details</p>
                 <h2 id="peoplePanelTitle">Create Person</h2>
@@ -2890,15 +2890,15 @@
               <label for="personNotes">Notes</label>
               <textarea id="personNotes" rows="4"></textarea>
 
-              <div class="people-form-actions">
+              <div class="people-form-actions" data-oh-side-panel-actions>
                 <button id="peopleSaveButton" type="submit">Save Person</button>
                 <button id="peopleClearButton" class="secondary" type="button">Clear</button>
               </div>
             </form>
           </aside>
 
-          <aside id="assignmentPanel" class="reference-data-panel assignment-panel hidden" aria-labelledby="assignmentPanelTitle" aria-hidden="true">
-            <div class="people-panel-header">
+          <aside id="assignmentPanel" class="reference-data-panel assignment-panel hidden" aria-labelledby="assignmentPanelTitle" aria-hidden="true" data-oh-side-panel>
+            <div class="people-panel-header" data-oh-side-panel-header>
               <div>
                 <p class="oh-app-eyebrow">Assignment editor</p>
                 <h2 id="assignmentPanelTitle">Create Assignment</h2>
@@ -2994,7 +2994,7 @@
               <label for="assignmentNotes">Notes</label>
               <textarea id="assignmentNotes" rows="4"></textarea>
 
-              <div class="people-form-actions">
+              <div class="people-form-actions" data-oh-side-panel-actions>
                 <button id="assignmentSaveButton" type="submit">Create Assignment</button>
                 <button id="assignmentCancelButton" class="secondary" type="button">Cancel</button>
               </div>
@@ -3035,7 +3035,7 @@
               </div>
             </div>
 
-            <div class="people-table-wrap">
+            <div class="people-table-wrap" data-oh-scroll-region="operational" aria-label="Organisation records">
               <table class="people-table organisation-table">
                 <thead>
                   <tr>
@@ -3048,7 +3048,7 @@
                 </thead>
                 <tbody id="organisationResults"></tbody>
               </table>
-              <div id="organisationEmptyState" class="people-empty-state">
+              <div id="organisationEmptyState" class="people-empty-state" data-oh-empty-state>
                 No organisation records yet. Create the first organisation to start the shared directory.
               </div>
             </div>
@@ -3061,7 +3061,7 @@
                 <p>Summary and future relationship areas.</p>
               </div>
             </div>
-            <div id="organisationDetailEmpty" class="people-empty-state">
+            <div id="organisationDetailEmpty" class="people-empty-state" data-oh-empty-state>
               Select an organisation to view details.
             </div>
             <div id="organisationDetailContent" class="organisation-detail-content hidden">
@@ -3109,8 +3109,8 @@
           </aside>
         </div>
 
-        <aside id="organisationPanel" class="reference-data-panel hidden" aria-labelledby="organisationPanelTitle" aria-hidden="true">
-          <div class="people-panel-header">
+        <aside id="organisationPanel" class="reference-data-panel hidden" aria-labelledby="organisationPanelTitle" aria-hidden="true" data-oh-side-panel>
+          <div class="people-panel-header" data-oh-side-panel-header>
             <div>
               <p class="oh-app-eyebrow">Organisation details</p>
               <h2 id="organisationPanelTitle">Create Organisation</h2>
@@ -3139,7 +3139,7 @@
             <label for="organisationNotes">Notes</label>
             <textarea id="organisationNotes" rows="4"></textarea>
 
-            <div class="people-form-actions">
+            <div class="people-form-actions" data-oh-side-panel-actions>
               <button id="organisationSaveButton" type="submit">Save Organisation</button>
               <button id="organisationClearButton" class="secondary" type="button">Clear</button>
             </div>
@@ -3173,7 +3173,7 @@
 
           <div id="moduleConfigurationCatalogue">
             <div id="moduleConfigurationCards" class="module-configuration-card-grid"></div>
-            <div id="moduleConfigurationEmpty" class="people-empty-state hidden">
+            <div id="moduleConfigurationEmpty" class="people-empty-state hidden" data-oh-empty-state data-oh-empty-title="No configuration pages">
               No module configuration pages are available for your current capabilities.
             </div>
           </div>
@@ -3233,21 +3233,21 @@
               </div>
             </div>
 
-            <div class="reference-table-wrap">
+            <div class="reference-table-wrap" data-oh-scroll-region="operational" aria-label="Reference data records">
               <table class="reference-table" aria-labelledby="referenceResultsTitle">
                 <thead>
                   <tr id="referenceTableHead"></tr>
                 </thead>
                 <tbody id="referenceResults"></tbody>
               </table>
-              <div id="referenceEmptyState" class="people-empty-state">
+              <div id="referenceEmptyState" class="people-empty-state" data-oh-empty-state>
                 Choose a reference page to view or create records.
               </div>
             </div>
           </section>
 
-          <aside id="referenceDataPanel" class="reference-data-panel hidden" aria-labelledby="referencePanelTitle" aria-hidden="true">
-            <div class="people-panel-header">
+          <aside id="referenceDataPanel" class="reference-data-panel hidden" aria-labelledby="referencePanelTitle" aria-hidden="true" data-oh-side-panel>
+            <div class="people-panel-header" data-oh-side-panel-header>
               <div>
                 <p class="oh-app-eyebrow">Reference record</p>
                 <h2 id="referencePanelTitle">Create Site</h2>
@@ -3265,7 +3265,7 @@
                 <option value="false">Inactive</option>
               </select>
 
-              <div class="people-form-actions">
+              <div class="people-form-actions" data-oh-side-panel-actions>
                 <button id="referenceSaveButton" type="submit">Save Record</button>
                 <button id="referenceClearButton" class="secondary" type="button">Clear</button>
               </div>
@@ -3301,11 +3301,11 @@
 
           <section id="accessControlRolesView" class="access-control-view" data-access-control-panel="roles" aria-labelledby="accessControlRolePresetsTab">
             <div id="accessControlRolePresets" class="access-control-role-grid"></div>
-            <div id="accessControlRolesEmpty" class="people-empty-state hidden">No role presets are available.</div>
+            <div id="accessControlRolesEmpty" class="people-empty-state hidden" data-oh-empty-state>No role presets are available.</div>
           </section>
 
           <section id="accessControlCapabilitiesView" class="access-control-view hidden" data-access-control-panel="capabilities" aria-labelledby="accessControlCapabilitiesTab">
-            <div class="access-control-table-wrap">
+            <div class="access-control-table-wrap" data-oh-scroll-region="operational" aria-label="Capability catalogue">
               <table class="access-control-table" aria-label="Capability catalogue">
                 <thead>
                   <tr>
@@ -3318,12 +3318,12 @@
                 </thead>
                 <tbody id="accessControlCapabilities"></tbody>
               </table>
-              <div id="accessControlCapabilitiesEmpty" class="people-empty-state hidden">No capabilities are available.</div>
+              <div id="accessControlCapabilitiesEmpty" class="people-empty-state hidden" data-oh-empty-state>No capabilities are available.</div>
             </div>
           </section>
 
           <section id="accessControlGroupsView" class="access-control-view hidden" data-access-control-panel="groups" aria-labelledby="accessControlGroupsTab">
-            <div class="access-control-table-wrap">
+            <div class="access-control-table-wrap" data-oh-scroll-region="operational" aria-label="Capability groups">
               <table class="access-control-table" aria-label="Capability groups">
                 <thead>
                   <tr>
@@ -3336,7 +3336,7 @@
                 </thead>
                 <tbody id="accessControlGroups"></tbody>
               </table>
-              <div id="accessControlGroupsEmpty" class="people-empty-state hidden">No capability groups are available.</div>
+              <div id="accessControlGroupsEmpty" class="people-empty-state hidden" data-oh-empty-state>No capability groups are available.</div>
             </div>
           </section>
 
@@ -3349,8 +3349,8 @@
             </div>
           </section>
 
-          <aside id="rolePresetCapabilityPanel" class="reference-data-panel hidden" aria-labelledby="rolePresetCapabilityPanelTitle" aria-hidden="true">
-            <div class="people-panel-header">
+          <aside id="rolePresetCapabilityPanel" class="reference-data-panel hidden" aria-labelledby="rolePresetCapabilityPanelTitle" aria-hidden="true" data-oh-side-panel>
+            <div class="people-panel-header" data-oh-side-panel-header>
               <div>
                 <p class="oh-app-eyebrow">Role preset</p>
                 <h2 id="rolePresetCapabilityPanelTitle">Edit Capabilities</h2>
@@ -3367,7 +3367,7 @@
               <div id="rolePresetCapabilityGroups" class="role-capability-groups"></div>
             </div>
 
-            <div class="people-form-actions role-capability-panel-actions">
+            <div class="people-form-actions role-capability-panel-actions" data-oh-side-panel-actions>
               <button id="rolePresetCapabilitySaveButton" type="button">Save Capabilities</button>
               <button id="rolePresetCapabilityCancelButton" class="secondary" type="button">Cancel</button>
             </div>
@@ -3885,7 +3885,7 @@
   </div>
 </div>
 
-<div id="loginModalBackdrop" class="modal-backdrop">
+<div id="loginModalBackdrop" class="modal-backdrop" data-oh-terminal-surface="true">
   <div class="modal" style="width:min(520px,100%);">
     <div class="modal-header">
       <h2>Staff Login</h2>

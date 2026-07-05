@@ -2022,6 +2022,162 @@ body.kiosk-mode .results-scroll {
   }
 }
 
+/* Operations Hub platform UI standards (OHP-001).
+   These primitives are intentionally additive so existing module layouts can
+   adopt them without a redesign. */
+
+.operations-hub {
+  --oh-operational-list-max-height: min(52vh, 560px);
+  --oh-history-list-max-height: min(58vh, 640px);
+  --oh-reporting-list-max-height: min(58vh, 680px);
+  --oh-side-panel-width: 480px;
+  --oh-side-panel-padding: 24px;
+}
+
+.oh-scroll-region {
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.oh-scroll-region--operational {
+  max-height: var(--oh-operational-list-max-height);
+}
+
+.oh-scroll-region--history {
+  max-height: var(--oh-history-list-max-height);
+}
+
+.oh-scroll-region--reporting {
+  max-height: var(--oh-reporting-list-max-height);
+}
+
+.oh-scroll-region > table {
+  margin: 0;
+}
+
+.oh-scroll-region > table > thead {
+  position: sticky;
+  z-index: 1;
+  top: 0;
+}
+
+.oh-scroll-region:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--oh-shell-focus) 35%, transparent);
+  outline-offset: 2px;
+}
+
+.oh-side-panel-backdrop {
+  top: var(--oh-header-height);
+  bottom: var(--oh-footer-height);
+  max-height: calc(100dvh - var(--oh-header-height) - var(--oh-footer-height));
+}
+
+.oh-side-panel {
+  width: min(var(--oh-side-panel-width), 100%);
+  max-width: 100%;
+  height: 100%;
+  min-height: 0;
+  max-height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.oh-side-panel-header {
+  position: sticky;
+  z-index: 3;
+  top: 0;
+  background: var(--oh-shell-surface);
+}
+
+.oh-side-panel-actions {
+  position: sticky;
+  z-index: 2;
+  bottom: 0;
+  background: var(--oh-shell-surface);
+}
+
+.oh-empty-state {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: clamp(24px, 4vw, 40px);
+  border: 1px dashed var(--oh-shell-border, #d9dee5);
+  border-radius: 16px;
+  color: var(--oh-shell-muted, #667085);
+  text-align: center;
+}
+
+.oh-empty-state-icon {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: var(--oh-shell-subtle, #eef1f4);
+  color: var(--oh-shell-text, #1d2939);
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.oh-empty-state-title {
+  color: var(--oh-shell-text, #1d2939);
+  font-size: 18px;
+}
+
+.oh-empty-state-description {
+  max-width: 56ch;
+  line-height: 1.5;
+}
+
+.oh-empty-state > button {
+  margin-top: 8px;
+}
+
+@media (max-width: 1023px) {
+  .operations-hub {
+    --oh-side-panel-width: min(480px, calc(100vw - 40px));
+  }
+}
+
+@media (max-width: 599px) {
+  .operations-hub {
+    --oh-side-panel-width: 100vw;
+    --oh-side-panel-padding: 18px;
+    --oh-operational-list-max-height: 60vh;
+    --oh-history-list-max-height: 64vh;
+    --oh-reporting-list-max-height: 64vh;
+  }
+
+  .oh-side-panel-backdrop {
+    top: var(--oh-header-height);
+    bottom: 0;
+    max-height: calc(100dvh - var(--oh-header-height));
+  }
+
+  .oh-side-panel {
+    width: 100%;
+    border-left: 0;
+  }
+}
+
+@media print {
+  .oh-scroll-region {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  .oh-side-panel {
+    position: static !important;
+    width: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+  }
+}
+
 /* Operations Hub application shell */
 :root {
   --oh-header-height: 64px;

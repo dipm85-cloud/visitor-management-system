@@ -729,3 +729,106 @@ A responsive planning grid for people, assignments, demand and conflicts, with k
 A governed report surface with scope, filters, freshness, definitions, accessible tables/charts, export controls and capability-aware saved views.
 
 Future component adoption requires documented use cases, accessibility review, responsive behavior, configuration limits and regression examples before it becomes part of the shared system.
+
+## 12. Implemented Platform UI Standards
+
+Milestone `OHP-001` introduces the first reusable implementation layer in
+`assets/js/platformUi.js` and the `oh-*` classes in `assets/css/main.css`.
+These are additive standards. Modules adopt them without changing their
+business rules, permission checks or visual identity.
+
+Existing markup opts in declaratively with `data-oh-empty-state`,
+`data-oh-scroll-region`, `data-oh-side-panel*` and
+`data-oh-terminal-surface`. The shared initializer contains no module-specific
+element IDs.
+
+### Context-aware actions
+
+Use `setActionAvailable` or `applyContextualActions` after capability and
+configuration have been resolved. Impossible actions are hidden and removed
+from the accessibility tree. Do not leave an unavailable action disabled
+unless the user can discover and satisfy its prerequisite in the same
+context.
+
+The availability decision remains with the owning capability or workflow
+service. The UI helper must never invent permission.
+
+### Bounded list regions
+
+Apply `makeScrollableRegion` or these classes to long record sets:
+
+- `oh-scroll-region--operational` for live operational queues.
+- `oh-scroll-region--history` for history and audit lists.
+- `oh-scroll-region--reporting` for report previews.
+
+Each region has a fixed maximum height, internal scrolling, a stable scrollbar
+gutter and a keyboard focus outline. Tables retain sticky headers. Printing
+removes the height restriction.
+
+### Side panels
+
+Use:
+
+- `oh-side-panel-backdrop`
+- `oh-side-panel`
+- `oh-side-panel-header`
+- `oh-side-panel-actions`
+
+Panels fit between the platform header and footer, keep their title and action
+areas visible, and become full-width on phones. New interactive panels should
+use `createSidePanelController` for focus restoration and reset-on-close.
+
+### Toasts
+
+Staff and administrative workflow outcomes continue to use `showToast` from
+`messages.js`. Toasts expose status/alert live-region semantics. Shared
+components must receive or call the platform notifier; they must not introduce
+inline success banners.
+
+### Empty states
+
+Use `createEmptyState` or `renderEmptyState`. Every new empty state supplies:
+
+- a decorative icon or placeholder;
+- a short title;
+- a useful description;
+- an optional action only when that action is available.
+
+The reusable visual class is `oh-empty-state`.
+
+### Operational forms
+
+Use `createOperationalFormReset` to create one reset operation and invoke it
+after success, cancel and inactivity timeout. Temporary selections use
+`data-oh-temporary-selection`; validation containers use
+`data-oh-validation`. Module-specific resets may extend the shared reset with
+`onReset`.
+
+Recoverable save errors do not reset entered data.
+
+### Operational print documents
+
+Use `buildPlatformPrintStyles` and `buildPlatformPrintFrame`. The helpers
+provide:
+
+- portrait or landscape A4 configuration;
+- repeatable document header and footer groups;
+- repeated logo support through `oh-print-logo`;
+- generated page-number margin content where supported;
+- safe row page breaks.
+
+The document header must include the print timestamp. Existing report content
+and column definitions remain owned by the report.
+
+### Shared Terminal inheritance
+
+Terminal workflow registration remains configuration-driven. Terminal
+surfaces are marked with `data-oh-terminal-surface`, use the shared inactivity
+setting, reset their operational form state and resolve their landing screen
+from the enabled workflow registry. A single enabled workflow opens directly;
+multiple enabled workflows return to Terminal Home. Staff authentication
+routing remains independent from device identity.
+
+Future terminal workflows must register with the terminal workflow registry
+and use the shared terminal lifecycle rather than adding their own timeout or
+landing-screen logic.

@@ -1,6 +1,7 @@
 import { supabaseClient } from "./api.js";
 import { $ } from "./dom.js";
 import { showToast } from "./messages.js";
+import { renderEmptyState } from "./platformUi.js";
 import { todayDate } from "./utils.js";
 import { auditDiffSummary, buildFieldDiff, writeAuditEvent } from "./audit.js";
 import { hasAnyCapability, hasCapability } from "./capabilities.js";
@@ -402,10 +403,15 @@ export function renderAssignmentList() {
   });
 
   $("assignmentEmptyState").classList.toggle("hidden", assignmentsCache.length > 0);
-  $("assignmentEmptyState").textContent = hasAssignmentManageAccess()
-    ? "No assignments yet for " + selectedPersonName +
-      ". Create one to add current or historical work context."
-    : "No assignments are available for " + selectedPersonName + ".";
+  if (!assignmentsCache.length) {
+    renderEmptyState("assignmentEmptyState", {
+      title: "No assignments",
+      description: hasAssignmentManageAccess()
+        ? "Create an assignment for " + selectedPersonName +
+          " to add current or historical work context."
+        : "No assignments are available for " + selectedPersonName + "."
+    });
+  }
   $("assignmentListStatus").textContent =
     assignmentsCache.length + " assignment" + (assignmentsCache.length === 1 ? "" : "s") + " shown.";
 }
