@@ -519,7 +519,7 @@
         </div>
 
         <div id="visitorsWorkspaceContent">
-          <section class="visitors-section visitors-planned-workflow" aria-labelledby="visitorsPlannedTitle">
+          <section id="visitorsPlannedSection" class="visitors-section visitors-planned-workflow" aria-labelledby="visitorsPlannedTitle">
             <div class="visitors-section-heading">
               <div>
                 <h2 id="visitorsPlannedTitle">Planned Visits</h2>
@@ -778,31 +778,32 @@
               </div>
             </div>
 
-            <section class="visitors-operational-documents" aria-labelledby="visitorsOperationalDocumentsTitle">
-              <div class="visitors-operational-documents-heading">
-                <div>
-                  <h3 id="visitorsOperationalDocumentsTitle">Operational Documents</h3>
-                  <p>Printable documents for daily reception and security operations.</p>
-                </div>
-              </div>
-              <article class="visitors-operational-document-card">
-                <div>
-                  <span class="report-status available">Available</span>
-                  <h4>Daily Planned Visitor List</h4>
-                  <p>Printable landscape document used daily by reception/security.</p>
-                </div>
-                <div class="visitors-operational-document-actions">
-                  <label>
-                    <span>Planned visit date</span>
-                    <input id="visitorsDailyPlannedDate" type="date" />
-                  </label>
-                  <button id="visitorsDailyPlannedPrint" type="button">Print Daily List</button>
-                </div>
-              </article>
-            </section>
           </section>
 
-          <section class="visitors-section" aria-labelledby="visitorsTodayTitle">
+          <section id="visitorsOperationalDocumentsSection" class="visitors-section visitors-planned-workflow" aria-labelledby="visitorsOperationalDocumentsTitle">
+            <div class="visitors-operational-documents-heading">
+              <div>
+                <h2 id="visitorsOperationalDocumentsTitle">Operational Documents</h2>
+                <p>Printable documents for daily reception and security operations.</p>
+              </div>
+            </div>
+            <article class="visitors-operational-document-card">
+              <div>
+                <span class="report-status available">Available</span>
+                <h3>Daily Planned Visitor List</h3>
+                <p>Printable landscape document used daily by reception/security.</p>
+              </div>
+              <div class="visitors-operational-document-actions">
+                <label>
+                  <span>Planned visit date</span>
+                  <input id="visitorsDailyPlannedDate" type="date" />
+                </label>
+                <button id="visitorsDailyPlannedPrint" type="button">Print Daily List</button>
+              </div>
+            </article>
+          </section>
+
+          <section id="visitorsDashboardSection" class="visitors-section" aria-labelledby="visitorsTodayTitle">
             <div class="visitors-section-heading">
               <div>
                 <h2 id="visitorsTodayTitle">Today’s Visitors</h2>
@@ -849,7 +850,7 @@
             </div>
           </section>
 
-          <section class="visitors-section" aria-labelledby="visitorsQuickActionsTitle">
+          <section id="visitorsQuickActionsSection" class="visitors-section" aria-labelledby="visitorsQuickActionsTitle">
             <div class="visitors-section-heading">
               <div>
                 <h2 id="visitorsQuickActionsTitle">Quick Actions</h2>
@@ -863,40 +864,19 @@
             </div>
           </section>
 
-          <section class="visitors-section" aria-labelledby="visitorsLinksTitle">
+          <section id="visitorsConfigurationSection" class="visitors-section" aria-labelledby="visitorsConfigurationSectionTitle">
             <div class="visitors-section-heading">
               <div>
-                <h2 id="visitorsLinksTitle">Visitor Tools</h2>
-                <p>Open existing governed reporting and configuration areas.</p>
+                <h2 id="visitorsConfigurationSectionTitle">Configuration</h2>
+                <p>Open existing governed visitor configuration areas.</p>
               </div>
             </div>
             <div class="visitors-tool-grid">
-              <article id="visitorsReportsShortcut" class="visitor-tool-card">
-                <span class="report-status available">Available</span>
-                <h3>Visitor History</h3>
-                <p>Search and review native visitor activity records.</p>
-                <button id="visitorsReportsButton" type="button">Open Visitor History</button>
-              </article>
-
               <article id="visitorsConfigurationShortcut" class="visitor-tool-card">
                 <span class="report-status available">Available</span>
                 <h3>Visitor Configuration</h3>
                 <p>Open Visitors configuration in Administration Module Configuration.</p>
                 <button id="visitorsConfigurationButton" type="button">Open Configuration</button>
-              </article>
-
-              <article id="visitorsReportingShortcut" class="visitor-tool-card">
-                <span class="report-status available">Available</span>
-                <h3>Visitor Reporting</h3>
-                <p>Prepare filtered operational reports and exports.</p>
-                <button id="visitorsReportingButton" type="button">Open Visitor Reporting</button>
-              </article>
-
-              <article class="visitor-tool-card visitor-tool-legacy">
-                <span class="report-status coming-soon">Temporary</span>
-                <h3>Legacy VMS</h3>
-                <p>Use the established VMS for workflows not yet native to Operations Hub.</p>
-                <button id="visitorsToolLegacyButton" class="secondary" type="button">Open Legacy VMS</button>
               </article>
             </div>
           </section>

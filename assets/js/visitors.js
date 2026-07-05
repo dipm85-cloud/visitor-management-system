@@ -26,6 +26,10 @@ import {
   buildDailyPlannedVisitorPrintHtml,
   openPrintDocument
 } from "./printing.js";
+import {
+  refreshSectionNavigator,
+  registerModuleSections
+} from "./sectionNavigation.js";
 
 let visitorsDependencies = {};
 let nativePlannedVisits = [];
@@ -71,6 +75,111 @@ function setText(id, value) {
 function setVisible(id, visible) {
   const element = $(id);
   if (element) element.classList.toggle("hidden", !visible);
+}
+
+function canViewVisitorsWorkspace() {
+  return isActiveStaffUser() && hasCapability("visitor.view");
+}
+
+function canViewVisitorHistory() {
+  return canViewVisitorsWorkspace() && hasCapability("visitor.history.view");
+}
+
+function canViewVisitorReporting() {
+  return canViewVisitorHistory() && hasCapability("reports.view");
+}
+
+function canOpenVisitorConfiguration() {
+  return canViewVisitorsWorkspace() && hasAnyCapability([
+    "module_configuration.view",
+    "module_configuration.manage"
+  ]);
+}
+
+function hasVisitorQuickActions() {
+  return canViewVisitorsWorkspace() && (
+    (hasCapability("visitor.create") && hasCapability("visitor.sign_in")) ||
+    hasCapability("visitor.sign_in") ||
+    hasCapability("visitor.sign_out")
+  );
+}
+
+function registerVisitorsSectionNavigation() {
+  registerModuleSections("visitors", [
+    {
+      id: "overview",
+      title: "Overview",
+      icon: "O",
+      target: "visitorsDashboardSection",
+      order: 10,
+      default: true,
+      visible: canViewVisitorsWorkspace
+    },
+    {
+      id: "quick-actions",
+      title: "Quick Actions",
+      icon: "QA",
+      target: "visitorsQuickActionsSection",
+      order: 20,
+      visible: hasVisitorQuickActions
+    },
+    {
+      id: "planned-visits",
+      title: "Planned Visits",
+      icon: "P",
+      target: "visitorsPlannedSection",
+      order: 30,
+      visible: canViewVisitorsWorkspace
+    },
+    {
+      id: "current-visitors",
+      title: "Current Visitors",
+      icon: "C",
+      target: "visitorsOnSiteSection",
+      order: 40,
+      visible: canViewVisitorsWorkspace
+    },
+    {
+      id: "visitor-history",
+      title: "Visitor History",
+      icon: "H",
+      target: "visitorsHistorySection",
+      order: 50,
+      visible: canViewVisitorHistory
+    },
+    {
+      id: "reporting",
+      title: "Reporting",
+      icon: "R",
+      target: "visitorsReportingSection",
+      order: 60,
+      visible: canViewVisitorReporting
+    },
+    {
+      id: "operational-documents",
+      title: "Operational Documents",
+      icon: "OD",
+      target: "visitorsOperationalDocumentsSection",
+      order: 70,
+      visible: canViewVisitorReporting
+    },
+    {
+      id: "configuration",
+      title: "Configuration",
+      icon: "CFG",
+      target: "visitorsConfigurationSection",
+      order: 80,
+      visible: canOpenVisitorConfiguration
+    }
+  ], {
+    root: "visitorsWorkspace",
+    content: "visitorsWorkspaceContent",
+    defaultSection: "overview",
+    scrollRoot: "operationsHubWorkspace",
+    label: "Visitors section navigation",
+    title: "Sections",
+    toggleLabel: "Visitor sections"
+  });
 }
 
 function settingIsTrue(key, fallback) {
@@ -1552,33 +1661,33 @@ function setMetricLoading() {
 }
 
 export function syncVisitorsWorkspaceCapabilities() {
-  const canView = isActiveStaffUser() && hasCapability("visitor.view");
-  const canViewHistory = canView && hasCapability("visitor.history.view");
-  const canViewReporting = canViewHistory && hasCapability("reports.view");
+  const canView = canViewVisitorsWorkspace();
+  const canViewHistory = canViewVisitorHistory();
+  const canViewReporting = canViewVisitorReporting();
   const canExportVisitors = canViewReporting && hasCapability("visitor.export");
+  const canCreateWalkIn = canView && hasCapability("visitor.create") && hasCapability("visitor.sign_in");
+  const canStaffSignIn = canView && hasCapability("visitor.sign_in");
+  const canStaffSignOut = canView && hasCapability("visitor.sign_out");
   setVisible("visitorsPermissionState", !canView);
   setVisible("visitorsWorkspaceContent", canView);
+  setVisible("visitorsDashboardSection", canView);
+  setVisible("visitorsQuickActionsSection", canCreateWalkIn || canStaffSignIn || canStaffSignOut);
+  setVisible("visitorsPlannedSection", canView);
+  setVisible("visitorsOnSiteSection", canView);
   setVisible("visitorsHistorySection", canViewHistory);
   setVisible("visitorsReportingSection", canViewReporting);
+  setVisible("visitorsOperationalDocumentsSection", canViewReporting);
+  setVisible("visitorsConfigurationSection", canOpenVisitorConfiguration());
 
   setVisible("visitorsCreatePlannedButton", canView && hasCapability("visitor.create"));
-  setVisible(
-    "visitorsCreateWalkInButton",
-    canView && hasCapability("visitor.create") && hasCapability("visitor.sign_in")
-  );
-  setVisible("visitorsStaffSignInButton", canView && hasCapability("visitor.sign_in"));
-  setVisible("visitorsStaffSignOutButton", canView && hasCapability("visitor.sign_out"));
+  setVisible("visitorsCreateWalkInButton", canCreateWalkIn);
+  setVisible("visitorsStaffSignInButton", canStaffSignIn);
+  setVisible("visitorsStaffSignOutButton", canStaffSignOut);
   setVisible("visitorsReportsShortcut", canView && hasCapability("visitor.history.view"));
   setVisible("visitorsReportingShortcut", canViewReporting);
   setVisible("visitorsReportingCsv", canExportVisitors);
   setVisible("visitorsReportingExcel", canExportVisitors);
-  setVisible(
-    "visitorsConfigurationShortcut",
-    canView && hasAnyCapability([
-      "module_configuration.view",
-      "module_configuration.manage"
-    ])
-  );
+  setVisible("visitorsConfigurationShortcut", canOpenVisitorConfiguration());
   if (!canView || (!hasCapability("visitor.create") && !hasCapability("visitor.edit"))) {
     if ($("visitorsPlannedPanelBackdrop") && !$("visitorsPlannedPanelBackdrop").classList.contains("hidden")) {
       closePlannedPanel();
@@ -1598,6 +1707,7 @@ export function syncVisitorsWorkspaceCapabilities() {
   if (canView && $("visitorsOnSiteTableBody")) renderNativeActiveVisitors();
   if (canViewHistory && $("visitorsHistoryTableBody")) renderNativeHistory();
   if (canViewReporting && $("visitorsReportingSection")) renderNativeReporting();
+  refreshSectionNavigator("visitors");
 }
 
 async function loadMetric(id, loader) {
@@ -1705,6 +1815,7 @@ export function initialiseVisitorsWorkspace() {
   const workspace = $("visitorsWorkspace");
   if (!workspace || workspace.dataset.visitorsInitialised === "true") return;
   workspace.dataset.visitorsInitialised = "true";
+  registerVisitorsSectionNavigation();
   resetNativeHistoryFilters();
   resetNativeReportingFilters();
   $("visitorsDailyPlannedDate").value = todayDate();
