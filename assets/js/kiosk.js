@@ -56,6 +56,7 @@ export function bindKioskIdleActivityReset() {
   const resetEvents = ["input", "change", "keydown", "pointerdown", "touchstart", "focusin"];
 
   const containers = [
+    "visitorKioskWorkspace",
     "signInScreen",
     "signOutScreen",
     "walkInModalBackdrop",
@@ -69,7 +70,15 @@ export function bindKioskIdleActivityReset() {
 
     resetEvents.forEach(eventName => {
       el.addEventListener(eventName, () => {
-        if (kioskDependencies.isKioskProfile()) resetKioskIdleTimer();
+        if (
+          kioskDependencies.isKioskProfile() ||
+          (
+            AppState.terminalRegistration &&
+            AppState.terminalRegistration.registered
+          )
+        ) {
+          resetKioskIdleTimer();
+        }
       }, true);
     });
 
@@ -80,13 +89,26 @@ export function bindKioskIdleActivityReset() {
 export function resetKioskIdleTimer() {
   if (AppState.kioskIdleTimer) clearTimeout(AppState.kioskIdleTimer);
 
-  const onKioskScreen =
+  const visitorWorkspace = $("visitorKioskWorkspace");
+  const onNativeVisitorKiosk = !!(
+    visitorWorkspace &&
+    !visitorWorkspace.classList.contains("hidden")
+  );
+  const onKioskScreen = onNativeVisitorKiosk ||
     $("signInScreen").classList.contains("active") ||
     $("signOutScreen").classList.contains("active");
 
   if (!onKioskScreen) return;
 
   AppState.kioskIdleTimer = setTimeout(function () {
+    AppState.kioskIdleTimer = null;
+    if (
+      onNativeVisitorKiosk &&
+      typeof kioskDependencies.returnToTerminalLanding === "function"
+    ) {
+      kioskDependencies.returnToTerminalLanding("inactivity-timeout");
+      return;
+    }
     showScreen("homeScreen");
   }, appSettings.kioskIdleTimeoutMs);
 }

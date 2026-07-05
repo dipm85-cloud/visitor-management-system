@@ -2207,7 +2207,9 @@ button.oh-header-action:disabled {
 }
 
 .oh-kiosk-staff-login,
-button.oh-kiosk-staff-login {
+button.oh-kiosk-staff-login,
+.oh-terminal-home-action,
+button.oh-terminal-home-action {
   display: none;
   min-width: 112px;
   justify-content: center;
@@ -2553,12 +2555,16 @@ button.oh-nav-scrim {
 
 .operations-hub.oh-kiosk-mode .oh-nav-toggle,
 .operations-hub.oh-kiosk-mode .oh-global-search,
-.operations-hub.oh-kiosk-mode .oh-header-action:not(.oh-kiosk-staff-login),
+.operations-hub.oh-kiosk-mode .oh-header-action:not(.oh-kiosk-staff-login):not(.oh-terminal-home-action),
 .operations-hub.oh-kiosk-mode .oh-current-user {
   display: none;
 }
 
 .operations-hub.oh-kiosk-mode .oh-kiosk-staff-login {
+  display: inline-flex;
+}
+
+.operations-hub.oh-kiosk-mode .oh-terminal-home-action:not(.hidden) {
   display: inline-flex;
 }
 

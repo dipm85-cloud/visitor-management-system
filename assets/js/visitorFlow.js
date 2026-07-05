@@ -159,6 +159,35 @@ export async function refreshCoreData() {
 export async function loadPlannedVisits(options) {
   const renderLegacyList = !options || options.renderLegacyList !== false;
   const today = todayDate();
+  const nativeTerminalSearch = !!(
+    options &&
+    Object.prototype.hasOwnProperty.call(options, "searchQuery") &&
+    isPublicKioskContext()
+  );
+
+  if (nativeTerminalSearch) {
+    let kioskToken;
+    try {
+      kioskToken = ensureKioskToken();
+    } catch (error) {
+      showKioskFlowMessage(error.message, "error");
+      return null;
+    }
+    const result = await callAnonymousTerminalRpc(
+      "shared_terminal_search_planned_visits",
+      {
+        p_terminal_token: kioskToken,
+        p_query: String(options.searchQuery || "")
+      },
+      "Planned visitor search failed."
+    );
+    if (result.error || !Array.isArray(result.data)) {
+      if (result.error) console.warn("Shared Terminal planned search failed.", result.error);
+      return null;
+    }
+    AppState.plannedTodayCache = result.data;
+    return AppState.plannedTodayCache;
+  }
 
   // Preferred path: backend-controlled list that excludes any planned visit already used today.
   // This avoids showing signed-out/completed planned visitors to kiosk users.
@@ -273,6 +302,7 @@ function rpcVisitLogId(data) {
 async function findVisitLogIdAfterPlannedSignIn(plannedVisitId, rpcData) {
   const directId = rpcVisitLogId(rpcData);
   if (directId) return directId;
+  if (isPublicKioskContext()) return null;
 
   const lookup = await supabaseClient
     .from("visit_log")
@@ -289,6 +319,7 @@ async function findVisitLogIdAfterPlannedSignIn(plannedVisitId, rpcData) {
 async function findVisitLogIdAfterWalkInSignIn(visitorName, rpcData) {
   const directId = rpcVisitLogId(rpcData);
   if (directId) return directId;
+  if (isPublicKioskContext()) return null;
 
   const lookup = await supabaseClient
     .from("visit_log")
@@ -337,9 +368,17 @@ export async function signInPlanned(visit, actionButton) {
       actionButton.parentElement.appendChild(waitNote);
     }
 
+    const sharedTerminal = isPublicKioskContext();
     const result = await callPublicKioskRpc(
-      "kiosk_sign_in_planned",
-      {
+      sharedTerminal
+        ? "shared_terminal_sign_in_planned"
+        : "kiosk_sign_in_planned",
+      sharedTerminal ? {
+        p_terminal_token: kioskToken,
+        p_planned_visit_id: visit.id,
+        p_privacy_notice_version: latestPrivacyAcceptance ? latestPrivacyAcceptance.version : null,
+        p_privacy_notice_accepted_at: latestPrivacyAcceptance ? latestPrivacyAcceptance.acceptedAt : null
+      } : {
         p_kiosk_token: kioskToken,
         p_planned_visit_id: visit.id,
         p_privacy_notice_version: latestPrivacyAcceptance ? latestPrivacyAcceptance.version : null,
@@ -367,11 +406,10 @@ export async function signInPlanned(visit, actionButton) {
       planned_visit_id: visit.id
     });
 
-    showKioskFlowMessage("Signed in successfully.", "success");
-    showKioskConfirmation("Welcome, " + safe(visit.visitor_name), appSettings.plannedSignInMessage);
     resetPlannedSignInSearch();
-    await refreshCoreData();
     returnFromPublicVisitorAction();
+    if (!isPublicKioskContext()) await refreshCoreData();
+    showKioskConfirmation("Welcome, " + safe(visit.visitor_name), appSettings.plannedSignInMessage);
   } catch (err) {
     showKioskFlowMessage("Could not sign in planned visitor: " + err.message, "error");
     console.error(err);
@@ -470,22 +508,24 @@ export async function signInWalkIn() {
   if (!visitorDependencies.validateRequiredField("walkInContact", "On-site contact", true)) return;
   if (!visitorDependencies.validateRequiredField("walkInSecurityPass", "Security pass ID", true)) return;
 
-  const activeDuplicate = await supabaseClient
-    .from("visit_log")
-    .select("id, visitor_name, sign_out_time")
-    .ilike("visitor_name", name)
-    .is("sign_out_time", null)
-    .limit(1);
+  if (!isPublicKioskContext()) {
+    const activeDuplicate = await supabaseClient
+      .from("visit_log")
+      .select("id, visitor_name, sign_out_time")
+      .ilike("visitor_name", name)
+      .is("sign_out_time", null)
+      .limit(1);
 
-  if (!activeDuplicate.error && activeDuplicate.data && activeDuplicate.data.length > 0) {
-    showWalkInModalMessage("A visitor with this name is already signed in. Please ask Security for help if this is a different person.", "error");
-    return;
-  }
+    if (!activeDuplicate.error && activeDuplicate.data && activeDuplicate.data.length > 0) {
+      showWalkInModalMessage("A visitor with this name is already signed in. Please ask Security for help if this is a different person.", "error");
+      return;
+    }
 
-  const plannedDuplicate = AppState.plannedTodayCache.find(v => formatPersonName(v.visitor_name) === name);
-  if (plannedDuplicate) {
-    showWalkInModalMessage("A planned visitor with this name exists. Please select the planned visitor entry instead of creating a walk-in.", "error");
-    return;
+    const plannedDuplicate = AppState.plannedTodayCache.find(v => formatPersonName(v.visitor_name) === name);
+    if (plannedDuplicate) {
+      showWalkInModalMessage("A planned visitor with this name exists. Please select the planned visitor entry instead of creating a walk-in.", "error");
+      return;
+    }
   }
 
   if (visitorDependencies.currentPrivacyConfig().enabled && visitorDependencies.privacyDisplayMode() === "embedded_walkin") {
@@ -507,10 +547,13 @@ export async function signInWalkIn() {
 
   showWalkInModalMessage("Signing you in, please wait...", "success");
 
+  const sharedTerminal = isPublicKioskContext();
   const result = await callPublicKioskRpc(
-    "kiosk_sign_in_walk_in",
+    sharedTerminal
+      ? "shared_terminal_sign_in_walk_in"
+      : "kiosk_sign_in_walk_in",
     {
-      p_kiosk_token: kioskToken,
+      [sharedTerminal ? "p_terminal_token" : "p_kiosk_token"]: kioskToken,
       p_visitor_name: name,
       p_company: visitorDependencies.fieldValueIfVisible("walkInCompany").trim() || null,
       p_visit_reason: visitorDependencies.fieldValueIfVisible("walkInReason").trim() || null,
@@ -542,10 +585,9 @@ export async function signInWalkIn() {
 
   resetWalkInPublicFlow();
   visitorDependencies.closeWalkInModal();
-  showKioskFlowMessage("Walk-in visitor signed in successfully.", "success");
-  showKioskConfirmation("Welcome, " + safe(name), appSettings.walkInSignInMessage);
-  await refreshCoreData();
   returnFromPublicVisitorAction();
+  if (!isPublicKioskContext()) await refreshCoreData();
+  showKioskConfirmation("Welcome, " + safe(name), appSettings.walkInSignInMessage);
   } finally {
     endKioskAction(actionButton, "Sign In Walk-In");
   }
@@ -756,6 +798,36 @@ export async function signInStaffPlannedVisit(plannedVisitId) {
 
 export async function loadActiveVisits(options) {
   const renderLegacyList = !options || options.renderLegacyList !== false;
+  const nativeTerminalSearch = !!(
+    options &&
+    Object.prototype.hasOwnProperty.call(options, "searchQuery") &&
+    isPublicKioskContext()
+  );
+
+  if (nativeTerminalSearch) {
+    let kioskToken;
+    try {
+      kioskToken = ensureKioskToken();
+    } catch (error) {
+      showKioskFlowMessage(error.message, "error");
+      return null;
+    }
+    const terminalResult = await callAnonymousTerminalRpc(
+      "shared_terminal_search_active_visits",
+      {
+        p_terminal_token: kioskToken,
+        p_query: String(options.searchQuery || "")
+      },
+      "Visitor sign-out search failed."
+    );
+    if (terminalResult.error || !Array.isArray(terminalResult.data)) {
+      if (terminalResult.error) console.warn("Shared Terminal sign-out search failed.", terminalResult.error);
+      return null;
+    }
+    AppState.activeVisitCache = terminalResult.data;
+    return AppState.activeVisitCache;
+  }
+
   const result = await supabaseClient
     .from("visit_log")
     .select("id, visitor_name, company, visit_reason, vehicle_plate, onsite_contact, security_pass_id, privacy_notice_version, privacy_notice_accepted_at, sign_in_time")
@@ -929,31 +1001,29 @@ export async function signOut(id, actionButton) {
     return;
   }
 
-  const complianceSummary = await getVisitMissingAgreementSummary(id);
-  if (complianceSummary && complianceSummary.error) {
-    showStaffComplianceToast("Compliance check warning", "Could not check agreement compliance before sign-out: " + complianceSummary.error.message, "error");
-  } else if (complianceSummary && Number(complianceSummary.missing_count || 0) > 0) {
-    const missingText = complianceSummary.missing_agreements || "required agreement(s)";
-    const blockSignOut = !!settingValue("block_sign_out_if_required_agreements_missing", false);
-    if (blockSignOut) {
-      showKioskFlowMessage(
-        isPublicKioskContext()
-          ? "Sign-out could not be completed. Please ask Security for help."
-          : "Cannot sign out. Missing required agreement(s): " + missingText,
-        "error"
-      );
-      showStaffComplianceToast("Sign-out blocked", "Missing required agreement(s): " + missingText, "error");
-      return;
+  if (!isPublicKioskContext()) {
+    const complianceSummary = await getVisitMissingAgreementSummary(id);
+    if (complianceSummary && complianceSummary.error) {
+      showStaffComplianceToast("Compliance check warning", "Could not check agreement compliance before sign-out: " + complianceSummary.error.message, "error");
+    } else if (complianceSummary && Number(complianceSummary.missing_count || 0) > 0) {
+      const missingText = complianceSummary.missing_agreements || "required agreement(s)";
+      const blockSignOut = !!settingValue("block_sign_out_if_required_agreements_missing", false);
+      if (blockSignOut) {
+        showKioskFlowMessage("Cannot sign out. Missing required agreement(s): " + missingText, "error");
+        showStaffComplianceToast("Sign-out blocked", "Missing required agreement(s): " + missingText, "error");
+        return;
+      }
+      showStaffComplianceToast("Compliance warning", "Signing out with missing required agreement(s): " + missingText, "error");
     }
-    showStaffComplianceToast("Compliance warning", "Signing out with missing required agreement(s): " + missingText, "error");
   }
 
   showKioskFlowMessage("Signing you out, please wait...", "success");
 
+  const sharedTerminal = isPublicKioskContext();
   const result = await callPublicKioskRpc(
-    "kiosk_sign_out",
+    sharedTerminal ? "shared_terminal_sign_out" : "kiosk_sign_out",
     {
-      p_kiosk_token: kioskToken,
+      [sharedTerminal ? "p_terminal_token" : "p_kiosk_token"]: kioskToken,
       p_visit_log_id: id
     },
     "Visitor sign-out failed.",
@@ -970,11 +1040,10 @@ export async function signOut(id, actionButton) {
 
   await visitorDependencies.writeAuditEvent("visitor_signed_out", "visit_log", id, {});
 
-  showKioskFlowMessage("Visitor signed out successfully.", "success");
-  showKioskConfirmation("Thank you for your visit", appSettings.signOutMessage);
   resetSignOutSearch();
-  await refreshCoreData();
   returnFromPublicVisitorAction();
+  if (!isPublicKioskContext()) await refreshCoreData();
+  showKioskConfirmation("Thank you for your visit", appSettings.signOutMessage);
   } finally {
     endKioskAction(actionButton, "Sign Out");
   }

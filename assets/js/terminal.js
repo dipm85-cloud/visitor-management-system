@@ -97,8 +97,22 @@ function openWorkflow(workflow) {
   if (typeof workflow.open === "function") workflow.open();
 }
 
-function enabledTerminalWorkflows() {
+export function enabledTerminalWorkflows() {
   return Array.from(terminalWorkflowRegistry.values()).filter(workflowEnabled);
+}
+
+export function hasMultipleEnabledTerminalWorkflows() {
+  return enabledTerminalWorkflows().length > 1;
+}
+
+export function syncTerminalNavigation() {
+  const homeButton = $("terminalHomeTopButton");
+  if (homeButton) {
+    homeButton.classList.toggle(
+      "hidden",
+      !hasMultipleEnabledTerminalWorkflows()
+    );
+  }
 }
 
 export function openSingleEnabledTerminalWorkflow(workflowId) {
@@ -118,6 +132,7 @@ export function renderTerminalHome() {
   if (!container) return;
   container.replaceChildren();
   const workflows = enabledTerminalWorkflows();
+  syncTerminalNavigation();
 
   workflows.forEach(workflow => {
     const card = document.createElement("article");

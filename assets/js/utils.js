@@ -52,6 +52,33 @@ export function isValidVisitorFullName(value) {
   );
 }
 
+export function alphabeticNameParts(value) {
+  return String(value || "")
+    .toLocaleLowerCase()
+    .match(/\p{L}+/gu) || [];
+}
+
+export function hasMinimumVisitorSearchTerm(value) {
+  return alphabeticNameParts(value).some(part => part.length >= 3);
+}
+
+export function plannedVisitorNameMatches(query, visitorName) {
+  const allQueryParts = alphabeticNameParts(query);
+  const queryParts = allQueryParts.filter(part => part.length >= 3);
+  const visitorParts = alphabeticNameParts(visitorName);
+  if (!queryParts.length || !visitorParts.length) return false;
+
+  return visitorParts.every(visitorPart =>
+    visitorPart.length < 3
+      ? allQueryParts.includes(visitorPart)
+      : queryParts.some(queryPart =>
+        queryPart.includes(visitorPart) ||
+        visitorPart.includes(queryPart) ||
+        queryPart.slice(0, 3) === visitorPart.slice(0, 3)
+      )
+  );
+}
+
 export function normaliseBusinessCode(value) {
   const text = String(value || "").trim().toUpperCase();
   return text || null;

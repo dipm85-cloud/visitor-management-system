@@ -1,15 +1,22 @@
 import { AppState } from "./state.js";
 import { $ } from "./dom.js";
 import { settingValue } from "./settings.js";
-import { isRegisteredTerminal } from "./terminal.js";
 import {
-  formatPersonName,
+  isRegisteredTerminal,
+  syncTerminalNavigation
+} from "./terminal.js";
+import {
+  hasMinimumVisitorSearchTerm,
   isValidVisitorFullName,
   VISITOR_FULL_NAME_MESSAGE
 } from "./utils.js";
 
 let visitorKioskDependencies;
 let visitorKioskInitialised = false;
+let plannedSearchTimer = null;
+let signOutSearchTimer = null;
+let plannedSearchSequence = 0;
+let signOutSearchSequence = 0;
 
 export function configureVisitorKiosk(dependencies) {
   visitorKioskDependencies = dependencies;
@@ -88,31 +95,9 @@ function createVisitorRow(primary, secondary, actionText, actionClass, onAction)
   return row;
 }
 
-function renderPlannedMatches() {
+function renderPlannedMatches(matches) {
   const filterInput = $("visitorKioskPlannedSearch");
-  const filter = formatPersonName(filterInput.value);
   const list = $("visitorKioskPlannedResults");
-
-  if (filter.length < 2) {
-    setListMessage(
-      "visitorKioskPlannedResults",
-      "Type at least 2 letters",
-      "Enter your full name."
-    );
-    return;
-  }
-  if (!isValidVisitorFullName(filterInput.value)) {
-    setListMessage(
-      "visitorKioskPlannedResults",
-      "Full name required",
-      VISITOR_FULL_NAME_MESSAGE
-    );
-    return;
-  }
-
-  const matches = AppState.plannedTodayCache.filter(visit =>
-    formatPersonName(visit.visitor_name).includes(filter)
-  );
 
   list.replaceChildren();
   if (!matches.length) {
@@ -127,7 +112,7 @@ function renderPlannedMatches() {
       const walkIn = document.createElement("button");
       walkIn.type = "button";
       walkIn.className = "visitor-kiosk-inline-action";
-      walkIn.textContent = "Continue as Walk-In";
+      walkIn.textContent = "Register as Walk-in";
       walkIn.addEventListener("click", () => {
         if (!isValidVisitorFullName(filterInput.value)) {
           showVisitorKioskStatus(VISITOR_FULL_NAME_MESSAGE, "error");
@@ -151,28 +136,48 @@ function renderPlannedMatches() {
   });
 }
 
-function renderSignOutMatches() {
-  const filterInput = $("visitorKioskSignOutSearch");
-  const filterRaw = filterInput.value;
-  const filter = formatPersonName(filterRaw);
-  const list = $("visitorKioskSignOutResults");
-
-  if (filter.length < 2) {
+async function searchPlannedMatches() {
+  const query = $("visitorKioskPlannedSearch").value;
+  if (!hasMinimumVisitorSearchTerm(query)) {
     setListMessage(
-      "visitorKioskSignOutResults",
-      "Type at least 2 letters",
-      "Search using your name, company, or security pass."
+      "visitorKioskPlannedResults",
+      "Type at least 3 letters",
+      "Use three or more letters from any part of your name."
     );
     return;
   }
 
-  const matches = AppState.activeVisitCache.filter(visit =>
-    formatPersonName(visit.visitor_name).includes(filter) ||
-    formatPersonName(visit.company).includes(filter) ||
-    String(visit.security_pass_id || "")
-      .toLowerCase()
-      .includes(String(filterRaw).toLowerCase())
+  const sequence = ++plannedSearchSequence;
+  setListMessage(
+    "visitorKioskPlannedResults",
+    "Searching today's planned visits",
+    "Please wait."
   );
+  const matches = await visitorKioskDependencies.loadPlannedVisits({
+    renderLegacyList: false,
+    searchQuery: query
+  });
+  if (sequence !== plannedSearchSequence) return;
+  if (matches === null) {
+    setListMessage(
+      "visitorKioskPlannedResults",
+      "Planned visits unavailable",
+      "Please ask reception for help."
+    );
+    return;
+  }
+  renderPlannedMatches(matches);
+}
+
+function queuePlannedSearch() {
+  if (plannedSearchTimer) clearTimeout(plannedSearchTimer);
+  plannedSearchSequence += 1;
+  plannedSearchTimer = setTimeout(searchPlannedMatches, 250);
+}
+
+function renderSignOutMatches(matches) {
+  const filterInput = $("visitorKioskSignOutSearch");
+  const list = $("visitorKioskSignOutResults");
 
   list.replaceChildren();
   if (!matches.length) {
@@ -207,6 +212,45 @@ function renderSignOutMatches() {
   });
 }
 
+async function searchSignOutMatches() {
+  const query = $("visitorKioskSignOutSearch").value.trim();
+  if (query.length < 2) {
+    setListMessage(
+      "visitorKioskSignOutResults",
+      "Type at least 2 characters",
+      "Search using your name, company, or security pass."
+    );
+    return;
+  }
+
+  const sequence = ++signOutSearchSequence;
+  setListMessage(
+    "visitorKioskSignOutResults",
+    "Searching signed-in visitors",
+    "Please wait."
+  );
+  const matches = await visitorKioskDependencies.loadActiveVisits({
+    renderLegacyList: false,
+    searchQuery: query
+  });
+  if (sequence !== signOutSearchSequence) return;
+  if (matches === null) {
+    setListMessage(
+      "visitorKioskSignOutResults",
+      "Sign-out list unavailable",
+      "Please ask reception for help."
+    );
+    return;
+  }
+  renderSignOutMatches(matches);
+}
+
+function queueSignOutSearch() {
+  if (signOutSearchTimer) clearTimeout(signOutSearchTimer);
+  signOutSearchSequence += 1;
+  signOutSearchTimer = setTimeout(searchSignOutMatches, 250);
+}
+
 async function openPlannedSignIn() {
   if (!publicTerminalAvailable()) return;
   showVisitorKioskStatus("");
@@ -214,21 +258,9 @@ async function openPlannedSignIn() {
   $("visitorKioskPlannedSearch").value = "";
   setListMessage(
     "visitorKioskPlannedResults",
-    "Loading today's visitors",
-    "Please wait."
+    "Type at least 3 letters",
+    "Use three or more letters from any part of your name."
   );
-  const visits = await visitorKioskDependencies.loadPlannedVisits({
-    renderLegacyList: false
-  });
-  if (visits === null) {
-    setListMessage(
-      "visitorKioskPlannedResults",
-      "Planned visits unavailable",
-      "Please ask reception for help."
-    );
-    return;
-  }
-  renderPlannedMatches();
   $("visitorKioskPlannedSearch").focus();
 }
 
@@ -239,27 +271,26 @@ async function openVisitorSignOut() {
   $("visitorKioskSignOutSearch").value = "";
   setListMessage(
     "visitorKioskSignOutResults",
-    "Loading signed-in visitors",
-    "Please wait."
+    "Type at least 2 characters",
+    "Search using your name, company, or security pass."
   );
-  const visits = await visitorKioskDependencies.loadActiveVisits({
-    renderLegacyList: false
-  });
-  if (visits === null) {
-    setListMessage(
-      "visitorKioskSignOutResults",
-      "Sign-out list unavailable",
-      "Please ask reception for help."
-    );
-    return;
-  }
-  renderSignOutMatches();
   $("visitorKioskSignOutSearch").focus();
 }
 
 export function returnToVisitorKioskHome() {
   if (!publicTerminalAvailable()) return;
+  if (plannedSearchTimer) clearTimeout(plannedSearchTimer);
+  if (signOutSearchTimer) clearTimeout(signOutSearchTimer);
+  plannedSearchSequence += 1;
+  signOutSearchSequence += 1;
+  $("visitorKioskPlannedSearch").value = "";
+  $("visitorKioskSignOutSearch").value = "";
+  AppState.plannedTodayCache = [];
+  AppState.activeVisitCache = [];
+  showVisitorKioskStatus("");
+  visitorKioskDependencies.resetVisitorWorkflow();
   visitorKioskDependencies.showWorkspace();
+  syncTerminalNavigation();
   setView("home");
   $("visitorKioskWorkspace").focus({ preventScroll: true });
 }
@@ -273,15 +304,11 @@ export function initialiseVisitorKiosk() {
   if (visitorKioskInitialised) return;
   visitorKioskInitialised = true;
 
-  $("visitorKioskTerminalHomeButton").addEventListener(
-    "click",
-    () => visitorKioskDependencies.returnToTerminalHome("visitor-kiosk")
-  );
   document.querySelectorAll(".visitorKioskBackButton").forEach(button => {
     button.addEventListener("click", returnToVisitorKioskHome);
   });
   $("visitorKioskSignInButton").addEventListener("click", openPlannedSignIn);
   $("visitorKioskSignOutButton").addEventListener("click", openVisitorSignOut);
-  $("visitorKioskPlannedSearch").addEventListener("input", renderPlannedMatches);
-  $("visitorKioskSignOutSearch").addEventListener("input", renderSignOutMatches);
+  $("visitorKioskPlannedSearch").addEventListener("input", queuePlannedSearch);
+  $("visitorKioskSignOutSearch").addEventListener("input", queueSignOutSearch);
 }

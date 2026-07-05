@@ -2,7 +2,8 @@ import {
   isRegisteredTerminal,
   openSingleEnabledTerminalWorkflow,
   refreshTerminalRegistration,
-  renderTerminalHome
+  renderTerminalHome,
+  syncTerminalNavigation
 } from "./terminal.js";
 import { AppState } from "./state.js";
 import { recordAppliedRoute } from "./startupDebug.js";
@@ -56,6 +57,7 @@ export async function resolveStartupMode() {
 export function enterTerminalMode(source, options) {
   setDocumentMode(TERMINAL_MODE, source || "terminal-entry");
   modeDependencies.updateHomeAccess();
+  syncTerminalNavigation();
   if (
     (!options || options.showTerminalHome !== true) &&
     openSingleEnabledTerminalWorkflow("visitors")

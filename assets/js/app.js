@@ -384,7 +384,10 @@ window.addEventListener("load", async function () {
         isKioskProfile() {
           return isKioskProfile() || isRegisteredTerminal();
         },
-        isSuperKioskTestProfile
+        isSuperKioskTestProfile,
+        returnToTerminalLanding() {
+          enterTerminalMode("inactivity-timeout");
+        }
       }
     });
     configureSettings({
@@ -464,8 +467,24 @@ window.addEventListener("load", async function () {
     });
     configureVisitorKiosk({
       showWorkspace: showVisitorKioskWorkspace,
-      returnToTerminalHome() {
-        enterTerminalMode("visitor-kiosk", { showTerminalHome: true });
+      resetVisitorWorkflow() {
+        clearWalkInForm();
+        closeWalkInModal();
+        closePrivacyNoticeModal(false);
+        closeKioskConfirmation();
+        setLatestPrivacyAcceptance(null);
+        if ($("privacyNoticeAcceptedCheck")) $("privacyNoticeAcceptedCheck").checked = false;
+        if ($("privacyNoticeModalMessage")) {
+          $("privacyNoticeModalMessage").textContent = "";
+          $("privacyNoticeModalMessage").className = "modal-message";
+        }
+        if ($("walkInEmbeddedPrivacyAccepted")) {
+          $("walkInEmbeddedPrivacyAccepted").checked = false;
+        }
+        if ($("walkInEmbeddedPrivacyMessage")) {
+          $("walkInEmbeddedPrivacyMessage").textContent = "";
+          $("walkInEmbeddedPrivacyMessage").className = "modal-message";
+        }
       },
       openWalkInModal,
       loadPlannedVisits,
@@ -2551,6 +2570,16 @@ window.addEventListener("load", async function () {
 
     function closeWalkInModal() {
       $("walkInModalBackdrop").classList.remove("active");
+    }
+
+    function cancelPublicVisitorWorkflow() {
+      closeWalkInModal();
+      if (
+        isRegisteredTerminal() &&
+        (!AppState.currentProfile || AppState.currentProfile.role === "kiosk_user")
+      ) {
+        returnToVisitorKioskHome();
+      }
     }
 
 
@@ -4759,7 +4788,12 @@ window.addEventListener("load", async function () {
     });
 
     $("homeLoginButton").addEventListener("click", openLoginModal);
-    $("terminalHomeStaffLoginButton").addEventListener("click", openLoginModal);
+    if ($("terminalHomeTopButton")) {
+      $("terminalHomeTopButton").addEventListener(
+        "click",
+        () => enterTerminalMode("terminal-home-navigation", { showTerminalHome: true })
+      );
+    }
     $("staffLoginWorkspaceButton").addEventListener("click", openLoginModal);
     $("terminalReturnHomeButton").addEventListener(
       "click",
@@ -4911,8 +4945,8 @@ window.addEventListener("load", async function () {
     $("plannedFilter").addEventListener("input", renderPlannedVisitorList);
     if ($("signOutFilter")) $("signOutFilter").addEventListener("input", renderActiveVisitorList);
     $("walkInButton").addEventListener("click", signInWalkIn);
-    $("closeWalkInModalButton").addEventListener("click", closeWalkInModal);
-    $("cancelWalkInButton").addEventListener("click", closeWalkInModal);
+    $("closeWalkInModalButton").addEventListener("click", cancelPublicVisitorWorkflow);
+    $("cancelWalkInButton").addEventListener("click", cancelPublicVisitorWorkflow);
     $("createPlannedButton").addEventListener("click", createPlannedVisit);
 
     $("roleGeneral").addEventListener("click", () => setRole("general"));
@@ -5122,8 +5156,14 @@ window.addEventListener("load", async function () {
     if ($("resetPrivacyNoticeButton")) $("resetPrivacyNoticeButton").addEventListener("click", resetPrivacyNoticeSettings);
     if ($("loadPrivacyRecommendedButton")) $("loadPrivacyRecommendedButton").addEventListener("click", loadPrivacyRecommendedDefaults);
     if ($("confirmPrivacyNoticeButton")) $("confirmPrivacyNoticeButton").addEventListener("click", confirmPrivacyNotice);
-    if ($("cancelPrivacyNoticeButton")) $("cancelPrivacyNoticeButton").addEventListener("click", () => closePrivacyNoticeModal(false));
-    if ($("closePrivacyNoticeModalButton")) $("closePrivacyNoticeModalButton").addEventListener("click", () => closePrivacyNoticeModal(false));
+    if ($("cancelPrivacyNoticeButton")) $("cancelPrivacyNoticeButton").addEventListener("click", () => {
+      closePrivacyNoticeModal(false);
+      cancelPublicVisitorWorkflow();
+    });
+    if ($("closePrivacyNoticeModalButton")) $("closePrivacyNoticeModalButton").addEventListener("click", () => {
+      closePrivacyNoticeModal(false);
+      cancelPublicVisitorWorkflow();
+    });
     if ($("superLoadAnalyticsButton")) $("superLoadAnalyticsButton").addEventListener("click", () => loadAnalytics("super"));
     if ($("downloadAuditCsvButton")) $("downloadAuditCsvButton").addEventListener("click", () => runWithCapability("audit.export", "Export audit events", () => downloadCsv("audit_events.csv", normaliseAuditExportRows(AppState.auditEventsCache))));
     if ($("downloadAuditExcelButton")) $("downloadAuditExcelButton").addEventListener("click", () => runWithCapability("audit.export", "Export audit events", () => exportToExcel(AppState.auditEventsCache, "VMS_AuditEvents_" + exportDateStamp() + ".xlsx", "audit")));
