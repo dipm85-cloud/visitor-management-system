@@ -251,6 +251,15 @@ function queueSignOutSearch() {
   signOutSearchTimer = setTimeout(searchSignOutMatches, 250);
 }
 
+function armInactivityTimeout() {
+  if (
+    visitorKioskDependencies &&
+    typeof visitorKioskDependencies.resetInactivityTimer === "function"
+  ) {
+    visitorKioskDependencies.resetInactivityTimer();
+  }
+}
+
 async function openPlannedSignIn() {
   if (!publicTerminalAvailable()) return;
   showVisitorKioskStatus("");
@@ -262,6 +271,7 @@ async function openPlannedSignIn() {
     "Use three or more letters from any part of your name."
   );
   $("visitorKioskPlannedSearch").focus();
+  armInactivityTimeout();
 }
 
 async function openVisitorSignOut() {
@@ -275,6 +285,7 @@ async function openVisitorSignOut() {
     "Search using your name, company, or security pass."
   );
   $("visitorKioskSignOutSearch").focus();
+  armInactivityTimeout();
 }
 
 export function returnToVisitorKioskHome() {
@@ -285,6 +296,8 @@ export function returnToVisitorKioskHome() {
   signOutSearchSequence += 1;
   $("visitorKioskPlannedSearch").value = "";
   $("visitorKioskSignOutSearch").value = "";
+  $("visitorKioskPlannedResults").replaceChildren();
+  $("visitorKioskSignOutResults").replaceChildren();
   AppState.plannedTodayCache = [];
   AppState.activeVisitCache = [];
   showVisitorKioskStatus("");

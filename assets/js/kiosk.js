@@ -53,10 +53,20 @@ export function promptSetKioskTokenForThisTablet() {
 }
 
 export function bindKioskIdleActivityReset() {
-  const resetEvents = ["input", "change", "keydown", "pointerdown", "touchstart", "focusin"];
+  const resetEvents = [
+    "input",
+    "change",
+    "keydown",
+    "pointerdown",
+    "touchstart",
+    "click",
+    "focusin"
+  ];
 
   const containers = [
     "visitorKioskWorkspace",
+    "staffLoginWorkspace",
+    "loginModalBackdrop",
     "signInScreen",
     "signOutScreen",
     "walkInModalBackdrop",
@@ -90,11 +100,25 @@ export function resetKioskIdleTimer() {
   if (AppState.kioskIdleTimer) clearTimeout(AppState.kioskIdleTimer);
 
   const visitorWorkspace = $("visitorKioskWorkspace");
+  const staffLoginWorkspace = $("staffLoginWorkspace");
+  const loginModal = $("loginModalBackdrop");
   const onNativeVisitorKiosk = !!(
     visitorWorkspace &&
     !visitorWorkspace.classList.contains("hidden")
   );
+  const onTerminalStaffLogin = !!(
+    AppState.terminalRegistration &&
+    AppState.terminalRegistration.registered &&
+    (
+      (
+        staffLoginWorkspace &&
+        !staffLoginWorkspace.classList.contains("hidden")
+      ) ||
+      (loginModal && loginModal.classList.contains("active"))
+    )
+  );
   const onKioskScreen = onNativeVisitorKiosk ||
+    onTerminalStaffLogin ||
     $("signInScreen").classList.contains("active") ||
     $("signOutScreen").classList.contains("active");
 
@@ -102,8 +126,14 @@ export function resetKioskIdleTimer() {
 
   AppState.kioskIdleTimer = setTimeout(function () {
     AppState.kioskIdleTimer = null;
+    const activeStaffSession = !!(
+      AppState.currentProfile &&
+      AppState.currentProfile.active &&
+      AppState.currentProfile.role !== "kiosk_user"
+    );
+    if (activeStaffSession) return;
     if (
-      onNativeVisitorKiosk &&
+      (onNativeVisitorKiosk || onTerminalStaffLogin) &&
       typeof kioskDependencies.returnToTerminalLanding === "function"
     ) {
       kioskDependencies.returnToTerminalLanding("inactivity-timeout");

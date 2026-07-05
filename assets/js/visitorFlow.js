@@ -181,11 +181,13 @@ export async function loadPlannedVisits(options) {
       },
       "Planned visitor search failed."
     );
-    if (result.error || !Array.isArray(result.data)) {
-      if (result.error) console.warn("Shared Terminal planned search failed.", result.error);
+    if (result.error) {
+      console.warn("Shared Terminal planned search failed.", result.error);
       return null;
     }
-    AppState.plannedTodayCache = result.data;
+    AppState.plannedTodayCache = Array.isArray(result.data)
+      ? result.data
+      : (result.data == null ? [] : [result.data]);
     return AppState.plannedTodayCache;
   }
 
@@ -820,11 +822,13 @@ export async function loadActiveVisits(options) {
       },
       "Visitor sign-out search failed."
     );
-    if (terminalResult.error || !Array.isArray(terminalResult.data)) {
-      if (terminalResult.error) console.warn("Shared Terminal sign-out search failed.", terminalResult.error);
+    if (terminalResult.error) {
+      console.warn("Shared Terminal sign-out search failed.", terminalResult.error);
       return null;
     }
-    AppState.activeVisitCache = terminalResult.data;
+    AppState.activeVisitCache = Array.isArray(terminalResult.data)
+      ? terminalResult.data
+      : (terminalResult.data == null ? [] : [terminalResult.data]);
     return AppState.activeVisitCache;
   }
 

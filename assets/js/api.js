@@ -16,7 +16,21 @@ export async function callAnonymousTerminalRpc(functionName, parameters, fallbac
         body: JSON.stringify(parameters)
       }
     );
-    const data = await response.json();
+    const responseBody = await response.text();
+    let data = null;
+    if (responseBody) {
+      try {
+        data = JSON.parse(responseBody);
+      } catch (parseError) {
+        return {
+          data: null,
+          error: {
+            message: fallbackError,
+            cause: parseError
+          }
+        };
+      }
+    }
 
     if (!response.ok) {
       return {

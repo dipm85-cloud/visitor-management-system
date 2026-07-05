@@ -386,6 +386,7 @@ window.addEventListener("load", async function () {
         },
         isSuperKioskTestProfile,
         returnToTerminalLanding() {
+          resetTerminalVisitorState();
           enterTerminalMode("inactivity-timeout");
         }
       }
@@ -467,25 +468,8 @@ window.addEventListener("load", async function () {
     });
     configureVisitorKiosk({
       showWorkspace: showVisitorKioskWorkspace,
-      resetVisitorWorkflow() {
-        clearWalkInForm();
-        closeWalkInModal();
-        closePrivacyNoticeModal(false);
-        closeKioskConfirmation();
-        setLatestPrivacyAcceptance(null);
-        if ($("privacyNoticeAcceptedCheck")) $("privacyNoticeAcceptedCheck").checked = false;
-        if ($("privacyNoticeModalMessage")) {
-          $("privacyNoticeModalMessage").textContent = "";
-          $("privacyNoticeModalMessage").className = "modal-message";
-        }
-        if ($("walkInEmbeddedPrivacyAccepted")) {
-          $("walkInEmbeddedPrivacyAccepted").checked = false;
-        }
-        if ($("walkInEmbeddedPrivacyMessage")) {
-          $("walkInEmbeddedPrivacyMessage").textContent = "";
-          $("walkInEmbeddedPrivacyMessage").className = "modal-message";
-        }
-      },
+      resetVisitorWorkflow: resetTerminalVisitorState,
+      resetInactivityTimer: resetKioskIdleTimer,
       openWalkInModal,
       loadPlannedVisits,
       signInPlanned,
@@ -2566,6 +2550,30 @@ window.addEventListener("load", async function () {
         if ($(id)) $(id).value = "";
       });
       clearWalkInModalMessage();
+    }
+
+    function resetTerminalVisitorState() {
+      clearWalkInForm();
+      closeWalkInModal();
+      closePrivacyNoticeModal(false);
+      closeKioskConfirmation();
+      setLatestPrivacyAcceptance(null);
+      if ($("privacyNoticeAcceptedCheck")) $("privacyNoticeAcceptedCheck").checked = false;
+      if ($("privacyNoticeModalMessage")) {
+        $("privacyNoticeModalMessage").textContent = "";
+        $("privacyNoticeModalMessage").className = "modal-message";
+      }
+      if ($("walkInEmbeddedPrivacyAccepted")) {
+        $("walkInEmbeddedPrivacyAccepted").checked = false;
+      }
+      if ($("walkInEmbeddedPrivacyMessage")) {
+        $("walkInEmbeddedPrivacyMessage").textContent = "";
+        $("walkInEmbeddedPrivacyMessage").className = "modal-message";
+      }
+      closeLoginModal();
+      if ($("loginEmail")) $("loginEmail").value = "";
+      if ($("loginPassword")) $("loginPassword").value = "";
+      if ($("loginStatus")) $("loginStatus").textContent = "";
     }
 
     function closeWalkInModal() {
@@ -4807,6 +4815,7 @@ window.addEventListener("load", async function () {
     initialiseVisitorIdentityLookups();
     registerInitialTerminalWorkflows();
     initialiseVisitorKiosk();
+    bindKioskIdleActivityReset();
     initialiseVisitorsWorkspace();
     initialiseDashboard();
     initialiseReportingCentre();
