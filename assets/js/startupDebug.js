@@ -20,6 +20,7 @@ function createDiagnostic() {
     terminalValidationRpcCalled: false,
     terminalValidationResult: null,
     terminalValidationSqlDiagnostic: null,
+    plannedLookupRpcCalls: [],
     finalChosenStartupRoute: null,
     currentRoute: null,
     laterRouteOverrides: [],
@@ -98,6 +99,34 @@ export function recordTerminalSqlDiagnostic(result, error) {
     "terminal-validation-sql-diagnostic",
     state.terminalValidationSqlDiagnostic
   );
+}
+
+export function recordTerminalPlannedLookupCalled(query) {
+  const state = diagnostic();
+  const entry = {
+    calledAt: new Date().toISOString(),
+    queryLength: String(query || "").trim().length,
+    status: "pending",
+    resultCount: null
+  };
+  state.plannedLookupRpcCalls.push(entry);
+  logDebug("terminal-planned-lookup-called", entry);
+}
+
+export function recordTerminalPlannedLookupResult(error, resultCount) {
+  const state = diagnostic();
+  const entry = state.plannedLookupRpcCalls[
+    state.plannedLookupRpcCalls.length - 1
+  ];
+  if (!entry) return;
+  entry.status = error ? "error" : "success";
+  entry.resultCount = error ? null : Number(resultCount || 0);
+  entry.completedAt = new Date().toISOString();
+  logDebug("terminal-planned-lookup-result", {
+    status: entry.status,
+    resultCount: entry.resultCount,
+    completedAt: entry.completedAt
+  });
 }
 
 export function recordFinalStartupRoute(route) {

@@ -23,6 +23,10 @@ import {
 } from "./utils.js";
 import { settingValue } from "./settings.js";
 import { hasCapability } from "./capabilities.js";
+import {
+  recordTerminalPlannedLookupCalled,
+  recordTerminalPlannedLookupResult
+} from "./startupDebug.js";
 
 let appSettings;
 let visitorDependencies;
@@ -173,6 +177,7 @@ export async function loadPlannedVisits(options) {
       showKioskFlowMessage(error.message, "error");
       return null;
     }
+    recordTerminalPlannedLookupCalled(options.searchQuery);
     const result = await callAnonymousTerminalRpc(
       "shared_terminal_search_planned_visits",
       {
@@ -182,12 +187,17 @@ export async function loadPlannedVisits(options) {
       "Planned visitor search failed."
     );
     if (result.error) {
+      recordTerminalPlannedLookupResult(result.error, 0);
       console.warn("Shared Terminal planned search failed.", result.error);
       return null;
     }
     AppState.plannedTodayCache = Array.isArray(result.data)
       ? result.data
       : (result.data == null ? [] : [result.data]);
+    recordTerminalPlannedLookupResult(
+      null,
+      AppState.plannedTodayCache.length
+    );
     return AppState.plannedTodayCache;
   }
 
