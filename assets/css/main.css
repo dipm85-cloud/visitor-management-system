@@ -1493,6 +1493,8 @@ body.kiosk-mode .results-scroll {
 }
 
 .visitors-planned-workflow {
+  max-width: 100%;
+  min-width: 0;
   padding: 20px;
   border: 1px solid var(--oh-shell-border);
   border-radius: 14px;
@@ -1510,13 +1512,6 @@ body.kiosk-mode .results-scroll {
 
 .visitors-on-site-filters {
   grid-template-columns: minmax(240px, 1.5fr) minmax(180px, .7fr) auto;
-}
-
-.visitors-history-quick-filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 14px;
 }
 
 .visitors-history-quick-filters button {
@@ -1696,6 +1691,7 @@ body.kiosk-mode .results-scroll {
 .visitors-planned-filter-actions,
 .visitors-side-panel-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
@@ -1719,15 +1715,22 @@ body.kiosk-mode .results-scroll {
 }
 
 .visitors-planned-table-wrap {
+  max-width: 100%;
+  min-width: 0;
   overflow-x: auto;
   border: 1px solid var(--oh-shell-border);
   border-radius: 12px;
 }
 
 .visitors-planned-table {
+  --oh-responsive-table-min-width: 860px;
   width: 100%;
   border-collapse: collapse;
   font-size: 14px;
+}
+
+.visitors-history-table {
+  --oh-responsive-table-min-width: 980px;
 }
 
 .visitors-planned-table th,
@@ -1750,8 +1753,10 @@ body.kiosk-mode .results-scroll {
 }
 
 .visitors-history-result-summary {
+  margin-bottom: 10px;
   padding: 10px 14px;
-  border-bottom: 1px solid var(--oh-shell-border);
+  border: 1px solid var(--oh-shell-border);
+  border-radius: 12px;
   color: var(--oh-shell-muted);
   background: #f8fafc;
   font-size: 12px;
@@ -1913,6 +1918,10 @@ body.kiosk-mode .results-scroll {
     grid-template-columns: 1fr 1fr;
   }
 
+  .visitors-history-quick-filters button {
+    flex: 1 1 150px;
+  }
+
   .visitors-report-card-grid {
     grid-template-columns: 1fr 1fr;
   }
@@ -1926,6 +1935,16 @@ body.kiosk-mode .results-scroll {
 
   .visitors-planned-filters,
   .visitors-planned-form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .visitors-planned-filter-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .visitors-history-quick-filters {
+    display: grid;
     grid-template-columns: 1fr;
   }
 
@@ -2068,6 +2087,174 @@ body.kiosk-mode .results-scroll {
   outline-offset: 2px;
 }
 
+.oh-filter-panel {
+  display: grid;
+  gap: 14px;
+  max-width: 100%;
+  min-width: 0;
+  margin-bottom: 18px;
+  padding: 14px;
+  border: 1px solid var(--oh-shell-border);
+  border-radius: 14px;
+  background: #f8fafc;
+}
+
+.oh-filter-quick-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-width: 100%;
+  min-width: 0;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--oh-shell-border);
+}
+
+.oh-filter-quick-group button {
+  flex: 0 1 auto;
+}
+
+.oh-filter-field-grid {
+  margin-bottom: 0;
+}
+
+.oh-responsive-filter-grid {
+  --oh-filter-control-min-width: 150px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--oh-filter-control-min-width)), 1fr));
+  gap: 12px;
+  align-items: end;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.oh-responsive-filter-grid > * {
+  min-width: 0;
+}
+
+.oh-responsive-filter-grid input,
+.oh-responsive-filter-grid select,
+.oh-responsive-filter-grid textarea {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.oh-responsive-filter-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.oh-responsive-filter-actions button {
+  flex: 1 1 110px;
+}
+
+.oh-filter-actions-row {
+  justify-content: flex-end;
+  padding-top: 14px;
+  border-top: 1px solid var(--oh-shell-border);
+}
+
+.oh-filter-actions-row button {
+  flex: 0 1 auto;
+}
+
+.oh-responsive-table-wrap {
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  contain: inline-size;
+}
+
+.oh-responsive-table {
+  width: 100%;
+  min-width: var(--oh-responsive-table-min-width, 720px);
+}
+
+.oh-responsive-table-wrap .oh-responsive-table {
+  margin: 0;
+}
+
+.oh-result-card-list {
+  display: none;
+  gap: 12px;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.oh-result-card {
+  display: grid;
+  min-width: 0;
+  gap: 12px;
+  padding: 15px;
+  border: 1px solid var(--oh-shell-border);
+  border-radius: 12px;
+  background: var(--oh-shell-surface);
+  box-shadow: 0 8px 18px rgba(16, 24, 40, .05);
+}
+
+.oh-result-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.oh-result-card-title {
+  display: block;
+  overflow-wrap: anywhere;
+  font-weight: 850;
+}
+
+.oh-result-card-meta {
+  display: block;
+  margin-top: 3px;
+  color: var(--oh-shell-muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.oh-result-card-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 12px;
+}
+
+.oh-result-card-field {
+  min-width: 0;
+}
+
+.oh-result-card-field span {
+  display: block;
+  color: var(--oh-shell-muted);
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+}
+
+.oh-result-card-field strong {
+  display: block;
+  margin-top: 3px;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+}
+
+.oh-result-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.oh-result-card-actions button {
+  min-height: 40px;
+}
+
+.oh-result-card:focus-within {
+  border-color: color-mix(in srgb, var(--oh-shell-focus) 55%, var(--oh-shell-border));
+}
+
 .oh-side-panel-backdrop {
   top: var(--oh-header-height);
   bottom: var(--oh-footer-height);
@@ -2134,6 +2321,45 @@ body.kiosk-mode .results-scroll {
 
 .oh-empty-state > button {
   margin-top: 8px;
+}
+
+@media (max-width: 760px) {
+  .oh-mobile-card-table {
+    display: none !important;
+  }
+
+  .oh-result-card-list:not(.hidden) {
+    display: grid;
+  }
+
+  .oh-result-card-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .oh-result-card-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  .oh-filter-panel {
+    padding: 12px;
+  }
+
+  .oh-filter-quick-group {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .oh-responsive-filter-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .oh-filter-actions-row button {
+    width: 100%;
+  }
 }
 
 @media (max-width: 1023px) {

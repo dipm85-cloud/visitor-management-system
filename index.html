@@ -528,20 +528,22 @@
               <button id="visitorsCreatePlannedButton" type="button">Create Planned Visit</button>
             </div>
 
-            <div class="visitors-planned-filters" role="search" aria-label="Filter planned visits">
-              <label><span>Search</span><input id="visitorsPlannedSearch" type="search" placeholder="Visitor, company or contact" /></label>
-              <label><span>Date</span><input id="visitorsPlannedDateFilter" type="date" /></label>
-              <label>
-                <span>Status</span>
-                <select id="visitorsPlannedStatusFilter">
-                  <option value="active">Active planned visits</option>
-                  <option value="pending">Pending</option>
-                  <option value="signed_in">Signed in</option>
-                  <option value="inactive">Inactive / completed</option>
-                  <option value="all">All statuses</option>
-                </select>
-              </label>
-              <div class="visitors-planned-filter-actions">
+            <div class="oh-filter-panel" role="search" aria-label="Filter planned visits">
+              <div class="visitors-planned-filters oh-responsive-filter-grid oh-filter-field-grid">
+                <label><span>Search</span><input id="visitorsPlannedSearch" type="search" placeholder="Visitor, company or contact" /></label>
+                <label><span>Date</span><input id="visitorsPlannedDateFilter" type="date" /></label>
+                <label>
+                  <span>Status</span>
+                  <select id="visitorsPlannedStatusFilter">
+                    <option value="active">Active planned visits</option>
+                    <option value="pending">Pending</option>
+                    <option value="signed_in">Signed in</option>
+                    <option value="inactive">Inactive / completed</option>
+                    <option value="all">All statuses</option>
+                  </select>
+                </label>
+              </div>
+              <div class="visitors-planned-filter-actions oh-responsive-filter-actions oh-filter-actions-row">
                 <button id="visitorsPlannedApplyFilters" class="secondary" type="button">Apply Filters</button>
                 <button id="visitorsPlannedClearFilters" class="ghost" type="button">Clear</button>
               </div>
@@ -553,8 +555,8 @@
               <strong>No planned visits found</strong>
               <span>Adjust the filters or create a planned visit.</span>
             </div>
-            <div id="visitorsPlannedTableWrap" class="visitors-planned-table-wrap hidden" data-oh-scroll-region="operational" aria-label="Planned visits">
-              <table class="visitors-planned-table">
+            <div id="visitorsPlannedTableWrap" class="visitors-planned-table-wrap oh-responsive-table-wrap oh-mobile-card-table hidden" data-oh-scroll-region="operational" aria-label="Planned visits">
+              <table class="visitors-planned-table oh-responsive-table">
                 <thead>
                   <tr>
                     <th scope="col">Visitor</th>
@@ -569,6 +571,7 @@
                 <tbody id="visitorsPlannedTableBody"></tbody>
               </table>
             </div>
+            <div id="visitorsPlannedCards" class="oh-result-card-list hidden" aria-label="Planned visits mobile results"></div>
           </section>
 
           <section id="visitorsOnSiteSection" class="visitors-section visitors-planned-workflow" aria-labelledby="visitorsOnSiteTitle">
@@ -579,17 +582,19 @@
               </div>
               <button id="visitorsOnSiteRefresh" class="secondary" type="button">Refresh</button>
             </div>
-            <div class="visitors-planned-filters visitors-on-site-filters" role="search" aria-label="Filter visitors currently on site">
-              <label><span>Search</span><input id="visitorsOnSiteSearch" type="search" placeholder="Visitor, company, contact or pass ID" /></label>
-              <label>
-                <span>Status</span>
-                <select id="visitorsOnSiteStatusFilter">
-                  <option value="all">All on-site visitors</option>
-                  <option value="signed_in">Signed in today</option>
-                  <option value="overdue">Overdue</option>
-                </select>
-              </label>
-              <div class="visitors-planned-filter-actions">
+            <div class="oh-filter-panel" role="search" aria-label="Filter visitors currently on site">
+              <div class="visitors-planned-filters visitors-on-site-filters oh-responsive-filter-grid oh-filter-field-grid">
+                <label><span>Search</span><input id="visitorsOnSiteSearch" type="search" placeholder="Visitor, company, contact or pass ID" /></label>
+                <label>
+                  <span>Status</span>
+                  <select id="visitorsOnSiteStatusFilter">
+                    <option value="all">All on-site visitors</option>
+                    <option value="signed_in">Signed in today</option>
+                    <option value="overdue">Overdue</option>
+                  </select>
+                </label>
+              </div>
+              <div class="visitors-planned-filter-actions oh-responsive-filter-actions oh-filter-actions-row">
                 <button id="visitorsOnSiteApplyFilters" class="secondary" type="button">Apply Filters</button>
                 <button id="visitorsOnSiteClearFilters" class="ghost" type="button">Clear</button>
               </div>
@@ -600,8 +605,8 @@
               <strong>No visitors currently on site</strong>
               <span>Active signed-in visitors will appear here.</span>
             </div>
-            <div id="visitorsOnSiteTableWrap" class="visitors-planned-table-wrap hidden" data-oh-scroll-region="operational" aria-label="Visitors currently on site">
-              <table class="visitors-planned-table">
+            <div id="visitorsOnSiteTableWrap" class="visitors-planned-table-wrap oh-responsive-table-wrap oh-mobile-card-table hidden" data-oh-scroll-region="operational" aria-label="Visitors currently on site">
+              <table class="visitors-planned-table oh-responsive-table">
                 <thead>
                   <tr>
                     <th scope="col">Visitor</th>
@@ -615,6 +620,7 @@
                 <tbody id="visitorsOnSiteTableBody"></tbody>
               </table>
             </div>
+            <div id="visitorsOnSiteCards" class="oh-result-card-list hidden" aria-label="Visitors currently on site mobile results"></div>
           </section>
 
           <section id="visitorsHistorySection" class="visitors-section visitors-planned-workflow hidden" aria-labelledby="visitorsHistoryTitle">
@@ -626,38 +632,40 @@
               <button id="visitorsHistoryRefresh" class="secondary" type="button">Refresh</button>
             </div>
 
-            <div class="visitors-history-quick-filters" aria-label="Visitor history quick filters">
-              <button type="button" class="secondary" data-history-quick-filter="today" aria-pressed="false">Today</button>
-              <button type="button" class="secondary" data-history-quick-filter="on_site" aria-pressed="false">Currently on site</button>
-              <button type="button" class="secondary" data-history-quick-filter="overdue" aria-pressed="false">Overdue</button>
-              <button type="button" class="secondary" data-history-quick-filter="signed_out_today" aria-pressed="false">Signed out today</button>
-              <button type="button" class="secondary" data-history-quick-filter="planned" aria-pressed="false">Planned visits</button>
-            </div>
+            <div class="oh-filter-panel" role="search" aria-label="Filter visitor history">
+              <div class="visitors-history-quick-filters oh-filter-quick-group" aria-label="Visitor history quick filters">
+                <button type="button" class="secondary" data-history-quick-filter="today" aria-pressed="false">Today</button>
+                <button type="button" class="secondary" data-history-quick-filter="on_site" aria-pressed="false">Currently on site</button>
+                <button type="button" class="secondary" data-history-quick-filter="overdue" aria-pressed="false">Overdue</button>
+                <button type="button" class="secondary" data-history-quick-filter="signed_out_today" aria-pressed="false">Signed out today</button>
+                <button type="button" class="secondary" data-history-quick-filter="planned" aria-pressed="false">Planned visits</button>
+              </div>
 
-            <div class="visitors-planned-filters visitors-history-filters" role="search" aria-label="Filter visitor history">
-              <label><span>Search</span><input id="visitorsHistorySearch" type="search" placeholder="Visitor, company or host / contact" /></label>
-              <label><span>From</span><input id="visitorsHistoryFromDate" type="date" /></label>
-              <label><span>To</span><input id="visitorsHistoryToDate" type="date" /></label>
-              <label>
-                <span>Status</span>
-                <select id="visitorsHistoryStatus">
-                  <option value="all">All statuses</option>
-                  <option value="planned">Planned</option>
-                  <option value="signed_in">Signed in</option>
-                  <option value="signed_out">Signed out</option>
-                  <option value="overdue">Overdue</option>
-                  <option value="closed">Cancelled / closed</option>
-                </select>
-              </label>
-              <label>
-                <span>Origin</span>
-                <select id="visitorsHistoryOrigin">
-                  <option value="all">All origins</option>
-                  <option value="planned">Planned</option>
-                  <option value="walk_in">Walk-in</option>
-                </select>
-              </label>
-              <div class="visitors-planned-filter-actions">
+              <div class="visitors-planned-filters visitors-history-filters oh-responsive-filter-grid oh-filter-field-grid" aria-label="Custom visitor history filters">
+                <label><span>Search</span><input id="visitorsHistorySearch" type="search" placeholder="Visitor, company or host / contact" /></label>
+                <label><span>From</span><input id="visitorsHistoryFromDate" type="date" /></label>
+                <label><span>To</span><input id="visitorsHistoryToDate" type="date" /></label>
+                <label>
+                  <span>Status</span>
+                  <select id="visitorsHistoryStatus">
+                    <option value="all">All statuses</option>
+                    <option value="planned">Planned</option>
+                    <option value="signed_in">Signed in</option>
+                    <option value="signed_out">Signed out</option>
+                    <option value="overdue">Overdue</option>
+                    <option value="closed">Cancelled / closed</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Origin</span>
+                  <select id="visitorsHistoryOrigin">
+                    <option value="all">All origins</option>
+                    <option value="planned">Planned</option>
+                    <option value="walk_in">Walk-in</option>
+                  </select>
+                </label>
+              </div>
+              <div class="visitors-planned-filter-actions oh-responsive-filter-actions oh-filter-actions-row">
                 <button id="visitorsHistoryApplyFilters" class="secondary" type="button">Apply Filters</button>
                 <button id="visitorsHistoryClearFilters" class="ghost" type="button">Reset</button>
               </div>
@@ -669,9 +677,9 @@
               <strong>No visitor history found</strong>
               <span>Adjust the filters to review a different period.</span>
             </div>
-            <div id="visitorsHistoryTableWrap" class="visitors-planned-table-wrap hidden" data-oh-scroll-region="history" aria-label="Visitor history">
-              <div id="visitorsHistoryResultSummary" class="visitors-history-result-summary" aria-live="polite"></div>
-              <table class="visitors-planned-table visitors-history-table">
+            <div id="visitorsHistoryResultSummary" class="visitors-history-result-summary hidden" aria-live="polite"></div>
+            <div id="visitorsHistoryTableWrap" class="visitors-planned-table-wrap oh-responsive-table-wrap oh-mobile-card-table hidden" data-oh-scroll-region="history" aria-label="Visitor history">
+              <table class="visitors-planned-table visitors-history-table oh-responsive-table">
                 <thead>
                   <tr>
                     <th scope="col">Visitor</th>
@@ -687,6 +695,7 @@
                 <tbody id="visitorsHistoryTableBody"></tbody>
               </table>
             </div>
+            <div id="visitorsHistoryCards" class="oh-result-card-list hidden" aria-label="Visitor history mobile results"></div>
           </section>
 
           <section id="visitorsReportingSection" class="visitors-section visitors-planned-workflow hidden" aria-labelledby="visitorsReportingTitle">
@@ -698,30 +707,32 @@
               <button id="visitorsReportingRefresh" class="secondary" type="button">Refresh Data</button>
             </div>
 
-            <div class="visitors-planned-filters visitors-reporting-filters" role="search" aria-label="Filter visitor reporting">
-              <label><span>Search</span><input id="visitorsReportingSearch" type="search" placeholder="Visitor, company or host / contact" /></label>
-              <label><span>From</span><input id="visitorsReportingFromDate" type="date" /></label>
-              <label><span>To</span><input id="visitorsReportingToDate" type="date" /></label>
-              <label>
-                <span>Status</span>
-                <select id="visitorsReportingStatus">
-                  <option value="all">All statuses</option>
-                  <option value="planned">Planned</option>
-                  <option value="signed_in">Signed in</option>
-                  <option value="signed_out">Signed out</option>
-                  <option value="overdue">Overdue</option>
-                  <option value="closed">Cancelled / closed</option>
-                </select>
-              </label>
-              <label>
-                <span>Origin</span>
-                <select id="visitorsReportingOrigin">
-                  <option value="all">All origins</option>
-                  <option value="planned">Planned</option>
-                  <option value="walk_in">Walk-in</option>
-                </select>
-              </label>
-              <div class="visitors-planned-filter-actions">
+            <div class="oh-filter-panel" role="search" aria-label="Filter visitor reporting">
+              <div class="visitors-planned-filters visitors-reporting-filters oh-responsive-filter-grid oh-filter-field-grid">
+                <label><span>Search</span><input id="visitorsReportingSearch" type="search" placeholder="Visitor, company or host / contact" /></label>
+                <label><span>From</span><input id="visitorsReportingFromDate" type="date" /></label>
+                <label><span>To</span><input id="visitorsReportingToDate" type="date" /></label>
+                <label>
+                  <span>Status</span>
+                  <select id="visitorsReportingStatus">
+                    <option value="all">All statuses</option>
+                    <option value="planned">Planned</option>
+                    <option value="signed_in">Signed in</option>
+                    <option value="signed_out">Signed out</option>
+                    <option value="overdue">Overdue</option>
+                    <option value="closed">Cancelled / closed</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Origin</span>
+                  <select id="visitorsReportingOrigin">
+                    <option value="all">All origins</option>
+                    <option value="planned">Planned</option>
+                    <option value="walk_in">Walk-in</option>
+                  </select>
+                </label>
+              </div>
+              <div class="visitors-planned-filter-actions oh-responsive-filter-actions oh-filter-actions-row">
                 <button id="visitorsReportingApplyFilters" class="secondary" type="button">Apply Filters</button>
                 <button id="visitorsReportingClearFilters" class="ghost" type="button">Clear</button>
               </div>

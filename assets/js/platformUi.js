@@ -55,6 +55,12 @@ export function makeScrollableRegion(target, variant, options) {
   if (options && options.label) {
     element.setAttribute("aria-label", options.label);
   }
+  if (element.querySelector("table")) {
+    element.classList.add("oh-responsive-table-wrap");
+    element.querySelectorAll("table").forEach(table => {
+      table.classList.add("oh-responsive-table");
+    });
+  }
   return element;
 }
 

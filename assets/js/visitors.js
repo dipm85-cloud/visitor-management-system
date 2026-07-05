@@ -235,6 +235,7 @@ function setPlannedListState(state) {
   setVisible("visitorsPlannedError", state === "error");
   setVisible("visitorsPlannedEmpty", state === "empty");
   setVisible("visitorsPlannedTableWrap", state === "ready");
+  setVisible("visitorsPlannedCards", state === "ready");
 }
 
 function appendTextCell(row, primary, secondary) {
@@ -252,6 +253,68 @@ function appendTextCell(row, primary, secondary) {
   row.appendChild(cell);
 }
 
+function createVisitorResultCard(options) {
+  const settings = options || {};
+  const card = document.createElement("article");
+  card.className = "oh-result-card";
+  if (settings.ariaLabel) card.setAttribute("aria-label", settings.ariaLabel);
+
+  const header = document.createElement("div");
+  header.className = "oh-result-card-header";
+
+  const titleBlock = document.createElement("div");
+  const title = document.createElement("strong");
+  title.className = "oh-result-card-title";
+  title.textContent = textOrDash(settings.title);
+  titleBlock.appendChild(title);
+
+  if (settings.meta) {
+    const meta = document.createElement("span");
+    meta.className = "oh-result-card-meta";
+    meta.textContent = settings.meta;
+    titleBlock.appendChild(meta);
+  }
+  header.appendChild(titleBlock);
+
+  if (settings.statusLabel) {
+    const status = document.createElement("span");
+    status.className = "visitors-planned-status " + (settings.statusClass || "");
+    status.textContent = settings.statusLabel;
+    header.appendChild(status);
+  }
+
+  const fields = document.createElement("div");
+  fields.className = "oh-result-card-fields";
+  const actions = document.createElement("div");
+  actions.className = "oh-result-card-actions";
+
+  card.append(header, fields, actions);
+  return { card, fields, actions };
+}
+
+function appendResultCardField(container, label, value) {
+  if (!container) return;
+  const field = document.createElement("div");
+  field.className = "oh-result-card-field";
+  const fieldLabel = document.createElement("span");
+  fieldLabel.textContent = label;
+  const fieldValue = document.createElement("strong");
+  fieldValue.textContent = textOrDash(value);
+  field.append(fieldLabel, fieldValue);
+  container.appendChild(field);
+}
+
+function appendResultCardAction(container, label, className, onClick) {
+  if (!container) return null;
+  const button = document.createElement("button");
+  button.type = "button";
+  if (className) button.className = className;
+  button.textContent = label;
+  button.addEventListener("click", event => onClick(button, event));
+  container.appendChild(button);
+  return button;
+}
+
 function canOpenFullPlannedEdit(visit) {
   if (AppState.currentProfile && AppState.currentProfile.role === "super_user") return true;
   return plannedStatusFor(visit) === "pending";
@@ -263,10 +326,75 @@ function editModeForCurrentUser() {
     : "full";
 }
 
+function appendPlannedVisitActions(container, visit, visitStatus) {
+  const mode = editModeForCurrentUser();
+  if (
+    visitStatus === "pending" &&
+    visit.visit_date === todayDate() &&
+    hasCapability("visitor.sign_in")
+  ) {
+    appendResultCardAction(
+      container,
+      "Sign In",
+      "",
+      button => signInNativePlannedVisit(visit, button)
+    );
+  }
+  appendResultCardAction(
+    container,
+    "View Details",
+    "secondary",
+    button => openVisitorDetails(visit, visitStatus, button)
+  );
+  if (
+    hasCapability("visitor.edit") &&
+    (mode === "security" || canOpenFullPlannedEdit(visit))
+  ) {
+    appendResultCardAction(
+      container,
+      mode === "security" ? "Edit Pass ID" : "Edit",
+      "secondary",
+      button => openPlannedPanel(visit, mode, button)
+    );
+  } else if (hasCapability("visitor.edit") && plannedStatusFor(visit) !== "pending") {
+    const locked = document.createElement("span");
+    locked.className = "visitors-planned-table-secondary";
+    locked.textContent = "Locked after sign-in";
+    container.appendChild(locked);
+  }
+  if (isSuperUserRecoveryAllowed(visit)) {
+    appendResultCardAction(
+      container,
+      "Cancel Visit",
+      "danger",
+      button => cancelNativePlannedVisit(visit, button)
+    );
+  }
+}
+
+function appendActiveVisitorActions(container, visit, status) {
+  appendResultCardAction(
+    container,
+    "View Details",
+    "secondary",
+    button => openVisitorDetails(visit, status, button)
+  );
+  if (hasCapability("visitor.sign_out")) {
+    appendResultCardAction(
+      container,
+      "Sign Out",
+      "danger",
+      button => signOutNativeVisitor(visit, button)
+    );
+  }
+}
+
 function renderNativePlannedVisits() {
   const body = $("visitorsPlannedTableBody");
   if (!body) return;
   body.replaceChildren();
+  const cards = $("visitorsPlannedCards");
+  if (cards) cards.replaceChildren();
 
   const search = String($("visitorsPlannedSearch").value || "").trim().toLowerCase();
   const date = $("visitorsPlannedDateFilter").value;
@@ -322,50 +450,26 @@ function renderNativePlannedVisits() {
 
     const actionCell = document.createElement("td");
     actionCell.className = "visitors-planned-row-action";
-    const mode = editModeForCurrentUser();
-    if (
-      visitStatus === "pending" &&
-      visit.visit_date === todayDate() &&
-      hasCapability("visitor.sign_in")
-    ) {
-      const signInButton = document.createElement("button");
-      signInButton.type = "button";
-      signInButton.textContent = "Sign In";
-      signInButton.addEventListener("click", () => signInNativePlannedVisit(visit, signInButton));
-      actionCell.appendChild(signInButton);
-    }
-    const detailsButton = document.createElement("button");
-    detailsButton.type = "button";
-    detailsButton.className = "secondary";
-    detailsButton.textContent = "View Details";
-    detailsButton.addEventListener("click", () => openVisitorDetails(visit, visitStatus, detailsButton));
-    actionCell.appendChild(detailsButton);
-    if (
-      hasCapability("visitor.edit") &&
-      (mode === "security" || canOpenFullPlannedEdit(visit))
-    ) {
-      const editButton = document.createElement("button");
-      editButton.type = "button";
-      editButton.className = "secondary";
-      editButton.textContent = mode === "security" ? "Edit Pass ID" : "Edit";
-      editButton.addEventListener("click", () => openPlannedPanel(visit, mode, editButton));
-      actionCell.appendChild(editButton);
-    } else if (hasCapability("visitor.edit") && plannedStatusFor(visit) !== "pending") {
-      const locked = document.createElement("span");
-      locked.className = "visitors-planned-table-secondary";
-      locked.textContent = "Locked after sign-in";
-      actionCell.appendChild(locked);
-    }
-    if (isSuperUserRecoveryAllowed(visit)) {
-      const cancelButton = document.createElement("button");
-      cancelButton.type = "button";
-      cancelButton.className = "danger";
-      cancelButton.textContent = "Cancel Visit";
-      cancelButton.addEventListener("click", () => cancelNativePlannedVisit(visit, cancelButton));
-      actionCell.appendChild(cancelButton);
-    }
+    appendPlannedVisitActions(actionCell, visit, visitStatus);
     row.appendChild(actionCell);
     body.appendChild(row);
+
+    if (cards) {
+      const expectedTime = visit.expected_time ? String(visit.expected_time).slice(0, 5) : "Time not set";
+      const result = createVisitorResultCard({
+        title: visit.visitor_name,
+        meta: [visit.company, visit.visit_date, expectedTime].filter(Boolean).join(" • "),
+        statusLabel: plannedStatusLabel(visitStatus),
+        statusClass: statusBadge.className.replace("visitors-planned-status", "").trim(),
+        ariaLabel: "Planned visit for " + textOrDash(visit.visitor_name)
+      });
+      appendResultCardField(result.fields, "Date and time", visit.visit_date + " · " + expectedTime);
+      appendResultCardField(result.fields, "Host / contact", visit.onsite_contact);
+      appendResultCardField(result.fields, "Reason", visit.visit_reason);
+      appendResultCardField(result.fields, "Vehicle", visit.vehicle_plate);
+      appendPlannedVisitActions(result.actions, visit, visitStatus);
+      cards.appendChild(result.card);
+    }
   });
 
   setPlannedListState("ready");
@@ -391,12 +495,15 @@ function setActiveListState(state) {
   setVisible("visitorsOnSiteError", state === "error");
   setVisible("visitorsOnSiteEmpty", state === "empty");
   setVisible("visitorsOnSiteTableWrap", state === "ready");
+  setVisible("visitorsOnSiteCards", state === "ready");
 }
 
 function renderNativeActiveVisitors() {
   const body = $("visitorsOnSiteTableBody");
   if (!body) return;
   body.replaceChildren();
+  const cards = $("visitorsOnSiteCards");
+  if (cards) cards.replaceChildren();
   const search = String($("visitorsOnSiteSearch").value || "").trim().toLowerCase();
   const statusFilter = $("visitorsOnSiteStatusFilter").value;
   const filtered = nativeActiveVisitors.filter(visit => {
@@ -441,22 +548,26 @@ function renderNativeActiveVisitors() {
 
     const actionCell = document.createElement("td");
     actionCell.className = "visitors-planned-row-action";
-    const detailsButton = document.createElement("button");
-    detailsButton.type = "button";
-    detailsButton.className = "secondary";
-    detailsButton.textContent = "View Details";
-    detailsButton.addEventListener("click", () => openVisitorDetails(visit, status, detailsButton));
-    actionCell.appendChild(detailsButton);
-    if (hasCapability("visitor.sign_out")) {
-      const signOutButton = document.createElement("button");
-      signOutButton.type = "button";
-      signOutButton.className = "danger";
-      signOutButton.textContent = "Sign Out";
-      signOutButton.addEventListener("click", () => signOutNativeVisitor(visit, signOutButton));
-      actionCell.appendChild(signOutButton);
-    }
+    appendActiveVisitorActions(actionCell, visit, status);
     row.appendChild(actionCell);
     body.appendChild(row);
+
+    if (cards) {
+      const signedInAt = visit.sign_in_time ? new Date(visit.sign_in_time).toLocaleString() : "";
+      const result = createVisitorResultCard({
+        title: visit.visitor_name,
+        meta: [visit.company, signedInAt].filter(Boolean).join(" • "),
+        statusLabel: activeVisitorStatusLabel(status),
+        statusClass: badge.className.replace("visitors-planned-status", "").trim(),
+        ariaLabel: "Current visitor " + textOrDash(visit.visitor_name)
+      });
+      appendResultCardField(result.fields, "Signed in", signedInAt);
+      appendResultCardField(result.fields, "Host / contact", visit.onsite_contact);
+      appendResultCardField(result.fields, "Origin", visitorOrigin(visit) === "walk_in" ? "Walk-in" : "Planned");
+      appendResultCardField(result.fields, "Pass ID", visit.security_pass_id);
+      appendActiveVisitorActions(result.actions, visit, status);
+      cards.appendChild(result.card);
+    }
   });
 
   setActiveListState("ready");
@@ -558,7 +669,9 @@ function setHistoryListState(state) {
   setVisible("visitorsHistoryLoading", state === "loading");
   setVisible("visitorsHistoryError", state === "error");
   setVisible("visitorsHistoryEmpty", state === "empty");
+  setVisible("visitorsHistoryResultSummary", state === "ready");
   setVisible("visitorsHistoryTableWrap", state === "ready");
+  setVisible("visitorsHistoryCards", state === "ready");
 }
 
 function updateHistoryQuickFilterButtons() {
@@ -588,6 +701,8 @@ function renderNativeHistory() {
   const body = $("visitorsHistoryTableBody");
   if (!body) return;
   body.replaceChildren();
+  const cards = $("visitorsHistoryCards");
+  if (cards) cards.replaceChildren();
 
   const search = String($("visitorsHistorySearch").value || "").trim().toLowerCase();
   const fromDate = $("visitorsHistoryFromDate").value;
@@ -656,6 +771,36 @@ function renderNativeHistory() {
       openDetails();
     });
     body.appendChild(row);
+
+    if (cards) {
+      const result = createVisitorResultCard({
+        title: record.visitor_name,
+        meta: [record.company, historyRecordDate(record)].filter(Boolean).join(" • "),
+        statusLabel: historyStatusLabel(status),
+        statusClass: historyStatusClass(status),
+        ariaLabel: "Visitor history record for " + textOrDash(record.visitor_name)
+      });
+      appendResultCardField(
+        result.fields,
+        "Visit date",
+        [
+          historyRecordDate(record),
+          record.expected_time ? String(record.expected_time).slice(0, 5) : ""
+        ].filter(Boolean).join(" · ")
+      );
+      appendResultCardField(result.fields, "Host / contact", record.onsite_contact);
+      appendResultCardField(result.fields, "Sign in", formatVisitorDateTime(record.sign_in_time));
+      appendResultCardField(result.fields, "Sign out", formatVisitorDateTime(record.sign_out_time));
+      appendResultCardField(result.fields, "Origin", visitorOrigin(record) === "walk_in" ? "Walk-in" : "Planned");
+      appendResultCardField(result.fields, "Pass ID", record.security_pass_id);
+      appendResultCardAction(
+        result.actions,
+        "View Details",
+        "secondary",
+        button => openVisitorDetails(record, status, button)
+      );
+      cards.appendChild(result.card);
+    }
   });
 
   setText(
