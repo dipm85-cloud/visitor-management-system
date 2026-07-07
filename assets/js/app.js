@@ -447,9 +447,28 @@ window.addEventListener("load", async function () {
       openReferenceData: openReferenceDataWorkspace
     });
     configureVisitors({
-      async openLegacyVms() {
+      async openLegacyVms(action) {
         showLegacyVmsWorkspace();
         await openStaffAreaFromProfile();
+        if (!action || !String(action).startsWith("document-signoffs")) return;
+        const profile = AppState.currentProfile || {};
+        if (profile.role === "super_user") {
+          showSuperSection("agreements");
+          if (action === "document-signoffs-management") showAgreementTab("versions");
+          else if (action === "document-signoffs-compliance") showAgreementTab("compliance");
+          else if (action === "document-signoffs-evidence") showAgreementTab("compliance");
+          else showAgreementTab("pending");
+          return;
+        }
+        if (profile.role === "security") {
+          setTimeout(() => {
+            const target = $("securityAgreementStatus");
+            const card = target ? target.closest(".card") : null;
+            if (card && typeof card.scrollIntoView === "function") {
+              card.scrollIntoView({ behavior: "smooth", block: "start" });
+            }
+          }, 120);
+        }
       },
       createWalkIn: createStaffWalkIn,
       signInPlannedVisit: signInStaffPlannedVisit,

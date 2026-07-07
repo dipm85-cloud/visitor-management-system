@@ -35,6 +35,12 @@ import {
   createSidePanelController,
   requestPlatformConfirmation
 } from "./platformUi.js";
+import {
+  canViewDocumentSignoffs,
+  initialiseDocumentSignoffs,
+  loadDocumentSignoffOverview,
+  syncDocumentSignoffVisibility
+} from "./documentSignoffs.js";
 
 let visitorsDependencies = {};
 let nativePlannedVisits = [];
@@ -161,6 +167,14 @@ function registerVisitorsSectionNavigation() {
       target: "visitorsReportingSection",
       order: 60,
       visible: canViewVisitorReporting
+    },
+    {
+      id: "document-signoffs",
+      title: "Document Sign-offs",
+      icon: "DS",
+      target: "visitorsDocumentSignoffsSection",
+      order: 65,
+      visible: canViewDocumentSignoffs
     },
     {
       id: "operational-documents",
@@ -1885,8 +1899,10 @@ export function syncVisitorsWorkspaceCapabilities() {
   setVisible("visitorsOnSiteSection", canView);
   setVisible("visitorsHistorySection", canViewHistory);
   setVisible("visitorsReportingSection", canViewReporting);
+  setVisible("visitorsDocumentSignoffsSection", canViewDocumentSignoffs());
   setVisible("visitorsOperationalDocumentsSection", canViewReporting);
   setVisible("visitorsConfigurationSection", canOpenVisitorConfiguration());
+  syncDocumentSignoffVisibility();
 
   setVisible("visitorsCreatePlannedButton", canView && hasCapability("visitor.create"));
   setVisible("visitorsCreateWalkInButton", canCreateWalkIn);
@@ -1978,7 +1994,8 @@ export async function loadVisitorsWorkspace() {
     loadVisitorsWorkspaceMetrics(),
     loadNativePlannedVisits(),
     loadNativeActiveVisitors(),
-    loadNativeHistory()
+    loadNativeHistory(),
+    canViewDocumentSignoffs() ? loadDocumentSignoffOverview() : Promise.resolve()
   ]);
 }
 
@@ -2089,6 +2106,9 @@ export function initialiseVisitorsWorkspace() {
   registerVisitorsSectionNavigation();
   resetNativeHistoryFilters();
   resetNativeReportingFilters();
+  initialiseDocumentSignoffs({
+    openLegacyVms: action => openLegacy(action)
+  });
   initialiseVisitorPanelControllers();
   $("visitorsDailyPlannedDate").value = todayDate();
 

@@ -799,6 +799,141 @@
 
           </section>
 
+          <section id="visitorsDocumentSignoffsSection" class="visitors-section visitors-planned-workflow document-signoff-workspace hidden" aria-labelledby="visitorsDocumentSignoffsTitle">
+            <div class="visitors-section-heading">
+              <div>
+                <h2 id="visitorsDocumentSignoffsTitle">Document Sign-offs</h2>
+                <p>Visitor agreements and inductions are the first native consumer of the reusable document sign-off foundation.</p>
+              </div>
+              <button id="documentSignoffRefreshButton" class="secondary" type="button">Refresh</button>
+            </div>
+
+            <div class="document-signoff-foundation-note">
+              <strong>Platform foundation</strong>
+              <span>Document Type -> Document Version -> Requirement -> Recipient / Subject -> Signature Evidence -> Validity -> Compliance Status -> Audit Trail.</span>
+            </div>
+
+            <div id="documentSignoffStatus" class="local-action-status" aria-live="polite"></div>
+
+            <div class="document-signoff-summary-grid">
+              <article class="document-signoff-summary-card">
+                <span>Agreement types</span>
+                <strong id="documentSignoffTypeCount">-</strong>
+                <p>Existing document type records used for visitor agreements and inductions.</p>
+              </article>
+              <article class="document-signoff-summary-card">
+                <span>Active versions</span>
+                <strong id="documentSignoffActiveVersionCount">-</strong>
+                <p>Current document versions available for sign-off.</p>
+              </article>
+              <article class="document-signoff-summary-card">
+                <span>Required visitor agreements</span>
+                <strong id="documentSignoffRequiredCount">-</strong>
+                <p>Agreement types marked required by default.</p>
+              </article>
+              <article class="document-signoff-summary-card">
+                <span>Optional visitor agreements</span>
+                <strong id="documentSignoffOptionalCount">-</strong>
+                <p>Agreement types available as optional sign-offs.</p>
+              </article>
+              <article class="document-signoff-summary-card">
+                <span>Recent signatures</span>
+                <strong id="documentSignoffRecentSignatureCount">-</strong>
+                <p>Visitor agreement evidence found in the recent lookback window.</p>
+              </article>
+              <article class="document-signoff-summary-card">
+                <span>Missing required</span>
+                <strong id="documentSignoffMissingRequiredCount">-</strong>
+                <p>Current visitors missing required agreement sign-offs where supported.</p>
+              </article>
+            </div>
+
+            <div class="document-signoff-readonly-grid">
+              <section class="document-signoff-readonly-card" aria-labelledby="documentSignoffTypesTitle">
+                <div class="document-signoff-card-heading">
+                  <div>
+                    <h3 id="documentSignoffTypesTitle">Document Types</h3>
+                    <p>Read-only view of existing visitor agreement / induction types.</p>
+                  </div>
+                </div>
+                <div class="document-signoff-table-wrap" data-oh-scroll-region="operational" aria-label="Document sign-off types">
+                  <table class="document-signoff-table">
+                    <thead>
+                      <tr>
+                        <th scope="col">Type</th>
+                        <th scope="col">Requirement</th>
+                        <th scope="col">Status</th>
+                        <th scope="col">Order</th>
+                      </tr>
+                    </thead>
+                    <tbody id="documentSignoffTypesBody"></tbody>
+                  </table>
+                  <div id="documentSignoffTypesEmpty" class="people-empty-state hidden" data-oh-empty-state>No agreement types are available.</div>
+                </div>
+              </section>
+
+              <section class="document-signoff-readonly-card" aria-labelledby="documentSignoffVersionsTitle">
+                <div class="document-signoff-card-heading">
+                  <div>
+                    <h3 id="documentSignoffVersionsTitle">Document Versions</h3>
+                    <p>Read-only version status and document file metadata.</p>
+                  </div>
+                </div>
+                <div class="document-signoff-table-wrap" data-oh-scroll-region="operational" aria-label="Document sign-off versions">
+                  <table class="document-signoff-table document-signoff-version-table">
+                    <thead>
+                      <tr>
+                        <th scope="col">Document</th>
+                        <th scope="col">Version</th>
+                        <th scope="col">Status</th>
+                        <th scope="col">Uploaded</th>
+                      </tr>
+                    </thead>
+                    <tbody id="documentSignoffVersionsBody"></tbody>
+                  </table>
+                  <div id="documentSignoffVersionsEmpty" class="people-empty-state hidden" data-oh-empty-state>No agreement versions are available.</div>
+                </div>
+              </section>
+            </div>
+
+            <section class="document-signoff-readonly-card" aria-labelledby="documentSignoffEvidenceTitle">
+              <div class="document-signoff-card-heading">
+                <div>
+                  <h3 id="documentSignoffEvidenceTitle">Recent Signature Evidence</h3>
+                  <p>Read-only metadata from existing visitor agreement evidence. Signature images are not shown here.</p>
+                </div>
+              </div>
+              <div class="document-signoff-table-wrap" data-oh-scroll-region="history" aria-label="Recent document sign-off evidence">
+                <table class="document-signoff-table document-signoff-evidence-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">Visitor</th>
+                      <th scope="col">Document</th>
+                      <th scope="col">Version</th>
+                      <th scope="col">Signed</th>
+                      <th scope="col">Evidence</th>
+                    </tr>
+                  </thead>
+                  <tbody id="documentSignoffEvidenceBody"></tbody>
+                </table>
+                <div id="documentSignoffEvidenceEmpty" class="people-empty-state hidden" data-oh-empty-state>No recent agreement evidence is available.</div>
+              </div>
+            </section>
+
+            <section class="document-signoff-legacy-card" aria-labelledby="documentSignoffLegacyTitle">
+              <div>
+                <h3 id="documentSignoffLegacyTitle">Legacy Tools Still Available</h3>
+                <p>Day-to-day visibility starts here. Existing management, signing, compliance matrix and evidence tools remain in Legacy VMS until they are safely migrated.</p>
+              </div>
+              <div class="document-signoff-legacy-actions">
+                <button id="documentSignoffLegacyManagementButton" class="secondary" type="button">Open Legacy Agreement Management</button>
+                <button id="documentSignoffLegacySignoffButton" class="secondary" type="button">Open Legacy Visitor Sign-off</button>
+                <button id="documentSignoffLegacyComplianceButton" class="secondary" type="button">Open Legacy Compliance Matrix</button>
+                <button id="documentSignoffLegacyEvidenceButton" class="secondary" type="button">Open Legacy Agreement Evidence</button>
+              </div>
+            </section>
+          </section>
+
           <section id="visitorsOperationalDocumentsSection" class="visitors-section visitors-planned-workflow" aria-labelledby="visitorsOperationalDocumentsTitle">
             <div class="visitors-operational-documents-heading">
               <div>
