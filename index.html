@@ -815,6 +815,26 @@
 
             <div id="documentSignoffStatus" class="local-action-status" aria-live="polite"></div>
 
+            <section id="documentSignoffNativeCard" class="document-signoff-native-card" aria-labelledby="documentSignoffNativeTitle">
+              <div class="document-signoff-card-heading">
+                <div>
+                  <h3 id="documentSignoffNativeTitle">Native Visitor Sign-off MVP</h3>
+                  <p>Complete supported visitor agreement and induction sign-offs using the existing agreement versions, requirement checks and evidence RPC.</p>
+                </div>
+                <div class="document-signoff-native-actions">
+                  <button id="documentSignoffLoadPendingButton" type="button">Load Visitors Requiring Sign-off</button>
+                  <button id="documentSignoffNativeLegacyButton" class="secondary" type="button">Open Legacy Visitor Sign-off</button>
+                </div>
+              </div>
+              <div id="documentSignoffNativeStatus" class="local-action-status" aria-live="polite"></div>
+              <div id="documentSignoffNativeResults" class="document-signoff-native-results" data-oh-scroll-region="operational">
+                <div class="people-empty-state" data-oh-empty-state>
+                  <strong>No native sign-off candidates loaded</strong>
+                  <p>Load current visitors that require agreement or induction action.</p>
+                </div>
+              </div>
+            </section>
+
             <div class="document-signoff-summary-grid">
               <article class="document-signoff-summary-card">
                 <span>Agreement types</span>
@@ -1163,6 +1183,68 @@
                 </div>
                 <div id="documentSignoffDetailsLegacyActions" class="document-signoff-legacy-actions"></div>
               </section>
+            </div>
+          </aside>
+        </div>
+
+        <div id="documentSignoffNativePanelBackdrop" class="visitors-panel-backdrop hidden" data-oh-side-panel-backdrop>
+          <aside id="documentSignoffNativePanel" class="visitors-side-panel document-signoff-native-panel" aria-labelledby="documentSignoffNativePanelTitle" aria-modal="true" role="dialog" data-oh-side-panel>
+            <header class="visitors-side-panel-header" data-oh-side-panel-header>
+              <div>
+                <p id="documentSignoffNativePanelEyebrow" class="oh-app-eyebrow">Visitor Document Sign-off</p>
+                <h2 id="documentSignoffNativePanelTitle" data-oh-side-panel-title>Visitor Sign-off</h2>
+              </div>
+              <button id="documentSignoffNativePanelClose" class="ghost" type="button" aria-label="Close visitor document sign-off panel" data-oh-side-panel-close>Close</button>
+            </header>
+            <div class="oh-side-panel-body document-signoff-native-panel-body">
+              <input id="documentSignoffNativeVisitLogId" type="hidden" />
+              <input id="documentSignoffNativeAgreementTypeId" type="hidden" />
+              <input id="documentSignoffNativeAgreementVersionId" type="hidden" />
+              <div id="documentSignoffNativePanelStatus" class="local-action-status" aria-live="polite"></div>
+              <div id="documentSignoffNativeVisitorMeta" class="document-signoff-native-meta"></div>
+
+              <section id="documentSignoffNativeSelectionStep" class="document-signoff-native-step" aria-labelledby="documentSignoffNativeSelectionTitle">
+                <div>
+                  <h3 id="documentSignoffNativeSelectionTitle">Agreement Selection</h3>
+                  <p>Required agreements are preselected where the existing requirement logic supports it. Optional agreements can be added for this visit.</p>
+                </div>
+                <div id="documentSignoffNativeAgreementList" class="document-signoff-native-agreement-list">Loading agreement status...</div>
+              </section>
+
+              <section id="documentSignoffNativeSigningStep" class="document-signoff-native-step hidden" aria-labelledby="documentSignoffNativeSigningTitle">
+                <div>
+                  <h3 id="documentSignoffNativeSigningTitle">Visitor Sign-off</h3>
+                  <p id="documentSignoffNativeQueueMeta">Agreement 1 of 1</p>
+                </div>
+                <div id="documentSignoffNativeAgreementMeta" class="document-signoff-native-meta"></div>
+                <iframe id="documentSignoffNativePdfFrame" class="document-signoff-native-pdf" title="Visitor agreement document"></iframe>
+                <label class="document-signoff-native-acceptance">
+                  <input id="documentSignoffNativeAcceptedCheck" type="checkbox" />
+                  <span id="documentSignoffNativeAcceptedText">I confirm that I have read, understood, and agree to follow the requirements of this agreement/induction.</span>
+                </label>
+                <div id="documentSignoffNativeSignatureBox" class="document-signoff-native-signature-box">
+                  <canvas id="documentSignoffNativeSignatureCanvas" class="signature-pad document-signoff-native-signature-pad"></canvas>
+                  <button id="documentSignoffNativeClearSignatureButton" class="secondary" type="button">Clear Visitor Signature</button>
+                </div>
+                <div id="documentSignoffNativeInductorBox" class="document-signoff-native-inductor hidden">
+                  <h4>Inductor Sign-off</h4>
+                  <div id="documentSignoffNativeInductorTypedBox" class="setting-field">
+                    <label for="documentSignoffNativeInductorName">Inductor name</label>
+                    <input id="documentSignoffNativeInductorName" placeholder="Employee / inductor name" />
+                  </div>
+                  <div id="documentSignoffNativeInductorSignatureBox" class="hidden">
+                    <canvas id="documentSignoffNativeInductorSignatureCanvas" class="signature-pad document-signoff-native-signature-pad"></canvas>
+                    <button id="documentSignoffNativeClearInductorSignatureButton" class="secondary" type="button">Clear Inductor Signature</button>
+                  </div>
+                </div>
+              </section>
+
+              <div class="visitors-side-panel-actions document-signoff-native-panel-actions" data-oh-side-panel-actions>
+                <button id="documentSignoffNativeStartButton" type="button">Start Selected Agreements</button>
+                <button id="documentSignoffNativeSaveButton" class="hidden" type="button">Save Agreement</button>
+                <button id="documentSignoffNativePanelLegacyButton" class="secondary" type="button">Open Legacy Sign-off</button>
+                <button id="documentSignoffNativeCancelButton" class="secondary" type="button">Cancel</button>
+              </div>
             </div>
           </aside>
         </div>

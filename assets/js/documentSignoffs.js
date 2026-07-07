@@ -11,12 +11,21 @@ let documentSignoffDependencies = {};
 let documentSignoffInitialised = false;
 let documentSignoffLoadSequence = 0;
 let documentSignoffDetailsPanelController = null;
+let documentSignoffNativePanelController = null;
 let documentSignoffOverviewState = {
   types: [],
   versions: [],
   summary: {},
   recentEvidence: []
 };
+let nativeSignoffCandidates = [];
+let nativeSignoffCurrentVisit = null;
+let nativeSignoffCurrentRequirement = null;
+let nativeSignoffQueue = [];
+let nativeSignoffQueueTotal = 0;
+let nativeSignoffAdditionalOnly = false;
+const nativeVisitorSignatureState = { isDrawing: false, hasInk: false, lastX: 0, lastY: 0, pixelRatio: 1 };
+const nativeInductorSignatureState = { isDrawing: false, hasInk: false, lastX: 0, lastY: 0, pixelRatio: 1 };
 
 function isActiveStaffUser() {
   return AppState.currentProfile &&
@@ -65,6 +74,15 @@ function canOpenLegacyEvidence() {
   ]);
 }
 
+function canUseNativeVisitorSignoff() {
+  return canViewDocumentSignoffs() && hasAnyCapability([
+    "visitor.sign_in",
+    "visitor.history.view",
+    "agreements.view",
+    "module_configuration.manage"
+  ]);
+}
+
 function setText(id, value) {
   const element = $(id);
   if (element) element.textContent = value;
@@ -108,6 +126,44 @@ function setStatus(message, type) {
   if (!box) return;
   box.textContent = message || "";
   box.className = "local-action-status" + (message ? " " + (type || "info") : "");
+}
+
+function setNativeStatus(message, type) {
+  const box = $("documentSignoffNativeStatus");
+  if (!box) return;
+  box.textContent = message || "";
+  box.className = "local-action-status" + (message ? " " + (type || "info") : "");
+}
+
+function setNativePanelStatus(message, type) {
+  const box = $("documentSignoffNativePanelStatus");
+  if (!box) return;
+  box.textContent = message || "";
+  box.className = "local-action-status" + (message ? " " + (type || "info") : "");
+}
+
+function formatVisitMeta(visit) {
+  return [
+    ["Visitor", visit && visit.visitor_name],
+    ["Company", visit && visit.company],
+    ["Signed in", visit && visit.sign_in_time ? formatDateTime(visit.sign_in_time) : ""],
+    ["Visit reference", visit && (visit.visit_log_id || visit.id)]
+  ].filter(item => hasValue(item[1]));
+}
+
+function renderMetaList(targetId, items) {
+  const target = $(targetId);
+  if (!target) return;
+  target.replaceChildren();
+  (items || []).forEach(([label, value]) => {
+    const item = document.createElement("div");
+    const strong = document.createElement("strong");
+    const span = document.createElement("span");
+    strong.textContent = label;
+    span.textContent = textOrDash(value);
+    item.append(strong, span);
+    target.appendChild(item);
+  });
 }
 
 function setMetricPlaceholders(value) {
@@ -231,6 +287,29 @@ function clearDetailPanel() {
   setVisible("documentSignoffDetailsLegacySection", false);
 }
 
+function clearNativeSignoffPanel() {
+  nativeSignoffCurrentVisit = null;
+  nativeSignoffCurrentRequirement = null;
+  nativeSignoffQueue = [];
+  nativeSignoffQueueTotal = 0;
+  nativeSignoffAdditionalOnly = false;
+  setText("documentSignoffNativePanelEyebrow", "Visitor Document Sign-off");
+  setText("documentSignoffNativePanelTitle", "Visitor Sign-off");
+  setNativePanelStatus("", "");
+  renderMetaList("documentSignoffNativeVisitorMeta", []);
+  renderMetaList("documentSignoffNativeAgreementMeta", []);
+  const list = $("documentSignoffNativeAgreementList");
+  if (list) list.textContent = "Loading agreement status...";
+  if ($("documentSignoffNativePdfFrame")) $("documentSignoffNativePdfFrame").src = "about:blank";
+  if ($("documentSignoffNativeAcceptedCheck")) $("documentSignoffNativeAcceptedCheck").checked = false;
+  setVisible("documentSignoffNativeSelectionStep", true);
+  setVisible("documentSignoffNativeSigningStep", false);
+  setVisible("documentSignoffNativeStartButton", true);
+  setVisible("documentSignoffNativeSaveButton", false);
+  clearNativeVisitorSignature();
+  clearNativeInductorSignature();
+}
+
 function renderDetailFields(fields) {
   const list = $("documentSignoffDetailsList");
   if (!list) return;
@@ -289,6 +368,131 @@ function renderDetailPanel(details, trigger) {
     mode: "read-only",
     type: settings.type || "document-signoff-details"
   });
+}
+
+function resizeSignatureCanvas(canvasId, state) {
+  const canvas = $(canvasId);
+  if (!canvas) return;
+  const rect = canvas.getBoundingClientRect();
+  if (!rect.width || !rect.height) return;
+  const ratio = window.devicePixelRatio || 1;
+  canvas.width = Math.floor(rect.width * ratio);
+  canvas.height = Math.floor(rect.height * ratio);
+  canvas.style.width = rect.width + "px";
+  canvas.style.height = rect.height + "px";
+  const ctx = canvas.getContext("2d");
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.lineWidth = 2.4 * ratio;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.strokeStyle = "#172033";
+  state.pixelRatio = ratio;
+  state.hasInk = false;
+}
+
+function clearSignatureCanvas(canvasId, state) {
+  const canvas = $(canvasId);
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  state.hasInk = false;
+  state.isDrawing = false;
+}
+
+function signaturePointFor(event, canvasId) {
+  const canvas = $(canvasId);
+  const rect = canvas.getBoundingClientRect();
+  const source = event.touches && event.touches.length ? event.touches[0] : event;
+  return {
+    x: (source.clientX - rect.left) * (canvas.width / rect.width),
+    y: (source.clientY - rect.top) * (canvas.height / rect.height)
+  };
+}
+
+function beginSignature(event, canvasId, state) {
+  if (event.cancelable) event.preventDefault();
+  const point = signaturePointFor(event, canvasId);
+  state.isDrawing = true;
+  state.lastX = point.x;
+  state.lastY = point.y;
+  state.hasInk = true;
+}
+
+function drawSignature(event, canvasId, state) {
+  if (!state.isDrawing) return;
+  if (event.cancelable) event.preventDefault();
+  const point = signaturePointFor(event, canvasId);
+  const canvas = $(canvasId);
+  const ctx = canvas.getContext("2d");
+  ctx.beginPath();
+  ctx.moveTo(state.lastX, state.lastY);
+  ctx.lineTo(point.x, point.y);
+  ctx.stroke();
+  state.lastX = point.x;
+  state.lastY = point.y;
+  state.hasInk = true;
+}
+
+function endSignature(state) {
+  state.isDrawing = false;
+}
+
+function clearNativeVisitorSignature() {
+  clearSignatureCanvas("documentSignoffNativeSignatureCanvas", nativeVisitorSignatureState);
+}
+
+function clearNativeInductorSignature() {
+  clearSignatureCanvas("documentSignoffNativeInductorSignatureCanvas", nativeInductorSignatureState);
+}
+
+function syncNativeInductorPanel(enabled) {
+  const mode = String(settingValue("inductor_signoff_mode", "typed_name"));
+  setVisible("documentSignoffNativeInductorBox", enabled);
+  setVisible("documentSignoffNativeInductorTypedBox", enabled && mode === "typed_name");
+  setVisible("documentSignoffNativeInductorSignatureBox", enabled && mode === "manual_signature");
+  if (enabled && $("documentSignoffNativeInductorName")) {
+    $("documentSignoffNativeInductorName").value =
+      AppState.currentProfile && AppState.currentProfile.display_name
+        ? AppState.currentProfile.display_name
+        : "";
+  }
+  if (!enabled) clearNativeInductorSignature();
+}
+
+function nativeInductorEnabledForCurrentStep() {
+  return !!settingValue("inductor_signoff_enabled", false) &&
+    (!nativeSignoffQueue || nativeSignoffQueue.length === 0);
+}
+
+function nativeActiveTypes() {
+  return (documentSignoffOverviewState.types || []).filter(type => type.is_active !== false);
+}
+
+async function loadNativeAgreementTypesIfNeeded() {
+  if (nativeActiveTypes().length) return documentSignoffOverviewState.types;
+  const result = await supabaseClient.rpc("list_agreement_types");
+  if (result.error) throw result.error;
+  documentSignoffOverviewState.types = result.data || [];
+  return documentSignoffOverviewState.types;
+}
+
+async function getNativeAgreementStatusesForVisit(visitId) {
+  const result = await supabaseClient.rpc("get_visit_agreement_status_all", {
+    p_visit_log_id: visitId
+  });
+  if (result.error) throw result.error;
+  return result.data || [];
+}
+
+async function getNativeAgreementVersion(versionId) {
+  if (!versionId) return null;
+  const result = await supabaseClient
+    .from("agreement_versions")
+    .select("id, version_number, pdf_url, file_name, is_active, agreement_type_id")
+    .eq("id", versionId)
+    .single();
+  if (result.error) throw result.error;
+  return result.data;
 }
 
 function normaliseRows(result) {
@@ -472,6 +676,448 @@ function openComplianceStatusDetails(trigger) {
       }
     ]
   }, trigger);
+}
+
+function groupPendingNativeCandidates(rows) {
+  const grouped = [];
+  const byVisit = {};
+  (rows || []).forEach(row => {
+    const key = row.visit_log_id || row.id;
+    if (!key) return;
+    if (!byVisit[key]) {
+      byVisit[key] = {
+        id: key,
+        visit_log_id: key,
+        visitor_name: row.visitor_name,
+        company: row.company,
+        sign_in_time: row.sign_in_time,
+        required_requirements: []
+      };
+      grouped.push(byVisit[key]);
+    }
+    byVisit[key].required_requirements.push(row);
+  });
+  return grouped;
+}
+
+function renderNativeSignoffCandidates(rows) {
+  const box = $("documentSignoffNativeResults");
+  if (!box) return;
+  box.classList.remove("oh-empty-state");
+  box.replaceChildren();
+  const visits = groupPendingNativeCandidates(rows);
+  nativeSignoffCandidates = visits;
+
+  if (!visits.length) {
+    renderEmptyState("documentSignoffNativeResults", {
+      title: "No visitors currently require sign-off",
+      description: "The existing agreement requirement checks did not return any current visitors needing action."
+    });
+    return;
+  }
+
+  visits.forEach(visit => {
+    const card = document.createElement("article");
+    card.className = "document-signoff-native-result-card";
+    const body = document.createElement("div");
+    const title = document.createElement("h4");
+    const meta = document.createElement("p");
+    const required = document.createElement("p");
+    title.textContent = textOrDash(visit.visitor_name);
+    meta.textContent = "Company: " + textOrDash(visit.company) +
+      " | Signed in: " + textOrDash(visit.sign_in_time ? formatDateTime(visit.sign_in_time) : "");
+    required.textContent = "Required agreement(s): " +
+      (visit.required_requirements || []).map(row => row.agreement_name).filter(Boolean).join(", ");
+    body.append(title, meta);
+    if ((visit.required_requirements || []).length) body.appendChild(required);
+
+    const actions = document.createElement("div");
+    actions.className = "document-signoff-native-result-actions";
+    const sign = document.createElement("button");
+    sign.type = "button";
+    sign.textContent = "Review / Sign";
+    sign.addEventListener("click", () => openNativeSignoffPanel(visit, false, sign));
+    actions.appendChild(sign);
+
+    const optional = document.createElement("button");
+    optional.type = "button";
+    optional.className = "secondary";
+    optional.textContent = "Sign Optional";
+    optional.addEventListener("click", () => openNativeSignoffPanel(visit, true, optional));
+    actions.appendChild(optional);
+
+    const legacy = document.createElement("button");
+    legacy.type = "button";
+    legacy.className = "secondary";
+    legacy.textContent = "Legacy Sign-off";
+    legacy.addEventListener("click", () => {
+      guardedLegacyOpen(
+        "document-signoffs-signoff",
+        canOpenLegacySignoff,
+        "Visitor agreement sign-off requires visitor sign-in or history access."
+      );
+    });
+    actions.appendChild(legacy);
+
+    card.append(body, actions);
+    box.appendChild(card);
+  });
+}
+
+async function loadNativeSignoffCandidates(manual) {
+  if (!canUseNativeVisitorSignoff()) {
+    showToast("You do not have permission", "Native visitor sign-off requires agreement or visitor sign-off access.", "error");
+    return;
+  }
+  const box = $("documentSignoffNativeResults");
+  if (box) box.textContent = "Loading visitors requiring sign-off...";
+  setNativeStatus("Loading visitors requiring agreement action...", "info");
+  const result = await supabaseClient.rpc("get_pending_agreement_visitors");
+  if (result.error) {
+    setNativeStatus(result.error.message, "error");
+    if (box) {
+      renderEmptyState("documentSignoffNativeResults", {
+        title: "Native sign-off could not load",
+        description: "This workflow is still completed in Legacy VMS for this scenario."
+      });
+    }
+    showToast("Native sign-off failed", result.error.message, "error");
+    return;
+  }
+  renderNativeSignoffCandidates(result.data || []);
+  setNativeStatus((result.data || []).length + " agreement action(s) loaded.", (result.data || []).length ? "info" : "success");
+  if (manual) {
+    showToast("Native sign-off loaded", "Current visitor agreement actions were loaded.", "success");
+  }
+}
+
+function nativeAgreementStateBadge(status, type) {
+  if (status.already_valid === true) return { label: "Already signed", className: "status-in" };
+  if (status.status === "outdated") return { label: "Outdated", className: "status-no-show" };
+  if (status.status === "expired") return { label: "Expired", className: "status-no-show" };
+  if (status.status === "missing") return { label: "Missing", className: "status-overdue" };
+  if (!status.active_agreement_version_id) return { label: "Missing active version", className: "status-inactive" };
+  if (type.default_required === true) return { label: "Required", className: "status-overdue" };
+  return { label: "Optional", className: "" };
+}
+
+function renderNativeAgreementSelection(types, statuses, additionalOnly) {
+  const list = $("documentSignoffNativeAgreementList");
+  if (!list) return;
+  list.classList.remove("oh-empty-state");
+  list.replaceChildren();
+  const statusMap = {};
+  statuses.forEach(status => {
+    statusMap[status.agreement_type_id] = status;
+  });
+  const activeTypes = (types || []).filter(type => type.is_active !== false);
+
+  if (!activeTypes.length) {
+    renderEmptyState("documentSignoffNativeAgreementList", {
+      title: "No active agreement types",
+      description: "This sign-off workflow is still completed in Legacy VMS until active versions are available."
+    });
+    return;
+  }
+
+  activeTypes.forEach(type => {
+    const status = statusMap[type.agreement_type_id] || {
+      agreement_type_id: type.agreement_type_id,
+      agreement_name: type.agreement_name,
+      agreement_title: type.agreement_title,
+      default_required: type.default_required,
+      can_select: false,
+      selected_by_default: false,
+      locked_selected: false,
+      already_valid: false,
+      reason: "Status could not be calculated"
+    };
+    const alreadyValid = status.already_valid === true;
+    const hasActiveVersion = !!status.active_agreement_version_id;
+    const canSelect = status.can_select === true && hasActiveVersion && !alreadyValid;
+    const selected = status.selected_by_default === true && !additionalOnly && canSelect;
+    const locked = status.locked_selected === true && !additionalOnly && canSelect;
+    const disabled = alreadyValid || !hasActiveVersion || !canSelect || locked;
+    const badge = nativeAgreementStateBadge(status, type);
+
+    const row = document.createElement("article");
+    row.className = "document-signoff-native-agreement-row";
+    const label = document.createElement("label");
+    label.className = "document-signoff-native-agreement-header";
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.className = "document-signoff-native-agreement-check";
+    checkbox.dataset.agreementTypeId = type.agreement_type_id;
+    checkbox.checked = selected || locked;
+    checkbox.disabled = disabled;
+    checkbox.dataset.lockedSelected = locked ? "true" : "false";
+    label.appendChild(checkbox);
+    const heading = document.createElement("span");
+    heading.textContent = textOrDash(type.agreement_name);
+    label.appendChild(heading);
+    label.appendChild(createBadge(badge.label, badge.className));
+
+    const meta = document.createElement("p");
+    meta.textContent = "Title: " + textOrDash(type.agreement_title) +
+      " | Status: " + textOrDash(status.reason || (type.default_required ? "Required agreement" : "Optional agreement")) +
+      " | Active version: " + textOrDash(status.active_agreement_version_number);
+    if (status.last_signed_at) {
+      meta.textContent += " | Last signed: " + formatDateTime(status.last_signed_at);
+    }
+    row.append(label, meta);
+    list.appendChild(row);
+  });
+}
+
+async function openNativeSignoffPanel(visit, additionalOnly, trigger) {
+  if (!documentSignoffNativePanelController || !canUseNativeVisitorSignoff()) return;
+  nativeSignoffCurrentVisit = visit;
+  nativeSignoffCurrentRequirement = null;
+  nativeSignoffQueue = [];
+  nativeSignoffQueueTotal = 0;
+  nativeSignoffAdditionalOnly = !!additionalOnly;
+  setVisible("documentSignoffNativeSelectionStep", true);
+  setVisible("documentSignoffNativeSigningStep", false);
+  setVisible("documentSignoffNativeStartButton", true);
+  setVisible("documentSignoffNativeSaveButton", false);
+  setText("documentSignoffNativePanelEyebrow", "Visitor Document Sign-off");
+  setText("documentSignoffNativePanelTitle", additionalOnly ? "Sign Optional Agreement" : "Review / Sign Agreements");
+  setNativePanelStatus("Loading agreement status...", "info");
+  renderMetaList("documentSignoffNativeVisitorMeta", formatVisitMeta(visit));
+  const list = $("documentSignoffNativeAgreementList");
+  if (list) list.textContent = "Loading agreement status...";
+  documentSignoffNativePanelController.open({
+    trigger,
+    title: additionalOnly ? "Sign Optional Agreement" : "Review / Sign Agreements",
+    mode: "sign-off",
+    type: "visitor-document-signoff"
+  });
+
+  try {
+    const visitId = visit.visit_log_id || visit.id;
+    const types = await loadNativeAgreementTypesIfNeeded();
+    const statuses = await getNativeAgreementStatusesForVisit(visitId);
+    renderNativeAgreementSelection(types, statuses, additionalOnly);
+    setNativePanelStatus("Agreement status loaded.", "success");
+  } catch (err) {
+    renderEmptyState("documentSignoffNativeAgreementList", {
+      title: "Native sign-off unavailable",
+      description: "This sign-off workflow is still completed in Legacy VMS."
+    });
+    setNativePanelStatus(err.message || "Agreement status could not be loaded.", "error");
+  }
+}
+
+async function startNativeSignoffQueue() {
+  if (!nativeSignoffCurrentVisit) {
+    setNativePanelStatus("No visitor visit is selected.", "error");
+    return;
+  }
+  const selectedBoxes = Array.from(
+    document.querySelectorAll("#documentSignoffNativeAgreementList .document-signoff-native-agreement-check")
+  ).filter(checkbox =>
+    (checkbox.checked && !checkbox.disabled) ||
+    (checkbox.checked && checkbox.disabled && checkbox.dataset.lockedSelected === "true")
+  );
+  if (!selectedBoxes.length) {
+    setNativePanelStatus("No agreements are available to sign. Already-signed agreements are disabled.", "error");
+    return;
+  }
+
+  const visitId = nativeSignoffCurrentVisit.visit_log_id || nativeSignoffCurrentVisit.id;
+  setNativePanelStatus("Preparing selected agreement(s)...", "info");
+  try {
+    const statuses = await getNativeAgreementStatusesForVisit(visitId);
+    const statusMap = {};
+    statuses.forEach(status => {
+      statusMap[status.agreement_type_id] = status;
+    });
+    const queue = [];
+    for (const checkbox of selectedBoxes) {
+      const typeId = checkbox.dataset.agreementTypeId;
+      const status = statusMap[typeId];
+      const typeMeta = (documentSignoffOverviewState.types || []).find(type => type.agreement_type_id === typeId) || {};
+      if (!status) {
+        setNativePanelStatus("Agreement status could not be calculated for " + textOrDash(typeMeta.agreement_name || typeId) + ".", "error");
+        return;
+      }
+      if (status.already_valid === true) {
+        setNativePanelStatus("Agreement " + textOrDash(status.agreement_name) + " is already valid and cannot be signed again.", "error");
+        return;
+      }
+      if (!status.active_agreement_version_id) {
+        setNativePanelStatus("Agreement " + textOrDash(status.agreement_name) + " has no active version.", "error");
+        return;
+      }
+      if (status.can_select !== true) {
+        setNativePanelStatus("Agreement " + textOrDash(status.agreement_name) + " is not available: " + textOrDash(status.reason) + ".", "error");
+        return;
+      }
+      queue.push({
+        visit: nativeSignoffCurrentVisit,
+        requirement: {
+          agreement_type_id: typeId,
+          agreement_name: status.agreement_name || typeMeta.agreement_name,
+          agreement_title: status.agreement_title || typeMeta.agreement_title,
+          active_agreement_version_id: status.active_agreement_version_id,
+          active_agreement_version_number: status.active_agreement_version_number,
+          signature_required: status.signature_required,
+          reason: status.reason
+        }
+      });
+    }
+    nativeSignoffQueue = queue;
+    nativeSignoffQueueTotal = queue.length;
+    await openNextNativeQueuedAgreement();
+  } catch (err) {
+    setNativePanelStatus(err.message || "Selected agreements could not be prepared.", "error");
+    showToast("Native sign-off failed", err.message || "Selected agreements could not be prepared.", "error");
+  }
+}
+
+async function openNextNativeQueuedAgreement() {
+  if (!nativeSignoffQueue.length) {
+    nativeSignoffCurrentRequirement = null;
+    return;
+  }
+  const next = nativeSignoffQueue.shift();
+  nativeSignoffCurrentVisit = next.visit;
+  nativeSignoffCurrentRequirement = next.requirement;
+  await renderNativeSigningStep(next.visit, next.requirement);
+}
+
+async function renderNativeSigningStep(visit, requirement) {
+  setVisible("documentSignoffNativeSelectionStep", false);
+  setVisible("documentSignoffNativeSigningStep", true);
+  setVisible("documentSignoffNativeStartButton", false);
+  setVisible("documentSignoffNativeSaveButton", true);
+  setText("documentSignoffNativePanelEyebrow", "Visitor Document Sign-off");
+  setText("documentSignoffNativePanelTitle", textOrDash(requirement.agreement_name));
+  const completed = nativeSignoffQueueTotal - nativeSignoffQueue.length;
+  setText("documentSignoffNativeQueueMeta", "Agreement " + completed + " of " + nativeSignoffQueueTotal);
+  setText("documentSignoffNativeAcceptedText", String(settingValue(
+    "agreement_acceptance_text",
+    "I confirm that I have read, understood, and agree to follow the requirements of this agreement/induction."
+  )));
+  if ($("documentSignoffNativeAcceptedCheck")) $("documentSignoffNativeAcceptedCheck").checked = false;
+  setVisible("documentSignoffNativeSignatureBox", requirement.signature_required !== false);
+  clearNativeVisitorSignature();
+  clearNativeInductorSignature();
+  syncNativeInductorPanel(nativeInductorEnabledForCurrentStep());
+  renderMetaList("documentSignoffNativeAgreementMeta", [
+    ["Agreement", requirement.agreement_title || requirement.agreement_name],
+    ["Version", requirement.active_agreement_version_number],
+    ["Requirement", requirement.reason],
+    ["Visitor", visit.visitor_name],
+    ["Company", visit.company]
+  ]);
+  setNativePanelStatus("Loading agreement document...", "info");
+  try {
+    const version = await getNativeAgreementVersion(requirement.active_agreement_version_id);
+    if ($("documentSignoffNativePdfFrame")) {
+      $("documentSignoffNativePdfFrame").src = version && version.pdf_url ? version.pdf_url : "about:blank";
+    }
+    setNativePanelStatus("Ready for visitor sign-off.", "success");
+  } catch (err) {
+    if ($("documentSignoffNativePdfFrame")) $("documentSignoffNativePdfFrame").src = "about:blank";
+    setNativePanelStatus("Agreement document could not be previewed. The sign-off can continue if the document has been reviewed elsewhere.", "error");
+  }
+  setTimeout(() => {
+    resizeSignatureCanvas("documentSignoffNativeSignatureCanvas", nativeVisitorSignatureState);
+    resizeSignatureCanvas("documentSignoffNativeInductorSignatureCanvas", nativeInductorSignatureState);
+  }, 60);
+}
+
+async function saveNativeVisitorAgreement() {
+  const visit = nativeSignoffCurrentVisit;
+  const requirement = nativeSignoffCurrentRequirement;
+  if (!visit || !requirement) {
+    setNativePanelStatus("No agreement is selected.", "error");
+    return;
+  }
+  if (!$("documentSignoffNativeAcceptedCheck") || !$("documentSignoffNativeAcceptedCheck").checked) {
+    setNativePanelStatus("Visitor acceptance tick is required.", "error");
+    return;
+  }
+
+  const signatureRequired = !$("documentSignoffNativeSignatureBox").classList.contains("hidden");
+  const visitorSignature = signatureRequired && nativeVisitorSignatureState.hasInk
+    ? $("documentSignoffNativeSignatureCanvas").toDataURL("image/png")
+    : null;
+  if (signatureRequired && !visitorSignature) {
+    setNativePanelStatus("Visitor signature is required.", "error");
+    return;
+  }
+
+  const inductorEnabled = nativeInductorEnabledForCurrentStep();
+  const inductorMode = String(settingValue("inductor_signoff_mode", "typed_name"));
+  const inductorName = inductorEnabled && $("documentSignoffNativeInductorName")
+    ? $("documentSignoffNativeInductorName").value.trim()
+    : null;
+  const inductorSignature = inductorEnabled &&
+    inductorMode === "manual_signature" &&
+    nativeInductorSignatureState.hasInk
+    ? $("documentSignoffNativeInductorSignatureCanvas").toDataURL("image/png")
+    : null;
+  if (inductorEnabled && inductorMode === "typed_name" && !inductorName) {
+    setNativePanelStatus("Inductor name is required.", "error");
+    return;
+  }
+  if (inductorEnabled && inductorMode === "manual_signature" && !inductorSignature) {
+    setNativePanelStatus("Inductor signature is required.", "error");
+    return;
+  }
+
+  const visitId = visit.visit_log_id || visit.id;
+  try {
+    setNativePanelStatus("Saving agreement evidence...", "info");
+    const latestStatuses = await getNativeAgreementStatusesForVisit(visitId);
+    const latest = latestStatuses.find(status => status.agreement_type_id === requirement.agreement_type_id);
+    if (!latest || latest.already_valid === true || latest.can_select !== true) {
+      setNativePanelStatus("This agreement is no longer available for signing. Refresh and try again.", "error");
+      return;
+    }
+    const result = await supabaseClient.rpc("save_visitor_agreement", {
+      p_visit_log_id: visitId,
+      p_agreement_type_id: requirement.agreement_type_id,
+      p_signature_data: visitorSignature,
+      p_accepted_without_signature: !signatureRequired,
+      p_inductor_name: inductorName,
+      p_inductor_signature_data: inductorSignature
+    });
+    if (result.error) throw result.error;
+    const response = Array.isArray(result.data) ? result.data[0] : result.data;
+    if (!response || response.success !== true) {
+      throw new Error(response && response.message ? response.message : "Agreement save failed.");
+    }
+    if (inductorEnabled) {
+      const applyResult = await supabaseClient.rpc("apply_inductor_signoff_to_visit_agreements", {
+        p_visit_log_id: visitId,
+        p_inductor_name: inductorName,
+        p_inductor_signature_data: inductorSignature
+      });
+      if (applyResult.error) {
+        setNativePanelStatus("Agreement saved, but inductor sign-off could not be applied to all selected agreements: " + applyResult.error.message, "error");
+        showToast("Agreement saved with warning", applyResult.error.message, "error");
+        await loadDocumentSignoffOverview({ manual: false });
+        await loadNativeSignoffCandidates(false);
+        return;
+      }
+    }
+    showToast("Agreement saved", response.message || "Agreement evidence saved.", "success");
+    await loadDocumentSignoffOverview({ manual: false });
+    await loadNativeSignoffCandidates(false);
+    if (nativeSignoffQueue.length) {
+      showToast("Next agreement", "Opening the next selected agreement.", "info");
+      await openNextNativeQueuedAgreement();
+      return;
+    }
+    setNativePanelStatus("Agreement saved. Current status has been refreshed.", "success");
+    await openNativeSignoffPanel(visit, nativeSignoffAdditionalOnly, $("documentSignoffNativeSaveButton"));
+  } catch (err) {
+    setNativePanelStatus("Could not save agreement: " + (err.message || String(err)), "error");
+    showToast("Agreement save failed", err.message || "Agreement evidence could not be saved.", "error");
+  }
 }
 
 function renderTypes(types) {
@@ -678,7 +1324,12 @@ function guardedLegacyOpen(action, allowed, message) {
 
 export function syncDocumentSignoffVisibility() {
   const canView = canViewDocumentSignoffs();
+  const canUseNative = canUseNativeVisitorSignoff();
   setVisible("visitorsDocumentSignoffsSection", canView);
+  setVisible("documentSignoffNativeCard", canUseNative);
+  setVisible("documentSignoffLoadPendingButton", canUseNative);
+  setVisible("documentSignoffNativeLegacyButton", canOpenLegacySignoff());
+  setVisible("documentSignoffNativePanelLegacyButton", canOpenLegacySignoff());
   setVisible("documentSignoffLegacyManagementButton", canOpenLegacyManagement());
   setVisible("documentSignoffLegacySignoffButton", canOpenLegacySignoff());
   setVisible("documentSignoffLegacyComplianceButton", canOpenLegacyCompliance());
@@ -702,17 +1353,86 @@ function initialiseDocumentSignoffDetailsPanel() {
   clearDetailPanel();
 }
 
+function initialiseDocumentSignoffNativePanel() {
+  if (documentSignoffNativePanelController || !$("documentSignoffNativePanel")) return;
+  documentSignoffNativePanelController = createSidePanelController({
+    backdrop: "documentSignoffNativePanelBackdrop",
+    panel: "documentSignoffNativePanel",
+    title: "documentSignoffNativePanelTitle",
+    initialFocus: "documentSignoffNativePanelClose",
+    closeTriggers: ["documentSignoffNativePanelClose", "documentSignoffNativeCancelButton"],
+    reset: clearNativeSignoffPanel
+  });
+  clearNativeSignoffPanel();
+}
+
 export function initialiseDocumentSignoffs(dependencies) {
   if (dependencies) configureDocumentSignoffs(dependencies);
   if (documentSignoffInitialised) return;
   documentSignoffInitialised = true;
   initialiseDocumentSignoffDetailsPanel();
+  initialiseDocumentSignoffNativePanel();
 
   if ($("documentSignoffRefreshButton")) {
     $("documentSignoffRefreshButton").addEventListener("click", () => {
       loadDocumentSignoffOverview({ manual: true });
     });
   }
+  if ($("documentSignoffLoadPendingButton")) {
+    $("documentSignoffLoadPendingButton").addEventListener("click", () => {
+      loadNativeSignoffCandidates(true);
+    });
+  }
+  if ($("documentSignoffNativeLegacyButton")) {
+    $("documentSignoffNativeLegacyButton").addEventListener("click", () => {
+      guardedLegacyOpen(
+        "document-signoffs-signoff",
+        canOpenLegacySignoff,
+        "Visitor agreement sign-off requires visitor sign-in or history access."
+      );
+    });
+  }
+  if ($("documentSignoffNativePanelLegacyButton")) {
+    $("documentSignoffNativePanelLegacyButton").addEventListener("click", () => {
+      guardedLegacyOpen(
+        "document-signoffs-signoff",
+        canOpenLegacySignoff,
+        "Visitor agreement sign-off requires visitor sign-in or history access."
+      );
+    });
+  }
+  if ($("documentSignoffNativeStartButton")) {
+    $("documentSignoffNativeStartButton").addEventListener("click", startNativeSignoffQueue);
+  }
+  if ($("documentSignoffNativeSaveButton")) {
+    $("documentSignoffNativeSaveButton").addEventListener("click", saveNativeVisitorAgreement);
+  }
+  if ($("documentSignoffNativeClearSignatureButton")) {
+    $("documentSignoffNativeClearSignatureButton").addEventListener("click", clearNativeVisitorSignature);
+  }
+  if ($("documentSignoffNativeClearInductorSignatureButton")) {
+    $("documentSignoffNativeClearInductorSignatureButton").addEventListener("click", clearNativeInductorSignature);
+  }
+  if ($("documentSignoffNativeSignatureCanvas")) {
+    $("documentSignoffNativeSignatureCanvas").addEventListener("mousedown", event => beginSignature(event, "documentSignoffNativeSignatureCanvas", nativeVisitorSignatureState));
+    $("documentSignoffNativeSignatureCanvas").addEventListener("mousemove", event => drawSignature(event, "documentSignoffNativeSignatureCanvas", nativeVisitorSignatureState));
+    $("documentSignoffNativeSignatureCanvas").addEventListener("touchstart", event => beginSignature(event, "documentSignoffNativeSignatureCanvas", nativeVisitorSignatureState), { passive: false });
+    $("documentSignoffNativeSignatureCanvas").addEventListener("touchmove", event => drawSignature(event, "documentSignoffNativeSignatureCanvas", nativeVisitorSignatureState), { passive: false });
+  }
+  if ($("documentSignoffNativeInductorSignatureCanvas")) {
+    $("documentSignoffNativeInductorSignatureCanvas").addEventListener("mousedown", event => beginSignature(event, "documentSignoffNativeInductorSignatureCanvas", nativeInductorSignatureState));
+    $("documentSignoffNativeInductorSignatureCanvas").addEventListener("mousemove", event => drawSignature(event, "documentSignoffNativeInductorSignatureCanvas", nativeInductorSignatureState));
+    $("documentSignoffNativeInductorSignatureCanvas").addEventListener("touchstart", event => beginSignature(event, "documentSignoffNativeInductorSignatureCanvas", nativeInductorSignatureState), { passive: false });
+    $("documentSignoffNativeInductorSignatureCanvas").addEventListener("touchmove", event => drawSignature(event, "documentSignoffNativeInductorSignatureCanvas", nativeInductorSignatureState), { passive: false });
+  }
+  window.addEventListener("mouseup", () => {
+    endSignature(nativeVisitorSignatureState);
+    endSignature(nativeInductorSignatureState);
+  });
+  window.addEventListener("touchend", () => {
+    endSignature(nativeVisitorSignatureState);
+    endSignature(nativeInductorSignatureState);
+  });
   if ($("documentSignoffComplianceDetailsButton")) {
     $("documentSignoffComplianceDetailsButton").addEventListener("click", event => {
       openComplianceStatusDetails(event.currentTarget);
