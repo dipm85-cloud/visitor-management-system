@@ -112,6 +112,12 @@ function readZIndex(selector) {
   return window.getComputedStyle(element).zIndex || "";
 }
 
+function readComputedField(selector, field) {
+  const element = document.querySelector(selector);
+  if (!element) return "";
+  return window.getComputedStyle(element)[field] || "";
+}
+
 function isElementVisible(element) {
   if (!element) return false;
   return !element.classList.contains("hidden") &&
@@ -144,18 +150,45 @@ function updateDocumentSignoffDebug(patch) {
   const previous = window.__ohDocumentSignoffDebug || {};
   const overlay = $("documentSignoffOverlayRoot");
   const backdrop = $("documentSignoffNativePanelBackdrop");
+  const footer = document.querySelector(".oh-footer");
+  const header = document.querySelector(".oh-header");
+  const actions = $("documentSignoffNativePanelActions");
   const continueButton = $("documentSignoffNativeStartButton");
   const overlayStyle = backdrop ? window.getComputedStyle(backdrop) : null;
   window.__ohDocumentSignoffDebug = Object.assign({}, previous, {
     overlayOpen: documentSignoffNativeDialogOpen,
+    bodyClasses: document.body.className,
+    appShellClasses: $("operationsHubShell") ? $("operationsHubShell").className : "",
+    footerElementFound: !!footer,
+    footerComputedPosition: footer ? window.getComputedStyle(footer).position : "",
+    footerComputedTop: footer ? window.getComputedStyle(footer).top : "",
+    footerComputedLeft: footer ? window.getComputedStyle(footer).left : "",
+    footerComputedZIndex: footer ? window.getComputedStyle(footer).zIndex : "",
+    headerComputedPosition: header ? window.getComputedStyle(header).position : "",
+    headerComputedTop: header ? window.getComputedStyle(header).top : "",
+    headerComputedLeft: header ? window.getComputedStyle(header).left : "",
+    signoffOverlayParentTag: backdrop && backdrop.parentElement ? backdrop.parentElement.tagName : "",
     overlayParentTag: overlay && overlay.parentElement ? overlay.parentElement.tagName : "",
     overlayPositionStyle: overlayStyle ? overlayStyle.position : "",
     overlayZIndex: overlayStyle ? overlayStyle.zIndex : "",
+    overlayRootExists: !!overlay,
+    overlayRootParentTag: overlay && overlay.parentElement ? overlay.parentElement.tagName : "",
+    overlayRootIsBodyChild: !!(overlay && overlay.parentElement === document.body),
+    overlayComputedPosition: overlayStyle ? overlayStyle.position : "",
+    overlayComputedZIndex: overlayStyle ? overlayStyle.zIndex : "",
     appHeaderZIndex: readZIndex(".oh-header"),
     appFooterZIndex: readZIndex(".oh-footer"),
+    headerComputedZIndex: readComputedField(".oh-header", "zIndex"),
+    footerComputedZIndexLegacy: readComputedField(".oh-footer", "zIndex"),
+    bodyScrollLocked: document.body.style.overflow === "hidden" || document.documentElement.style.overflow === "hidden",
     currentStep: documentSignoffNativeCurrentStep,
     selectedAgreementCount: nativeSelectedSignableCheckboxes().length,
     signableAgreementCount: nativeSignableAgreementCount(),
+    selectionFooterExists: !!actions,
+    selectionFooterVisible: isElementVisible(actions),
+    continueButtonExists: !!continueButton,
+    continueButtonVisible: isElementVisible(continueButton),
+    continueButtonDisabled: !!(continueButton && continueButton.disabled),
     selectionContinueButtonExists: !!continueButton,
     selectionContinueButtonVisible: isElementVisible(continueButton),
     selectionContinueButtonDisabled: !!(continueButton && continueButton.disabled),
@@ -477,8 +510,7 @@ function setNativeWorkflowStep(step) {
 function setFocusedSignoffChrome(active) {
   const workspace = $("visitorsWorkspace");
   if (workspace) workspace.classList.toggle("document-signoff-focused", !!active);
-  document.body.classList.toggle("document-signoff-focused-open", !!active);
-  document.body.classList.toggle("oh-transient-ui-open", !!active);
+  document.body.classList.toggle("document-signoff-overlay-open", !!active);
   if (active) {
     documentSignoffNativePreviousBodyOverflow = document.body.style.overflow || "";
     documentSignoffNativePreviousHtmlOverflow = document.documentElement.style.overflow || "";
@@ -1659,7 +1691,7 @@ export function syncDocumentSignoffVisibility() {
   setVisible("documentSignoffNativeCard", canUseNative);
   setVisible("documentSignoffLoadPendingButton", canUseNative);
   setVisible("documentSignoffNativeLegacyButton", canOpenLegacySignoff());
-  setVisible("documentSignoffNativePanelLegacyButton", canOpenLegacySignoff());
+  setVisible("documentSignoffNativePanelLegacyButton", canUseNative);
   setVisible("documentSignoffLegacyManagementButton", canOpenLegacyManagement());
   setVisible("documentSignoffLegacySignoffButton", canOpenLegacySignoff());
   setVisible("documentSignoffLegacyComplianceButton", canOpenLegacyCompliance());

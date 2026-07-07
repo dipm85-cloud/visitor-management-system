@@ -1760,9 +1760,16 @@ body.kiosk-mode .results-scroll {
   display: none !important;
 }
 
+body.document-signoff-overlay-open {
+  overflow: hidden;
+}
+
 .document-signoff-overlay-root {
   position: fixed;
   inset: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
   z-index: 2147483000;
   pointer-events: none;
 }
