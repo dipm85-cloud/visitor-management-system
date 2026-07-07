@@ -1851,6 +1851,13 @@ body.document-signoff-overlay-open {
   display: none;
 }
 
+.document-signoff-focus-workspace.is-review-step #documentSignoffNativeAgreementMeta,
+.document-signoff-focus-workspace.is-signature-step #documentSignoffNativeSignatureMeta,
+.document-signoff-focus-workspace.is-review-step #documentSignoffNativePanelStatus:empty,
+.document-signoff-focus-workspace.is-signature-step #documentSignoffNativePanelStatus:empty {
+  display: none;
+}
+
 .document-signoff-native-stage > div:first-child,
 .document-signoff-native-step > div:first-child,
 .document-signoff-native-document-review > div:first-child,
@@ -1913,6 +1920,14 @@ body.document-signoff-overlay-open {
   border: 1px solid var(--oh-shell-border);
   border-radius: 12px;
   background: var(--oh-shell-surface);
+}
+
+.document-signoff-native-review-step,
+.document-signoff-native-signature-step {
+  gap: 10px;
+  padding: 0;
+  border: 0;
+  background: transparent;
 }
 
 .document-signoff-native-step h3,
@@ -1980,9 +1995,15 @@ body.document-signoff-overlay-open {
   background: #f8fafc;
 }
 
+.document-signoff-native-review-step .document-signoff-native-document-review {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
 .document-signoff-native-pdf {
   width: 100%;
-  height: clamp(520px, 66vh, 760px);
+  height: clamp(560px, 72vh, 820px);
   min-height: 380px;
   border: 1px solid var(--oh-shell-border);
   border-radius: 12px;
@@ -2630,7 +2651,7 @@ body.document-signoff-overlay-open {
 
   .document-signoff-native-pdf {
     min-height: 260px;
-    height: 42vh;
+    height: 54vh;
   }
 
   .document-signoff-focus-backdrop {
@@ -2650,7 +2671,8 @@ body.document-signoff-overlay-open {
   .document-signoff-focus-header {
     align-items: stretch;
     flex-direction: column;
-    padding: 18px;
+    gap: 10px;
+    padding: 12px 14px;
   }
 
   .document-signoff-focus-header button {

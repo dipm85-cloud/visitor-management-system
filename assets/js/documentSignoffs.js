@@ -292,8 +292,14 @@ function setNativeStatus(message, type) {
 function setNativePanelStatus(message, type) {
   const box = $("documentSignoffNativePanelStatus");
   if (!box) return;
-  box.textContent = message || "";
-  box.className = "local-action-status" + (message ? " " + (type || "info") : "");
+  const text = message || "";
+  const statusType = type || "info";
+  const shouldKeepInline =
+    statusType === "error" ||
+    /no active|no signable|unavailable|could not|failed|required|warning|attention/i.test(text);
+  const displayText = text && shouldKeepInline ? text : "";
+  box.textContent = displayText;
+  box.className = "local-action-status" + (displayText ? " " + statusType : "");
 }
 
 function formatVisitMeta(visit) {
@@ -497,7 +503,7 @@ function clearNativeSignoffPanel() {
   setText("documentSignoffNativeWizardMeta", "Select visitor documents");
   setText("documentSignoffNativeWizardStep", "Step 1 of 3 - Select documents");
   setNativePanelStatus("", "");
-  setText("documentSignoffNativeReviewStatus", "Document review loaded.");
+  setText("documentSignoffNativeReviewStatus", "");
   setText("documentSignoffNativeSelectionSummary", "");
   renderMetaList("documentSignoffNativeVisitorMeta", []);
   renderMetaList("documentSignoffNativeAgreementMeta", []);
@@ -803,7 +809,7 @@ function syncNativeDocumentReviewRequirement() {
     "documentSignoffNativeReviewStatus",
     required
       ? "Please scroll to the end of the document before signing."
-      : "Document review loaded."
+      : ""
   );
 }
 
@@ -1434,6 +1440,7 @@ async function renderNativeSigningStep(visit, requirement) {
     setNativePanelStatus("Ready for visitor sign-off.", "success");
   } catch (err) {
     if ($("documentSignoffNativePdfFrame")) $("documentSignoffNativePdfFrame").src = "about:blank";
+    setText("documentSignoffNativeReviewStatus", "Document preview could not be loaded. Continue only if the document has been reviewed elsewhere.");
     setNativePanelStatus("Agreement document could not be previewed. The sign-off can continue if the document has been reviewed elsewhere.", "error");
   }
   setTimeout(() => {
@@ -1549,7 +1556,7 @@ async function saveNativeVisitorAgreement() {
     const latestStatuses = await getNativeAgreementStatusesForVisit(visitId);
     const latest = latestStatuses.find(status => status.agreement_type_id === requirement.agreement_type_id);
     if (!latest || latest.already_valid === true || latest.can_select !== true) {
-      showNativeValidation("This agreement is no longer available for signing. Refresh and try again.", "documentSignoffNativeAgreementMeta");
+      showNativeValidation("This agreement is no longer available for signing. Refresh and try again.", "documentSignoffNativeSignatureStep");
       return;
     }
     const result = await supabaseClient.rpc("save_visitor_agreement", {
