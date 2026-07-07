@@ -3169,9 +3169,113 @@
 
         <nav class="administration-section-nav" aria-label="Administration sections">
           <button id="administrationReferenceNav" class="active" type="button" aria-current="page">Reference Data</button>
+          <button id="administrationSharedTerminalsNav" class="hidden" type="button">Shared Terminals</button>
           <button id="administrationModuleConfigurationNav" class="hidden" type="button">Module Configuration</button>
           <button id="administrationAccessControlNav" class="hidden" type="button">Access Control</button>
         </nav>
+
+        <section id="sharedTerminalsSection" class="hidden" aria-labelledby="sharedTerminalsTitle">
+          <div class="shared-terminals-heading">
+            <div>
+              <p class="oh-app-eyebrow">Administration</p>
+              <h2 id="sharedTerminalsTitle">Shared Terminals</h2>
+              <p>Register and manage trusted kiosk devices that use the native Shared Terminal workflow.</p>
+            </div>
+            <button id="sharedTerminalsRefreshButton" class="secondary" type="button">Refresh</button>
+          </div>
+
+          <div class="shared-terminal-status-grid">
+            <section class="shared-terminal-status-card" aria-labelledby="sharedTerminalCurrentStatusTitle">
+              <div class="shared-terminal-card-heading">
+                <div>
+                  <h3 id="sharedTerminalCurrentStatusTitle">Current Browser</h3>
+                  <p id="sharedTerminalCurrentStatusText" aria-live="polite">Open Shared Terminals to check this browser.</p>
+                </div>
+                <span id="sharedTerminalCurrentTokenBadge" class="shared-terminal-badge neutral">Not checked</span>
+              </div>
+              <dl class="shared-terminal-status-list">
+                <div>
+                  <dt>Token saved</dt>
+                  <dd id="sharedTerminalTokenPresent">Unknown</dd>
+                </div>
+                <div>
+                  <dt>Token valid</dt>
+                  <dd id="sharedTerminalTokenValid">Unknown</dd>
+                </div>
+                <div>
+                  <dt>Registered terminal</dt>
+                  <dd id="sharedTerminalRegisteredName">Unknown</dd>
+                </div>
+                <div>
+                  <dt>Startup behaviour</dt>
+                  <dd id="sharedTerminalStartupBehaviour">Registered terminals open Visitor Kiosk / Terminal Home. Unregistered devices open Staff Login.</dd>
+                </div>
+              </dl>
+              <div class="shared-terminal-actions">
+                <button id="sharedTerminalSetCurrentTokenButton" type="button">Set This Device Token</button>
+                <button id="sharedTerminalValidateCurrentTokenButton" class="secondary" type="button">Validate Current Token</button>
+                <button id="sharedTerminalClearCurrentTokenButton" class="danger" type="button">Clear This Device Token</button>
+              </div>
+            </section>
+
+            <section id="sharedTerminalRegistrationCard" class="shared-terminal-status-card" aria-labelledby="sharedTerminalRegisterTitle">
+              <div class="shared-terminal-card-heading">
+                <div>
+                  <h3 id="sharedTerminalRegisterTitle">Register Terminal</h3>
+                  <p>Create a trusted terminal record using the existing kiosk device backend.</p>
+                </div>
+              </div>
+              <form id="sharedTerminalCreateForm" class="shared-terminal-form">
+                <label for="sharedTerminalDeviceName">Device name *</label>
+                <input id="sharedTerminalDeviceName" type="text" autocomplete="off" required />
+
+                <label for="sharedTerminalActive">Active</label>
+                <select id="sharedTerminalActive">
+                  <option value="true">Active</option>
+                  <option value="false">Inactive</option>
+                </select>
+
+                <label for="sharedTerminalLocationName">Location</label>
+                <input id="sharedTerminalLocationName" type="text" autocomplete="off" />
+
+                <label for="sharedTerminalDescription">Notes / description</label>
+                <textarea id="sharedTerminalDescription" rows="3"></textarea>
+
+                <div class="shared-terminal-form-actions">
+                  <button id="sharedTerminalCreateButton" type="submit">Register Terminal</button>
+                  <button id="sharedTerminalCreateResetButton" class="secondary" type="button">Clear</button>
+                </div>
+              </form>
+              <div id="sharedTerminalNewTokenBox" class="shared-terminal-token-result" aria-live="polite"></div>
+            </section>
+          </div>
+
+          <section class="card shared-terminal-results-card" aria-labelledby="sharedTerminalListTitle">
+            <div class="reference-results-header">
+              <div>
+                <h3 id="sharedTerminalListTitle">Registered Terminals</h3>
+                <p id="sharedTerminalListStatus" aria-live="polite">Open Shared Terminals to load records.</p>
+              </div>
+            </div>
+            <div class="shared-terminal-table-wrap" data-oh-scroll-region="operational" aria-label="Registered shared terminal records">
+              <table class="shared-terminal-table" aria-labelledby="sharedTerminalListTitle">
+                <thead>
+                  <tr>
+                    <th scope="col">Device</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Token</th>
+                    <th scope="col">Created</th>
+                    <th scope="col">Last Seen</th>
+                    <th scope="col">Notes</th>
+                    <th scope="col"><span class="sr-only">Actions</span></th>
+                  </tr>
+                </thead>
+                <tbody id="sharedTerminalResults"></tbody>
+              </table>
+              <div id="sharedTerminalEmptyState" class="people-empty-state hidden" data-oh-empty-state>No shared terminals are registered.</div>
+            </div>
+          </section>
+        </section>
 
         <section id="moduleConfigurationSection" class="hidden" aria-labelledby="moduleConfigurationTitle">
           <div class="module-configuration-heading">

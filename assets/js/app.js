@@ -225,6 +225,11 @@ import {
   openAccessControlWorkspace
 } from "./accessControl.js";
 import {
+  initialiseSharedTerminalAdministration,
+  openSharedTerminalAdministration,
+  syncSharedTerminalAdministrationVisibility
+} from "./sharedTerminals.js";
+import {
   finaliseModuleConfigurationRegistrations,
   initialiseModuleConfigurationFramework,
   openModuleConfigurationAdministration,
@@ -501,6 +506,7 @@ window.addEventListener("load", async function () {
       syncNavigationCapabilityVisibility() {
         syncNavigationCapabilityVisibility();
         syncAccessControlVisibility();
+        syncSharedTerminalAdministrationVisibility();
         syncModuleConfigurationVisibility();
         syncVisitorCapabilityVisibility();
         syncVisitorHousekeepingControls();
@@ -2515,6 +2521,7 @@ window.addEventListener("load", async function () {
       if ($("kioskTestPanel")) $("kioskTestPanel").classList.toggle("active", role === "kiosk");
       syncVisitorCapabilityVisibility();
       syncVisitorHousekeepingControls();
+      syncSharedTerminalAdministrationVisibility();
 
       if (role === "security") {
         runOpportunisticAutoSignOutCheck();
@@ -4930,8 +4937,10 @@ window.addEventListener("load", async function () {
     registerInitialModuleConfigurations();
     initialiseModuleConfigurationFramework();
     initialiseAccessControl();
+    initialiseSharedTerminalAdministration();
     window.addEventListener("oh:capabilities-changed", syncVisitorCapabilityVisibility);
     window.addEventListener("oh:capabilities-changed", syncVisitorHousekeepingControls);
+    window.addEventListener("oh:capabilities-changed", syncSharedTerminalAdministrationVisibility);
     window.addEventListener("oh:legacy-vms-opened", openStaffAreaFromProfile);
     window.addEventListener("oh:report-shortcut-requested", event => {
       openExistingReportShortcut(event.detail && event.detail.shortcut);
@@ -4964,6 +4973,13 @@ window.addEventListener("load", async function () {
     });
     if ($("ohAdministrationNav")) {
       $("ohAdministrationNav").addEventListener("click", () => {
+        if (hasAnyCapability([
+          "devices.view",
+          "devices.manage"
+        ])) {
+          openSharedTerminalAdministration();
+          return;
+        }
         if (hasAnyCapability([
           "module_configuration.view",
           "module_configuration.manage",

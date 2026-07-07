@@ -34,11 +34,13 @@ function canManageModule(moduleDefinition) {
 function setAdministrationSection(sectionName) {
   const sections = {
     reference: $("referenceDataSection"),
+    terminals: $("sharedTerminalsSection"),
     modules: $("moduleConfigurationSection"),
     access: $("accessControlSection")
   };
   const navigation = {
     reference: $("administrationReferenceNav"),
+    terminals: $("administrationSharedTerminalsNav"),
     modules: $("administrationModuleConfigurationNav"),
     access: $("administrationAccessControlNav")
   };

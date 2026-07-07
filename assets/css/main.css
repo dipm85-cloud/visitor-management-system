@@ -4609,6 +4609,183 @@ button.oh-section-nav-item:focus-visible,
 
 .reference-row-actions button + button { margin-left: 8px; }
 
+.shared-terminals-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 18px;
+}
+
+.shared-terminals-heading h2,
+.shared-terminal-card-heading h3 {
+  margin: 0;
+}
+
+.shared-terminals-heading p:not(.oh-app-eyebrow),
+.shared-terminal-card-heading p {
+  margin: 6px 0 0;
+  color: var(--oh-shell-muted);
+}
+
+.shared-terminal-status-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(320px, .9fr);
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.shared-terminal-status-card {
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid var(--oh-shell-border);
+  border-radius: 14px;
+  background: var(--oh-shell-surface);
+  box-shadow: 0 8px 22px rgba(16, 24, 40, .05);
+}
+
+.shared-terminal-card-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.shared-terminal-badge {
+  flex: 0 0 auto;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--oh-shell-border);
+  background: #f2f4f7;
+  color: #475467;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.shared-terminal-badge.active {
+  border-color: #abefc6;
+  background: #ecfdf3;
+  color: #067647;
+}
+
+.shared-terminal-badge.warning {
+  border-color: #fedf89;
+  background: #fffaeb;
+  color: #b54708;
+}
+
+.shared-terminal-status-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+
+.shared-terminal-status-list div {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #e9edf2;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.shared-terminal-status-list dt {
+  margin-bottom: 4px;
+  color: #667085;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.shared-terminal-status-list dd {
+  margin: 0;
+  color: #101828;
+  overflow-wrap: anywhere;
+}
+
+.shared-terminal-actions,
+.shared-terminal-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.shared-terminal-form {
+  display: grid;
+  gap: 8px;
+}
+
+.shared-terminal-form label {
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.shared-terminal-token-result {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+  color: var(--oh-shell-muted);
+  overflow-wrap: anywhere;
+}
+
+.shared-terminal-token-result code {
+  display: block;
+  padding: 12px;
+  border: 1px solid #d0d5dd;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #101828;
+  white-space: normal;
+  word-break: break-all;
+}
+
+.shared-terminal-results-card {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.shared-terminal-table-wrap {
+  overflow-x: auto;
+}
+
+.shared-terminal-table {
+  width: 100%;
+  min-width: 860px;
+  border-collapse: collapse;
+  background: #fff;
+}
+
+.shared-terminal-table th,
+.shared-terminal-table td {
+  padding: 13px 16px;
+  border-bottom: 1px solid #e9edf2;
+  text-align: left;
+  vertical-align: top;
+}
+
+.shared-terminal-table th {
+  background: #f8fafc;
+  color: #475467;
+  font-size: 12px;
+}
+
+.shared-terminal-table td {
+  font-size: 14px;
+}
+
+.shared-terminal-table tbody tr:hover {
+  background: #f8fafc;
+}
+
+.shared-terminal-row-actions {
+  width: 1%;
+  white-space: nowrap;
+}
+
 .access-control-heading {
   display: flex;
   align-items: flex-start;
@@ -4965,6 +5142,7 @@ input[data-reference-field="cycle_length_days"][readonly] {
   .reference-data-panel { width: min(480px, calc(100% - 40px)); }
   .access-control-role-grid { grid-template-columns: 1fr; }
   .module-configuration-card-grid { grid-template-columns: 1fr 1fr; }
+  .shared-terminal-status-grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 599px) {
@@ -4995,6 +5173,26 @@ input[data-reference-field="cycle_length_days"][readonly] {
   }
 
   .reference-toolbar-actions button { width: 100%; }
+
+  .shared-terminals-heading,
+  .shared-terminal-card-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .shared-terminals-heading > button,
+  .shared-terminal-actions button,
+  .shared-terminal-form-actions button {
+    width: 100%;
+  }
+
+  .shared-terminal-status-card {
+    padding: 14px;
+  }
+
+  .shared-terminal-status-list {
+    grid-template-columns: 1fr;
+  }
 
   .reference-data-panel {
     top: 0;

@@ -34,7 +34,9 @@ const compatibilityCapabilitiesByRole = {
   super_user: [
     "module_configuration.view",
     "module_configuration.manage",
-    "visitor.housekeeping.run"
+    "visitor.housekeeping.run",
+    "devices.view",
+    "devices.manage"
   ]
 };
 

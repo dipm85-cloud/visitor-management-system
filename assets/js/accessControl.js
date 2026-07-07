@@ -76,18 +76,26 @@ function requireAccessControlManageAccess() {
 
 function setAdministrationSection(sectionName) {
   const referenceSelected = sectionName === "reference";
+  const terminalsSelected = sectionName === "terminals";
   const accessSelected = sectionName === "access";
   $("referenceDataSection").classList.toggle("hidden", !referenceSelected);
+  if ($("sharedTerminalsSection")) $("sharedTerminalsSection").classList.toggle("hidden", !terminalsSelected);
   $("moduleConfigurationSection").classList.add("hidden");
   $("accessControlSection").classList.toggle("hidden", !accessSelected);
 
   $("administrationReferenceNav").classList.toggle("active", referenceSelected);
+  if ($("administrationSharedTerminalsNav")) $("administrationSharedTerminalsNav").classList.toggle("active", terminalsSelected);
   $("administrationModuleConfigurationNav").classList.remove("active");
   $("administrationAccessControlNav").classList.toggle("active", accessSelected);
+  if ($("administrationSharedTerminalsNav")) $("administrationSharedTerminalsNav").removeAttribute("aria-current");
   $("administrationModuleConfigurationNav").removeAttribute("aria-current");
 
   if (referenceSelected) {
     $("administrationReferenceNav").setAttribute("aria-current", "page");
+    $("administrationAccessControlNav").removeAttribute("aria-current");
+  } else if (terminalsSelected) {
+    $("administrationSharedTerminalsNav").setAttribute("aria-current", "page");
+    $("administrationReferenceNav").removeAttribute("aria-current");
     $("administrationAccessControlNav").removeAttribute("aria-current");
   } else if (accessSelected) {
     $("administrationAccessControlNav").setAttribute("aria-current", "page");
