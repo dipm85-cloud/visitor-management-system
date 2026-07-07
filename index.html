@@ -845,6 +845,7 @@
                 <span>Missing required</span>
                 <strong id="documentSignoffMissingRequiredCount">-</strong>
                 <p>Current visitors missing required agreement sign-offs where supported.</p>
+                <button id="documentSignoffComplianceDetailsButton" class="secondary" type="button">View Status Details</button>
               </article>
             </div>
 
@@ -864,6 +865,7 @@
                         <th scope="col">Requirement</th>
                         <th scope="col">Status</th>
                         <th scope="col">Order</th>
+                        <th scope="col">Details</th>
                       </tr>
                     </thead>
                     <tbody id="documentSignoffTypesBody"></tbody>
@@ -887,6 +889,7 @@
                         <th scope="col">Version</th>
                         <th scope="col">Status</th>
                         <th scope="col">Uploaded</th>
+                        <th scope="col">Details</th>
                       </tr>
                     </thead>
                     <tbody id="documentSignoffVersionsBody"></tbody>
@@ -912,6 +915,7 @@
                       <th scope="col">Version</th>
                       <th scope="col">Signed</th>
                       <th scope="col">Evidence</th>
+                      <th scope="col">Details</th>
                     </tr>
                   </thead>
                   <tbody id="documentSignoffEvidenceBody"></tbody>
@@ -1136,6 +1140,30 @@
               <div><dt>Modified by</dt><dd id="visitorsDetailsModifiedBy">—</dd></div>
               <div><dt>Automatic sign-out</dt><dd id="visitorsDetailsAutomaticSignOut">—</dd></div>
             </dl>
+          </aside>
+        </div>
+
+        <div id="documentSignoffDetailsPanelBackdrop" class="visitors-panel-backdrop hidden" data-oh-side-panel-backdrop>
+          <aside id="documentSignoffDetailsPanel" class="visitors-side-panel document-signoff-details-panel" aria-labelledby="documentSignoffDetailsTitle" aria-modal="true" role="dialog" data-oh-side-panel>
+            <header class="visitors-side-panel-header" data-oh-side-panel-header>
+              <div>
+                <p id="documentSignoffDetailsEyebrow" class="oh-app-eyebrow">Document Sign-off</p>
+                <h2 id="documentSignoffDetailsTitle" data-oh-side-panel-title>Sign-off Details</h2>
+              </div>
+              <button id="documentSignoffDetailsClose" class="ghost" type="button" aria-label="Close document sign-off details panel" data-oh-side-panel-close>Close</button>
+            </header>
+            <div class="oh-side-panel-body document-signoff-details-body">
+              <div id="documentSignoffDetailsStatus" class="document-signoff-detail-badges" aria-label="Document sign-off statuses"></div>
+              <p id="documentSignoffDetailsSummary" class="document-signoff-detail-summary"></p>
+              <dl id="documentSignoffDetailsList" class="visitors-details-list document-signoff-details-list"></dl>
+              <section id="documentSignoffDetailsLegacySection" class="document-signoff-detail-legacy" aria-labelledby="documentSignoffDetailsLegacyTitle">
+                <div>
+                  <h3 id="documentSignoffDetailsLegacyTitle">Legacy Workflow</h3>
+                  <p>This workflow is still managed in Legacy VMS.</p>
+                </div>
+                <div id="documentSignoffDetailsLegacyActions" class="document-signoff-legacy-actions"></div>
+              </section>
+            </div>
           </aside>
         </div>
       </section>

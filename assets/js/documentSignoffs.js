@@ -3,12 +3,20 @@ import { hasAnyCapability, hasCapability } from "./capabilities.js";
 import { $ } from "./dom.js";
 import { showToast } from "./messages.js";
 import { AppState } from "./state.js";
+import { settingValue } from "./settings.js";
 import { todayDate } from "./utils.js";
-import { renderEmptyState } from "./platformUi.js";
+import { createSidePanelController, renderEmptyState } from "./platformUi.js";
 
 let documentSignoffDependencies = {};
 let documentSignoffInitialised = false;
 let documentSignoffLoadSequence = 0;
+let documentSignoffDetailsPanelController = null;
+let documentSignoffOverviewState = {
+  types: [],
+  versions: [],
+  summary: {},
+  recentEvidence: []
+};
 
 function isActiveStaffUser() {
   return AppState.currentProfile &&
@@ -72,8 +80,19 @@ function textOrDash(value) {
   return text || "-";
 }
 
+function hasValue(value) {
+  const text = String(value == null ? "" : value).trim();
+  return text !== "" && text !== "-";
+}
+
 function formatDateTime(value) {
   return value ? new Date(value).toLocaleString() : "-";
+}
+
+function yesNo(value) {
+  if (value === true) return "Yes";
+  if (value === false) return "No";
+  return "-";
 }
 
 function dateDaysAgo(days) {
@@ -126,6 +145,152 @@ function appendBadgeCell(row, label, className) {
   row.appendChild(cell);
 }
 
+function appendDetailsCell(row, label, onClick) {
+  const cell = document.createElement("td");
+  cell.className = "document-signoff-row-actions";
+  const button = document.createElement("button");
+  button.className = "secondary";
+  button.type = "button";
+  button.textContent = label || "View Details";
+  button.addEventListener("click", event => {
+    event.stopPropagation();
+    onClick(button);
+  });
+  cell.appendChild(button);
+  row.appendChild(cell);
+}
+
+function createBadge(label, className) {
+  const badge = document.createElement("span");
+  badge.className = "visitors-planned-status " + (className || "");
+  badge.textContent = label;
+  return badge;
+}
+
+function activeBadge(isActive) {
+  return {
+    label: isActive === false ? "Inactive" : "Active",
+    className: isActive === false ? "status-inactive" : "status-in"
+  };
+}
+
+function requirementBadge(required) {
+  return {
+    label: required ? "Required" : "Optional",
+    className: required ? "status-overdue" : ""
+  };
+}
+
+function signedBadge(record) {
+  return {
+    label: record && record.signed_at ? "Signed" : "Not signed",
+    className: record && record.signed_at ? "status-in" : "status-no-show"
+  };
+}
+
+function validityRuleText() {
+  const mode = String(settingValue("agreement_validity_mode", "version") || "version");
+  const days = Number(settingValue("agreement_validity_days", 365) || 365);
+  if (mode === "days") return "Valid for " + days + " day(s) after signing";
+  if (mode === "either") return "Valid for current version or " + days + " day(s), whichever expires first";
+  if (mode === "never") return "No automatic expiry configured";
+  return "Valid while the signed document version remains current";
+}
+
+function activeVersionForType(type) {
+  if (!type) return null;
+  const typeId = type.id || type.agreement_type_id;
+  return documentSignoffOverviewState.versions.find(version =>
+    version.is_active === true &&
+    (
+      version.agreement_type_id === typeId ||
+      version.agreement_name === type.agreement_name
+    )
+  ) || null;
+}
+
+function versionCountForType(type) {
+  if (!type) return 0;
+  const typeId = type.id || type.agreement_type_id;
+  return documentSignoffOverviewState.versions.filter(version =>
+    version.agreement_type_id === typeId ||
+    version.agreement_name === type.agreement_name
+  ).length;
+}
+
+function clearDetailPanel() {
+  setText("documentSignoffDetailsEyebrow", "Document Sign-off");
+  setText("documentSignoffDetailsTitle", "Sign-off Details");
+  setText("documentSignoffDetailsSummary", "");
+  const status = $("documentSignoffDetailsStatus");
+  if (status) status.replaceChildren();
+  const list = $("documentSignoffDetailsList");
+  if (list) list.replaceChildren();
+  const actions = $("documentSignoffDetailsLegacyActions");
+  if (actions) actions.replaceChildren();
+  setVisible("documentSignoffDetailsLegacySection", false);
+}
+
+function renderDetailFields(fields) {
+  const list = $("documentSignoffDetailsList");
+  if (!list) return;
+  list.replaceChildren();
+  fields
+    .filter(field => field && (field.always || hasValue(field.value)))
+    .forEach(field => {
+      const wrapper = document.createElement("div");
+      const dt = document.createElement("dt");
+      const dd = document.createElement("dd");
+      dt.textContent = field.label;
+      dd.textContent = textOrDash(field.value);
+      wrapper.append(dt, dd);
+      list.appendChild(wrapper);
+    });
+}
+
+function createLegacyActionButton(action) {
+  const button = document.createElement("button");
+  button.className = "secondary";
+  button.type = "button";
+  button.textContent = action.label;
+  button.addEventListener("click", () => {
+    guardedLegacyOpen(action.target, action.allowed, action.deniedMessage);
+  });
+  return button;
+}
+
+function renderDetailPanel(details, trigger) {
+  if (!documentSignoffDetailsPanelController) return;
+  const settings = details || {};
+  clearDetailPanel();
+  setText("documentSignoffDetailsEyebrow", settings.eyebrow || "Document Sign-off");
+  setText("documentSignoffDetailsTitle", settings.title || "Sign-off Details");
+  setText("documentSignoffDetailsSummary", settings.summary || "");
+
+  const status = $("documentSignoffDetailsStatus");
+  if (status) {
+    (settings.badges || []).forEach(badge => {
+      status.appendChild(createBadge(badge.label, badge.className));
+    });
+  }
+  renderDetailFields(settings.fields || []);
+
+  const actions = $("documentSignoffDetailsLegacyActions");
+  const availableActions = (settings.legacyActions || []).filter(action => action.allowed());
+  if (actions) {
+    actions.replaceChildren();
+    availableActions.forEach(action => actions.appendChild(createLegacyActionButton(action)));
+  }
+  setVisible("documentSignoffDetailsLegacySection", availableActions.length > 0);
+
+  documentSignoffDetailsPanelController.open({
+    trigger,
+    title: settings.title || "Sign-off Details",
+    mode: "read-only",
+    type: settings.type || "document-signoff-details"
+  });
+}
+
 function normaliseRows(result) {
   if (!result || result.status !== "fulfilled" || result.value.error) return [];
   return Array.isArray(result.value.data) ? result.value.data : [];
@@ -138,6 +303,175 @@ function errorMessage(result) {
     : String(result.reason || "Request failed");
   if (result.value && result.value.error) return result.value.error.message || "Request failed";
   return "";
+}
+
+function openDocumentTypeDetails(type, trigger) {
+  const activeVersion = activeVersionForType(type);
+  renderDetailPanel({
+    type: "document-type",
+    eyebrow: "Document Type",
+    title: textOrDash(type.agreement_name || type.agreement_title),
+    summary: textOrDash(type.description || type.agreement_title || "Existing agreement type metadata."),
+    badges: [
+      requirementBadge(type.default_required === true),
+      activeBadge(type.is_active)
+    ],
+    fields: [
+      { label: "Name", value: type.agreement_name, always: true },
+      { label: "Title", value: type.agreement_title },
+      { label: "Required by default", value: yesNo(type.default_required), always: true },
+      { label: "Active", value: yesNo(type.is_active !== false), always: true },
+      { label: "Description", value: type.description },
+      { label: "Validity / expiry", value: validityRuleText(), always: true },
+      { label: "Active version", value: activeVersion ? activeVersion.version_number : "" },
+      { label: "Known versions", value: versionCountForType(type), always: true },
+      { label: "Display order", value: type.display_order },
+      { label: "Document type ID", value: type.id || type.agreement_type_id },
+      { label: "Created", value: formatDateTime(type.created_at) },
+      { label: "Updated", value: formatDateTime(type.updated_at) }
+    ],
+    legacyActions: [
+      {
+        label: "Manage in Legacy",
+        target: "document-signoffs-management",
+        allowed: canOpenLegacyManagement,
+        deniedMessage: "Agreement management requires settings or module configuration access."
+      },
+      {
+        label: "Open Legacy Compliance Matrix",
+        target: "document-signoffs-compliance",
+        allowed: canOpenLegacyCompliance,
+        deniedMessage: "Agreement compliance requires visitor history or reporting access."
+      }
+    ]
+  }, trigger);
+}
+
+function openDocumentVersionDetails(version, trigger) {
+  renderDetailPanel({
+    type: "document-version",
+    eyebrow: "Document Version",
+    title: textOrDash(version.agreement_title || version.agreement_name),
+    summary: "Read-only version metadata from the existing agreement document store.",
+    badges: [
+      activeBadge(version.is_active),
+      ...(version.is_active === true ? [{ label: "Valid", className: "status-in" }] : [])
+    ],
+    fields: [
+      { label: "Document", value: version.agreement_name, always: true },
+      { label: "Title", value: version.agreement_title },
+      { label: "Version", value: version.version_number, always: true },
+      { label: "Active", value: yesNo(version.is_active), always: true },
+      { label: "Validity / expiry", value: validityRuleText(), always: true },
+      { label: "File name", value: version.file_name },
+      { label: "Document URL", value: version.pdf_url },
+      { label: "Effective / uploaded", value: formatDateTime(version.uploaded_at) },
+      { label: "Notes", value: version.notes },
+      { label: "Version ID", value: version.id || version.agreement_version_id },
+      { label: "Document type ID", value: version.agreement_type_id },
+      { label: "Created", value: formatDateTime(version.created_at) },
+      { label: "Updated", value: formatDateTime(version.updated_at) }
+    ],
+    legacyActions: [
+      {
+        label: "Manage in Legacy",
+        target: "document-signoffs-management",
+        allowed: canOpenLegacyManagement,
+        deniedMessage: "Agreement management requires settings or module configuration access."
+      },
+      {
+        label: "Open Legacy Visitor Sign-off",
+        target: "document-signoffs-signoff",
+        allowed: canOpenLegacySignoff,
+        deniedMessage: "Visitor agreement sign-off requires visitor sign-in or history access."
+      }
+    ]
+  }, trigger);
+}
+
+function openEvidenceDetails(record, trigger) {
+  renderDetailPanel({
+    type: "sign-off-evidence",
+    eyebrow: "Signature Evidence",
+    title: textOrDash(record.visitor_name || "Evidence record"),
+    summary: "Read-only evidence metadata. Signature images and raw evidence payloads are not shown here.",
+    badges: [
+      signedBadge(record),
+      { label: evidenceType(record), className: "status-in" }
+    ],
+    fields: [
+      { label: "Visitor / subject as stored", value: record.visitor_name, always: true },
+      { label: "Company as stored", value: record.company },
+      { label: "Document", value: record.agreement_name, always: true },
+      { label: "Title", value: record.agreement_title },
+      { label: "Version", value: record.agreement_version_number },
+      { label: "Signed date/time", value: formatDateTime(record.signed_at), always: true },
+      { label: "Signature method", value: evidenceType(record), always: true },
+      { label: "Recorded by / witness", value: record.signed_by_name },
+      { label: "Inductor", value: record.inductor_name },
+      { label: "Linked visit", value: record.visit_log_id || record.visitor_log_id },
+      { label: "Evidence ID", value: record.id || record.agreement_signature_id },
+      { label: "Document type ID", value: record.agreement_type_id },
+      { label: "Document version ID", value: record.agreement_version_id },
+      { label: "Created", value: formatDateTime(record.created_at) },
+      { label: "Updated", value: formatDateTime(record.updated_at) }
+    ],
+    legacyActions: [
+      {
+        label: "Open Legacy Evidence Tools",
+        target: "document-signoffs-evidence",
+        allowed: canOpenLegacyEvidence,
+        deniedMessage: "Agreement evidence requires audit or visitor history access."
+      },
+      {
+        label: "Open Legacy Compliance Matrix",
+        target: "document-signoffs-compliance",
+        allowed: canOpenLegacyCompliance,
+        deniedMessage: "Agreement compliance requires visitor history or reporting access."
+      }
+    ]
+  }, trigger);
+}
+
+function openComplianceStatusDetails(trigger) {
+  const summary = documentSignoffOverviewState.summary || {};
+  const hasMissingRequired = hasValue(summary.visitors_missing_required);
+  const missingRequired = Number(summary.visitors_missing_required || 0);
+  renderDetailPanel({
+    type: "compliance-status",
+    eyebrow: "Compliance Status",
+    title: "Visitor Agreement Status",
+    summary: "Read-only status from the existing agreement compliance summary where available.",
+    badges: hasMissingRequired ? [
+      {
+        label: missingRequired > 0 ? "Missing" : "Valid",
+        className: missingRequired > 0 ? "status-no-show" : "status-in"
+      }
+    ] : [],
+    fields: [
+      { label: "Current visitors missing required sign-offs", value: summary.visitors_missing_required, always: true },
+      { label: "Current visitors fully compliant", value: summary.visitors_fully_compliant },
+      { label: "Current visitors signed in", value: summary.current_visitors },
+      { label: "Active document types", value: summary.active_agreement_types ?? documentSignoffOverviewState.types.filter(type => type.is_active !== false).length, always: true },
+      { label: "Active document versions", value: summary.active_agreement_versions ?? documentSignoffOverviewState.versions.filter(version => version.is_active === true).length, always: true },
+      { label: "Recent evidence records loaded", value: documentSignoffOverviewState.recentEvidence.length, always: true },
+      { label: "Validity / expiry", value: validityRuleText(), always: true }
+    ],
+    legacyActions: [
+      {
+        label: "Open Legacy Compliance Matrix",
+        target: "document-signoffs-compliance",
+        allowed: canOpenLegacyCompliance,
+        deniedMessage: "Agreement compliance requires visitor history or reporting access."
+      },
+      {
+        label: "Open Legacy Evidence Tools",
+        target: "document-signoffs-evidence",
+        allowed: canOpenLegacyEvidence,
+        deniedMessage: "Agreement evidence requires audit or visitor history access."
+      }
+    ]
+  }, trigger);
 }
 
 function renderTypes(types) {
@@ -158,6 +492,7 @@ function renderTypes(types) {
       type.is_active === false ? "status-inactive" : "status-in"
     );
     appendTextCell(row, type.display_order);
+    appendDetailsCell(row, "View Details", trigger => openDocumentTypeDetails(type, trigger));
     body.appendChild(row);
   });
   setVisible("documentSignoffTypesEmpty", types.length === 0);
@@ -183,6 +518,7 @@ function renderVersions(versions) {
       version.is_active ? "status-in" : "status-inactive"
     );
     appendTextCell(row, formatDateTime(version.uploaded_at), version.notes || "");
+    appendDetailsCell(row, "View Details", trigger => openDocumentVersionDetails(version, trigger));
     body.appendChild(row);
   });
   setVisible("documentSignoffVersionsEmpty", versions.length === 0);
@@ -211,6 +547,7 @@ function renderEvidence(rows) {
     appendTextCell(row, record.agreement_version_number);
     appendTextCell(row, formatDateTime(record.signed_at), record.signed_by_name || "");
     appendTextCell(row, evidenceType(record), record.inductor_name ? "Inductor: " + record.inductor_name : "");
+    appendDetailsCell(row, "View Details", trigger => openEvidenceDetails(record, trigger));
     body.appendChild(row);
   });
   setVisible("documentSignoffEvidenceEmpty", rows.length === 0);
@@ -228,6 +565,13 @@ function renderOverview(results, manual) {
   const summaryRows = normaliseRows(results.summary);
   const recentEvidence = normaliseRows(results.recentEvidence);
   const summary = summaryRows[0] || {};
+
+  documentSignoffOverviewState = {
+    types,
+    versions,
+    summary,
+    recentEvidence
+  };
 
   const activeTypes = types.filter(type => type.is_active !== false);
   const requiredTypes = activeTypes.filter(type => type.default_required === true);
@@ -345,14 +689,33 @@ export function configureDocumentSignoffs(dependencies) {
   documentSignoffDependencies = dependencies || {};
 }
 
+function initialiseDocumentSignoffDetailsPanel() {
+  if (documentSignoffDetailsPanelController || !$("documentSignoffDetailsPanel")) return;
+  documentSignoffDetailsPanelController = createSidePanelController({
+    backdrop: "documentSignoffDetailsPanelBackdrop",
+    panel: "documentSignoffDetailsPanel",
+    title: "documentSignoffDetailsTitle",
+    initialFocus: "documentSignoffDetailsClose",
+    closeTriggers: ["documentSignoffDetailsClose"],
+    reset: clearDetailPanel
+  });
+  clearDetailPanel();
+}
+
 export function initialiseDocumentSignoffs(dependencies) {
   if (dependencies) configureDocumentSignoffs(dependencies);
   if (documentSignoffInitialised) return;
   documentSignoffInitialised = true;
+  initialiseDocumentSignoffDetailsPanel();
 
   if ($("documentSignoffRefreshButton")) {
     $("documentSignoffRefreshButton").addEventListener("click", () => {
       loadDocumentSignoffOverview({ manual: true });
+    });
+  }
+  if ($("documentSignoffComplianceDetailsButton")) {
+    $("documentSignoffComplianceDetailsButton").addEventListener("click", event => {
+      openComplianceStatusDetails(event.currentTarget);
     });
   }
   if ($("documentSignoffLegacyManagementButton")) {

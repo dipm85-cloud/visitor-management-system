@@ -1670,6 +1670,12 @@ body.kiosk-mode .results-scroll {
   line-height: 1.4;
 }
 
+.document-signoff-summary-card button {
+  width: 100%;
+  margin-top: auto;
+  min-height: 40px;
+}
+
 .document-signoff-readonly-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1742,6 +1748,15 @@ body.kiosk-mode .results-scroll {
   border-bottom: 0;
 }
 
+.document-signoff-row-actions {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.document-signoff-row-actions button {
+  min-height: 36px;
+}
+
 .document-signoff-legacy-card {
   display: flex;
   align-items: center;
@@ -1756,6 +1771,51 @@ body.kiosk-mode .results-scroll {
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 10px;
+}
+
+.document-signoff-details-panel {
+  width: min(580px, 100%);
+}
+
+.document-signoff-details-body {
+  display: grid;
+  gap: 16px;
+  padding-top: 18px;
+}
+
+.document-signoff-detail-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.document-signoff-detail-summary {
+  margin: 0;
+  color: var(--oh-shell-muted);
+  line-height: 1.5;
+}
+
+.document-signoff-details-list {
+  padding: 0;
+}
+
+.document-signoff-detail-legacy {
+  display: grid;
+  gap: 14px;
+  margin: 4px 0 28px;
+  padding: 16px;
+  border: 1px dashed var(--oh-shell-border);
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.document-signoff-detail-legacy h3 {
+  margin: 0;
+}
+
+.document-signoff-detail-legacy p {
+  margin: 5px 0 0;
+  color: var(--oh-shell-muted);
 }
 
 .visitors-operational-documents {
