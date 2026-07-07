@@ -503,6 +503,7 @@ window.addEventListener("load", async function () {
         syncAccessControlVisibility();
         syncModuleConfigurationVisibility();
         syncVisitorCapabilityVisibility();
+        syncVisitorHousekeepingControls();
         syncVisitorsWorkspaceCapabilities();
       },
       shouldShowPeopleNavigation,
@@ -2513,6 +2514,7 @@ window.addEventListener("load", async function () {
       $("superPanel").classList.toggle("active", role === "super");
       if ($("kioskTestPanel")) $("kioskTestPanel").classList.toggle("active", role === "kiosk");
       syncVisitorCapabilityVisibility();
+      syncVisitorHousekeepingControls();
 
       if (role === "security") {
         runOpportunisticAutoSignOutCheck();
@@ -2817,6 +2819,108 @@ window.addEventListener("load", async function () {
       setLocalStatus("plannedLifecycleStatus", "Saving planned lifecycle settings...", "info");
       await saveSettingsGroup("plannedLifecycle", "Planned Lifecycle");
       setLocalStatus("plannedLifecycleStatus", "Planned lifecycle settings saved.", "success");
+    }
+
+    function canRunVisitorHousekeeping() {
+      return hasAnyCapability([
+        "visitor.housekeeping.run",
+        "module_configuration.manage",
+        "settings.edit"
+      ]);
+    }
+
+    function syncVisitorHousekeepingControls() {
+      const controls = $("visitorHousekeepingControls");
+      const button = $("runVisitorHousekeepingButton");
+      if (!controls || !button) return;
+      const available = canRunVisitorHousekeeping();
+      controls.classList.toggle("hidden", !available);
+      controls.setAttribute("aria-hidden", String(!available));
+      button.disabled = !available;
+    }
+
+    function housekeepingMarkedCount(data) {
+      if (data == null) return 0;
+      const row = Array.isArray(data) ? data[0] : data;
+      if (typeof row === "number") return row;
+      if (!row || typeof row !== "object") return 0;
+      const keys = [
+        "marked_no_show_count",
+        "no_show_count",
+        "visits_marked_no_show",
+        "planned_visits_marked_no_show",
+        "updated_count",
+        "count"
+      ];
+      for (const key of keys) {
+        if (row[key] != null && !Number.isNaN(Number(row[key]))) {
+          return Number(row[key]);
+        }
+      }
+      return 0;
+    }
+
+    function housekeepingPermissionAllowed(data) {
+      if (data === true || data === "true") return true;
+      const row = Array.isArray(data) ? data[0] : data;
+      if (!row || typeof row !== "object") return false;
+      return Object.values(row).some(value => value === true || value === "true");
+    }
+
+    async function refreshVisitorHousekeepingData() {
+      await refreshCoreData();
+      window.dispatchEvent(new CustomEvent("oh:visitor-data-changed"));
+    }
+
+    async function runVisitorHousekeepingNow() {
+      if (!canRunVisitorHousekeeping()) {
+        showToast(
+          "You do not have permission",
+          "Visitor housekeeping requires visitor.housekeeping.run, module_configuration.manage or settings.edit.",
+          "error"
+        );
+        return;
+      }
+
+      const button = $("runVisitorHousekeepingButton");
+      if (button) {
+        button.disabled = true;
+        button.textContent = "Running...";
+      }
+      setLocalStatus("visitorHousekeepingStatus", "Running visitor housekeeping...", "info");
+
+      try {
+        const permissionResult = await supabaseClient.rpc("can_run_visitor_housekeeping");
+        if (permissionResult.error) throw permissionResult.error;
+        if (!housekeepingPermissionAllowed(permissionResult.data)) {
+          throw new Error("The backend rejected visitor housekeeping for this user.");
+        }
+        const result = await supabaseClient.rpc("run_visitor_housekeeping");
+        if (result.error) throw result.error;
+        const markedCount = housekeepingMarkedCount(result.data);
+        const message = markedCount + " planned visit" + (markedCount === 1 ? " was" : "s were") + " marked No-show.";
+        setLocalStatus("visitorHousekeepingStatus", message, "success");
+        showToast("Visitor housekeeping complete", message, "success");
+        await writeAuditEvent("visitor_housekeeping_run", "planned_visits", null, {
+          action: "mark_no_show",
+          marked_no_show_count: markedCount,
+          result: result.data || null,
+          summary: message
+        });
+        await refreshVisitorHousekeepingData();
+      } catch (err) {
+        const message = err && err.message
+          ? err.message
+          : "Visitor housekeeping could not be run.";
+        setLocalStatus("visitorHousekeepingStatus", "Could not run visitor housekeeping: " + message, "error");
+        showToast("Visitor housekeeping failed", message, "error");
+        console.error("[OH-035 visitor housekeeping failed]", err);
+      } finally {
+        if (button) {
+          button.disabled = !canRunVisitorHousekeeping();
+          button.textContent = "Run Visitor Housekeeping Now";
+        }
+      }
     }
 
     async function previewPlannedLifecycleCleanup() {
@@ -4827,6 +4931,7 @@ window.addEventListener("load", async function () {
     initialiseModuleConfigurationFramework();
     initialiseAccessControl();
     window.addEventListener("oh:capabilities-changed", syncVisitorCapabilityVisibility);
+    window.addEventListener("oh:capabilities-changed", syncVisitorHousekeepingControls);
     window.addEventListener("oh:legacy-vms-opened", openStaffAreaFromProfile);
     window.addEventListener("oh:report-shortcut-requested", event => {
       openExistingReportShortcut(event.detail && event.detail.shortcut);
@@ -4861,7 +4966,8 @@ window.addEventListener("load", async function () {
       $("ohAdministrationNav").addEventListener("click", () => {
         if (hasAnyCapability([
           "module_configuration.view",
-          "module_configuration.manage"
+          "module_configuration.manage",
+          "visitor.housekeeping.run"
         ])) {
           openModuleConfigurationAdministration();
           return;
@@ -5151,6 +5257,7 @@ window.addEventListener("load", async function () {
     if ($("savePlannedLifecycleButton")) $("savePlannedLifecycleButton").addEventListener("click", savePlannedLifecycleSettings);
     if ($("previewPlannedLifecycleCleanupButton")) $("previewPlannedLifecycleCleanupButton").addEventListener("click", previewPlannedLifecycleCleanup);
     if ($("runPlannedLifecycleCleanupButton")) $("runPlannedLifecycleCleanupButton").addEventListener("click", runPlannedLifecycleCleanup);
+    if ($("runVisitorHousekeepingButton")) $("runVisitorHousekeepingButton").addEventListener("click", runVisitorHousekeepingNow);
     if ($("runDailyMaintenanceNowButton")) $("runDailyMaintenanceNowButton").addEventListener("click", async () => {
       await runDailyMaintenance("manual_dashboard_button");
       showMessage("Daily maintenance completed.", "success");

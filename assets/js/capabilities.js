@@ -33,7 +33,8 @@ const compatibilityCapabilitiesByRole = {
   // Profile-level deny overrides are applied after these defaults.
   super_user: [
     "module_configuration.view",
-    "module_configuration.manage"
+    "module_configuration.manage",
+    "visitor.housekeeping.run"
   ]
 };
 

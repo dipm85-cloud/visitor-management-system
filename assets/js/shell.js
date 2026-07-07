@@ -155,6 +155,7 @@ export function shouldShowAdministrationNavigation() {
     "settings.edit",
     "module_configuration.view",
     "module_configuration.manage",
+    "visitor.housekeeping.run",
     "access_control.view",
     "access_control.manage"
   ]);

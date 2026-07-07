@@ -6,13 +6,18 @@ const MODULE_CONFIGURATION_VIEW = [
   "module_configuration.manage"
 ];
 
+const VISITOR_CONFIGURATION_VIEW = [
+  ...MODULE_CONFIGURATION_VIEW,
+  "visitor.housekeeping.run"
+];
+
 export function registerInitialModuleConfigurations() {
   registerModuleConfiguration({
     id: "visitors",
     name: "Visitors",
     icon: "V",
     description: "Visitor behaviour, walk-ins, messages, operational rules and housekeeping.",
-    viewCapabilities: MODULE_CONFIGURATION_VIEW,
+    viewCapabilities: VISITOR_CONFIGURATION_VIEW,
     manageCapabilities: [
       "module_configuration.manage",
       "settings.edit"
@@ -41,6 +46,7 @@ export function registerInitialModuleConfigurations() {
         description: "Retention settings, previews and controlled manual housekeeping.",
         sourceAnchors: [
           "settingRetentionPlannedDays",
+          "visitorHousekeepingControls",
           "previewRetentionButton"
         ]
       },

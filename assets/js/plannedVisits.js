@@ -21,6 +21,7 @@ export function plannedVisitDisplayStatus(visit) {
     .replace(/[\s-]+/g, "_");
 
   if (visit.sign_out_time || rawStatus === "signed_out") return "signed_out";
+  if (["no_show", "noshow"].includes(rawStatus)) return "no_show";
   if (["cancelled", "canceled"].includes(rawStatus)) return "cancelled";
   if (["completed", "complete"].includes(rawStatus)) return "completed";
   if (["closed", "close"].includes(rawStatus)) return "closed";
@@ -36,6 +37,7 @@ export function plannedVisitStatusLabel(visit) {
   const status = plannedVisitDisplayStatus(visit);
   if (status === "signed_in") return "Signed in";
   if (status === "signed_out") return "Signed out";
+  if (status === "no_show") return "No-show";
   if (status === "cancelled") return "Cancelled";
   if (status === "completed") return "Completed";
   if (status === "closed") return "Closed";

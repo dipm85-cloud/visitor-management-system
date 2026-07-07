@@ -611,12 +611,14 @@ function historyRecordStatus(record) {
 function historyStatusLabel(status) {
   if (status === "overdue") return "Overdue";
   if (status === "planned") return "Planned";
+  if (status === "no_show") return "No-show";
   return plannedStatusLabel(status);
 }
 
 function historyStatusClass(status) {
   if (status === "overdue") return "status-overdue";
   if (status === "signed_in") return "status-in";
+  if (status === "no_show") return "status-no-show";
   if (status === "signed_out") return "status-inactive";
   if (["cancelled", "closed", "completed", "inactive"].includes(status)) return "status-inactive";
   return "";
@@ -912,6 +914,10 @@ const nativeReportDefinitions = {
     label: "Signed-out visitors",
     countId: "visitorsReportSignedOutCount"
   },
+  no_show: {
+    label: "No-show visits",
+    countId: "visitorsReportNoShowCount"
+  },
   walk_ins: {
     label: "Walk-ins",
     countId: "visitorsReportWalkInsCount"
@@ -924,6 +930,7 @@ function nativeReportTypeMatches(record, reportType) {
   if (reportType === "overdue") return status === "overdue";
   if (reportType === "planned") return status === "planned";
   if (reportType === "signed_out") return status === "signed_out";
+  if (reportType === "no_show") return status === "no_show";
   if (reportType === "walk_ins") return visitorOrigin(record) === "walk_in";
   return true;
 }
@@ -2255,6 +2262,7 @@ export function initialiseVisitorsWorkspace() {
   }
 
   window.addEventListener("oh:visitors-opened", loadVisitorsWorkspace);
+  window.addEventListener("oh:visitor-data-changed", loadVisitorsWorkspace);
   window.addEventListener("oh:visitor-history-requested", openNativeHistory);
   window.addEventListener("oh:visitor-reporting-requested", openNativeReporting);
   window.addEventListener("oh:capabilities-changed", syncVisitorsWorkspaceCapabilities);

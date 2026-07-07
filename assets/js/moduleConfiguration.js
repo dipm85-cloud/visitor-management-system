@@ -15,7 +15,8 @@ let registrationsFinalised = false;
 function hasModuleConfigurationAccess() {
   return hasAnyCapability([
     "module_configuration.view",
-    "module_configuration.manage"
+    "module_configuration.manage",
+    "visitor.housekeeping.run"
   ]);
 }
 
@@ -148,6 +149,7 @@ function applyModuleEditability(moduleDefinition) {
   workspace.querySelectorAll(
     "input, select, textarea, .settings-actions button, .button-row button"
   ).forEach(control => {
+    if (control.matches("[data-module-configuration-preserve-enabled]")) return;
     control.disabled = !editable;
   });
 }

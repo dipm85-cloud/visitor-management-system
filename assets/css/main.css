@@ -1824,6 +1824,11 @@ body.kiosk-mode .results-scroll {
   background: #fffaeb;
 }
 
+.visitors-planned-status.status-no-show {
+  color: #854a0e;
+  background: #fff4df;
+}
+
 .visitors-panel-backdrop {
   position: fixed;
   z-index: 1200;
@@ -1911,6 +1916,38 @@ body.kiosk-mode .results-scroll {
   overflow-wrap: anywhere;
 }
 
+.visitor-housekeeping-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: start;
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid var(--oh-shell-border);
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.visitor-housekeeping-panel h4 {
+  margin: 10px 0 6px;
+  font-size: 17px;
+}
+
+.visitor-housekeeping-panel p {
+  margin: 0;
+  color: var(--oh-shell-muted);
+  line-height: 1.45;
+}
+
+.visitor-housekeeping-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.visitor-housekeeping-actions button {
+  min-width: 220px;
+}
+
 #visitorsWorkspace {
   --oh-side-panel-width: 520px;
 }
@@ -1932,6 +1969,15 @@ body.kiosk-mode .results-scroll {
 }
 
 @media (max-width: 620px) {
+  .visitor-housekeeping-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .visitor-housekeeping-actions,
+  .visitor-housekeeping-actions button {
+    width: 100%;
+  }
+
   .visitors-section-heading {
     align-items: stretch;
     flex-direction: column;
@@ -4449,14 +4495,14 @@ button.oh-section-nav-item:focus-visible,
   margin-top: 12px;
 }
 
-.module-configuration-read-only button,
+.module-configuration-read-only button:not([data-module-configuration-preserve-enabled]),
 .module-configuration-read-only input,
 .module-configuration-read-only select,
 .module-configuration-read-only textarea {
   pointer-events: none;
 }
 
-.module-configuration-read-only button {
+.module-configuration-read-only button:not([data-module-configuration-preserve-enabled]) {
   opacity: .55;
 }
 

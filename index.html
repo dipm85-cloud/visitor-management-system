@@ -653,6 +653,7 @@
                     <option value="signed_in">Signed in</option>
                     <option value="signed_out">Signed out</option>
                     <option value="overdue">Overdue</option>
+                    <option value="no_show">No-show</option>
                     <option value="closed">Cancelled / closed</option>
                   </select>
                 </label>
@@ -720,6 +721,7 @@
                     <option value="signed_in">Signed in</option>
                     <option value="signed_out">Signed out</option>
                     <option value="overdue">Overdue</option>
+                    <option value="no_show">No-show</option>
                     <option value="closed">Cancelled / closed</option>
                   </select>
                 </label>
@@ -768,6 +770,12 @@
                 <strong id="visitorsReportSignedOutCount">0</strong>
                 <p>Completed visitor activity with a sign-out time.</p>
                 <button class="secondary" type="button" data-native-report-select="signed_out">Use Report</button>
+              </article>
+              <article class="visitors-report-card" data-native-report="no_show">
+                <span>No-show visits</span>
+                <strong id="visitorsReportNoShowCount">0</strong>
+                <p>Planned visits where the visit date passed without sign-in.</p>
+                <button class="secondary" type="button" data-native-report-select="no_show">Use Report</button>
               </article>
               <article class="visitors-report-card" data-native-report="walk_ins">
                 <span>Walk-ins</span>
@@ -2325,6 +2333,18 @@
           </div>
           <div id="plannedLifecycleStatus" class="local-action-status"></div>
           <div id="plannedLifecycleResults" class="health-grid" style="margin-top:14px;"></div>
+
+          <div id="visitorHousekeepingControls" class="visitor-housekeeping-panel hidden">
+            <div>
+              <span class="report-status available">Native housekeeping</span>
+              <h4>Visitor Housekeeping</h4>
+              <p>Mark previous-day planned visits as No-show when the visitor never signed in. Cancelled visits remain distinct.</p>
+            </div>
+            <div class="visitor-housekeeping-actions">
+              <button id="runVisitorHousekeepingButton" class="secondary" type="button" data-module-configuration-preserve-enabled>Run Visitor Housekeeping Now</button>
+            </div>
+            <div id="visitorHousekeepingStatus" class="local-action-status" aria-live="polite"></div>
+          </div>
         </div>
 
         <div class="settings-section">
