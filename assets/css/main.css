@@ -1761,19 +1761,19 @@ body.kiosk-mode .results-scroll {
 }
 
 .document-signoff-focus-backdrop {
-  position: fixed;
-  z-index: 1300;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
+  position: fixed !important;
+  z-index: 20000;
+  inset: 0;
   display: grid;
   place-items: center;
   padding: 16px;
+  isolation: isolate;
   background: rgba(15, 23, 42, .58);
 }
 
 .document-signoff-focus-workspace {
+  position: relative;
+  z-index: 1;
   width: min(1440px, 100%);
   height: min(980px, calc(100dvh - 32px));
   min-height: 0;
@@ -2009,9 +2009,15 @@ body.kiosk-mode .results-scroll {
   justify-content: flex-end;
   gap: 10px;
   flex: 0 0 auto;
+  min-height: 72px;
   padding: 14px 24px 16px;
   border-top: 1px solid var(--oh-shell-border);
   background: var(--oh-shell-surface);
+}
+
+.document-signoff-focus-workspace.is-selection-step #documentSignoffNativeStartButton,
+.document-signoff-focus-workspace.is-signing-step #documentSignoffNativeSaveButton {
+  min-width: 190px;
 }
 
 .document-signoff-validation-error {

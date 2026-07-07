@@ -391,10 +391,18 @@ function clearNativeSignoffPanel() {
   setVisible("documentSignoffNativeSigningStep", false);
   setVisible("documentSignoffNativeStartButton", true);
   setVisible("documentSignoffNativeSaveButton", false);
+  setNativeWorkflowStep("selection");
   setVisible("documentSignoffNativeReviewCompleteButton", false);
   clearNativeValidationHighlights();
   clearNativeVisitorSignature();
   clearNativeInductorSignature();
+}
+
+function setNativeWorkflowStep(step) {
+  const panel = $("documentSignoffNativePanel");
+  if (!panel) return;
+  panel.classList.toggle("is-selection-step", step === "selection");
+  panel.classList.toggle("is-signing-step", step === "signing");
 }
 
 function setFocusedSignoffChrome(active) {
@@ -1065,6 +1073,7 @@ async function openNativeSignoffPanel(visit, additionalOnly, trigger) {
   setVisible("documentSignoffNativeSigningStep", false);
   setVisible("documentSignoffNativeStartButton", true);
   setVisible("documentSignoffNativeSaveButton", false);
+  setNativeWorkflowStep("selection");
   setText("documentSignoffNativePanelEyebrow", "Visitor Document Sign-off");
   setText("documentSignoffNativePanelTitle", additionalOnly ? "Sign Optional Agreement" : "Review / Sign Agreements");
   setNativePanelStatus("Loading agreement status...", "info");
@@ -1176,6 +1185,7 @@ async function renderNativeSigningStep(visit, requirement) {
   setVisible("documentSignoffNativeSigningStep", true);
   setVisible("documentSignoffNativeStartButton", false);
   setVisible("documentSignoffNativeSaveButton", true);
+  setNativeWorkflowStep("signing");
   setText("documentSignoffNativePanelEyebrow", "Visitor Document Sign-off");
   setText("documentSignoffNativePanelTitle", textOrDash(requirement.agreement_name));
   const completed = nativeSignoffQueueTotal - nativeSignoffQueue.length;
@@ -1548,6 +1558,9 @@ function initialiseDocumentSignoffDetailsPanel() {
 function initialiseDocumentSignoffNativePanel() {
   if (!$("documentSignoffNativePanel")) return;
   const backdrop = $("documentSignoffNativePanelBackdrop");
+  if (backdrop && backdrop.parentElement !== document.body) {
+    document.body.appendChild(backdrop);
+  }
   if (backdrop && backdrop.dataset.nativeSignoffInitialised !== "true") {
     backdrop.dataset.nativeSignoffInitialised = "true";
     backdrop.setAttribute("aria-hidden", "true");
