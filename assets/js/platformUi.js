@@ -17,6 +17,7 @@ let bodyScrollLockCount = 0;
 let platformConfirmResolve = null;
 let platformConfirmReturnFocus = null;
 let platformConfirmKeyHandler = null;
+let scrollHandoffObserver = null;
 
 function resolveElement(target, root) {
   if (!target) return null;
@@ -85,6 +86,108 @@ function trapFocus(event, container) {
   }
 }
 
+function normaliseScrollDelta(delta, deltaMode, element) {
+  if (deltaMode === 1) return delta * 16;
+  if (deltaMode === 2) return delta * Math.max(1, element.clientHeight);
+  return delta;
+}
+
+function verticalScrollRange(element) {
+  if (!element) return 0;
+  return Math.max(0, element.scrollHeight - element.clientHeight);
+}
+
+function canScrollVertically(element) {
+  return verticalScrollRange(element) > 1;
+}
+
+function canScrollVerticallyInDirection(element, deltaY) {
+  if (!canScrollVertically(element)) return false;
+  if (deltaY < 0) return element.scrollTop > 0;
+  if (deltaY > 0) return element.scrollTop < verticalScrollRange(element) - 1;
+  return false;
+}
+
+function findScrollableParent(element, deltaY) {
+  let parent = element ? element.parentElement : null;
+  while (parent && parent !== document.body) {
+    const style = window.getComputedStyle(parent);
+    const overflowY = style.overflowY || style.overflow;
+    if (
+      /(auto|scroll|overlay)/.test(overflowY) &&
+      canScrollVerticallyInDirection(parent, deltaY)
+    ) {
+      return parent;
+    }
+    parent = parent.parentElement;
+  }
+  const scrollingElement = document.scrollingElement || document.documentElement;
+  return canScrollVerticallyInDirection(scrollingElement, deltaY)
+    ? scrollingElement
+    : null;
+}
+
+function handOffVerticalScroll(element, deltaY, event) {
+  if (!deltaY || canScrollVerticallyInDirection(element, deltaY)) return false;
+  const parent = findScrollableParent(element, deltaY);
+  if (!parent) return false;
+  parent.scrollTop += deltaY;
+  if (event && event.cancelable) event.preventDefault();
+  return true;
+}
+
+export function enableScrollHandoff(target, options) {
+  const element = resolveElement(target, options && options.root);
+  if (!element || element.dataset.ohScrollHandoff === "true") return element;
+
+  element.dataset.ohScrollHandoff = "true";
+  element.classList.add("oh-scroll-handoff");
+
+  element.addEventListener("wheel", event => {
+    if (event.ctrlKey || Math.abs(event.deltaX) > Math.abs(event.deltaY)) return;
+    const deltaY = normaliseScrollDelta(
+      event.deltaY,
+      event.deltaMode,
+      element
+    );
+    handOffVerticalScroll(element, deltaY, event);
+  }, { passive: false });
+
+  let touchPoint = null;
+  element.addEventListener("touchstart", event => {
+    if (event.touches.length !== 1) {
+      touchPoint = null;
+      return;
+    }
+    touchPoint = {
+      x: event.touches[0].clientX,
+      y: event.touches[0].clientY
+    };
+  }, { passive: true });
+
+  element.addEventListener("touchmove", event => {
+    if (!touchPoint || event.touches.length !== 1) return;
+    const nextPoint = {
+      x: event.touches[0].clientX,
+      y: event.touches[0].clientY
+    };
+    const deltaX = touchPoint.x - nextPoint.x;
+    const deltaY = touchPoint.y - nextPoint.y;
+    touchPoint = nextPoint;
+    if (Math.abs(deltaX) > Math.abs(deltaY)) return;
+    handOffVerticalScroll(element, deltaY, event);
+  }, { passive: false });
+
+  element.addEventListener("touchend", () => {
+    touchPoint = null;
+  }, { passive: true });
+  element.addEventListener("touchcancel", () => {
+    touchPoint = null;
+  }, { passive: true });
+
+  return element;
+}
+
 export function setActionAvailable(target, available, options) {
   const element = resolveElement(target, options && options.root);
   if (!element) return false;
@@ -133,6 +236,7 @@ export function makeScrollableRegion(target, variant, options) {
       table.classList.add("oh-responsive-table");
     });
   }
+  enableScrollHandoff(element);
   return element;
 }
 
@@ -557,7 +661,14 @@ function enhanceSidePanels(root) {
 }
 
 function enhanceScrollRegions(root) {
+  const regions = [];
+  if (root instanceof Element && root.matches("[data-oh-scroll-region]")) {
+    regions.push(root);
+  }
   root.querySelectorAll("[data-oh-scroll-region]").forEach(element => {
+    regions.push(element);
+  });
+  regions.forEach(element => {
     makeScrollableRegion(
       element,
       element.dataset.ohScrollRegion,
@@ -566,11 +677,49 @@ function enhanceScrollRegions(root) {
   });
 }
 
+function enhanceScrollHandoff(root) {
+  const candidates = [];
+  if (
+    root instanceof Element &&
+    (
+      root.matches(".results-scroll") ||
+      root.matches(".oh-scroll-region") ||
+      root.matches("[data-oh-scroll-region]")
+    )
+  ) {
+    candidates.push(root);
+  }
+  root.querySelectorAll(
+    ".results-scroll, .oh-scroll-region, [data-oh-scroll-region]"
+  ).forEach(element => candidates.push(element));
+
+  candidates.forEach(element => enableScrollHandoff(element));
+}
+
+function observeScrollHandoffTargets() {
+  if (scrollHandoffObserver || !document.body) return;
+  scrollHandoffObserver = new MutationObserver(mutations => {
+    mutations.forEach(mutation => {
+      mutation.addedNodes.forEach(node => {
+        if (!(node instanceof Element)) return;
+        enhanceScrollRegions(node);
+        enhanceScrollHandoff(node);
+      });
+    });
+  });
+  scrollHandoffObserver.observe(document.body, {
+    childList: true,
+    subtree: true
+  });
+}
+
 export function initialisePlatformUi(root) {
   const scope = root || document;
   enhanceEmptyStates(scope);
   enhanceSidePanels(scope);
   enhanceScrollRegions(scope);
+  enhanceScrollHandoff(scope);
+  if (scope === document) observeScrollHandoffTargets();
 
   const toastArea = scope.getElementById
     ? scope.getElementById("toastArea")

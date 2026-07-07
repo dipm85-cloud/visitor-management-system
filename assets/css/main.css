@@ -2060,8 +2060,14 @@ body.kiosk-mode .results-scroll {
 .oh-scroll-region {
   min-height: 0;
   overflow: auto;
-  overscroll-behavior: contain;
+  overscroll-behavior-x: contain;
+  overscroll-behavior-y: auto;
   scrollbar-gutter: stable;
+}
+
+.oh-scroll-handoff {
+  overscroll-behavior-x: contain;
+  overscroll-behavior-y: auto;
 }
 
 .oh-scroll-region--operational {

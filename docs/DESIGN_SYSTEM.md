@@ -765,6 +765,14 @@ Each region has a fixed maximum height, internal scrolling, a stable scrollbar
 gutter and a keyboard focus outline. Tables retain sticky headers. Printing
 removes the height restriction.
 
+Milestone `OHP-003C` adds scroll handoff to these regions through
+`enableScrollHandoff`. Inner table and result containers consume wheel,
+touchpad and touch scrolling only while they can move vertically. When a
+container has no vertical overflow, or when it reaches the top or bottom in
+the requested direction, scrolling continues on the parent module/page. This
+keeps long lists usable without creating dead scroll zones. Horizontal table
+scrolling remains available for wide comparison tables.
+
 ### Side panels
 
 Use:
