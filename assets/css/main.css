@@ -1760,22 +1760,30 @@ body.kiosk-mode .results-scroll {
   display: none !important;
 }
 
+.document-signoff-overlay-root {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  pointer-events: none;
+}
+
 .document-signoff-focus-backdrop {
   position: fixed !important;
-  z-index: 20000;
+  z-index: 2147483000;
   inset: 0;
   display: grid;
   place-items: center;
   padding: 16px;
   isolation: isolate;
   background: rgba(15, 23, 42, .58);
+  pointer-events: auto;
 }
 
 .document-signoff-focus-workspace {
   position: relative;
   z-index: 1;
-  width: min(1440px, 100%);
-  height: min(980px, calc(100dvh - 32px));
+  width: min(1600px, calc(100vw - 32px));
+  height: calc(100dvh - 32px);
   min-height: 0;
   display: flex;
   min-width: 0;
@@ -2018,6 +2026,11 @@ body.kiosk-mode .results-scroll {
 .document-signoff-focus-workspace.is-selection-step #documentSignoffNativeStartButton,
 .document-signoff-focus-workspace.is-signing-step #documentSignoffNativeSaveButton {
   min-width: 190px;
+}
+
+.document-signoff-focus-workspace.is-selection-step #documentSignoffNativeBackButton,
+.document-signoff-focus-workspace.is-signing-step #documentSignoffNativeStartButton {
+  display: none !important;
 }
 
 .document-signoff-validation-error {

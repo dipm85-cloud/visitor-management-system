@@ -14,6 +14,8 @@ let documentSignoffDetailsPanelController = null;
 let documentSignoffNativeDialogOpen = false;
 let documentSignoffNativeReturnFocus = null;
 let documentSignoffNativePreviousBodyOverflow = "";
+let documentSignoffNativePreviousHtmlOverflow = "";
+let documentSignoffNativeCurrentStep = "selection";
 let documentSignoffOverviewState = {
   types: [],
   versions: [],
@@ -102,6 +104,68 @@ function setText(id, value) {
 function setVisible(id, visible) {
   const element = $(id);
   if (element) element.classList.toggle("hidden", !visible);
+}
+
+function readZIndex(selector) {
+  const element = document.querySelector(selector);
+  if (!element) return "";
+  return window.getComputedStyle(element).zIndex || "";
+}
+
+function isElementVisible(element) {
+  if (!element) return false;
+  return !element.classList.contains("hidden") &&
+    element.getAttribute("aria-hidden") !== "true" &&
+    !!(element.offsetWidth || element.offsetHeight || element.getClientRects().length);
+}
+
+function nativeAgreementCheckboxes() {
+  return Array.from(
+    document.querySelectorAll("#documentSignoffNativeAgreementList .document-signoff-native-agreement-check")
+  );
+}
+
+function isNativeAgreementCheckboxSignable(checkbox) {
+  if (!checkbox) return false;
+  return !checkbox.disabled || checkbox.dataset.lockedSelected === "true";
+}
+
+function nativeSelectedSignableCheckboxes() {
+  return nativeAgreementCheckboxes().filter(checkbox =>
+    checkbox.checked && isNativeAgreementCheckboxSignable(checkbox)
+  );
+}
+
+function nativeSignableAgreementCount() {
+  return nativeAgreementCheckboxes().filter(isNativeAgreementCheckboxSignable).length;
+}
+
+function updateDocumentSignoffDebug(patch) {
+  const previous = window.__ohDocumentSignoffDebug || {};
+  const overlay = $("documentSignoffOverlayRoot");
+  const backdrop = $("documentSignoffNativePanelBackdrop");
+  const continueButton = $("documentSignoffNativeStartButton");
+  const overlayStyle = backdrop ? window.getComputedStyle(backdrop) : null;
+  window.__ohDocumentSignoffDebug = Object.assign({}, previous, {
+    overlayOpen: documentSignoffNativeDialogOpen,
+    overlayParentTag: overlay && overlay.parentElement ? overlay.parentElement.tagName : "",
+    overlayPositionStyle: overlayStyle ? overlayStyle.position : "",
+    overlayZIndex: overlayStyle ? overlayStyle.zIndex : "",
+    appHeaderZIndex: readZIndex(".oh-header"),
+    appFooterZIndex: readZIndex(".oh-footer"),
+    currentStep: documentSignoffNativeCurrentStep,
+    selectedAgreementCount: nativeSelectedSignableCheckboxes().length,
+    signableAgreementCount: nativeSignableAgreementCount(),
+    selectionContinueButtonExists: !!continueButton,
+    selectionContinueButtonVisible: isElementVisible(continueButton),
+    selectionContinueButtonDisabled: !!(continueButton && continueButton.disabled),
+    documentStepOpened: previous.documentStepOpened === true || documentSignoffNativeCurrentStep === "signing",
+    lastActionClicked: previous.lastActionClicked || "",
+    lastError: previous.lastError || ""
+  }, patch || {});
+  if (localStorage.getItem("oh_debug_document_signoff") === "true") {
+    console.debug("Document sign-off debug", window.__ohDocumentSignoffDebug);
+  }
 }
 
 function focusNativeElement(element) {
@@ -231,6 +295,7 @@ function clearNativeValidationHighlights() {
 
 function showNativeValidation(message, targetId) {
   const text = message || "Please complete the required sign-off information.";
+  updateDocumentSignoffDebug({ lastError: text });
   setNativePanelStatus(text, "error");
   showToast("Sign-off needs attention", text, "error");
   clearNativeValidationHighlights();
@@ -391,6 +456,7 @@ function clearNativeSignoffPanel() {
   setVisible("documentSignoffNativeSigningStep", false);
   setVisible("documentSignoffNativeStartButton", true);
   setVisible("documentSignoffNativeSaveButton", false);
+  setVisible("documentSignoffNativeBackButton", false);
   setNativeWorkflowStep("selection");
   setVisible("documentSignoffNativeReviewCompleteButton", false);
   clearNativeValidationHighlights();
@@ -400,9 +466,12 @@ function clearNativeSignoffPanel() {
 
 function setNativeWorkflowStep(step) {
   const panel = $("documentSignoffNativePanel");
-  if (!panel) return;
-  panel.classList.toggle("is-selection-step", step === "selection");
-  panel.classList.toggle("is-signing-step", step === "signing");
+  documentSignoffNativeCurrentStep = step === "signing" ? "signing" : "selection";
+  if (panel) {
+    panel.classList.toggle("is-selection-step", documentSignoffNativeCurrentStep === "selection");
+    panel.classList.toggle("is-signing-step", documentSignoffNativeCurrentStep === "signing");
+  }
+  updateDocumentSignoffDebug({ currentStep: documentSignoffNativeCurrentStep });
 }
 
 function setFocusedSignoffChrome(active) {
@@ -412,9 +481,12 @@ function setFocusedSignoffChrome(active) {
   document.body.classList.toggle("oh-transient-ui-open", !!active);
   if (active) {
     documentSignoffNativePreviousBodyOverflow = document.body.style.overflow || "";
+    documentSignoffNativePreviousHtmlOverflow = document.documentElement.style.overflow || "";
     document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
   } else {
     document.body.style.overflow = documentSignoffNativePreviousBodyOverflow || "";
+    document.documentElement.style.overflow = documentSignoffNativePreviousHtmlOverflow || "";
   }
 }
 
@@ -442,6 +514,12 @@ function openNativeSignoffWorkflow(options) {
   documentSignoffNativeDialogOpen = true;
   setFocusedSignoffChrome(true);
   document.addEventListener("keydown", handleNativeSignoffKeydown, true);
+  updateDocumentSignoffDebug({
+    overlayOpen: true,
+    documentStepOpened: false,
+    lastActionClicked: "open",
+    lastError: ""
+  });
   setTimeout(() => focusNativeElement($("documentSignoffNativePanelClose") || panel), 0);
 }
 
@@ -458,6 +536,10 @@ function closeNativeSignoffWorkflow(options) {
   if (panel) panel.setAttribute("aria-hidden", "true");
   document.removeEventListener("keydown", handleNativeSignoffKeydown, true);
   setFocusedSignoffChrome(false);
+  updateDocumentSignoffDebug({
+    overlayOpen: false,
+    lastActionClicked: settings.reason || "close"
+  });
   if (settings.reset !== false) clearNativeSignoffPanel();
   if (settings.restoreFocus !== false) {
     const focusTarget = settings.returnFocus || documentSignoffNativeReturnFocus;
@@ -977,18 +1059,28 @@ function nativeAgreementStateBadge(status, type) {
 }
 
 function updateNativeSelectionSummary() {
-  const checkboxes = Array.from(
-    document.querySelectorAll("#documentSignoffNativeAgreementList .document-signoff-native-agreement-check")
-  );
+  const checkboxes = nativeAgreementCheckboxes();
   const selected = checkboxes.filter(checkbox => checkbox.checked).length;
   const selectable = checkboxes.filter(checkbox => !checkbox.disabled).length;
   const locked = checkboxes.filter(checkbox => checkbox.checked && checkbox.disabled && checkbox.dataset.lockedSelected === "true").length;
+  const selectedSignable = nativeSelectedSignableCheckboxes().length;
+  const signable = nativeSignableAgreementCount();
   const parts = [
     selected + " selected",
     selectable + " optional/selectable",
-    locked ? locked + " required locked" : ""
+    locked ? locked + " required locked" : "",
+    signable ? signable + " signable" : "No signable agreements"
   ].filter(Boolean);
   setText("documentSignoffNativeSelectionSummary", parts.join(" | "));
+  const startButton = $("documentSignoffNativeStartButton");
+  if (startButton) {
+    startButton.disabled = signable === 0;
+  }
+  updateDocumentSignoffDebug({
+    selectedAgreementCount: selectedSignable,
+    signableAgreementCount: signable,
+    selectionContinueButtonDisabled: !!(startButton && startButton.disabled)
+  });
 }
 
 function renderNativeAgreementSelection(types, statuses, additionalOnly) {
@@ -1004,6 +1096,14 @@ function renderNativeAgreementSelection(types, statuses, additionalOnly) {
 
   if (!activeTypes.length) {
     setText("documentSignoffNativeSelectionSummary", "");
+    const startButton = $("documentSignoffNativeStartButton");
+    if (startButton) startButton.disabled = true;
+    setNativePanelStatus("No active agreement types are available. Legacy sign-off remains available.", "info");
+    updateDocumentSignoffDebug({
+      selectedAgreementCount: 0,
+      signableAgreementCount: 0,
+      selectionContinueButtonDisabled: true
+    });
     renderEmptyState("documentSignoffNativeAgreementList", {
       title: "No active agreement types",
       description: "This sign-off workflow is still completed in Legacy VMS until active versions are available."
@@ -1060,6 +1160,9 @@ function renderNativeAgreementSelection(types, statuses, additionalOnly) {
     list.appendChild(row);
   });
   updateNativeSelectionSummary();
+  if (nativeSignableAgreementCount() === 0) {
+    setNativePanelStatus("No signable agreements are available for this visitor. Legacy sign-off remains available.", "info");
+  }
 }
 
 async function openNativeSignoffPanel(visit, additionalOnly, trigger) {
@@ -1073,6 +1176,8 @@ async function openNativeSignoffPanel(visit, additionalOnly, trigger) {
   setVisible("documentSignoffNativeSigningStep", false);
   setVisible("documentSignoffNativeStartButton", true);
   setVisible("documentSignoffNativeSaveButton", false);
+  setVisible("documentSignoffNativeBackButton", false);
+  if ($("documentSignoffNativeStartButton")) $("documentSignoffNativeStartButton").disabled = true;
   setNativeWorkflowStep("selection");
   setText("documentSignoffNativePanelEyebrow", "Visitor Document Sign-off");
   setText("documentSignoffNativePanelTitle", additionalOnly ? "Sign Optional Agreement" : "Review / Sign Agreements");
@@ -1091,7 +1196,9 @@ async function openNativeSignoffPanel(visit, additionalOnly, trigger) {
     const types = await loadNativeAgreementTypesIfNeeded();
     const statuses = await getNativeAgreementStatusesForVisit(visitId);
     renderNativeAgreementSelection(types, statuses, additionalOnly);
-    setNativePanelStatus("Agreement status loaded.", "success");
+    if (nativeSignableAgreementCount() > 0) {
+      setNativePanelStatus("Agreement status loaded.", "success");
+    }
   } catch (err) {
     renderEmptyState("documentSignoffNativeAgreementList", {
       title: "Native sign-off unavailable",
@@ -1102,19 +1209,15 @@ async function openNativeSignoffPanel(visit, additionalOnly, trigger) {
 }
 
 async function startNativeSignoffQueue() {
+  updateDocumentSignoffDebug({ lastActionClicked: "continue_to_sign", lastError: "" });
   clearNativeValidationHighlights();
   if (!nativeSignoffCurrentVisit) {
     showNativeValidation("No visitor visit is selected.", "documentSignoffNativeVisitorMeta");
     return;
   }
-  const selectedBoxes = Array.from(
-    document.querySelectorAll("#documentSignoffNativeAgreementList .document-signoff-native-agreement-check")
-  ).filter(checkbox =>
-    (checkbox.checked && !checkbox.disabled) ||
-    (checkbox.checked && checkbox.disabled && checkbox.dataset.lockedSelected === "true")
-  );
+  const selectedBoxes = nativeSelectedSignableCheckboxes();
   if (!selectedBoxes.length) {
-    showNativeValidation("Please select at least one optional agreement or continue with required agreements only.", "documentSignoffNativeAgreementList");
+    showNativeValidation("No signable agreement is selected. Select an optional agreement or continue with required agreements only.", "documentSignoffNativeAgreementList");
     return;
   }
 
@@ -1180,12 +1283,36 @@ async function openNextNativeQueuedAgreement() {
   await renderNativeSigningStep(next.visit, next.requirement);
 }
 
+async function backToNativeAgreementSelection() {
+  updateDocumentSignoffDebug({ lastActionClicked: "back_to_selection", lastError: "" });
+  if (nativeSignoffCurrentVisit) {
+    await openNativeSignoffPanel(nativeSignoffCurrentVisit, nativeSignoffAdditionalOnly, $("documentSignoffNativeBackButton"));
+    updateDocumentSignoffDebug({ lastActionClicked: "back_to_selection", currentStep: "selection" });
+    return;
+  }
+  nativeSignoffCurrentRequirement = null;
+  nativeSignoffQueue = [];
+  nativeSignoffQueueTotal = 0;
+  setVisible("documentSignoffNativeSelectionStep", true);
+  setVisible("documentSignoffNativeSigningStep", false);
+  setVisible("documentSignoffNativeStartButton", true);
+  setVisible("documentSignoffNativeSaveButton", false);
+  setVisible("documentSignoffNativeBackButton", false);
+  setNativeWorkflowStep("selection");
+}
+
 async function renderNativeSigningStep(visit, requirement) {
   setVisible("documentSignoffNativeSelectionStep", false);
   setVisible("documentSignoffNativeSigningStep", true);
   setVisible("documentSignoffNativeStartButton", false);
   setVisible("documentSignoffNativeSaveButton", true);
+  setVisible("documentSignoffNativeBackButton", true);
   setNativeWorkflowStep("signing");
+  updateDocumentSignoffDebug({
+    documentStepOpened: true,
+    lastActionClicked: "document_step_opened",
+    lastError: ""
+  });
   setText("documentSignoffNativePanelEyebrow", "Visitor Document Sign-off");
   setText("documentSignoffNativePanelTitle", textOrDash(requirement.agreement_name));
   const completed = nativeSignoffQueueTotal - nativeSignoffQueue.length;
@@ -1226,6 +1353,7 @@ async function renderNativeSigningStep(visit, requirement) {
 }
 
 async function saveNativeVisitorAgreement() {
+  updateDocumentSignoffDebug({ lastActionClicked: "save_agreement", lastError: "" });
   clearNativeValidationHighlights();
   const visit = nativeSignoffCurrentVisit;
   const requirement = nativeSignoffCurrentRequirement;
@@ -1558,8 +1686,17 @@ function initialiseDocumentSignoffDetailsPanel() {
 function initialiseDocumentSignoffNativePanel() {
   if (!$("documentSignoffNativePanel")) return;
   const backdrop = $("documentSignoffNativePanelBackdrop");
-  if (backdrop && backdrop.parentElement !== document.body) {
-    document.body.appendChild(backdrop);
+  let overlayRoot = $("documentSignoffOverlayRoot");
+  if (!overlayRoot) {
+    overlayRoot = document.createElement("div");
+    overlayRoot.id = "documentSignoffOverlayRoot";
+    overlayRoot.className = "document-signoff-overlay-root";
+    document.body.appendChild(overlayRoot);
+  } else if (overlayRoot.parentElement !== document.body) {
+    document.body.appendChild(overlayRoot);
+  }
+  if (backdrop && backdrop.parentElement !== overlayRoot) {
+    overlayRoot.appendChild(backdrop);
   }
   if (backdrop && backdrop.dataset.nativeSignoffInitialised !== "true") {
     backdrop.dataset.nativeSignoffInitialised = "true";
@@ -1570,6 +1707,7 @@ function initialiseDocumentSignoffNativePanel() {
     });
   }
   clearNativeSignoffPanel();
+  updateDocumentSignoffDebug({ overlayOpen: false, currentStep: "selection" });
 }
 
 export function initialiseDocumentSignoffs(dependencies) {
@@ -1600,6 +1738,7 @@ export function initialiseDocumentSignoffs(dependencies) {
   }
   if ($("documentSignoffNativePanelLegacyButton")) {
     $("documentSignoffNativePanelLegacyButton").addEventListener("click", () => {
+      updateDocumentSignoffDebug({ lastActionClicked: "open_legacy_signoff", lastError: "" });
       guardedLegacyOpen(
         "document-signoffs-signoff",
         canOpenLegacySignoff,
@@ -1609,16 +1748,21 @@ export function initialiseDocumentSignoffs(dependencies) {
   }
   if ($("documentSignoffNativePanelClose")) {
     $("documentSignoffNativePanelClose").addEventListener("click", () => {
+      updateDocumentSignoffDebug({ lastActionClicked: "close", lastError: "" });
       closeNativeSignoffWorkflow({ reason: "close" });
     });
   }
   if ($("documentSignoffNativeCancelButton")) {
     $("documentSignoffNativeCancelButton").addEventListener("click", () => {
+      updateDocumentSignoffDebug({ lastActionClicked: "cancel", lastError: "" });
       closeNativeSignoffWorkflow({ reason: "cancel" });
     });
   }
   if ($("documentSignoffNativeStartButton")) {
     $("documentSignoffNativeStartButton").addEventListener("click", startNativeSignoffQueue);
+  }
+  if ($("documentSignoffNativeBackButton")) {
+    $("documentSignoffNativeBackButton").addEventListener("click", backToNativeAgreementSelection);
   }
   if ($("documentSignoffNativeSaveButton")) {
     $("documentSignoffNativeSaveButton").addEventListener("click", saveNativeVisitorAgreement);
