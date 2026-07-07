@@ -30,6 +30,11 @@ import {
   refreshSectionNavigator,
   registerModuleSections
 } from "./sectionNavigation.js";
+import {
+  createOperationalFormReset,
+  createSidePanelController,
+  requestPlatformConfirmation
+} from "./platformUi.js";
 
 let visitorsDependencies = {};
 let nativePlannedVisits = [];
@@ -42,9 +47,11 @@ let nativeHistoryLoadSequence = 0;
 let activeHistoryQuickFilter = null;
 let selectedNativeReportType = "history";
 let nativeReportRows = [];
-let plannedPanelReturnFocus = null;
-let walkInPanelReturnFocus = null;
-let detailsPanelReturnFocus = null;
+let plannedPanelController = null;
+let walkInPanelController = null;
+let detailsPanelController = null;
+let resetPlannedPanelForm = null;
+let resetWalkInPanelForm = null;
 
 const plannedFieldDefaults = {
   reason: { visible: true, required: false },
@@ -1193,11 +1200,17 @@ function applyNativePlannedFieldRules(mode) {
 }
 
 function clearPlannedForm() {
-  $("visitorsPlannedForm").reset();
+  if (resetPlannedPanelForm) {
+    resetPlannedPanelForm();
+  } else {
+    $("visitorsPlannedForm").reset();
+  }
   resetVisitorIdentitySelection("native_planned");
   $("visitorsPlannedRecordId").value = "";
   $("visitorsPlannedEditMode").value = "full";
   $("visitorsPlannedVisitDate").value = todayDate();
+  $("visitorsPlannedChangeReason").required = false;
+  $("visitorsPlannedChangeReasonField").classList.add("hidden");
 }
 
 async function cancelNativePlannedVisit(visit, sourceButton) {
@@ -1205,7 +1218,15 @@ async function cancelNativePlannedVisit(visit, sourceButton) {
     showToast("Planned visit not cancelled", "Only a SuperUser can cancel a pending planned visit.", "error");
     return;
   }
-  if (!confirm("Cancel this pending planned visit? It will be removed from the default active list.")) return;
+  const confirmed = await requestPlatformConfirmation({
+    title: "Cancel planned visit",
+    message: "Cancel this pending planned visit? It will be removed from the default active list.",
+    confirmText: "Cancel Visit",
+    cancelText: "Keep Visit",
+    danger: true,
+    trigger: sourceButton
+  });
+  if (!confirmed) return;
 
   sourceButton.disabled = true;
   try {
@@ -1285,7 +1306,6 @@ function openPlannedPanel(visit, mode, returnFocus) {
   }
 
   clearPlannedForm();
-  plannedPanelReturnFocus = returnFocus || document.activeElement;
   $("visitorsPlannedRecordId").value = isEdit ? visit.id : "";
   $("visitorsPlannedEditMode").value = effectiveMode;
   $("visitorsPlannedPanelTitle").textContent = isEdit
@@ -1310,21 +1330,22 @@ function openPlannedPanel(visit, mode, returnFocus) {
     $("visitorsPlannedPass").value = visit.security_pass_id || "";
   }
 
-  $("visitorsPlannedPanelBackdrop").classList.remove("hidden");
-  document.body.style.overflow = "hidden";
   const firstInput = effectiveMode === "security"
     ? $("visitorsPlannedPass")
     : $("visitorsPlannedVisitorName");
-  if (firstInput) firstInput.focus();
+  if (plannedPanelController) {
+    plannedPanelController.open({
+      trigger: returnFocus,
+      title: $("visitorsPlannedPanelTitle").textContent,
+      mode: isEdit ? "edit" : "create",
+      type: "form",
+      initialFocus: firstInput
+    });
+  }
 }
 
 function closePlannedPanel() {
-  $("visitorsPlannedPanelBackdrop").classList.add("hidden");
-  document.body.style.overflow = "";
-  if (plannedPanelReturnFocus && typeof plannedPanelReturnFocus.focus === "function") {
-    plannedPanelReturnFocus.focus();
-  }
-  plannedPanelReturnFocus = null;
+  if (plannedPanelController) plannedPanelController.close();
 }
 
 function walkInFieldIds(field) {
@@ -1357,7 +1378,11 @@ function applyNativeWalkInFieldRules() {
 }
 
 function clearWalkInForm() {
-  $("visitorsWalkInForm").reset();
+  if (resetWalkInPanelForm) {
+    resetWalkInPanelForm();
+  } else {
+    $("visitorsWalkInForm").reset();
+  }
   resetVisitorIdentitySelection("native_walk_in");
 }
 
@@ -1372,19 +1397,19 @@ function openWalkInPanel(returnFocus) {
   }
   clearWalkInForm();
   applyNativeWalkInFieldRules();
-  walkInPanelReturnFocus = returnFocus || document.activeElement;
-  $("visitorsWalkInPanelBackdrop").classList.remove("hidden");
-  document.body.style.overflow = "hidden";
-  $("visitorsWalkInVisitorName").focus();
+  if (walkInPanelController) {
+    walkInPanelController.open({
+      trigger: returnFocus,
+      title: "Create Walk-in Visitor",
+      mode: "create",
+      type: "form",
+      initialFocus: "visitorsWalkInVisitorName"
+    });
+  }
 }
 
 function closeWalkInPanel() {
-  $("visitorsWalkInPanelBackdrop").classList.add("hidden");
-  document.body.style.overflow = "";
-  if (walkInPanelReturnFocus && typeof walkInPanelReturnFocus.focus === "function") {
-    walkInPanelReturnFocus.focus();
-  }
-  walkInPanelReturnFocus = null;
+  if (walkInPanelController) walkInPanelController.close();
 }
 
 function formatVisitorDateTime(value) {
@@ -1393,8 +1418,31 @@ function formatVisitorDateTime(value) {
   return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString();
 }
 
+function clearVisitorDetailsPanel() {
+  [
+    "visitorsDetailsStatus",
+    "visitorsDetailsCompany",
+    "visitorsDetailsVisitDate",
+    "visitorsDetailsExpectedTime",
+    "visitorsDetailsSignIn",
+    "visitorsDetailsSignOut",
+    "visitorsDetailsContact",
+    "visitorsDetailsReason",
+    "visitorsDetailsVehicle",
+    "visitorsDetailsPass",
+    "visitorsDetailsOrigin",
+    "visitorsDetailsRecordId",
+    "visitorsDetailsPlannedId",
+    "visitorsDetailsPrivacy",
+    "visitorsDetailsLastUpdated",
+    "visitorsDetailsCreatedBy",
+    "visitorsDetailsModifiedBy",
+    "visitorsDetailsAutomaticSignOut"
+  ].forEach(id => setText(id, "â€”"));
+  setText("visitorsDetailsPanelTitle", "Visitor");
+}
+
 function openVisitorDetails(record, status, returnFocus) {
-  detailsPanelReturnFocus = returnFocus || document.activeElement;
   setText("visitorsDetailsPanelTitle", textOrDash(record.visitor_name));
   setText(
     "visitorsDetailsStatus",
@@ -1436,18 +1484,19 @@ function openVisitorDetails(record, status, returnFocus) {
       ? "Yes" + (record.automatic_sign_out_reason ? " — " + record.automatic_sign_out_reason : "")
       : "No"
   );
-  $("visitorsDetailsPanelBackdrop").classList.remove("hidden");
-  document.body.style.overflow = "hidden";
-  $("visitorsDetailsPanelClose").focus();
+  if (detailsPanelController) {
+    detailsPanelController.open({
+      trigger: returnFocus,
+      title: textOrDash(record.visitor_name),
+      mode: "details",
+      type: "details",
+      initialFocus: "visitorsDetailsPanelClose"
+    });
+  }
 }
 
 function closeVisitorDetails() {
-  $("visitorsDetailsPanelBackdrop").classList.add("hidden");
-  document.body.style.overflow = "";
-  if (detailsPanelReturnFocus && typeof detailsPanelReturnFocus.focus === "function") {
-    detailsPanelReturnFocus.focus();
-  }
-  detailsPanelReturnFocus = null;
+  if (detailsPanelController) detailsPanelController.close();
 }
 
 async function refreshNativeVisitorWorkflows() {
@@ -1496,7 +1545,15 @@ async function signOutNativeVisitor(visit, sourceButton) {
     showToast("Visitor not signed out", "The visitor sign-out service is unavailable.", "error");
     return;
   }
-  if (!confirm("Sign out " + textOrDash(visit.visitor_name) + "?")) return;
+  const confirmed = await requestPlatformConfirmation({
+    title: "Sign out visitor",
+    message: "Sign out " + textOrDash(visit.visitor_name) + "?",
+    confirmText: "Sign Out",
+    cancelText: "Cancel",
+    danger: true,
+    trigger: sourceButton
+  });
+  if (!confirmed) return;
 
   sourceButton.disabled = true;
   try {
@@ -1956,6 +2013,68 @@ export function configureVisitors(dependencies) {
   visitorsDependencies = dependencies || {};
 }
 
+function initialiseVisitorPanelControllers() {
+  if (plannedPanelController) return;
+
+  resetPlannedPanelForm = createOperationalFormReset({
+    form: "visitorsPlannedForm",
+    validationElements: [
+      "visitorsPlannedPersonLookupStatus"
+    ],
+    onReset() {
+      if ($("visitorsPlannedPersonLookupResults")) {
+        $("visitorsPlannedPersonLookupResults").replaceChildren();
+        $("visitorsPlannedPersonLookupResults").classList.add("hidden");
+      }
+    }
+  });
+  resetWalkInPanelForm = createOperationalFormReset({
+    form: "visitorsWalkInForm",
+    validationElements: [
+      "visitorsWalkInPersonLookupStatus"
+    ],
+    onReset() {
+      if ($("visitorsWalkInPersonLookupResults")) {
+        $("visitorsWalkInPersonLookupResults").replaceChildren();
+        $("visitorsWalkInPersonLookupResults").classList.add("hidden");
+      }
+    }
+  });
+
+  plannedPanelController = createSidePanelController({
+    backdrop: "visitorsPlannedPanelBackdrop",
+    panel: "visitorsPlannedPanel",
+    title: "visitorsPlannedPanelTitle",
+    initialFocus: "visitorsPlannedVisitorName",
+    closeTriggers: [
+      "visitorsPlannedPanelClose",
+      "visitorsPlannedCancel"
+    ],
+    reset: clearPlannedForm
+  });
+  walkInPanelController = createSidePanelController({
+    backdrop: "visitorsWalkInPanelBackdrop",
+    panel: "visitorsWalkInPanel",
+    title: "visitorsWalkInPanelTitle",
+    initialFocus: "visitorsWalkInVisitorName",
+    closeTriggers: [
+      "visitorsWalkInPanelClose",
+      "visitorsWalkInCancel"
+    ],
+    reset: clearWalkInForm
+  });
+  detailsPanelController = createSidePanelController({
+    backdrop: "visitorsDetailsPanelBackdrop",
+    panel: "visitorsDetailsPanel",
+    title: "visitorsDetailsPanelTitle",
+    initialFocus: "visitorsDetailsPanelClose",
+    closeTriggers: [
+      "visitorsDetailsPanelClose"
+    ],
+    reset: clearVisitorDetailsPanel
+  });
+}
+
 export function initialiseVisitorsWorkspace() {
   const workspace = $("visitorsWorkspace");
   if (!workspace || workspace.dataset.visitorsInitialised === "true") return;
@@ -1963,6 +2082,7 @@ export function initialiseVisitorsWorkspace() {
   registerVisitorsSectionNavigation();
   resetNativeHistoryFilters();
   resetNativeReportingFilters();
+  initialiseVisitorPanelControllers();
   $("visitorsDailyPlannedDate").value = todayDate();
 
   if ($("visitorsRefreshButton")) {
@@ -2099,54 +2219,6 @@ export function initialiseVisitorsWorkspace() {
   if ($("visitorsWalkInForm")) {
     $("visitorsWalkInForm").addEventListener("submit", saveNativeWalkIn);
   }
-  ["visitorsPlannedPanelClose", "visitorsPlannedCancel"].forEach(id => {
-    if ($(id)) $(id).addEventListener("click", closePlannedPanel);
-  });
-  if ($("visitorsPlannedPanelBackdrop")) {
-    $("visitorsPlannedPanelBackdrop").addEventListener("click", event => {
-      if (event.target === event.currentTarget) closePlannedPanel();
-    });
-  }
-  ["visitorsWalkInPanelClose", "visitorsWalkInCancel"].forEach(id => {
-    if ($(id)) $(id).addEventListener("click", closeWalkInPanel);
-  });
-  if ($("visitorsWalkInPanelBackdrop")) {
-    $("visitorsWalkInPanelBackdrop").addEventListener("click", event => {
-      if (event.target === event.currentTarget) closeWalkInPanel();
-    });
-  }
-  if ($("visitorsDetailsPanelClose")) {
-    $("visitorsDetailsPanelClose").addEventListener("click", closeVisitorDetails);
-  }
-  if ($("visitorsDetailsPanelBackdrop")) {
-    $("visitorsDetailsPanelBackdrop").addEventListener("click", event => {
-      if (event.target === event.currentTarget) closeVisitorDetails();
-    });
-  }
-  document.addEventListener("keydown", event => {
-    if (
-      event.key === "Escape" &&
-      $("visitorsPlannedPanelBackdrop") &&
-      !$("visitorsPlannedPanelBackdrop").classList.contains("hidden")
-    ) {
-      closePlannedPanel();
-    }
-    if (
-      event.key === "Escape" &&
-      $("visitorsWalkInPanelBackdrop") &&
-      !$("visitorsWalkInPanelBackdrop").classList.contains("hidden")
-    ) {
-      closeWalkInPanel();
-    }
-    if (
-      event.key === "Escape" &&
-      $("visitorsDetailsPanelBackdrop") &&
-      !$("visitorsDetailsPanelBackdrop").classList.contains("hidden")
-    ) {
-      closeVisitorDetails();
-    }
-  });
-
   if ($("visitorsReportsButton")) {
     $("visitorsReportsButton").addEventListener("click", () => {
       if (!hasCapability("visitor.history.view")) {

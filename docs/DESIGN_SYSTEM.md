@@ -778,6 +778,25 @@ Panels fit between the platform header and footer, keep their title and action
 areas visible, and become full-width on phones. New interactive panels should
 use `createSidePanelController` for focus restoration and reset-on-close.
 
+Milestone `OHP-004` expands this into the standard panel contract. New
+module panels should create a controller with `createSidePanelController`,
+set a platform title/mode/state, and provide one reset callback for local form
+or temporary state. The controller owns Escape-to-close, backdrop close,
+focus trapping, focus restoration, app-frame scroll locking, and reset on
+close. Panels must keep their header visible, scroll the body internally and
+keep panel actions reachable through `oh-side-panel-actions`.
+
+Details panels use the same shell with `mode: "details"` and read-only
+content grouped as summary/key-field/metadata sections where available.
+Create and edit panels use `type: "form"` and reset after save, cancel, close
+or record changes. Modules must not clear global app state from a panel reset.
+
+Use `requestPlatformConfirmation` for short blocking confirmations where safe.
+It provides a labelled dialog, safe default focus, Escape cancellation,
+focus trapping/restoration, secondary and primary actions, and danger styling
+for destructive actions. Workflow-specific success or failure feedback remains
+with the owning module through toast notifications.
+
 ### Toasts
 
 Staff and administrative workflow outcomes continue to use `showToast` from
