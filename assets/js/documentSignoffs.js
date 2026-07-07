@@ -182,13 +182,21 @@ function updateDocumentSignoffDebug(patch) {
     footerComputedZIndexLegacy: readComputedField(".oh-footer", "zIndex"),
     bodyScrollLocked: document.body.style.overflow === "hidden" || document.documentElement.style.overflow === "hidden",
     currentStep: documentSignoffNativeCurrentStep,
+    visitorName: nativeSignoffCurrentVisit ? textOrDash(nativeSignoffCurrentVisit.visitor_name) : "",
     selectedAgreementCount: nativeSelectedSignableCheckboxes().length,
     signableAgreementCount: nativeSignableAgreementCount(),
+    selectedDocumentCount: nativeSelectedSignableCheckboxes().length,
+    signableDocumentCount: nativeSignableAgreementCount(),
+    currentDocumentTitle: currentNativeDocumentTitle(),
+    confirmationChecked: !!($("documentSignoffNativeAcceptedCheck") && $("documentSignoffNativeAcceptedCheck").checked),
+    documentReviewReachedEnd: nativeDocumentReviewReachedEnd,
+    signaturePresent: nativeVisitorSignatureState.hasInk,
     selectionFooterExists: !!actions,
     selectionFooterVisible: isElementVisible(actions),
     continueButtonExists: !!continueButton,
     continueButtonVisible: isElementVisible(continueButton),
     continueButtonDisabled: !!(continueButton && continueButton.disabled),
+    saveButtonVisible: isElementVisible($("documentSignoffNativeSaveButton")),
     selectionContinueButtonExists: !!continueButton,
     selectionContinueButtonVisible: isElementVisible(continueButton),
     selectionContinueButtonDisabled: !!(continueButton && continueButton.disabled),
@@ -294,6 +302,16 @@ function formatVisitMeta(visit) {
     ["Company", visit && visit.company],
     ["Signed in", visit && visit.sign_in_time ? formatDateTime(visit.sign_in_time) : ""]
   ].filter(item => hasValue(item[1]));
+}
+
+function formatWizardVisitorMeta(visit) {
+  if (!visit) return "Select visitor documents";
+  return [visit.visitor_name, visit.company].filter(hasValue).join(" - ") || "Visitor document sign-off";
+}
+
+function currentNativeDocumentTitle() {
+  const requirement = nativeSignoffCurrentRequirement || {};
+  return textOrDash(requirement.agreement_title || requirement.agreement_name);
 }
 
 function renderMetaList(targetId, items) {
@@ -476,17 +494,21 @@ function clearNativeSignoffPanel() {
   nativeDocumentReviewReachedEnd = true;
   setText("documentSignoffNativePanelEyebrow", "Visitor Document Sign-off");
   setText("documentSignoffNativePanelTitle", "Visitor Sign-off");
+  setText("documentSignoffNativeWizardMeta", "Select visitor documents");
+  setText("documentSignoffNativeWizardStep", "Step 1 of 3 - Select documents");
   setNativePanelStatus("", "");
   setText("documentSignoffNativeReviewStatus", "Document review loaded.");
   setText("documentSignoffNativeSelectionSummary", "");
   renderMetaList("documentSignoffNativeVisitorMeta", []);
   renderMetaList("documentSignoffNativeAgreementMeta", []);
+  renderMetaList("documentSignoffNativeSignatureMeta", []);
   const list = $("documentSignoffNativeAgreementList");
   if (list) list.textContent = "Loading agreement status...";
   if ($("documentSignoffNativePdfFrame")) $("documentSignoffNativePdfFrame").src = "about:blank";
   if ($("documentSignoffNativeAcceptedCheck")) $("documentSignoffNativeAcceptedCheck").checked = false;
   setVisible("documentSignoffNativeSelectionStep", true);
-  setVisible("documentSignoffNativeSigningStep", false);
+  setVisible("documentSignoffNativeReviewStep", false);
+  setVisible("documentSignoffNativeSignatureStep", false);
   setVisible("documentSignoffNativeStartButton", true);
   setVisible("documentSignoffNativeSaveButton", false);
   setVisible("documentSignoffNativeBackButton", false);
@@ -499,12 +521,41 @@ function clearNativeSignoffPanel() {
 
 function setNativeWorkflowStep(step) {
   const panel = $("documentSignoffNativePanel");
-  documentSignoffNativeCurrentStep = step === "signing" ? "signing" : "selection";
+  documentSignoffNativeCurrentStep = ["review", "signature"].includes(step) ? step : "selection";
   if (panel) {
     panel.classList.toggle("is-selection-step", documentSignoffNativeCurrentStep === "selection");
-    panel.classList.toggle("is-signing-step", documentSignoffNativeCurrentStep === "signing");
+    panel.classList.toggle("is-review-step", documentSignoffNativeCurrentStep === "review");
+    panel.classList.toggle("is-signature-step", documentSignoffNativeCurrentStep === "signature");
   }
+  setVisible("documentSignoffNativeSelectionStep", documentSignoffNativeCurrentStep === "selection");
+  setVisible("documentSignoffNativeReviewStep", documentSignoffNativeCurrentStep === "review");
+  setVisible("documentSignoffNativeSignatureStep", documentSignoffNativeCurrentStep === "signature");
+  syncNativeWizardActions();
   updateDocumentSignoffDebug({ currentStep: documentSignoffNativeCurrentStep });
+}
+
+function syncNativeWizardActions() {
+  const startButton = $("documentSignoffNativeStartButton");
+  const saveButton = $("documentSignoffNativeSaveButton");
+  const backButton = $("documentSignoffNativeBackButton");
+  if (startButton) {
+    startButton.textContent = documentSignoffNativeCurrentStep === "review"
+      ? "Next: Sign"
+      : "Next: Review Document";
+    startButton.classList.toggle("hidden", documentSignoffNativeCurrentStep === "signature");
+  }
+  if (saveButton) saveButton.classList.toggle("hidden", documentSignoffNativeCurrentStep !== "signature");
+  if (backButton) {
+    backButton.textContent = documentSignoffNativeCurrentStep === "signature"
+      ? "Back to Document"
+      : "Back to Selection";
+    backButton.classList.toggle("hidden", documentSignoffNativeCurrentStep === "selection");
+  }
+  setText("documentSignoffNativeWizardStep", {
+    selection: "Step 1 of 3 - Select documents",
+    review: "Step 2 of 3 - Review document",
+    signature: "Step 3 of 3 - Sign and save"
+  }[documentSignoffNativeCurrentStep] || "Step 1 of 3 - Select documents");
 }
 
 function setFocusedSignoffChrome(active) {
@@ -669,6 +720,7 @@ function clearSignatureCanvas(canvasId, state) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   state.hasInk = false;
   state.isDrawing = false;
+  updateDocumentSignoffDebug({ signaturePresent: nativeVisitorSignatureState.hasInk });
 }
 
 function signaturePointFor(event, canvasId) {
@@ -688,6 +740,7 @@ function beginSignature(event, canvasId, state) {
   state.lastX = point.x;
   state.lastY = point.y;
   state.hasInk = true;
+  updateDocumentSignoffDebug({ signaturePresent: nativeVisitorSignatureState.hasInk });
 }
 
 function drawSignature(event, canvasId, state) {
@@ -703,6 +756,7 @@ function drawSignature(event, canvasId, state) {
   state.lastX = point.x;
   state.lastY = point.y;
   state.hasInk = true;
+  updateDocumentSignoffDebug({ signaturePresent: nativeVisitorSignatureState.hasInk });
 }
 
 function endSignature(state) {
@@ -1205,7 +1259,8 @@ async function openNativeSignoffPanel(visit, additionalOnly, trigger) {
   nativeSignoffQueueTotal = 0;
   nativeSignoffAdditionalOnly = !!additionalOnly;
   setVisible("documentSignoffNativeSelectionStep", true);
-  setVisible("documentSignoffNativeSigningStep", false);
+  setVisible("documentSignoffNativeReviewStep", false);
+  setVisible("documentSignoffNativeSignatureStep", false);
   setVisible("documentSignoffNativeStartButton", true);
   setVisible("documentSignoffNativeSaveButton", false);
   setVisible("documentSignoffNativeBackButton", false);
@@ -1213,6 +1268,7 @@ async function openNativeSignoffPanel(visit, additionalOnly, trigger) {
   setNativeWorkflowStep("selection");
   setText("documentSignoffNativePanelEyebrow", "Visitor Document Sign-off");
   setText("documentSignoffNativePanelTitle", additionalOnly ? "Sign Optional Agreement" : "Review / Sign Agreements");
+  setText("documentSignoffNativeWizardMeta", formatWizardVisitorMeta(visit));
   setNativePanelStatus("Loading agreement status...", "info");
   renderMetaList("documentSignoffNativeVisitorMeta", formatVisitMeta(visit));
   const list = $("documentSignoffNativeAgreementList");
@@ -1241,7 +1297,7 @@ async function openNativeSignoffPanel(visit, additionalOnly, trigger) {
 }
 
 async function startNativeSignoffQueue() {
-  updateDocumentSignoffDebug({ lastActionClicked: "continue_to_sign", lastError: "" });
+  updateDocumentSignoffDebug({ lastActionClicked: "next_review_document", lastError: "" });
   clearNativeValidationHighlights();
   if (!nativeSignoffCurrentVisit) {
     showNativeValidation("No visitor visit is selected.", "documentSignoffNativeVisitorMeta");
@@ -1326,7 +1382,8 @@ async function backToNativeAgreementSelection() {
   nativeSignoffQueue = [];
   nativeSignoffQueueTotal = 0;
   setVisible("documentSignoffNativeSelectionStep", true);
-  setVisible("documentSignoffNativeSigningStep", false);
+  setVisible("documentSignoffNativeReviewStep", false);
+  setVisible("documentSignoffNativeSignatureStep", false);
   setVisible("documentSignoffNativeStartButton", true);
   setVisible("documentSignoffNativeSaveButton", false);
   setVisible("documentSignoffNativeBackButton", false);
@@ -1334,24 +1391,23 @@ async function backToNativeAgreementSelection() {
 }
 
 async function renderNativeSigningStep(visit, requirement) {
-  setVisible("documentSignoffNativeSelectionStep", false);
-  setVisible("documentSignoffNativeSigningStep", true);
-  setVisible("documentSignoffNativeStartButton", false);
-  setVisible("documentSignoffNativeSaveButton", true);
-  setVisible("documentSignoffNativeBackButton", true);
-  setNativeWorkflowStep("signing");
+  setNativeWorkflowStep("review");
+  if ($("documentSignoffNativeStartButton")) $("documentSignoffNativeStartButton").disabled = false;
   updateDocumentSignoffDebug({
-    documentStepOpened: true,
-    lastActionClicked: "document_step_opened",
+    documentStepOpened: false,
+    lastActionClicked: "review_step_opened",
     lastError: ""
   });
   setText("documentSignoffNativePanelEyebrow", "Visitor Document Sign-off");
   setText("documentSignoffNativePanelTitle", textOrDash(requirement.agreement_name));
+  setText("documentSignoffNativeWizardMeta", formatWizardVisitorMeta(visit));
   const completed = nativeSignoffQueueTotal - nativeSignoffQueue.length;
-  setText("documentSignoffNativeQueueMeta", "Agreement " + completed + " of " + nativeSignoffQueueTotal);
+  const progress = "Document " + completed + " of " + nativeSignoffQueueTotal;
+  setText("documentSignoffNativeQueueMeta", progress);
+  setText("documentSignoffNativeSignatureQueueMeta", progress);
   setText("documentSignoffNativeAcceptedText", String(settingValue(
     "agreement_acceptance_text",
-    "I confirm that I have read, understood, and agree to follow the requirements of this agreement/induction."
+    "I confirm I have read and understood this document."
   )));
   if ($("documentSignoffNativeAcceptedCheck")) $("documentSignoffNativeAcceptedCheck").checked = false;
   setVisible("documentSignoffNativeSignatureBox", requirement.signature_required !== false);
@@ -1360,13 +1416,15 @@ async function renderNativeSigningStep(visit, requirement) {
   clearNativeValidationHighlights();
   syncNativeDocumentReviewRequirement();
   syncNativeInductorPanel(nativeInductorEnabledForCurrentStep());
-  renderMetaList("documentSignoffNativeAgreementMeta", [
+  const meta = [
     ["Agreement", requirement.agreement_title || requirement.agreement_name],
     ["Version", requirement.active_agreement_version_number],
     ["Requirement", requirement.reason],
     ["Visitor", visit.visitor_name],
     ["Company", visit.company]
-  ]);
+  ];
+  renderMetaList("documentSignoffNativeAgreementMeta", meta);
+  renderMetaList("documentSignoffNativeSignatureMeta", meta);
   setNativePanelStatus("Loading agreement document...", "info");
   try {
     const version = await getNativeAgreementVersion(requirement.active_agreement_version_id);
@@ -1381,7 +1439,62 @@ async function renderNativeSigningStep(visit, requirement) {
   setTimeout(() => {
     resizeSignatureCanvas("documentSignoffNativeSignatureCanvas", nativeVisitorSignatureState);
     resizeSignatureCanvas("documentSignoffNativeInductorSignatureCanvas", nativeInductorSignatureState);
+    focusNativeElement($("documentSignoffNativeReviewStep"));
   }, 60);
+}
+
+function continueToNativeSignatureStep() {
+  updateDocumentSignoffDebug({ lastActionClicked: "next_sign", lastError: "" });
+  clearNativeValidationHighlights();
+  if (!nativeSignoffCurrentVisit || !nativeSignoffCurrentRequirement) {
+    showNativeValidation("No agreement is selected.", "documentSignoffNativeAgreementList");
+    return;
+  }
+  if (nativeRequiresDocumentReviewCompletion() && !nativeDocumentReviewReachedEnd) {
+    showNativeValidation("Please scroll to the end of the document before signing.", "documentSignoffNativeDocumentReview");
+    return;
+  }
+  if (!$("documentSignoffNativeAcceptedCheck") || !$("documentSignoffNativeAcceptedCheck").checked) {
+    showNativeValidation("Please complete the confirmation checkbox before signing.", "documentSignoffNativeAcceptanceField");
+    return;
+  }
+  setNativeWorkflowStep("signature");
+  setNativePanelStatus("Ready for signature capture.", "success");
+  updateDocumentSignoffDebug({
+    documentStepOpened: true,
+    lastActionClicked: "signature_step_opened",
+    lastError: ""
+  });
+  setTimeout(() => {
+    resizeSignatureCanvas("documentSignoffNativeSignatureCanvas", nativeVisitorSignatureState);
+    resizeSignatureCanvas("documentSignoffNativeInductorSignatureCanvas", nativeInductorSignatureState);
+    focusNativeElement($("documentSignoffNativeSignatureCanvas") || $("documentSignoffNativeSaveButton"));
+  }, 60);
+}
+
+function backToNativeDocumentReview() {
+  updateDocumentSignoffDebug({ lastActionClicked: "back_to_document", lastError: "" });
+  clearNativeValidationHighlights();
+  setNativeWorkflowStep("review");
+  if ($("documentSignoffNativeStartButton")) $("documentSignoffNativeStartButton").disabled = false;
+  setNativePanelStatus("Document review restored.", "info");
+  setTimeout(() => focusNativeElement($("documentSignoffNativeReviewStep")), 60);
+}
+
+function handleNativeWizardPrimaryAction() {
+  if (documentSignoffNativeCurrentStep === "review") {
+    continueToNativeSignatureStep();
+    return;
+  }
+  startNativeSignoffQueue();
+}
+
+function handleNativeWizardBackAction() {
+  if (documentSignoffNativeCurrentStep === "signature") {
+    backToNativeDocumentReview();
+    return;
+  }
+  backToNativeAgreementSelection();
 }
 
 async function saveNativeVisitorAgreement() {
@@ -1791,10 +1904,10 @@ export function initialiseDocumentSignoffs(dependencies) {
     });
   }
   if ($("documentSignoffNativeStartButton")) {
-    $("documentSignoffNativeStartButton").addEventListener("click", startNativeSignoffQueue);
+    $("documentSignoffNativeStartButton").addEventListener("click", handleNativeWizardPrimaryAction);
   }
   if ($("documentSignoffNativeBackButton")) {
-    $("documentSignoffNativeBackButton").addEventListener("click", backToNativeAgreementSelection);
+    $("documentSignoffNativeBackButton").addEventListener("click", handleNativeWizardBackAction);
   }
   if ($("documentSignoffNativeSaveButton")) {
     $("documentSignoffNativeSaveButton").addEventListener("click", saveNativeVisitorAgreement);
@@ -1810,7 +1923,16 @@ export function initialiseDocumentSignoffs(dependencies) {
       nativeDocumentReviewReachedEnd = true;
       setText("documentSignoffNativeReviewStatus", "Document review completion confirmed.");
       clearNativeValidationHighlights();
+      updateDocumentSignoffDebug({ documentReviewReachedEnd: true, lastActionClicked: "confirm_document_reviewed" });
       showToast("Document review confirmed", "You can now complete the visitor sign-off.", "success");
+    });
+  }
+  if ($("documentSignoffNativeAcceptedCheck")) {
+    $("documentSignoffNativeAcceptedCheck").addEventListener("change", () => {
+      updateDocumentSignoffDebug({
+        confirmationChecked: $("documentSignoffNativeAcceptedCheck").checked,
+        lastActionClicked: "confirmation_changed"
+      });
     });
   }
   if ($("documentSignoffNativeSignatureCanvas")) {

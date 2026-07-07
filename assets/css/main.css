@@ -1816,6 +1816,18 @@ body.document-signoff-overlay-open {
   margin: 0;
 }
 
+.document-signoff-wizard-meta,
+.document-signoff-wizard-step {
+  margin: 4px 0 0;
+  color: var(--oh-shell-muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.document-signoff-wizard-step {
+  color: #234d77;
+}
+
 .document-signoff-native-panel-body {
   flex: 1;
   display: grid;
@@ -1832,6 +1844,11 @@ body.document-signoff-overlay-open {
   border: 1px solid var(--oh-shell-border);
   border-radius: 12px;
   background: #f8fafc;
+}
+
+.document-signoff-focus-workspace.is-review-step .document-signoff-native-stage,
+.document-signoff-focus-workspace.is-signature-step .document-signoff-native-stage {
+  display: none;
 }
 
 .document-signoff-native-stage > div:first-child,
@@ -1965,7 +1982,7 @@ body.document-signoff-overlay-open {
 
 .document-signoff-native-pdf {
   width: 100%;
-  height: clamp(460px, 58vh, 680px);
+  height: clamp(520px, 66vh, 760px);
   min-height: 380px;
   border: 1px solid var(--oh-shell-border);
   border-radius: 12px;
@@ -2031,12 +2048,13 @@ body.document-signoff-overlay-open {
 }
 
 .document-signoff-focus-workspace.is-selection-step #documentSignoffNativeStartButton,
-.document-signoff-focus-workspace.is-signing-step #documentSignoffNativeSaveButton {
+.document-signoff-focus-workspace.is-review-step #documentSignoffNativeStartButton,
+.document-signoff-focus-workspace.is-signature-step #documentSignoffNativeSaveButton {
   min-width: 190px;
 }
 
 .document-signoff-focus-workspace.is-selection-step #documentSignoffNativeBackButton,
-.document-signoff-focus-workspace.is-signing-step #documentSignoffNativeStartButton {
+.document-signoff-focus-workspace.is-signature-step #documentSignoffNativeStartButton {
   display: none !important;
 }
 

@@ -1194,6 +1194,8 @@
               <div>
                 <p id="documentSignoffNativePanelEyebrow" class="oh-app-eyebrow">Visitor Document Sign-off</p>
                 <h2 id="documentSignoffNativePanelTitle" data-oh-side-panel-title>Visitor Sign-off</h2>
+                <p id="documentSignoffNativeWizardMeta" class="document-signoff-wizard-meta">Select visitor documents</p>
+                <p id="documentSignoffNativeWizardStep" class="document-signoff-wizard-step">Step 1 of 3 - Select documents</p>
               </div>
               <button id="documentSignoffNativePanelClose" class="ghost" type="button" aria-label="Close visitor document sign-off panel" data-oh-side-panel-close>Close</button>
             </header>
@@ -1220,54 +1222,62 @@
                 <div id="documentSignoffNativeSelectionSummary" class="document-signoff-native-selection-summary" aria-live="polite"></div>
               </section>
 
-              <section id="documentSignoffNativeSigningStep" class="document-signoff-native-step hidden" aria-labelledby="documentSignoffNativeSigningTitle">
+              <section id="documentSignoffNativeReviewStep" class="document-signoff-native-step document-signoff-native-review-step hidden" aria-labelledby="documentSignoffNativeReviewStepTitle" tabindex="-1">
                 <div>
                   <span class="document-signoff-native-stage-number">2</span>
-                  <h3 id="documentSignoffNativeSigningTitle">Visitor Sign-off</h3>
+                  <h3 id="documentSignoffNativeReviewStepTitle">Review Document</h3>
                   <p id="documentSignoffNativeQueueMeta">Agreement 1 of 1</p>
                 </div>
                 <div id="documentSignoffNativeAgreementMeta" class="document-signoff-native-meta"></div>
-                <div class="document-signoff-native-review-layout">
-                  <section id="documentSignoffNativeDocumentReview" class="document-signoff-native-document-review" aria-labelledby="documentSignoffNativeReviewTitle">
-                    <div>
-                      <span class="document-signoff-native-stage-number">3</span>
-                      <h4 id="documentSignoffNativeReviewTitle">Document Review</h4>
-                    </div>
-                    <iframe id="documentSignoffNativePdfFrame" class="document-signoff-native-pdf" title="Visitor agreement document"></iframe>
-                    <p id="documentSignoffNativeReviewStatus" class="document-signoff-native-review-status">Document review loaded.</p>
-                    <button id="documentSignoffNativeReviewCompleteButton" class="secondary hidden" type="button">Confirm Document Reviewed to End</button>
-                  </section>
-                  <section class="document-signoff-native-signing-card" aria-labelledby="documentSignoffNativeSignatureTitle">
-                    <div>
-                      <span class="document-signoff-native-stage-number">4</span>
-                      <h4 id="documentSignoffNativeSignatureTitle">Signature / Confirmation</h4>
-                    </div>
-                    <label class="document-signoff-native-acceptance" id="documentSignoffNativeAcceptanceField">
-                      <input id="documentSignoffNativeAcceptedCheck" type="checkbox" />
-                      <span id="documentSignoffNativeAcceptedText">I confirm that I have read, understood, and agree to follow the requirements of this agreement/induction.</span>
-                    </label>
-                    <div id="documentSignoffNativeSignatureBox" class="document-signoff-native-signature-box">
-                      <canvas id="documentSignoffNativeSignatureCanvas" class="signature-pad document-signoff-native-signature-pad"></canvas>
-                      <button id="documentSignoffNativeClearSignatureButton" class="secondary" type="button">Clear Visitor Signature</button>
-                    </div>
-                    <div id="documentSignoffNativeInductorBox" class="document-signoff-native-inductor hidden">
-                      <h4>Inductor Sign-off</h4>
-                      <div id="documentSignoffNativeInductorTypedBox" class="setting-field">
-                        <label for="documentSignoffNativeInductorName">Inductor name</label>
-                        <input id="documentSignoffNativeInductorName" placeholder="Employee / inductor name" />
-                      </div>
-                      <div id="documentSignoffNativeInductorSignatureBox" class="hidden">
-                        <canvas id="documentSignoffNativeInductorSignatureCanvas" class="signature-pad document-signoff-native-signature-pad"></canvas>
-                        <button id="documentSignoffNativeClearInductorSignatureButton" class="secondary" type="button">Clear Inductor Signature</button>
-                      </div>
-                    </div>
-                  </section>
+                <section id="documentSignoffNativeDocumentReview" class="document-signoff-native-document-review" aria-labelledby="documentSignoffNativeReviewTitle">
+                  <div>
+                    <span class="document-signoff-native-stage-number">2</span>
+                    <h4 id="documentSignoffNativeReviewTitle">Document Review</h4>
+                  </div>
+                  <iframe id="documentSignoffNativePdfFrame" class="document-signoff-native-pdf" title="Visitor agreement document"></iframe>
+                  <p id="documentSignoffNativeReviewStatus" class="document-signoff-native-review-status">Document review loaded.</p>
+                  <button id="documentSignoffNativeReviewCompleteButton" class="secondary hidden" type="button">Confirm Document Reviewed to End</button>
+                </section>
+                <label class="document-signoff-native-acceptance" id="documentSignoffNativeAcceptanceField">
+                  <input id="documentSignoffNativeAcceptedCheck" type="checkbox" />
+                  <span id="documentSignoffNativeAcceptedText">I confirm I have read and understood this document.</span>
+                </label>
+              </section>
+
+              <section id="documentSignoffNativeSignatureStep" class="document-signoff-native-step document-signoff-native-signature-step hidden" aria-labelledby="documentSignoffNativeSignatureStepTitle" tabindex="-1">
+                <div>
+                  <span class="document-signoff-native-stage-number">3</span>
+                  <h3 id="documentSignoffNativeSignatureStepTitle">Capture Signature</h3>
+                  <p id="documentSignoffNativeSignatureQueueMeta">Agreement 1 of 1</p>
                 </div>
+                <div id="documentSignoffNativeSignatureMeta" class="document-signoff-native-meta"></div>
+                <section class="document-signoff-native-signing-card" aria-labelledby="documentSignoffNativeSignatureTitle">
+                  <div>
+                    <span class="document-signoff-native-stage-number">3</span>
+                    <h4 id="documentSignoffNativeSignatureTitle">Signature / Evidence</h4>
+                  </div>
+                  <p class="document-signoff-native-review-status">Confirmation complete. Capture the required signature evidence for this document.</p>
+                  <div id="documentSignoffNativeSignatureBox" class="document-signoff-native-signature-box">
+                    <canvas id="documentSignoffNativeSignatureCanvas" class="signature-pad document-signoff-native-signature-pad"></canvas>
+                    <button id="documentSignoffNativeClearSignatureButton" class="secondary" type="button">Clear Visitor Signature</button>
+                  </div>
+                  <div id="documentSignoffNativeInductorBox" class="document-signoff-native-inductor hidden">
+                    <h4>Inductor Sign-off</h4>
+                    <div id="documentSignoffNativeInductorTypedBox" class="setting-field">
+                      <label for="documentSignoffNativeInductorName">Inductor name</label>
+                      <input id="documentSignoffNativeInductorName" placeholder="Employee / inductor name" />
+                    </div>
+                    <div id="documentSignoffNativeInductorSignatureBox" class="hidden">
+                      <canvas id="documentSignoffNativeInductorSignatureCanvas" class="signature-pad document-signoff-native-signature-pad"></canvas>
+                      <button id="documentSignoffNativeClearInductorSignatureButton" class="secondary" type="button">Clear Inductor Signature</button>
+                    </div>
+                  </div>
+                </section>
               </section>
 
             </div>
             <div id="documentSignoffNativePanelActions" class="document-signoff-native-panel-actions document-signoff-actions">
-              <button id="documentSignoffNativeStartButton" type="button">Continue to Sign</button>
+              <button id="documentSignoffNativeStartButton" type="button">Next: Review Document</button>
               <button id="documentSignoffNativeSaveButton" class="hidden" type="button">Save Agreement</button>
               <button id="documentSignoffNativeBackButton" class="secondary hidden" type="button">Back to Selection</button>
               <button id="documentSignoffNativePanelLegacyButton" class="secondary" type="button">Open Legacy Sign-off</button>
