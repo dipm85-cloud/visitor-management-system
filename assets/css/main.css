@@ -549,11 +549,12 @@ textarea { min-height: 86px; resize: vertical; }
   position: fixed;
   right: 24px;
   bottom: 24px;
-  z-index: 80;
+  z-index: 2147483600;
   display: flex;
   flex-direction: column;
   gap: 12px;
   width: min(420px, calc(100vw - 48px));
+  pointer-events: none;
 }
 
 .toast {
@@ -568,6 +569,7 @@ textarea { min-height: 86px; resize: vertical; }
   gap: 12px;
   align-items: start;
   animation: toastIn .18s ease-out;
+  pointer-events: auto;
 }
 
 .toast.error { border-left-color: var(--danger); }
@@ -2049,11 +2051,20 @@ body.document-signoff-overlay-open {
   background: #f8fafc;
 }
 
+.document-signoff-native-inductor {
+  align-content: start;
+}
+
 .document-signoff-native-signature-pad {
   width: 100%;
   max-width: 100%;
   height: 180px;
   border-radius: 12px;
+}
+
+.document-signoff-native-signature-box button,
+.document-signoff-native-inductor button {
+  justify-self: start;
 }
 
 .document-signoff-native-panel-actions {

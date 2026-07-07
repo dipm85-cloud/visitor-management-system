@@ -1523,6 +1523,7 @@ async function saveNativeVisitorAgreement() {
   }
 
   const signatureRequired = !$("documentSignoffNativeSignatureBox").classList.contains("hidden");
+  // Signature evidence currently stores the full captured canvas image; future polish can safely normalise/crop blank space.
   const visitorSignature = signatureRequired && nativeVisitorSignatureState.hasInk
     ? $("documentSignoffNativeSignatureCanvas").toDataURL("image/png")
     : null;
