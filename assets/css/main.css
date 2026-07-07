@@ -1763,20 +1763,20 @@ body.kiosk-mode .results-scroll {
 .document-signoff-focus-backdrop {
   position: fixed;
   z-index: 1300;
-  top: var(--oh-header-height);
+  top: 0;
   right: 0;
-  bottom: var(--oh-footer-height);
+  bottom: 0;
   left: 0;
   display: grid;
   place-items: center;
-  padding: 24px;
+  padding: 16px;
   background: rgba(15, 23, 42, .58);
 }
 
 .document-signoff-focus-workspace {
-  width: min(1320px, 100%);
-  height: min(900px, calc(100dvh - var(--oh-header-height) - var(--oh-footer-height) - 48px));
-  min-height: min(720px, calc(100dvh - var(--oh-header-height) - var(--oh-footer-height) - 48px));
+  width: min(1440px, 100%);
+  height: min(980px, calc(100dvh - 32px));
+  min-height: 0;
   display: flex;
   min-width: 0;
   overflow: hidden;
@@ -1792,7 +1792,7 @@ body.kiosk-mode .results-scroll {
   align-items: flex-start;
   justify-content: space-between;
   gap: 18px;
-  padding: 22px 26px 18px;
+  padding: 18px 24px 14px;
   border-bottom: 1px solid var(--oh-shell-border);
   background: var(--oh-shell-surface);
 }
@@ -1804,16 +1804,16 @@ body.kiosk-mode .results-scroll {
 .document-signoff-native-panel-body {
   flex: 1;
   display: grid;
-  gap: 16px;
+  gap: 12px;
   min-height: 0;
   overflow-y: auto;
-  padding: 20px 26px 0;
+  padding: 16px 24px 18px;
 }
 
 .document-signoff-native-stage {
   display: grid;
-  gap: 12px;
-  padding: 14px;
+  gap: 8px;
+  padding: 10px 12px;
   border: 1px solid var(--oh-shell-border);
   border-radius: 12px;
   background: #f8fafc;
@@ -1843,14 +1843,14 @@ body.kiosk-mode .results-scroll {
 
 .document-signoff-native-meta {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
   color: var(--oh-shell-muted);
 }
 
 .document-signoff-native-meta div {
   min-width: 0;
-  padding: 10px 12px;
+  padding: 8px 10px;
   border: 1px solid var(--oh-shell-border);
   border-radius: 10px;
   background: #f8fafc;
@@ -1875,9 +1875,9 @@ body.kiosk-mode .results-scroll {
 
 .document-signoff-native-step {
   display: grid;
-  gap: 12px;
+  gap: 10px;
   min-height: 0;
-  padding: 14px;
+  padding: 12px;
   border: 1px solid var(--oh-shell-border);
   border-radius: 12px;
   background: var(--oh-shell-surface);
@@ -1890,14 +1890,14 @@ body.kiosk-mode .results-scroll {
 
 .document-signoff-native-agreement-list {
   display: grid;
-  max-height: min(420px, 52vh);
-  min-height: 120px;
-  gap: 10px;
+  max-height: min(260px, 34vh);
+  min-height: 96px;
+  gap: 8px;
   overflow: auto;
 }
 
 .document-signoff-native-agreement-row {
-  padding: 14px;
+  padding: 10px 12px;
   border: 1px solid var(--oh-shell-border);
   border-radius: 12px;
   background: #f8fafc;
@@ -1906,7 +1906,7 @@ body.kiosk-mode .results-scroll {
 .document-signoff-native-agreement-header {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 7px;
   align-items: center;
   font-weight: 900;
 }
@@ -1916,10 +1916,23 @@ body.kiosk-mode .results-scroll {
   height: 20px;
 }
 
+.document-signoff-native-agreement-row p {
+  margin: 6px 0 0;
+  color: var(--oh-shell-muted);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.document-signoff-native-selection-summary {
+  color: var(--oh-shell-muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
 .document-signoff-native-review-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.45fr) minmax(340px, .75fr);
-  gap: 16px;
+  grid-template-columns: 1fr;
+  gap: 12px;
   align-items: start;
   min-height: 0;
 }
@@ -1937,8 +1950,8 @@ body.kiosk-mode .results-scroll {
 
 .document-signoff-native-pdf {
   width: 100%;
-  height: clamp(420px, 62vh, 640px);
-  min-height: 360px;
+  height: clamp(460px, 58vh, 680px);
+  min-height: 380px;
   border: 1px solid var(--oh-shell-border);
   border-radius: 12px;
   background: #f8fafc;
@@ -1955,8 +1968,14 @@ body.kiosk-mode .results-scroll {
   display: flex;
   gap: 10px;
   align-items: flex-start;
+  min-width: 0;
   font-weight: 800;
   line-height: 1.45;
+}
+
+.document-signoff-native-acceptance span {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .document-signoff-native-acceptance input {
@@ -1970,27 +1989,27 @@ body.kiosk-mode .results-scroll {
 .document-signoff-native-inductor {
   display: grid;
   gap: 10px;
-  padding: 14px;
+  min-width: 0;
+  padding: 12px;
   border: 1px solid var(--oh-shell-border);
   border-radius: 12px;
   background: #f8fafc;
 }
 
 .document-signoff-native-signature-pad {
-  height: 190px;
+  width: 100%;
+  max-width: 100%;
+  height: 180px;
   border-radius: 12px;
 }
 
 .document-signoff-native-panel-actions {
-  position: sticky;
-  bottom: 0;
-  z-index: 2;
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 10px;
-  margin: 4px -26px 0;
-  padding: 16px 26px 20px;
+  flex: 0 0 auto;
+  padding: 14px 24px 16px;
   border-top: 1px solid var(--oh-shell-border);
   background: var(--oh-shell-surface);
 }
@@ -2491,7 +2510,7 @@ body.kiosk-mode .results-scroll {
 
   .document-signoff-focus-workspace {
     width: 100%;
-    height: calc(100dvh - var(--oh-header-height) - var(--oh-footer-height) - 28px);
+    height: calc(100dvh - 28px);
     min-height: 0;
   }
 
@@ -2561,14 +2580,18 @@ body.kiosk-mode .results-scroll {
     grid-template-columns: 1fr;
   }
 
+  .document-signoff-native-agreement-list {
+    max-height: 220px;
+  }
+
   .document-signoff-native-pdf {
-    min-height: 220px;
-    height: 44vh;
+    min-height: 260px;
+    height: 42vh;
   }
 
   .document-signoff-focus-backdrop {
-    top: var(--oh-header-height);
-    bottom: var(--oh-footer-height);
+    top: 0;
+    bottom: 0;
     padding: 0;
   }
 
@@ -2591,13 +2614,11 @@ body.kiosk-mode .results-scroll {
   }
 
   .document-signoff-native-panel-body {
-    padding: 16px 18px 0;
+    padding: 14px 14px 16px;
   }
 
   .document-signoff-native-panel-actions {
-    margin-right: -18px;
-    margin-left: -18px;
-    padding: 14px 18px 18px;
+    padding: 12px 14px 14px;
   }
 
   .document-signoff-legacy-actions,

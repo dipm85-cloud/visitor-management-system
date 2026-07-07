@@ -195,8 +195,7 @@ function formatVisitMeta(visit) {
   return [
     ["Visitor", visit && visit.visitor_name],
     ["Company", visit && visit.company],
-    ["Signed in", visit && visit.sign_in_time ? formatDateTime(visit.sign_in_time) : ""],
-    ["Visit reference", visit && (visit.visit_log_id || visit.id)]
+    ["Signed in", visit && visit.sign_in_time ? formatDateTime(visit.sign_in_time) : ""]
   ].filter(item => hasValue(item[1]));
 }
 
@@ -381,6 +380,7 @@ function clearNativeSignoffPanel() {
   setText("documentSignoffNativePanelTitle", "Visitor Sign-off");
   setNativePanelStatus("", "");
   setText("documentSignoffNativeReviewStatus", "Document review loaded.");
+  setText("documentSignoffNativeSelectionSummary", "");
   renderMetaList("documentSignoffNativeVisitorMeta", []);
   renderMetaList("documentSignoffNativeAgreementMeta", []);
   const list = $("documentSignoffNativeAgreementList");
@@ -968,6 +968,21 @@ function nativeAgreementStateBadge(status, type) {
   return { label: "Optional", className: "" };
 }
 
+function updateNativeSelectionSummary() {
+  const checkboxes = Array.from(
+    document.querySelectorAll("#documentSignoffNativeAgreementList .document-signoff-native-agreement-check")
+  );
+  const selected = checkboxes.filter(checkbox => checkbox.checked).length;
+  const selectable = checkboxes.filter(checkbox => !checkbox.disabled).length;
+  const locked = checkboxes.filter(checkbox => checkbox.checked && checkbox.disabled && checkbox.dataset.lockedSelected === "true").length;
+  const parts = [
+    selected + " selected",
+    selectable + " optional/selectable",
+    locked ? locked + " required locked" : ""
+  ].filter(Boolean);
+  setText("documentSignoffNativeSelectionSummary", parts.join(" | "));
+}
+
 function renderNativeAgreementSelection(types, statuses, additionalOnly) {
   const list = $("documentSignoffNativeAgreementList");
   if (!list) return;
@@ -980,6 +995,7 @@ function renderNativeAgreementSelection(types, statuses, additionalOnly) {
   const activeTypes = (types || []).filter(type => type.is_active !== false);
 
   if (!activeTypes.length) {
+    setText("documentSignoffNativeSelectionSummary", "");
     renderEmptyState("documentSignoffNativeAgreementList", {
       title: "No active agreement types",
       description: "This sign-off workflow is still completed in Legacy VMS until active versions are available."
@@ -1018,6 +1034,7 @@ function renderNativeAgreementSelection(types, statuses, additionalOnly) {
     checkbox.checked = selected || locked;
     checkbox.disabled = disabled;
     checkbox.dataset.lockedSelected = locked ? "true" : "false";
+    checkbox.addEventListener("change", updateNativeSelectionSummary);
     label.appendChild(checkbox);
     const heading = document.createElement("span");
     heading.textContent = textOrDash(type.agreement_name);
@@ -1034,6 +1051,7 @@ function renderNativeAgreementSelection(types, statuses, additionalOnly) {
     row.append(label, meta);
     list.appendChild(row);
   });
+  updateNativeSelectionSummary();
 }
 
 async function openNativeSignoffPanel(visit, additionalOnly, trigger) {
@@ -1053,6 +1071,7 @@ async function openNativeSignoffPanel(visit, additionalOnly, trigger) {
   renderMetaList("documentSignoffNativeVisitorMeta", formatVisitMeta(visit));
   const list = $("documentSignoffNativeAgreementList");
   if (list) list.textContent = "Loading agreement status...";
+  setText("documentSignoffNativeSelectionSummary", "");
   openNativeSignoffWorkflow({
     trigger,
     title: additionalOnly ? "Sign Optional Agreement" : "Review / Sign Agreements"
