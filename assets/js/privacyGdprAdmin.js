@@ -3,7 +3,7 @@ import { hasAnyCapability } from "./capabilities.js";
 import { $ } from "./dom.js";
 import { downloadTextFile } from "./exports.js";
 import { showToast } from "./messages.js";
-import { createSidePanelController, renderEmptyState } from "./platformUi.js";
+import { buildOperationsPrintDocument, createSidePanelController, renderEmptyState } from "./platformUi.js";
 import { refreshSectionNavigator, registerModuleSections, selectModuleSection } from "./sectionNavigation.js";
 import { showAdministrationWorkspace } from "./shell.js";
 import { AppState } from "./state.js";
@@ -1261,6 +1261,19 @@ function escapeHtml(value) {
     .replaceAll("'", "&#39;");
 }
 
+function sarPrintFieldAllowed(field) {
+  const label = normaliseSearchText(field && field.label);
+  if (!label) return false;
+  return ![
+    "actor",
+    "recorded by / witness",
+    "inductor",
+    "modified",
+    "created by",
+    "modified by"
+  ].includes(label);
+}
+
 function printEvidencePackPreview() {
   if (!privacyGdprEvidencePackHasPreview) {
     showToast("Preview required", "Preview the evidence pack before printing.", "error");
@@ -1268,16 +1281,17 @@ function printEvidencePackPreview() {
   }
 
   const data = evidencePackMetadata();
+  const sourceList = data.sources.map(source => source.source_label).join(", ");
   const groupsHtml = data.sources.map(source =>
     "<section class='source'>" +
       "<h2>" + escapeHtml(source.source_label) + " (" + source.count + ")</h2>" +
       (source.unavailable
         ? "<p class='warning'>" + escapeHtml(source.message || "Source unavailable.") + "</p>"
         : source.records.map(record =>
-          "<article class='record'>" +
+          "<article class='record oh-print-avoid-break'>" +
             "<h3>" + escapeHtml(record.title) + "</h3>" +
             "<p>" + escapeHtml([record.subtitle, record.status, record.date].filter(Boolean).join(" | ")) + "</p>" +
-            "<dl>" + record.fields.map(field =>
+            "<dl>" + record.fields.filter(sarPrintFieldAllowed).map(field =>
               "<div><dt>" + escapeHtml(field.label) + "</dt><dd>" + escapeHtml(field.value) + "</dd></div>"
             ).join("") + "</dl>" +
           "</article>"
@@ -1290,20 +1304,42 @@ function printEvidencePackPreview() {
     showToast("Print preview blocked", "The browser blocked the printable preview window.", "error");
     return;
   }
+  const bodyHtml =
+    "<div class='sar-print-warning'><strong>Preview only.</strong> This is an internal privacy review document, not a complete SAR disclosure pack. Matching records are not identity-linked.</div>" +
+    groupsHtml;
+  const html = buildOperationsPrintDocument({
+    title: "SAR Evidence Pack Preview",
+    subtitle: "Internal Privacy Review - Generated for authorised review",
+    kicker: "Operations Hub / Privacy",
+    companyName: settingValue("company_name", "Operations Hub"),
+    siteName: settingValue("site_name", settingValue("default_site_name", "")),
+    logoUrl: settingValue("logo_url", ""),
+    generatedAt: new Date(data.generated_at).toLocaleString(),
+    orientation: "portrait",
+    contextFields: [
+      { label: "Search text", value: data.search_text || "-" },
+      { label: "Date range", value: (data.date_from || "-") + " to " + (data.date_to || "-") },
+      { label: "Source categories", value: sourceList || "-" },
+      { label: "Purpose", value: "Evidence Pack Preview" }
+    ],
+    reference: "SAR preview " + todayDate(),
+    footerText: "Internal Privacy Review",
+    bodyHtml,
+    extraStyles:
+      ".sar-print-warning{border:1px solid #9ca3af;background:#f9fafb;padding:10px;border-radius:8px;margin-bottom:14px;font-weight:700;}" +
+      ".source{margin-top:18px;}" +
+      ".source h2{margin:0 0 8px;font-size:14px;color:#111827;}" +
+      ".warning{border:1px solid #f59e0b;background:#fffbeb;padding:10px;border-radius:8px;}" +
+      ".record{border:1px solid #d1d5db;border-radius:8px;padding:10px;margin:8px 0;}" +
+      ".record h3{margin:0 0 4px;font-size:12px;color:#0f172a;}" +
+      ".record p{margin:0 0 8px;color:#4b5563;font-weight:700;}" +
+      ".record dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:0;}" +
+      ".record dt{font-size:9px;text-transform:uppercase;color:#667085;font-weight:800;}" +
+      ".record dd{margin:2px 0 0;overflow-wrap:anywhere;}" +
+      "@media print{.record dl{grid-template-columns:repeat(2,minmax(0,1fr));}}"
+  });
   printWindow.document.open();
-  printWindow.document.write(
-    "<!doctype html><html><head><meta charset='utf-8'>" +
-    "<title>SAR Evidence Pack Preview</title>" +
-    "<style>body{font-family:Arial,sans-serif;margin:28px;color:#111827;line-height:1.45;}h1,h2,h3{color:#0f172a;}p.warning{border:1px solid #f59e0b;background:#fffbeb;padding:10px;border-radius:8px;}section.source{margin-top:22px;}article.record{break-inside:avoid;border:1px solid #d1d5db;border-radius:10px;padding:12px;margin:10px 0;}dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}dt{font-size:11px;text-transform:uppercase;color:#667085;font-weight:bold;}dd{margin:2px 0 0;overflow-wrap:anywhere;}@media print{button{display:none;}}</style>" +
-    "</head><body>" +
-    "<h1>SAR Evidence Pack Preview</h1>" +
-    "<p><strong>Preview only.</strong> This is not a complete SAR export and does not confirm that matching records belong to one person.</p>" +
-    "<p>Generated: " + escapeHtml(data.generated_at) + "<br>Search text: " + escapeHtml(data.search_text || "-") +
-    "<br>Date range: " + escapeHtml(data.date_from || "-") + " to " + escapeHtml(data.date_to || "-") + "</p>" +
-    groupsHtml +
-    "<script>window.onload=function(){window.focus();window.print();};<\/script>" +
-    "</body></html>"
-  );
+  printWindow.document.write(html);
   printWindow.document.close();
 }
 
