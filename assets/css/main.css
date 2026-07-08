@@ -2439,6 +2439,7 @@ body.document-signoff-overlay-open {
   display: grid;
   gap: 14px;
   margin-top: 16px;
+  min-width: 0;
 }
 
 .privacy-gdpr-result-group {
@@ -2483,6 +2484,12 @@ body.document-signoff-overlay-open {
 .privacy-gdpr-result-list {
   display: grid;
   gap: 0;
+  max-height: min(560px, calc(100dvh - var(--oh-header-height, 64px) - var(--oh-footer-height, 34px) - 280px));
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 .privacy-gdpr-result-row {
@@ -2524,6 +2531,27 @@ body.document-signoff-overlay-open {
   padding: 14px 16px;
   color: var(--oh-shell-muted);
   line-height: 1.45;
+}
+
+.privacy-gdpr-search-summary {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--oh-shell-border);
+  border-radius: 10px;
+  background: #f8fafc;
+  color: var(--oh-shell-muted);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.privacy-gdpr-search-summary.has-results {
+  color: #344054;
+  background: #f6fbff;
+}
+
+.privacy-gdpr-result-section {
+  min-width: 0;
 }
 
 .privacy-gdpr-search-details-panel {

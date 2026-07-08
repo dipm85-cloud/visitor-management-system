@@ -3,6 +3,7 @@ import { hasAnyCapability } from "./capabilities.js";
 import { $ } from "./dom.js";
 import { showToast } from "./messages.js";
 import { createSidePanelController, renderEmptyState } from "./platformUi.js";
+import { refreshSectionNavigator, registerModuleSections, selectModuleSection } from "./sectionNavigation.js";
 import { showAdministrationWorkspace } from "./shell.js";
 import { AppState } from "./state.js";
 import { loadSystemSettings, settingValue } from "./settings.js";
@@ -30,19 +31,27 @@ const LEGACY_PRIVACY_ACTIONS = [
 const SEARCH_GROUPS = {
   planned_visits: {
     title: "Planned Visits",
-    description: "Existing planned-visit records matching the current search."
+    description: "Existing planned-visit records matching the current search.",
+    target: "privacyGdprPlannedResultsSection",
+    container: "privacyGdprPlannedResults"
   },
   visit_log: {
     title: "Visitor History / Visit Log",
-    description: "Existing visit-log records matching the current search."
+    description: "Existing visit-log records matching the current search.",
+    target: "privacyGdprVisitLogResultsSection",
+    container: "privacyGdprVisitLogResults"
   },
   document_evidence: {
     title: "Document Sign-off Evidence / Agreement Signatures",
-    description: "Read-only agreement evidence returned by existing sign-off search endpoints."
+    description: "Read-only agreement evidence returned by existing sign-off search endpoints.",
+    target: "privacyGdprDocumentEvidenceResultsSection",
+    container: "privacyGdprDocumentEvidenceResults"
   },
   audit_events: {
     title: "Audit Events",
-    description: "Audit events returned by the existing audit search endpoint where current access allows it."
+    description: "Audit events returned by the existing audit search endpoint where current access allows it.",
+    target: "privacyGdprAuditResultsSection",
+    container: "privacyGdprAuditResults"
   },
   legacy_only: {
     title: "Legacy-only GDPR Records",
@@ -57,6 +66,7 @@ let privacyGdprCasesLoaded = false;
 let privacyGdprSearchGroups = [];
 let privacyGdprSearchDetailsPanelController = null;
 let privacyGdprSearchSequence = 0;
+let privacyGdprHasSearched = false;
 
 function hasActiveStaffUser() {
   return !!(
@@ -79,6 +89,23 @@ function canViewPrivacyGdpr() {
 
 function canOpenLegacyPrivacyGdpr() {
   return canViewPrivacyGdpr() && isSuperUserProfile();
+}
+
+function selectPrivacyGdprSection(sectionId, options) {
+  return selectModuleSection("privacy-gdpr", sectionId, options);
+}
+
+function searchGroupById(id) {
+  return privacyGdprSearchGroups.find(group => group && group.id === id) || null;
+}
+
+function searchGroupRecordCount(id) {
+  const group = searchGroupById(id);
+  return group && Array.isArray(group.records) ? group.records.length : 0;
+}
+
+function hasSearchGroupRecords(id) {
+  return searchGroupRecordCount(id) > 0;
 }
 
 function setAdministrationSection(sectionName) {
@@ -314,6 +341,7 @@ function renderAll() {
   renderSettings();
   renderSearchResults();
   syncLegacyBridgeVisibility();
+  refreshSectionNavigator("privacy-gdpr");
 }
 
 function currentSearchPayload() {
@@ -621,6 +649,7 @@ function createResultGroupElement(group) {
 
   const list = document.createElement("div");
   list.className = "privacy-gdpr-result-list";
+  list.setAttribute("data-oh-scroll-region", "operational");
   group.records.slice(0, 50).forEach(record => {
     const row = document.createElement("article");
     row.className = "privacy-gdpr-result-row";
@@ -654,24 +683,49 @@ function createResultGroupElement(group) {
   return section;
 }
 
-function renderSearchResults() {
-  const container = $("privacyGdprSearchResults");
-  if (!container) return;
-  container.replaceChildren();
-  if (!privacyGdprSearchGroups.length) {
-    const empty = document.createElement("div");
-    empty.id = "privacyGdprSearchEmpty";
-    empty.className = "people-empty-state";
-    empty.setAttribute("data-oh-empty-state", "");
-    empty.textContent = "Enter search text or a date range to search native read-only privacy records.";
-    container.appendChild(empty);
-    renderEmptyState(empty, {
-      title: "No privacy search yet",
-      description: "Search results remain separate by source and are not identity-linked."
-    });
+function clearSearchResultContainers() {
+  Object.values(SEARCH_GROUPS).forEach(settings => {
+    if (settings.container && $(settings.container)) {
+      $(settings.container).replaceChildren();
+    }
+  });
+}
+
+function renderSearchSummary() {
+  const summary = $("privacyGdprSearchSummary");
+  if (!summary) return;
+
+  if (!privacyGdprHasSearched) {
+    summary.textContent = "Search results will appear as separate sections after you run a search.";
+    summary.classList.remove("has-results");
     return;
   }
-  privacyGdprSearchGroups.forEach(group => container.appendChild(createResultGroupElement(group)));
+
+  const availableGroups = privacyGdprSearchGroups.filter(group =>
+    group && !group.unavailable && (group.records || []).length > 0
+  );
+  const total = availableGroups.reduce((sum, group) => sum + (group.records || []).length, 0);
+  const counts = availableGroups.map(group => {
+    const settings = SEARCH_GROUPS[group.id] || {};
+    return (settings.title || group.id) + ": " + (group.records || []).length;
+  });
+  summary.textContent = "Search complete: " + total + " record(s) found across " +
+    availableGroups.length + " categor" + (availableGroups.length === 1 ? "y" : "ies") +
+    (counts.length ? ". " + counts.join(" | ") : ".");
+  summary.classList.toggle("has-results", total > 0);
+}
+
+function renderSearchResults() {
+  clearSearchResultContainers();
+  renderSearchSummary();
+  privacyGdprSearchGroups.forEach(group => {
+    if (!group || group.unavailable || !(group.records || []).length) return;
+    const settings = SEARCH_GROUPS[group.id] || {};
+    const container = settings.container ? $(settings.container) : null;
+    if (!container) return;
+    container.appendChild(createResultGroupElement(group));
+  });
+  refreshSectionNavigator("privacy-gdpr");
 }
 
 function openSearchResultDetails(record, trigger) {
@@ -713,8 +767,13 @@ async function searchPrivacyDataSubject() {
 
   const sequence = ++privacyGdprSearchSequence;
   const types = selectedSearchTypes(payload.recordType);
+  privacyGdprHasSearched = true;
   privacyGdprSearchGroups = [];
   setSearchStatus("Searching native privacy records...", "info");
+  if ($("privacyGdprSearchSummary")) {
+    $("privacyGdprSearchSummary").textContent = "Searching native read-only privacy records...";
+    $("privacyGdprSearchSummary").classList.remove("has-results");
+  }
   renderSearchResults();
 
   const results = await Promise.allSettled(types.map(type => loadSearchGroup(type, payload)));
@@ -737,6 +796,7 @@ async function searchPrivacyDataSubject() {
 
   privacyGdprSearchGroups = groups;
   renderSearchResults();
+  selectPrivacyGdprSection("search", { focus: false, resetScroll: false });
   const count = groups.reduce((sum, group) => sum + ((group.records || []).length), 0);
   if (errors.length) {
     showToast(
@@ -753,14 +813,87 @@ function resetPrivacySearch() {
     if ($(id)) $(id).value = "";
   });
   if ($("privacyGdprSearchRecordType")) $("privacyGdprSearchRecordType").value = "all";
+  privacyGdprHasSearched = false;
   privacyGdprSearchGroups = [];
   setSearchStatus("", "");
   renderSearchResults();
+  selectPrivacyGdprSection("search", { focus: false, resetScroll: false });
 }
 
 function applySearchQuickFilter(days) {
   if ($("privacyGdprSearchFromDate")) $("privacyGdprSearchFromDate").value = dateDaysAgo(days);
   if ($("privacyGdprSearchToDate")) $("privacyGdprSearchToDate").value = todayDate();
+}
+
+function registerPrivacyGdprSections() {
+  registerModuleSections("privacy-gdpr", [
+    {
+      id: "overview",
+      title: "Overview",
+      icon: "O",
+      target: "privacyGdprOverviewSection",
+      order: 10,
+      default: true,
+      visible: canViewPrivacyGdpr
+    },
+    {
+      id: "search",
+      title: "Data Subject Search",
+      icon: "S",
+      target: "privacyGdprSearchSection",
+      order: 20,
+      visible: canViewPrivacyGdpr
+    },
+    {
+      id: "planned-visits",
+      title: "Planned Visits",
+      icon: "PV",
+      target: "privacyGdprPlannedResultsSection",
+      order: 30,
+      visible: () => canViewPrivacyGdpr() && hasSearchGroupRecords("planned_visits")
+    },
+    {
+      id: "visit-log",
+      title: "Visit Log",
+      icon: "VL",
+      target: "privacyGdprVisitLogResultsSection",
+      order: 40,
+      visible: () => canViewPrivacyGdpr() && hasSearchGroupRecords("visit_log")
+    },
+    {
+      id: "document-evidence",
+      title: "Document Evidence",
+      icon: "DE",
+      target: "privacyGdprDocumentEvidenceResultsSection",
+      order: 50,
+      visible: () => canViewPrivacyGdpr() && hasSearchGroupRecords("document_evidence")
+    },
+    {
+      id: "audit-events",
+      title: "Audit Events",
+      icon: "AE",
+      target: "privacyGdprAuditResultsSection",
+      order: 60,
+      visible: () => canViewPrivacyGdpr() && hasSearchGroupRecords("audit_events")
+    },
+    {
+      id: "legacy-tools",
+      title: "Legacy Tools",
+      icon: "L",
+      target: "privacyGdprLegacySection",
+      order: 70,
+      visible: canOpenLegacyPrivacyGdpr
+    }
+  ], {
+    root: "privacyGdprSection",
+    content: "privacyGdprWorkspaceContent",
+    defaultSection: "overview",
+    scrollRoot: "operationsHubWorkspace",
+    label: "Privacy / Data Governance section navigation",
+    title: "Sections",
+    toggleLabel: "Privacy section",
+    emptyMessage: "No Privacy / Data Governance sections are available under your current access."
+  });
 }
 
 async function loadPrivacyGdprCases() {
@@ -808,6 +941,7 @@ export function syncPrivacyGdprVisibility() {
   const searchSection = $("privacyGdprSearchSection");
   if (searchSection) searchSection.classList.toggle("hidden", !visible);
   syncLegacyBridgeVisibility();
+  refreshSectionNavigator("privacy-gdpr");
   if (!visible && $("privacyGdprSection") && !$("privacyGdprSection").classList.contains("hidden")) {
     if (hasAnyCapability(["settings.view", "settings.edit"])) setAdministrationSection("reference");
     else if (hasAnyCapability(["devices.view", "devices.manage"])) setAdministrationSection("terminals");
@@ -821,6 +955,7 @@ export async function openPrivacyGdprAdministration() {
   if (!requirePrivacyGdprAccess()) return;
   showAdministrationWorkspace();
   setAdministrationSection("privacyGdpr");
+  selectPrivacyGdprSection("overview", { focus: false });
   await loadPrivacyGdprAdministration({ manual: false });
 }
 
@@ -846,6 +981,7 @@ export function initialisePrivacyGdprAdministration(dependencies) {
   if (dependencies) configurePrivacyGdprAdministration(dependencies);
   if (privacyGdprInitialised) return;
   privacyGdprInitialised = true;
+  registerPrivacyGdprSections();
   privacyGdprSearchDetailsPanelController = createSidePanelController({
     backdrop: "privacyGdprSearchDetailsPanelBackdrop",
     panel: "privacyGdprSearchDetailsPanel",
