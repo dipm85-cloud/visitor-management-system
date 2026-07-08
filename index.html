@@ -3451,10 +3451,242 @@
 
         <nav class="administration-section-nav" aria-label="Administration sections">
           <button id="administrationReferenceNav" class="active" type="button" aria-current="page">Reference Data</button>
+          <button id="administrationDocumentSignoffsNav" class="hidden" type="button">Document Sign-offs</button>
           <button id="administrationSharedTerminalsNav" class="hidden" type="button">Shared Terminals</button>
           <button id="administrationModuleConfigurationNav" class="hidden" type="button">Module Configuration</button>
           <button id="administrationAccessControlNav" class="hidden" type="button">Access Control</button>
         </nav>
+
+        <section id="documentSignoffAdminSection" class="document-signoff-workspace hidden" aria-labelledby="documentSignoffAdminTitle">
+          <div class="shared-terminals-heading">
+            <div>
+              <p class="oh-app-eyebrow">Administration</p>
+              <h2 id="documentSignoffAdminTitle">Document Sign-offs</h2>
+              <p>Manage the existing document type, document version, requirement and sign-off behaviour foundation used first by visitor agreements and inductions.</p>
+            </div>
+            <button id="documentSignoffAdminRefreshButton" class="secondary" type="button">Refresh</button>
+          </div>
+
+          <div id="documentSignoffAdminReadOnlyNotice" class="callout info hidden">
+            You can review document sign-off setup, but editing requires module_configuration.manage or settings.edit.
+          </div>
+
+          <div id="documentSignoffAdminStatus" class="local-action-status" aria-live="polite"></div>
+
+          <div class="document-signoff-summary-grid">
+            <article class="document-signoff-summary-card">
+              <span>Total document types</span>
+              <strong id="documentSignoffAdminTotalTypes">-</strong>
+              <p>Agreement and induction type records currently available to Operations Hub.</p>
+            </article>
+            <article class="document-signoff-summary-card">
+              <span>Active types</span>
+              <strong id="documentSignoffAdminActiveTypes">-</strong>
+              <p>Document types available for current sign-off workflows.</p>
+            </article>
+            <article class="document-signoff-summary-card">
+              <span>Inactive types</span>
+              <strong id="documentSignoffAdminInactiveTypes">-</strong>
+              <p>Preserved setup records that are not currently offered.</p>
+            </article>
+            <article class="document-signoff-summary-card">
+              <span>Active versions</span>
+              <strong id="documentSignoffAdminActiveVersions">-</strong>
+              <p>Current versions that can be selected by the existing sign-off workflow.</p>
+            </article>
+            <article class="document-signoff-summary-card">
+              <span>Required visitor documents</span>
+              <strong id="documentSignoffAdminRequiredTypes">-</strong>
+              <p>Active document types marked required by default for visitor use.</p>
+            </article>
+            <article class="document-signoff-summary-card">
+              <span>Optional visitor documents</span>
+              <strong id="documentSignoffAdminOptionalTypes">-</strong>
+              <p>Active document types available as optional visitor sign-offs.</p>
+            </article>
+            <article class="document-signoff-summary-card">
+              <span>No active version</span>
+              <strong id="documentSignoffAdminNoActiveVersion">-</strong>
+              <p>Active document types where no active version was detectable.</p>
+            </article>
+          </div>
+
+          <section class="document-signoff-readonly-card" aria-labelledby="documentSignoffAdminTypesTitle">
+            <div class="document-signoff-card-heading">
+              <div>
+                <h3 id="documentSignoffAdminTypesTitle">Document Types</h3>
+                <p>Native setup view over the existing agreement and induction type records.</p>
+              </div>
+            </div>
+            <div class="oh-filter-panel">
+              <div class="oh-responsive-filter-grid">
+                <label>
+                  <span>Search</span>
+                  <input id="documentSignoffAdminSearch" type="search" placeholder="Search name, title or description" autocomplete="off" />
+                </label>
+                <label>
+                  <span>Status</span>
+                  <select id="documentSignoffAdminStatusFilter">
+                    <option value="all">All statuses</option>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Requirement</span>
+                  <select id="documentSignoffAdminRequirementFilter">
+                    <option value="all">Required and optional</option>
+                    <option value="required">Required</option>
+                    <option value="optional">Optional</option>
+                  </select>
+                </label>
+                <div class="oh-responsive-filter-actions">
+                  <button id="documentSignoffAdminNewTypeButton" type="button">New Type</button>
+                  <button id="documentSignoffAdminClearTypeButton" class="secondary" type="button">Clear</button>
+                </div>
+              </div>
+            </div>
+            <div id="documentSignoffAdminTypeResults" class="document-signoff-admin-results" data-oh-scroll-region="operational" aria-label="Document sign-off type records"></div>
+            <div id="documentSignoffAdminTypesEmpty" class="people-empty-state hidden" data-oh-empty-state>No document types are available.</div>
+          </section>
+
+          <div class="document-signoff-admin-grid">
+            <section id="documentSignoffAdminTypeFormCard" class="document-signoff-readonly-card" aria-labelledby="documentSignoffAdminTypeFormTitle">
+              <div class="document-signoff-card-heading">
+                <div>
+                  <h3 id="documentSignoffAdminTypeFormTitle">Type Setup</h3>
+                  <p>Create or update document type metadata when the existing backend permits it.</p>
+                </div>
+              </div>
+              <form id="documentSignoffAdminTypeForm" class="shared-terminal-form">
+                <input id="documentSignoffAdminTypeId" type="hidden" />
+                <label for="documentSignoffAdminTypeName">Name *</label>
+                <input id="documentSignoffAdminTypeName" type="text" autocomplete="off" required />
+                <label for="documentSignoffAdminTypeTitle">Evidence title</label>
+                <input id="documentSignoffAdminTypeTitle" type="text" autocomplete="off" />
+                <label for="documentSignoffAdminTypeDescription">Description</label>
+                <textarea id="documentSignoffAdminTypeDescription" rows="4"></textarea>
+                <label for="documentSignoffAdminTypeActive">Status</label>
+                <select id="documentSignoffAdminTypeActive">
+                  <option value="true">Active</option>
+                  <option value="false">Inactive</option>
+                </select>
+                <label for="documentSignoffAdminTypeRequired">Requirement default</label>
+                <select id="documentSignoffAdminTypeRequired">
+                  <option value="true">Required</option>
+                  <option value="false">Optional</option>
+                </select>
+                <label for="documentSignoffAdminTypeOrder">Display order</label>
+                <input id="documentSignoffAdminTypeOrder" type="number" value="100" />
+                <div class="shared-terminal-form-actions">
+                  <button id="documentSignoffAdminSaveTypeButton" type="submit">Save Type</button>
+                  <button id="documentSignoffAdminResetTypeButton" class="secondary" type="button">Reset</button>
+                </div>
+              </form>
+            </section>
+
+            <section class="document-signoff-readonly-card" aria-labelledby="documentSignoffAdminVersionsTitle">
+              <div class="document-signoff-card-heading">
+                <div>
+                  <h3 id="documentSignoffAdminVersionsTitle">Document Versions</h3>
+                  <p id="documentSignoffAdminSelectedTypeMeta">Select a document type to review its versions.</p>
+                </div>
+              </div>
+              <div id="documentSignoffAdminVersionResults" class="document-signoff-admin-version-list" data-oh-scroll-region="operational" aria-label="Selected document type versions"></div>
+              <div id="documentSignoffAdminVersionsEmpty" class="people-empty-state hidden" data-oh-empty-state>No versions are available for this document type.</div>
+            </section>
+          </div>
+
+          <section id="documentSignoffAdminVersionFormCard" class="document-signoff-readonly-card" aria-labelledby="documentSignoffAdminVersionFormTitle">
+            <div class="document-signoff-card-heading">
+              <div>
+                <h3 id="documentSignoffAdminVersionFormTitle">Create Version</h3>
+                <p>Add a new version record without deleting or rewriting version history.</p>
+              </div>
+            </div>
+            <form id="documentSignoffAdminVersionForm" class="document-signoff-admin-form-grid">
+              <label for="documentSignoffAdminVersionType">Document type *</label>
+              <select id="documentSignoffAdminVersionType" required>
+                <option value="">Select document type</option>
+              </select>
+              <label for="documentSignoffAdminVersionNumber">Version label *</label>
+              <input id="documentSignoffAdminVersionNumber" type="text" autocomplete="off" placeholder="2026.1" required />
+              <label for="documentSignoffAdminPdfUrl">File or document URL *</label>
+              <input id="documentSignoffAdminPdfUrl" type="url" autocomplete="off" placeholder="https://.../document.pdf" required />
+              <label for="documentSignoffAdminFileName">File name</label>
+              <input id="documentSignoffAdminFileName" type="text" autocomplete="off" />
+              <label for="documentSignoffAdminActivateNow">Activate now</label>
+              <select id="documentSignoffAdminActivateNow">
+                <option value="true">Yes</option>
+                <option value="false">No</option>
+              </select>
+              <label for="documentSignoffAdminVersionNotes">Notes</label>
+              <textarea id="documentSignoffAdminVersionNotes" rows="3"></textarea>
+              <div class="document-signoff-admin-form-actions">
+                <button id="documentSignoffAdminCreateVersionButton" type="submit">Create Version</button>
+                <button id="documentSignoffAdminResetVersionButton" class="secondary" type="button">Clear Version Form</button>
+              </div>
+            </form>
+          </section>
+
+          <section class="document-signoff-readonly-card" aria-labelledby="documentSignoffAdminSettingsTitle">
+            <div class="document-signoff-card-heading">
+              <div>
+                <h3 id="documentSignoffAdminSettingsTitle">Sign-off Behaviour</h3>
+                <p>Settings already backed by existing system settings storage.</p>
+              </div>
+            </div>
+            <form id="documentSignoffAdminSettingsForm" class="document-signoff-admin-form-grid">
+              <label for="documentSignoffAdminAgreementsEnabled">Visitor agreements</label>
+              <select id="documentSignoffAdminAgreementsEnabled">
+                <option value="true">Enabled</option>
+                <option value="false">Disabled</option>
+              </select>
+              <label for="documentSignoffAdminSignatureRequired">Drawn signature</label>
+              <select id="documentSignoffAdminSignatureRequired">
+                <option value="true">Required</option>
+                <option value="false">Optional tick acceptance</option>
+              </select>
+              <label for="documentSignoffAdminInductorEnabled">Inductor or witness sign-off</label>
+              <select id="documentSignoffAdminInductorEnabled">
+                <option value="false">Disabled</option>
+                <option value="true">Enabled</option>
+              </select>
+              <label for="documentSignoffAdminInductorMode">Inductor mode</label>
+              <select id="documentSignoffAdminInductorMode">
+                <option value="typed_name">Typed name</option>
+                <option value="manual_signature">Drawn signature</option>
+              </select>
+              <label for="documentSignoffAdminValidityMode">Default validity mode</label>
+              <select id="documentSignoffAdminValidityMode">
+                <option value="version">Current version</option>
+                <option value="days">Fixed days</option>
+                <option value="either">Version or fixed days</option>
+                <option value="never">No automatic expiry</option>
+              </select>
+              <label for="documentSignoffAdminValidityDays">Default expiry period</label>
+              <input id="documentSignoffAdminValidityDays" type="number" min="1" value="365" />
+              <label class="full" for="documentSignoffAdminAcceptanceText">Confirmation wording</label>
+              <textarea id="documentSignoffAdminAcceptanceText" class="full" rows="3"></textarea>
+              <div class="document-signoff-admin-form-actions">
+                <button id="documentSignoffAdminSaveSettingsButton" type="submit">Save Behaviour Settings</button>
+              </div>
+            </form>
+          </section>
+
+          <section class="document-signoff-legacy-card" aria-labelledby="documentSignoffAdminLegacyTitle">
+            <div>
+              <h3 id="documentSignoffAdminLegacyTitle">Legacy VMS Bridge</h3>
+              <p>This setup workflow is still managed in Legacy VMS where native setup is not yet supported.</p>
+            </div>
+            <div class="document-signoff-legacy-actions">
+              <button id="documentSignoffAdminLegacyManagementButton" class="secondary" type="button">Open Legacy Agreement Management</button>
+              <button id="documentSignoffAdminLegacyVersionsButton" class="secondary" type="button">Open Legacy Agreement Versions</button>
+              <button id="documentSignoffAdminLegacySignoffConfigButton" class="secondary" type="button">Open Legacy Sign-off Configuration</button>
+              <button id="documentSignoffAdminLegacyComplianceButton" class="secondary" type="button">Open Legacy Compliance Matrix</button>
+            </div>
+          </section>
+        </section>
 
         <section id="sharedTerminalsSection" class="hidden" aria-labelledby="sharedTerminalsTitle">
           <div class="shared-terminals-heading">

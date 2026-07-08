@@ -2207,6 +2207,115 @@ body.document-signoff-overlay-open {
   color: var(--oh-shell-muted);
 }
 
+.document-signoff-admin-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, .8fr) minmax(0, 1.2fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.document-signoff-admin-results,
+.document-signoff-admin-version-list {
+  display: grid;
+  max-height: 620px;
+  gap: 12px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.document-signoff-admin-type-card,
+.document-signoff-admin-version-card {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--oh-shell-border);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.document-signoff-admin-type-card.selected {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, .1);
+}
+
+.document-signoff-admin-type-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.document-signoff-admin-type-heading h4 {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.25;
+}
+
+.document-signoff-admin-type-heading p {
+  margin: 4px 0 0;
+  color: var(--oh-shell-muted);
+  line-height: 1.4;
+}
+
+.document-signoff-admin-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 14px;
+  margin: 0;
+}
+
+.document-signoff-admin-meta div {
+  min-width: 0;
+}
+
+.document-signoff-admin-meta dt {
+  color: var(--oh-shell-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.document-signoff-admin-meta dd {
+  margin: 2px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.document-signoff-admin-card-actions,
+.document-signoff-admin-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.document-signoff-admin-form-grid {
+  display: grid;
+  grid-template-columns: minmax(160px, .35fr) minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+}
+
+.document-signoff-admin-form-grid label {
+  color: var(--oh-shell-muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.document-signoff-admin-form-grid input,
+.document-signoff-admin-form-grid select,
+.document-signoff-admin-form-grid textarea {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.document-signoff-admin-form-grid .full {
+  grid-column: 1 / -1;
+}
+
+.document-signoff-admin-form-actions {
+  grid-column: 2;
+}
+
 .visitors-operational-documents {
   margin-top: 24px;
   padding-top: 20px;
@@ -2568,6 +2677,10 @@ body.document-signoff-overlay-open {
     grid-template-columns: 1fr;
   }
 
+  .document-signoff-admin-grid {
+    grid-template-columns: 1fr;
+  }
+
   .document-signoff-card-heading,
   .document-signoff-native-result-card {
     align-items: stretch;
@@ -2644,11 +2757,27 @@ body.document-signoff-overlay-open {
     grid-template-columns: 1fr;
   }
 
+  .document-signoff-admin-type-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .document-signoff-admin-meta,
+  .document-signoff-admin-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .document-signoff-admin-form-actions {
+    grid-column: 1;
+  }
+
   .document-signoff-native-actions,
   .document-signoff-native-actions button,
   .document-signoff-native-result-actions,
   .document-signoff-native-result-actions button,
-  .document-signoff-native-panel-actions button {
+  .document-signoff-native-panel-actions button,
+  .document-signoff-admin-card-actions button,
+  .document-signoff-admin-form-actions button {
     width: 100%;
   }
 

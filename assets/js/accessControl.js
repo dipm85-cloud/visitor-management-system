@@ -75,32 +75,31 @@ function requireAccessControlManageAccess() {
 }
 
 function setAdministrationSection(sectionName) {
-  const referenceSelected = sectionName === "reference";
-  const terminalsSelected = sectionName === "terminals";
-  const accessSelected = sectionName === "access";
-  $("referenceDataSection").classList.toggle("hidden", !referenceSelected);
-  if ($("sharedTerminalsSection")) $("sharedTerminalsSection").classList.toggle("hidden", !terminalsSelected);
-  $("moduleConfigurationSection").classList.add("hidden");
-  $("accessControlSection").classList.toggle("hidden", !accessSelected);
+  const sections = {
+    reference: $("referenceDataSection"),
+    documentSignoffs: $("documentSignoffAdminSection"),
+    terminals: $("sharedTerminalsSection"),
+    modules: $("moduleConfigurationSection"),
+    access: $("accessControlSection")
+  };
+  const navigation = {
+    reference: $("administrationReferenceNav"),
+    documentSignoffs: $("administrationDocumentSignoffsNav"),
+    terminals: $("administrationSharedTerminalsNav"),
+    modules: $("administrationModuleConfigurationNav"),
+    access: $("administrationAccessControlNav")
+  };
 
-  $("administrationReferenceNav").classList.toggle("active", referenceSelected);
-  if ($("administrationSharedTerminalsNav")) $("administrationSharedTerminalsNav").classList.toggle("active", terminalsSelected);
-  $("administrationModuleConfigurationNav").classList.remove("active");
-  $("administrationAccessControlNav").classList.toggle("active", accessSelected);
-  if ($("administrationSharedTerminalsNav")) $("administrationSharedTerminalsNav").removeAttribute("aria-current");
-  $("administrationModuleConfigurationNav").removeAttribute("aria-current");
-
-  if (referenceSelected) {
-    $("administrationReferenceNav").setAttribute("aria-current", "page");
-    $("administrationAccessControlNav").removeAttribute("aria-current");
-  } else if (terminalsSelected) {
-    $("administrationSharedTerminalsNav").setAttribute("aria-current", "page");
-    $("administrationReferenceNav").removeAttribute("aria-current");
-    $("administrationAccessControlNav").removeAttribute("aria-current");
-  } else if (accessSelected) {
-    $("administrationAccessControlNav").setAttribute("aria-current", "page");
-    $("administrationReferenceNav").removeAttribute("aria-current");
-  }
+  Object.entries(sections).forEach(([name, section]) => {
+    if (section) section.classList.toggle("hidden", name !== sectionName);
+  });
+  Object.entries(navigation).forEach(([name, button]) => {
+    if (!button) return;
+    const selected = name === sectionName;
+    button.classList.toggle("active", selected);
+    if (selected) button.setAttribute("aria-current", "page");
+    else button.removeAttribute("aria-current");
+  });
 }
 
 export function showReferenceDataAdministrationSection() {

@@ -64,18 +64,21 @@ function terminalNotes(device) {
 function setAdministrationSection(sectionName) {
   const selected = {
     reference: sectionName === "reference",
+    documentSignoffs: sectionName === "documentSignoffs",
     terminals: sectionName === "terminals",
     modules: sectionName === "modules",
     access: sectionName === "access"
   };
   const sections = {
     reference: $("referenceDataSection"),
+    documentSignoffs: $("documentSignoffAdminSection"),
     terminals: $("sharedTerminalsSection"),
     modules: $("moduleConfigurationSection"),
     access: $("accessControlSection")
   };
   const navigation = {
     reference: $("administrationReferenceNav"),
+    documentSignoffs: $("administrationDocumentSignoffsNav"),
     terminals: $("administrationSharedTerminalsNav"),
     modules: $("administrationModuleConfigurationNav"),
     access: $("administrationAccessControlNav")

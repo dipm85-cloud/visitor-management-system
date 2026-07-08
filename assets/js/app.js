@@ -225,6 +225,10 @@ import {
   openAccessControlWorkspace
 } from "./accessControl.js";
 import {
+  initialiseDocumentSignoffAdministration,
+  syncDocumentSignoffAdminVisibility
+} from "./documentSignoffAdmin.js";
+import {
   initialiseSharedTerminalAdministration,
   openSharedTerminalAdministration,
   syncSharedTerminalAdministrationVisibility
@@ -446,33 +450,38 @@ window.addEventListener("load", async function () {
       openPeople: openPeopleWorkspace,
       openReferenceData: openReferenceDataWorkspace
     });
+    async function openDocumentSignoffLegacyVms(action) {
+      showLegacyVmsWorkspace();
+      await openStaffAreaFromProfile();
+      if (!action || !String(action).startsWith("document-signoffs")) return;
+      const profile = AppState.currentProfile || {};
+      if (profile.role === "super_user") {
+        showSuperSection("agreements");
+        if (action === "document-signoffs-management") showAgreementTab("versions");
+        else if (action === "document-signoffs-compliance") showAgreementTab("compliance");
+        else if (action === "document-signoffs-evidence") showAgreementTab("compliance");
+        else showAgreementTab("pending");
+        return;
+      }
+      if (profile.role === "security") {
+        setTimeout(() => {
+          const target = $("securityAgreementStatus");
+          const card = target ? target.closest(".card") : null;
+          if (card && typeof card.scrollIntoView === "function") {
+            card.scrollIntoView({ behavior: "smooth", block: "start" });
+          }
+        }, 120);
+      }
+    }
+
     configureVisitors({
-      async openLegacyVms(action) {
-        showLegacyVmsWorkspace();
-        await openStaffAreaFromProfile();
-        if (!action || !String(action).startsWith("document-signoffs")) return;
-        const profile = AppState.currentProfile || {};
-        if (profile.role === "super_user") {
-          showSuperSection("agreements");
-          if (action === "document-signoffs-management") showAgreementTab("versions");
-          else if (action === "document-signoffs-compliance") showAgreementTab("compliance");
-          else if (action === "document-signoffs-evidence") showAgreementTab("compliance");
-          else showAgreementTab("pending");
-          return;
-        }
-        if (profile.role === "security") {
-          setTimeout(() => {
-            const target = $("securityAgreementStatus");
-            const card = target ? target.closest(".card") : null;
-            if (card && typeof card.scrollIntoView === "function") {
-              card.scrollIntoView({ behavior: "smooth", block: "start" });
-            }
-          }, 120);
-        }
-      },
+      openLegacyVms: openDocumentSignoffLegacyVms,
       createWalkIn: createStaffWalkIn,
       signInPlannedVisit: signInStaffPlannedVisit,
       signOutVisit: signOutStaffVisit
+    });
+    initialiseDocumentSignoffAdministration({
+      openLegacyVms: openDocumentSignoffLegacyVms
     });
     configureVisitorFlow({
       appSettings,
@@ -525,6 +534,7 @@ window.addEventListener("load", async function () {
       syncNavigationCapabilityVisibility() {
         syncNavigationCapabilityVisibility();
         syncAccessControlVisibility();
+        syncDocumentSignoffAdminVisibility();
         syncSharedTerminalAdministrationVisibility();
         syncModuleConfigurationVisibility();
         syncVisitorCapabilityVisibility();
@@ -4958,6 +4968,7 @@ window.addEventListener("load", async function () {
     initialiseAccessControl();
     initialiseSharedTerminalAdministration();
     window.addEventListener("oh:capabilities-changed", syncVisitorCapabilityVisibility);
+    window.addEventListener("oh:capabilities-changed", syncDocumentSignoffAdminVisibility);
     window.addEventListener("oh:capabilities-changed", syncVisitorHousekeepingControls);
     window.addEventListener("oh:capabilities-changed", syncSharedTerminalAdministrationVisibility);
     window.addEventListener("oh:legacy-vms-opened", openStaffAreaFromProfile);

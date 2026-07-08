@@ -158,6 +158,8 @@ export function shouldShowAdministrationNavigation() {
     "visitor.housekeeping.run",
     "devices.view",
     "devices.manage",
+    "document_signoff.manage",
+    "agreements.manage",
     "access_control.view",
     "access_control.manage"
   ]);
