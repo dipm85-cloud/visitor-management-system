@@ -3701,6 +3701,58 @@
 
           <div id="privacyGdprStatus" class="local-action-status" aria-live="polite"></div>
 
+          <section id="privacyGdprSearchSection" class="privacy-gdpr-card privacy-gdpr-search-card" aria-labelledby="privacyGdprSearchTitle">
+            <div class="privacy-gdpr-card-heading">
+              <div>
+                <h3 id="privacyGdprSearchTitle">Data Subject Search</h3>
+                <p>Search existing Operations Hub records as separate read-only source records. Results are not identity-linked or deduplicated.</p>
+              </div>
+            </div>
+
+            <div class="oh-filter-panel" role="search" aria-label="Privacy data subject search filters">
+              <div class="oh-filter-quick-group" aria-label="Privacy search quick filters">
+                <button id="privacyGdprSearchTodayButton" class="secondary" type="button">Today</button>
+                <button id="privacyGdprSearchSevenDaysButton" class="secondary" type="button">Last 7 days</button>
+                <button id="privacyGdprSearchThirtyDaysButton" class="secondary" type="button">Last 30 days</button>
+              </div>
+              <div class="oh-responsive-filter-grid oh-filter-field-grid privacy-gdpr-search-filters" aria-label="Custom privacy search filters">
+                <label>
+                  Search text
+                  <input id="privacyGdprSearchText" type="search" autocomplete="off" placeholder="Name, company, email or reference" />
+                </label>
+                <label>
+                  From date
+                  <input id="privacyGdprSearchFromDate" type="date" />
+                </label>
+                <label>
+                  To date
+                  <input id="privacyGdprSearchToDate" type="date" />
+                </label>
+                <label>
+                  Record type
+                  <select id="privacyGdprSearchRecordType">
+                    <option value="all">All available sources</option>
+                    <option value="planned_visits">Planned Visits</option>
+                    <option value="visit_log">Visitor History / Visit Log</option>
+                    <option value="document_evidence">Document Sign-off Evidence</option>
+                    <option value="audit_events">Audit Events</option>
+                    <option value="legacy_only">Legacy-only GDPR records</option>
+                  </select>
+                </label>
+              </div>
+              <div class="oh-responsive-filter-actions oh-filter-actions-row">
+                <button id="privacyGdprSearchButton" type="button">Search</button>
+                <button id="privacyGdprSearchResetButton" class="secondary" type="button">Reset</button>
+                <button id="privacyGdprSearchLegacyButton" class="secondary" type="button">Open Legacy GDPR Search</button>
+              </div>
+            </div>
+
+            <div id="privacyGdprSearchStatus" class="local-action-status" aria-live="polite"></div>
+            <div id="privacyGdprSearchResults" class="privacy-gdpr-search-results" aria-live="polite">
+              <div id="privacyGdprSearchEmpty" class="people-empty-state" data-oh-empty-state>Enter search text or a date range to search native read-only privacy records.</div>
+            </div>
+          </section>
+
           <div class="privacy-gdpr-summary-grid">
             <article class="document-signoff-summary-card">
               <span>GDPR cases</span>
@@ -3775,6 +3827,22 @@
               Legacy GDPR case, SAR, evidence and anonymisation tools remain available to SuperUser in Legacy VMS.
             </div>
           </section>
+
+          <div id="privacyGdprSearchDetailsPanelBackdrop" class="visitors-panel-backdrop hidden" data-oh-side-panel-backdrop>
+            <aside id="privacyGdprSearchDetailsPanel" class="visitors-side-panel privacy-gdpr-search-details-panel" aria-labelledby="privacyGdprSearchDetailsTitle" aria-modal="true" role="dialog" data-oh-side-panel>
+              <header class="visitors-side-panel-header" data-oh-side-panel-header>
+                <div>
+                  <p id="privacyGdprSearchDetailsEyebrow" class="oh-app-eyebrow">Privacy Record</p>
+                  <h2 id="privacyGdprSearchDetailsTitle" data-oh-side-panel-title>Search Result</h2>
+                </div>
+                <button id="privacyGdprSearchDetailsClose" class="ghost" type="button" aria-label="Close privacy search details panel" data-oh-side-panel-close>Close</button>
+              </header>
+              <div id="privacyGdprSearchDetailsBody" class="oh-side-panel-body privacy-gdpr-search-details"></div>
+              <div class="visitors-side-panel-actions" data-oh-side-panel-actions>
+                <button id="privacyGdprSearchDetailsCloseBottom" class="secondary" type="button">Close</button>
+              </div>
+            </aside>
+          </div>
         </section>
 
         <section id="sharedTerminalsSection" class="hidden" aria-labelledby="sharedTerminalsTitle">
