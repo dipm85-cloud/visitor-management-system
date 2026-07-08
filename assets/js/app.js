@@ -229,6 +229,11 @@ import {
   syncDocumentSignoffAdminVisibility
 } from "./documentSignoffAdmin.js";
 import {
+  initialisePrivacyGdprAdministration,
+  openPrivacyGdprAdministration,
+  syncPrivacyGdprVisibility
+} from "./privacyGdprAdmin.js";
+import {
   initialiseSharedTerminalAdministration,
   openSharedTerminalAdministration,
   syncSharedTerminalAdministrationVisibility
@@ -474,6 +479,24 @@ window.addEventListener("load", async function () {
       }
     }
 
+    async function openPrivacyGdprLegacyVms(action) {
+      showLegacyVmsWorkspace();
+      await openStaffAreaFromProfile();
+      if (!action || !String(action).startsWith("gdpr-")) return;
+
+      if (AppState.currentProfile && AppState.currentProfile.role === "super_user") {
+        showSuperSection("gdpr");
+        const stepByAction = {
+          "gdpr-cases": "cases",
+          "gdpr-search": "search",
+          "gdpr-sar": "sar",
+          "gdpr-erasure": "erasure",
+          "gdpr-evidence": "evidence"
+        };
+        showGdprStep(stepByAction[action] || "cases");
+      }
+    }
+
     configureVisitors({
       openLegacyVms: openDocumentSignoffLegacyVms,
       createWalkIn: createStaffWalkIn,
@@ -482,6 +505,9 @@ window.addEventListener("load", async function () {
     });
     initialiseDocumentSignoffAdministration({
       openLegacyVms: openDocumentSignoffLegacyVms
+    });
+    initialisePrivacyGdprAdministration({
+      openLegacyVms: openPrivacyGdprLegacyVms
     });
     configureVisitorFlow({
       appSettings,
@@ -4969,6 +4995,7 @@ window.addEventListener("load", async function () {
     initialiseSharedTerminalAdministration();
     window.addEventListener("oh:capabilities-changed", syncVisitorCapabilityVisibility);
     window.addEventListener("oh:capabilities-changed", syncDocumentSignoffAdminVisibility);
+    window.addEventListener("oh:capabilities-changed", syncPrivacyGdprVisibility);
     window.addEventListener("oh:capabilities-changed", syncVisitorHousekeepingControls);
     window.addEventListener("oh:capabilities-changed", syncSharedTerminalAdministrationVisibility);
     window.addEventListener("oh:legacy-vms-opened", openStaffAreaFromProfile);
@@ -5016,6 +5043,16 @@ window.addEventListener("load", async function () {
           "visitor.housekeeping.run"
         ])) {
           openModuleConfigurationAdministration();
+          return;
+        }
+        if (hasAnyCapability([
+          "gdpr.view",
+          "gdpr.manage",
+          "privacy.view",
+          "privacy.manage",
+          "audit.view"
+        ])) {
+          openPrivacyGdprAdministration();
           return;
         }
         if (hasAnyCapability(["settings.view", "settings.edit"])) {

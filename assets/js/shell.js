@@ -160,6 +160,11 @@ export function shouldShowAdministrationNavigation() {
     "devices.manage",
     "document_signoff.manage",
     "agreements.manage",
+    "gdpr.view",
+    "gdpr.manage",
+    "privacy.view",
+    "privacy.manage",
+    "audit.view",
     "access_control.view",
     "access_control.manage"
   ]);

@@ -2316,6 +2316,117 @@ body.document-signoff-overlay-open {
   grid-column: 2;
 }
 
+.privacy-gdpr-workspace {
+  min-width: 0;
+}
+
+.privacy-gdpr-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin: 16px 0;
+}
+
+.privacy-gdpr-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(320px, .9fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.privacy-gdpr-card,
+.privacy-gdpr-case-card {
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid var(--oh-shell-border);
+  border-radius: 14px;
+  background: var(--oh-shell-surface);
+  box-shadow: 0 8px 22px rgba(16, 24, 40, .05);
+}
+
+.privacy-gdpr-card-heading,
+.privacy-gdpr-card-heading > div,
+.privacy-gdpr-case-card {
+  min-width: 0;
+}
+
+.privacy-gdpr-card-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.privacy-gdpr-card-heading h3,
+.privacy-gdpr-case-card h4 {
+  margin: 0;
+}
+
+.privacy-gdpr-card-heading p,
+.privacy-gdpr-case-card p {
+  margin: 5px 0 0;
+  color: var(--oh-shell-muted);
+  line-height: 1.45;
+}
+
+.privacy-gdpr-case-list {
+  display: grid;
+  max-height: 560px;
+  gap: 12px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.privacy-gdpr-case-card {
+  display: grid;
+  gap: 12px;
+  box-shadow: none;
+}
+
+.privacy-gdpr-badge {
+  flex: 0 0 auto;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--oh-shell-border);
+  background: #f2f4f7;
+  color: #475467;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.privacy-gdpr-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 14px;
+  margin: 0;
+}
+
+.privacy-gdpr-meta div {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #e9edf2;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.privacy-gdpr-meta dt {
+  margin-bottom: 4px;
+  color: #667085;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.privacy-gdpr-meta dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.privacy-gdpr-legacy-card {
+  margin-top: 16px;
+}
+
 .visitors-operational-documents {
   margin-top: 24px;
   padding-top: 20px;
@@ -2681,6 +2792,11 @@ body.document-signoff-overlay-open {
     grid-template-columns: 1fr;
   }
 
+  .privacy-gdpr-summary-grid,
+  .privacy-gdpr-grid {
+    grid-template-columns: 1fr;
+  }
+
   .document-signoff-card-heading,
   .document-signoff-native-result-card {
     align-items: stretch;
@@ -2763,7 +2879,8 @@ body.document-signoff-overlay-open {
   }
 
   .document-signoff-admin-meta,
-  .document-signoff-admin-form-grid {
+  .document-signoff-admin-form-grid,
+  .privacy-gdpr-meta {
     grid-template-columns: 1fr;
   }
 
@@ -2777,7 +2894,8 @@ body.document-signoff-overlay-open {
   .document-signoff-native-result-actions button,
   .document-signoff-native-panel-actions button,
   .document-signoff-admin-card-actions button,
-  .document-signoff-admin-form-actions button {
+  .document-signoff-admin-form-actions button,
+  .privacy-gdpr-legacy-card button {
     width: 100%;
   }
 

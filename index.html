@@ -3452,6 +3452,7 @@
         <nav class="administration-section-nav" aria-label="Administration sections">
           <button id="administrationReferenceNav" class="active" type="button" aria-current="page">Reference Data</button>
           <button id="administrationDocumentSignoffsNav" class="hidden" type="button">Document Sign-offs</button>
+          <button id="administrationPrivacyGdprNav" class="hidden" type="button">Privacy / GDPR</button>
           <button id="administrationSharedTerminalsNav" class="hidden" type="button">Shared Terminals</button>
           <button id="administrationModuleConfigurationNav" class="hidden" type="button">Module Configuration</button>
           <button id="administrationAccessControlNav" class="hidden" type="button">Access Control</button>
@@ -3687,6 +3688,94 @@
             </form>
           </aside>
         </div>
+
+        <section id="privacyGdprSection" class="privacy-gdpr-workspace hidden" aria-labelledby="privacyGdprTitle">
+          <div class="shared-terminals-heading">
+            <div>
+              <p class="oh-app-eyebrow">Administration</p>
+              <h2 id="privacyGdprTitle">Privacy / GDPR</h2>
+              <p>Review the native foundation for privacy case management, retention posture and existing Legacy VMS GDPR workflows.</p>
+            </div>
+            <button id="privacyGdprRefreshButton" class="secondary" type="button">Refresh</button>
+          </div>
+
+          <div id="privacyGdprStatus" class="local-action-status" aria-live="polite"></div>
+
+          <div class="privacy-gdpr-summary-grid">
+            <article class="document-signoff-summary-card">
+              <span>GDPR cases</span>
+              <strong id="privacyGdprCaseCount">-</strong>
+              <p>Read-only cases returned by the existing GDPR case backend.</p>
+            </article>
+            <article class="document-signoff-summary-card">
+              <span>Open cases</span>
+              <strong id="privacyGdprOpenCaseCount">-</strong>
+              <p>Cases not currently completed or rejected.</p>
+            </article>
+            <article class="document-signoff-summary-card">
+              <span>Overdue cases</span>
+              <strong id="privacyGdprOverdueCaseCount">-</strong>
+              <p>Open cases with a due date before today.</p>
+            </article>
+            <article class="document-signoff-summary-card">
+              <span>Retention mode</span>
+              <strong id="privacyGdprRetentionMode">-</strong>
+              <p>Current retention mode from system settings.</p>
+            </article>
+            <article class="document-signoff-summary-card">
+              <span>Privacy notice</span>
+              <strong id="privacyGdprPrivacyNoticeStatus">-</strong>
+              <p>Visitor privacy notice status from system settings.</p>
+            </article>
+            <article class="document-signoff-summary-card">
+              <span>Legacy workflows</span>
+              <strong id="privacyGdprLegacyStatus">-</strong>
+              <p>Destructive GDPR workflows remain in Legacy VMS.</p>
+            </article>
+          </div>
+
+          <div class="privacy-gdpr-grid">
+            <section class="privacy-gdpr-card" aria-labelledby="privacyGdprCasesTitle">
+              <div class="privacy-gdpr-card-heading">
+                <div>
+                  <h3 id="privacyGdprCasesTitle">Read-only GDPR Cases</h3>
+                  <p>Existing case records are shown only when the backend allows the read.</p>
+                </div>
+              </div>
+              <div id="privacyGdprCasesList" class="privacy-gdpr-case-list" aria-label="Read-only GDPR cases"></div>
+              <div id="privacyGdprCasesEmpty" class="people-empty-state hidden" data-oh-empty-state>No GDPR cases are available.</div>
+            </section>
+
+            <section class="privacy-gdpr-card" aria-labelledby="privacyGdprSettingsTitle">
+              <div class="privacy-gdpr-card-heading">
+                <div>
+                  <h3 id="privacyGdprSettingsTitle">Privacy and Retention Settings</h3>
+                  <p>Read-only settings that affect privacy notice and retention behaviour.</p>
+                </div>
+              </div>
+              <dl id="privacyGdprSettingsList" class="privacy-gdpr-meta"></dl>
+            </section>
+          </div>
+
+          <section class="privacy-gdpr-card privacy-gdpr-legacy-card" aria-labelledby="privacyGdprLegacyTitle">
+            <div class="privacy-gdpr-card-heading">
+              <div>
+                <h3 id="privacyGdprLegacyTitle">Legacy GDPR Workflow Bridge</h3>
+                <p>This privacy workflow is still completed in Legacy VMS.</p>
+              </div>
+            </div>
+            <div id="privacyGdprLegacyActions" class="document-signoff-legacy-actions">
+              <button id="privacyGdprLegacyCasesButton" class="secondary" type="button">Open Legacy GDPR Case Tools</button>
+              <button id="privacyGdprLegacySearchButton" class="secondary" type="button">Open Legacy GDPR Search</button>
+              <button id="privacyGdprLegacySarButton" class="secondary" type="button">Open Legacy SAR Export</button>
+              <button id="privacyGdprLegacyErasureButton" class="secondary" type="button">Open Legacy Erasure / Anonymisation</button>
+              <button id="privacyGdprLegacyEvidenceButton" class="secondary" type="button">Open Legacy GDPR Evidence</button>
+            </div>
+            <div id="privacyGdprLegacyRestricted" class="row-meta hidden">
+              Legacy GDPR case, SAR, evidence and anonymisation tools remain available to SuperUser in Legacy VMS.
+            </div>
+          </section>
+        </section>
 
         <section id="sharedTerminalsSection" class="hidden" aria-labelledby="sharedTerminalsTitle">
           <div class="shared-terminals-heading">

@@ -62,6 +62,7 @@ function setAdministrationSection(sectionName) {
   const sections = {
     reference: $("referenceDataSection"),
     documentSignoffs: $("documentSignoffAdminSection"),
+    privacyGdpr: $("privacyGdprSection"),
     terminals: $("sharedTerminalsSection"),
     modules: $("moduleConfigurationSection"),
     access: $("accessControlSection")
@@ -69,6 +70,7 @@ function setAdministrationSection(sectionName) {
   const navigation = {
     reference: $("administrationReferenceNav"),
     documentSignoffs: $("administrationDocumentSignoffsNav"),
+    privacyGdpr: $("administrationPrivacyGdprNav"),
     terminals: $("administrationSharedTerminalsNav"),
     modules: $("administrationModuleConfigurationNav"),
     access: $("administrationAccessControlNav")
