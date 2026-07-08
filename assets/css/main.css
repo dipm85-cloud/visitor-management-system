@@ -2442,6 +2442,45 @@ body.document-signoff-overlay-open {
   --oh-filter-control-min-width: 190px;
 }
 
+.privacy-gdpr-source-picker {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 12px 0 0;
+  padding: 12px;
+  border: 1px solid var(--oh-shell-border);
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.privacy-gdpr-source-picker legend {
+  padding: 0 6px;
+  color: #667085;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.privacy-gdpr-source-picker label {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+  margin: 0;
+  padding: 9px 10px;
+  border: 1px solid #e9edf2;
+  border-radius: 8px;
+  color: #344054;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.privacy-gdpr-source-picker input {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+}
+
 .privacy-gdpr-search-results {
   display: grid;
   gap: 14px;
@@ -2693,6 +2732,10 @@ body.document-signoff-overlay-open {
 
   .privacy-gdpr-search-details-list {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .privacy-gdpr-source-picker {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .privacy-gdpr-card-actions {
@@ -3159,6 +3202,10 @@ body.document-signoff-overlay-open {
   .document-signoff-admin-meta,
   .document-signoff-admin-form-grid,
   .privacy-gdpr-meta {
+    grid-template-columns: 1fr;
+  }
+
+  .privacy-gdpr-source-picker {
     grid-template-columns: 1fr;
   }
 

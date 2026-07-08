@@ -3815,6 +3815,58 @@
               <div id="privacyGdprCasesWorkspaceList" class="privacy-gdpr-search-results" aria-live="polite"></div>
             </section>
 
+            <section id="privacyGdprEvidencePackSection" class="privacy-gdpr-card privacy-gdpr-result-section" aria-labelledby="privacyGdprEvidencePackTitle">
+              <div class="privacy-gdpr-card-heading">
+                <div>
+                  <h3 id="privacyGdprEvidencePackTitle">SAR Evidence Pack</h3>
+                  <p>Preview read-only evidence metadata before using Legacy VMS for complete SAR/export workflows.</p>
+                </div>
+                <span id="privacyGdprEvidencePackCount" class="privacy-gdpr-result-count">No preview</span>
+              </div>
+
+              <div class="oh-filter-panel" role="search" aria-label="SAR evidence pack preview filters">
+                <div class="oh-responsive-filter-grid oh-filter-field-grid privacy-gdpr-search-filters">
+                  <label>
+                    Search text
+                    <input id="privacyGdprEvidencePackSearchText" type="search" autocomplete="off" placeholder="Name, company, email or reference" />
+                  </label>
+                  <label>
+                    From date
+                    <input id="privacyGdprEvidencePackFromDate" type="date" />
+                  </label>
+                  <label>
+                    To date
+                    <input id="privacyGdprEvidencePackToDate" type="date" />
+                  </label>
+                </div>
+                <fieldset class="privacy-gdpr-source-picker" aria-label="Evidence pack source categories">
+                  <legend>Source categories</legend>
+                  <label><input id="privacyGdprEvidencePackSourcePlanned" type="checkbox" value="planned_visits" checked /> Planned Visits</label>
+                  <label><input id="privacyGdprEvidencePackSourceVisitLog" type="checkbox" value="visit_log" checked /> Visit Log</label>
+                  <label><input id="privacyGdprEvidencePackSourceDocuments" type="checkbox" value="document_evidence" checked /> Document Evidence / Agreement Signatures</label>
+                  <label><input id="privacyGdprEvidencePackSourceAudit" type="checkbox" value="audit_events" checked /> Audit Events</label>
+                </fieldset>
+                <div class="oh-responsive-filter-actions oh-filter-actions-row">
+                  <button id="privacyGdprEvidencePackPreviewButton" type="button">Preview Evidence Pack</button>
+                  <button id="privacyGdprEvidencePackResetButton" class="secondary" type="button">Reset</button>
+                  <button id="privacyGdprEvidencePackDownloadJsonButton" class="secondary" type="button">Download JSON Metadata</button>
+                  <button id="privacyGdprEvidencePackPrintButton" class="secondary" type="button">Print Preview</button>
+                </div>
+                <div class="oh-responsive-filter-actions oh-filter-actions-row">
+                  <button id="privacyGdprEvidencePackLegacySarButton" class="secondary" type="button">Open Legacy SAR Export</button>
+                  <button id="privacyGdprEvidencePackLegacySearchButton" class="secondary" type="button">Open Legacy GDPR Search</button>
+                  <button id="privacyGdprEvidencePackLegacyEvidenceButton" class="secondary" type="button">Open Legacy GDPR Evidence</button>
+                  <button id="privacyGdprEvidencePackLegacyErasureButton" class="secondary" type="button">Open Legacy Erasure / Anonymisation</button>
+                </div>
+              </div>
+
+              <div id="privacyGdprEvidencePackStatus" class="local-action-status" aria-live="polite"></div>
+              <div id="privacyGdprEvidencePackSummary" class="privacy-gdpr-search-summary" aria-live="polite">
+                Evidence pack preview is read-only and does not confirm that matching source records belong to one person.
+              </div>
+              <div id="privacyGdprEvidencePackResults" class="privacy-gdpr-search-results" aria-live="polite"></div>
+            </section>
+
             <section id="privacyGdprSearchSection" class="privacy-gdpr-card privacy-gdpr-search-card" aria-labelledby="privacyGdprSearchTitle">
               <div class="privacy-gdpr-card-heading">
                 <div>

@@ -1,6 +1,7 @@
 import { supabaseClient } from "./api.js";
 import { hasAnyCapability } from "./capabilities.js";
 import { $ } from "./dom.js";
+import { downloadTextFile } from "./exports.js";
 import { showToast } from "./messages.js";
 import { createSidePanelController, renderEmptyState } from "./platformUi.js";
 import { refreshSectionNavigator, registerModuleSections, selectModuleSection } from "./sectionNavigation.js";
@@ -24,6 +25,10 @@ const LEGACY_PRIVACY_ACTIONS = [
   ["privacyGdprCaseLegacyButton", "gdpr-cases"],
   ["privacyGdprLegacySearchButton", "gdpr-search"],
   ["privacyGdprSearchLegacyButton", "gdpr-search"],
+  ["privacyGdprEvidencePackLegacySearchButton", "gdpr-search"],
+  ["privacyGdprEvidencePackLegacySarButton", "gdpr-sar"],
+  ["privacyGdprEvidencePackLegacyEvidenceButton", "gdpr-evidence"],
+  ["privacyGdprEvidencePackLegacyErasureButton", "gdpr-erasure"],
   ["privacyGdprLegacySarButton", "gdpr-sar"],
   ["privacyGdprLegacyErasureButton", "gdpr-erasure"],
   ["privacyGdprLegacyEvidenceButton", "gdpr-evidence"]
@@ -68,6 +73,10 @@ let privacyGdprSearchGroups = [];
 let privacyGdprSearchDetailsPanelController = null;
 let privacyGdprSearchSequence = 0;
 let privacyGdprHasSearched = false;
+let privacyGdprEvidencePackGroups = [];
+let privacyGdprEvidencePackPayload = null;
+let privacyGdprEvidencePackHasPreview = false;
+let privacyGdprEvidencePackSequence = 0;
 
 const SOURCE_SEARCH_CONFIG = {
   planned_visits: {
@@ -132,6 +141,13 @@ const SOURCE_SEARCH_CONFIG = {
   }
 };
 
+const EVIDENCE_PACK_SOURCE_INPUTS = [
+  ["planned_visits", "privacyGdprEvidencePackSourcePlanned"],
+  ["visit_log", "privacyGdprEvidencePackSourceVisitLog"],
+  ["document_evidence", "privacyGdprEvidencePackSourceDocuments"],
+  ["audit_events", "privacyGdprEvidencePackSourceAudit"]
+];
+
 function hasActiveStaffUser() {
   return !!(
     AppState.currentProfile &&
@@ -165,6 +181,20 @@ function canViewVisitLogPrivacySearch() {
 
 function canViewPrivacyCaseDetails() {
   return canViewPrivacyGdpr();
+}
+
+function canViewSarEvidencePack() {
+  return hasActiveStaffUser() && (
+    isSuperUserProfile() ||
+    hasAnyCapability([
+      "privacy.view",
+      "privacy.manage",
+      "gdpr.view",
+      "gdpr.manage",
+      "audit.view",
+      "module_configuration.manage"
+    ])
+  );
 }
 
 function canViewDocumentEvidencePrivacySearch() {
@@ -323,6 +353,13 @@ function setStatus(message, type) {
 
 function setSearchStatus(message, type) {
   const element = $("privacyGdprSearchStatus");
+  if (!element) return;
+  element.textContent = message || "";
+  element.className = "local-action-status" + (message ? " " + (type || "info") : "");
+}
+
+function setEvidencePackStatus(message, type) {
+  const element = $("privacyGdprEvidencePackStatus");
   if (!element) return;
   element.textContent = message || "";
   element.className = "local-action-status" + (message ? " " + (type || "info") : "");
@@ -552,14 +589,36 @@ function syncLegacyBridgeVisibility() {
   if (searchBridge) searchBridge.classList.toggle("hidden", !available);
   const caseBridge = $("privacyGdprCaseLegacyButton");
   if (caseBridge) caseBridge.classList.toggle("hidden", !available);
+  [
+    "privacyGdprEvidencePackLegacySearchButton",
+    "privacyGdprEvidencePackLegacySarButton",
+    "privacyGdprEvidencePackLegacyEvidenceButton",
+    "privacyGdprEvidencePackLegacyErasureButton"
+  ].forEach(id => {
+    if ($(id)) $(id).classList.toggle("hidden", !available);
+  });
   const restricted = $("privacyGdprLegacyRestricted");
   if (restricted) restricted.classList.toggle("hidden", available);
+}
+
+function syncEvidencePackSourceVisibility() {
+  EVIDENCE_PACK_SOURCE_INPUTS.forEach(([sourceId, inputId]) => {
+    const input = $(inputId);
+    if (!input) return;
+    const label = input.closest("label");
+    const visible = canViewSourceSearch(sourceId);
+    input.disabled = !visible;
+    if (!visible) input.checked = false;
+    if (label) label.classList.toggle("hidden", !visible);
+  });
 }
 
 function renderAll() {
   renderOverview();
   renderCases();
   renderCaseWorkspace();
+  syncEvidencePackSourceVisibility();
+  renderEvidencePackPreview();
   renderSettings();
   renderSearchResults();
   syncLegacyBridgeVisibility();
@@ -587,11 +646,38 @@ function currentSourceSearchPayload(sourceId) {
   };
 }
 
+function selectedEvidencePackSources() {
+  return EVIDENCE_PACK_SOURCE_INPUTS
+    .filter(([sourceId, inputId]) => $(inputId) && $(inputId).checked && !$(inputId).disabled && canViewSourceSearch(sourceId))
+    .map(([sourceId]) => sourceId);
+}
+
+function currentEvidencePackPayload() {
+  return {
+    searchText: $("privacyGdprEvidencePackSearchText") ? $("privacyGdprEvidencePackSearchText").value.trim() : "",
+    fromDate: $("privacyGdprEvidencePackFromDate") ? $("privacyGdprEvidencePackFromDate").value : "",
+    toDate: $("privacyGdprEvidencePackToDate") ? $("privacyGdprEvidencePackToDate").value : "",
+    sources: selectedEvidencePackSources()
+  };
+}
+
 function validateSearchPayload(payload) {
   if (!payload) return "Search filters are unavailable.";
   const hasStatusFilter = hasValue(payload.status) && payload.status !== "all";
   if (!hasValue(payload.searchText) && !hasValue(payload.fromDate) && !hasValue(payload.toDate) && !hasValue(payload.eventType) && !hasStatusFilter) {
     return "Enter search text or a date range before searching.";
+  }
+  if (payload.fromDate && payload.toDate && payload.fromDate > payload.toDate) {
+    return "From date must be on or before to date.";
+  }
+  return "";
+}
+
+function validateEvidencePackPayload(payload) {
+  if (!payload) return "Evidence pack filters are unavailable.";
+  if (!payload.sources || !payload.sources.length) return "Select at least one source category before previewing.";
+  if (!hasValue(payload.searchText) && !hasValue(payload.fromDate) && !hasValue(payload.toDate)) {
+    return "Enter search text or a date range before previewing an evidence pack.";
   }
   if (payload.fromDate && payload.toDate && payload.fromDate > payload.toDate) {
     return "From date must be on or before to date.";
@@ -993,6 +1079,250 @@ function renderSearchResults() {
   refreshSectionNavigator("privacy-gdpr");
 }
 
+function evidencePackResultCount() {
+  return privacyGdprEvidencePackGroups.reduce((sum, group) => sum + ((group.records || []).length), 0);
+}
+
+function evidencePackSearchPayloadForSource(sourceId, payload) {
+  return {
+    searchText: payload.searchText,
+    fromDate: payload.fromDate,
+    toDate: payload.toDate,
+    recordType: sourceId,
+    status: "all",
+    eventType: ""
+  };
+}
+
+function renderEvidencePackSummary() {
+  const summary = $("privacyGdprEvidencePackSummary");
+  const count = $("privacyGdprEvidencePackCount");
+  if (!summary) return;
+  if (count) count.textContent = privacyGdprEvidencePackHasPreview ? String(evidencePackResultCount()) : "No preview";
+
+  if (!privacyGdprEvidencePackHasPreview || !privacyGdprEvidencePackPayload) {
+    summary.textContent = "Evidence pack preview is read-only and does not confirm that matching source records belong to one person.";
+    summary.classList.remove("has-results");
+    return;
+  }
+
+  const unavailable = privacyGdprEvidencePackGroups.filter(group => group.unavailable).length;
+  const available = privacyGdprEvidencePackGroups.filter(group => !group.unavailable);
+  const counts = available.map(group => {
+    const settings = SEARCH_GROUPS[group.id] || {};
+    return (settings.title || group.id) + ": " + ((group.records || []).length);
+  });
+  summary.textContent = "Evidence pack preview: " + evidencePackResultCount() + " matching source record(s). " +
+    "Search text: " + textOrDash(privacyGdprEvidencePackPayload.searchText) + ". " +
+    "Date range: " + textOrDash(privacyGdprEvidencePackPayload.fromDate) + " to " +
+    textOrDash(privacyGdprEvidencePackPayload.toDate) + ". " +
+    (counts.length ? counts.join(" | ") + ". " : "") +
+    (unavailable ? unavailable + " source(s) unavailable under current access. " : "") +
+    "This is not a complete SAR export and does not identity-link records.";
+  summary.classList.toggle("has-results", evidencePackResultCount() > 0);
+}
+
+function renderEvidencePackPreview() {
+  const container = $("privacyGdprEvidencePackResults");
+  if (!container) return;
+  container.replaceChildren();
+  renderEvidencePackSummary();
+
+  if (!privacyGdprEvidencePackHasPreview) {
+    renderEmptyState(container, {
+      title: "No evidence pack preview yet",
+      description: "Enter search criteria, choose source categories and preview matching read-only records."
+    });
+    return;
+  }
+
+  if (!privacyGdprEvidencePackGroups.length) {
+    renderEmptyState(container, {
+      title: "No source categories selected",
+      description: "Select at least one available source category before previewing."
+    });
+    return;
+  }
+
+  privacyGdprEvidencePackGroups.forEach(group => {
+    container.appendChild(createResultGroupElement(group));
+  });
+}
+
+async function previewEvidencePack() {
+  if (!canViewSarEvidencePack()) {
+    showToast("Evidence pack unavailable", "SAR Evidence Pack requires an existing privacy, GDPR, audit or module capability.", "error");
+    return;
+  }
+
+  const payload = currentEvidencePackPayload();
+  const validationMessage = validateEvidencePackPayload(payload);
+  if (validationMessage) {
+    showToast("Evidence pack needs filters", validationMessage, "error");
+    return;
+  }
+
+  const sequence = ++privacyGdprEvidencePackSequence;
+  privacyGdprEvidencePackPayload = payload;
+  privacyGdprEvidencePackHasPreview = true;
+  privacyGdprEvidencePackGroups = [];
+  setEvidencePackStatus("Previewing read-only evidence metadata...", "info");
+  renderEvidencePackPreview();
+
+  const results = await Promise.allSettled(payload.sources.map(sourceId => {
+    if (!canViewSourceSearch(sourceId)) {
+      return Promise.resolve(createUnavailableGroup(sourceId, "This source is not available under current permissions."));
+    }
+    return loadSearchGroup(sourceId, evidencePackSearchPayloadForSource(sourceId, payload));
+  }));
+  if (sequence !== privacyGdprEvidencePackSequence) return;
+
+  const groups = [];
+  const errors = [];
+  results.forEach((result, index) => {
+    const sourceId = payload.sources[index];
+    if (result.status === "fulfilled") {
+      groups.push(result.value);
+      return;
+    }
+    errors.push({ sourceId, error: result.reason });
+    groups.push(createUnavailableGroup(sourceId, "This source could not be previewed under current permissions."));
+  });
+
+  privacyGdprEvidencePackGroups = groups;
+  renderEvidencePackPreview();
+  selectPrivacyGdprSection("evidence-pack", { focus: false, resetScroll: false });
+  if (errors.length) {
+    showToast(
+      "Evidence pack partially previewed",
+      errors.length + " source(s) were unavailable under current permissions.",
+      "error"
+    );
+  }
+  setEvidencePackStatus("", "");
+}
+
+function evidencePackMetadata() {
+  const payload = privacyGdprEvidencePackPayload || {};
+  return {
+    generated_at: new Date().toISOString(),
+    preview_only: true,
+    warning: "Evidence pack preview only. This is not a complete SAR export and records are not identity-linked.",
+    search_text: payload.searchText || "",
+    date_from: payload.fromDate || "",
+    date_to: payload.toDate || "",
+    sources: privacyGdprEvidencePackGroups.map(group => {
+      const settings = SEARCH_GROUPS[group.id] || {};
+      return {
+        source_id: group.id,
+        source_label: settings.title || group.title || group.id,
+        unavailable: !!group.unavailable,
+        message: group.message || "",
+        count: (group.records || []).length,
+        records: (group.records || []).map(record => ({
+          record_reference: record.sourceId,
+          title: record.title,
+          subtitle: record.subtitle,
+          date: record.date,
+          status: record.status,
+          module: record.module,
+          summary: record.summary,
+          fields: (record.fields || [])
+            .filter(field => field.always || hasValue(field.value))
+            .map(field => ({
+              label: field.label,
+              value: textOrDash(field.value)
+            }))
+        }))
+      };
+    })
+  };
+}
+
+function downloadEvidencePackJson() {
+  if (!privacyGdprEvidencePackHasPreview) {
+    showToast("Preview required", "Preview the evidence pack before downloading metadata.", "error");
+    return;
+  }
+  downloadTextFile(
+    "sar-evidence-pack-preview-" + todayDate() + ".json",
+    JSON.stringify(evidencePackMetadata(), null, 2),
+    "application/json"
+  );
+  showToast("Evidence metadata downloaded", "Preview metadata JSON was downloaded. Legacy VMS remains the complete SAR workflow.", "success");
+}
+
+function escapeHtml(value) {
+  return String(value == null ? "" : value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll("\"", "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function printEvidencePackPreview() {
+  if (!privacyGdprEvidencePackHasPreview) {
+    showToast("Preview required", "Preview the evidence pack before printing.", "error");
+    return;
+  }
+
+  const data = evidencePackMetadata();
+  const groupsHtml = data.sources.map(source =>
+    "<section class='source'>" +
+      "<h2>" + escapeHtml(source.source_label) + " (" + source.count + ")</h2>" +
+      (source.unavailable
+        ? "<p class='warning'>" + escapeHtml(source.message || "Source unavailable.") + "</p>"
+        : source.records.map(record =>
+          "<article class='record'>" +
+            "<h3>" + escapeHtml(record.title) + "</h3>" +
+            "<p>" + escapeHtml([record.subtitle, record.status, record.date].filter(Boolean).join(" | ")) + "</p>" +
+            "<dl>" + record.fields.map(field =>
+              "<div><dt>" + escapeHtml(field.label) + "</dt><dd>" + escapeHtml(field.value) + "</dd></div>"
+            ).join("") + "</dl>" +
+          "</article>"
+        ).join(""))
+    + "</section>"
+  ).join("");
+
+  const printWindow = window.open("", "_blank");
+  if (!printWindow) {
+    showToast("Print preview blocked", "The browser blocked the printable preview window.", "error");
+    return;
+  }
+  printWindow.document.open();
+  printWindow.document.write(
+    "<!doctype html><html><head><meta charset='utf-8'>" +
+    "<title>SAR Evidence Pack Preview</title>" +
+    "<style>body{font-family:Arial,sans-serif;margin:28px;color:#111827;line-height:1.45;}h1,h2,h3{color:#0f172a;}p.warning{border:1px solid #f59e0b;background:#fffbeb;padding:10px;border-radius:8px;}section.source{margin-top:22px;}article.record{break-inside:avoid;border:1px solid #d1d5db;border-radius:10px;padding:12px;margin:10px 0;}dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}dt{font-size:11px;text-transform:uppercase;color:#667085;font-weight:bold;}dd{margin:2px 0 0;overflow-wrap:anywhere;}@media print{button{display:none;}}</style>" +
+    "</head><body>" +
+    "<h1>SAR Evidence Pack Preview</h1>" +
+    "<p><strong>Preview only.</strong> This is not a complete SAR export and does not confirm that matching records belong to one person.</p>" +
+    "<p>Generated: " + escapeHtml(data.generated_at) + "<br>Search text: " + escapeHtml(data.search_text || "-") +
+    "<br>Date range: " + escapeHtml(data.date_from || "-") + " to " + escapeHtml(data.date_to || "-") + "</p>" +
+    groupsHtml +
+    "<script>window.onload=function(){window.focus();window.print();};<\/script>" +
+    "</body></html>"
+  );
+  printWindow.document.close();
+}
+
+function resetEvidencePackPreview() {
+  ["privacyGdprEvidencePackSearchText", "privacyGdprEvidencePackFromDate", "privacyGdprEvidencePackToDate"].forEach(id => {
+    if ($(id)) $(id).value = "";
+  });
+  EVIDENCE_PACK_SOURCE_INPUTS.forEach(([, inputId]) => {
+    if ($(inputId)) $(inputId).checked = true;
+  });
+  syncEvidencePackSourceVisibility();
+  privacyGdprEvidencePackPayload = null;
+  privacyGdprEvidencePackGroups = [];
+  privacyGdprEvidencePackHasPreview = false;
+  setEvidencePackStatus("", "");
+  renderEvidencePackPreview();
+  selectPrivacyGdprSection("evidence-pack", { focus: false, resetScroll: false });
+}
+
 function appendDetailsList(parent, fields) {
   const list = document.createElement("dl");
   list.className = "privacy-gdpr-search-details-list";
@@ -1388,6 +1718,14 @@ function registerPrivacyGdprSections() {
       visible: canViewPrivacyCaseDetails
     },
     {
+      id: "evidence-pack",
+      title: "SAR Evidence Pack",
+      icon: "EP",
+      target: "privacyGdprEvidencePackSection",
+      order: 28,
+      visible: canViewSarEvidencePack
+    },
+    {
       id: "planned-visits",
       title: "Planned Visits",
       icon: "PV",
@@ -1479,6 +1817,9 @@ export function syncPrivacyGdprVisibility() {
   if (searchSection) searchSection.classList.toggle("hidden", !visible);
   const casesSection = $("privacyGdprCasesSection");
   if (casesSection) casesSection.classList.toggle("hidden", !canViewPrivacyCaseDetails());
+  const evidencePackSection = $("privacyGdprEvidencePackSection");
+  if (evidencePackSection) evidencePackSection.classList.toggle("hidden", !canViewSarEvidencePack());
+  syncEvidencePackSourceVisibility();
   syncLegacyBridgeVisibility();
   refreshSectionNavigator("privacy-gdpr");
   if (!visible && $("privacyGdprSection") && !$("privacyGdprSection").classList.contains("hidden")) {
@@ -1560,6 +1901,26 @@ export function initialisePrivacyGdprAdministration(dependencies) {
       if (event.key === "Enter") {
         event.preventDefault();
         applyPrivacyCaseFilters();
+      }
+    });
+  }
+  if ($("privacyGdprEvidencePackPreviewButton")) {
+    $("privacyGdprEvidencePackPreviewButton").addEventListener("click", previewEvidencePack);
+  }
+  if ($("privacyGdprEvidencePackResetButton")) {
+    $("privacyGdprEvidencePackResetButton").addEventListener("click", resetEvidencePackPreview);
+  }
+  if ($("privacyGdprEvidencePackDownloadJsonButton")) {
+    $("privacyGdprEvidencePackDownloadJsonButton").addEventListener("click", downloadEvidencePackJson);
+  }
+  if ($("privacyGdprEvidencePackPrintButton")) {
+    $("privacyGdprEvidencePackPrintButton").addEventListener("click", printEvidencePackPreview);
+  }
+  if ($("privacyGdprEvidencePackSearchText")) {
+    $("privacyGdprEvidencePackSearchText").addEventListener("keydown", event => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        previewEvidencePack();
       }
     });
   }
