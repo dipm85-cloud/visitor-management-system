@@ -3550,83 +3550,18 @@
             <div id="documentSignoffAdminTypesEmpty" class="people-empty-state hidden" data-oh-empty-state>No document types are available.</div>
           </section>
 
-          <div class="document-signoff-admin-grid">
-            <section id="documentSignoffAdminTypeFormCard" class="document-signoff-readonly-card" aria-labelledby="documentSignoffAdminTypeFormTitle">
-              <div class="document-signoff-card-heading">
-                <div>
-                  <h3 id="documentSignoffAdminTypeFormTitle">Type Setup</h3>
-                  <p>Create or update document type metadata when the existing backend permits it.</p>
-                </div>
-              </div>
-              <form id="documentSignoffAdminTypeForm" class="shared-terminal-form">
-                <input id="documentSignoffAdminTypeId" type="hidden" />
-                <label for="documentSignoffAdminTypeName">Name *</label>
-                <input id="documentSignoffAdminTypeName" type="text" autocomplete="off" required />
-                <label for="documentSignoffAdminTypeTitle">Evidence title</label>
-                <input id="documentSignoffAdminTypeTitle" type="text" autocomplete="off" />
-                <label for="documentSignoffAdminTypeDescription">Description</label>
-                <textarea id="documentSignoffAdminTypeDescription" rows="4"></textarea>
-                <label for="documentSignoffAdminTypeActive">Status</label>
-                <select id="documentSignoffAdminTypeActive">
-                  <option value="true">Active</option>
-                  <option value="false">Inactive</option>
-                </select>
-                <label for="documentSignoffAdminTypeRequired">Requirement default</label>
-                <select id="documentSignoffAdminTypeRequired">
-                  <option value="true">Required</option>
-                  <option value="false">Optional</option>
-                </select>
-                <label for="documentSignoffAdminTypeOrder">Display order</label>
-                <input id="documentSignoffAdminTypeOrder" type="number" value="100" />
-                <div class="shared-terminal-form-actions">
-                  <button id="documentSignoffAdminSaveTypeButton" type="submit">Save Type</button>
-                  <button id="documentSignoffAdminResetTypeButton" class="secondary" type="button">Reset</button>
-                </div>
-              </form>
-            </section>
-
-            <section class="document-signoff-readonly-card" aria-labelledby="documentSignoffAdminVersionsTitle">
-              <div class="document-signoff-card-heading">
-                <div>
-                  <h3 id="documentSignoffAdminVersionsTitle">Document Versions</h3>
-                  <p id="documentSignoffAdminSelectedTypeMeta">Select a document type to review its versions.</p>
-                </div>
-              </div>
-              <div id="documentSignoffAdminVersionResults" class="document-signoff-admin-version-list" data-oh-scroll-region="operational" aria-label="Selected document type versions"></div>
-              <div id="documentSignoffAdminVersionsEmpty" class="people-empty-state hidden" data-oh-empty-state>No versions are available for this document type.</div>
-            </section>
-          </div>
-
-          <section id="documentSignoffAdminVersionFormCard" class="document-signoff-readonly-card" aria-labelledby="documentSignoffAdminVersionFormTitle">
+          <section class="document-signoff-readonly-card" aria-labelledby="documentSignoffAdminVersionsTitle">
             <div class="document-signoff-card-heading">
               <div>
-                <h3 id="documentSignoffAdminVersionFormTitle">Create Version</h3>
-                <p>Add a new version record without deleting or rewriting version history.</p>
+                <h3 id="documentSignoffAdminVersionsTitle">Document Versions</h3>
+                <p id="documentSignoffAdminSelectedTypeMeta">Select a document type to review its versions.</p>
+              </div>
+              <div class="document-signoff-native-actions">
+                <button id="documentSignoffAdminNewVersionButton" type="button">New Version</button>
               </div>
             </div>
-            <form id="documentSignoffAdminVersionForm" class="document-signoff-admin-form-grid">
-              <label for="documentSignoffAdminVersionType">Document type *</label>
-              <select id="documentSignoffAdminVersionType" required>
-                <option value="">Select document type</option>
-              </select>
-              <label for="documentSignoffAdminVersionNumber">Version label *</label>
-              <input id="documentSignoffAdminVersionNumber" type="text" autocomplete="off" placeholder="2026.1" required />
-              <label for="documentSignoffAdminPdfUrl">File or document URL *</label>
-              <input id="documentSignoffAdminPdfUrl" type="url" autocomplete="off" placeholder="https://.../document.pdf" required />
-              <label for="documentSignoffAdminFileName">File name</label>
-              <input id="documentSignoffAdminFileName" type="text" autocomplete="off" />
-              <label for="documentSignoffAdminActivateNow">Activate now</label>
-              <select id="documentSignoffAdminActivateNow">
-                <option value="true">Yes</option>
-                <option value="false">No</option>
-              </select>
-              <label for="documentSignoffAdminVersionNotes">Notes</label>
-              <textarea id="documentSignoffAdminVersionNotes" rows="3"></textarea>
-              <div class="document-signoff-admin-form-actions">
-                <button id="documentSignoffAdminCreateVersionButton" type="submit">Create Version</button>
-                <button id="documentSignoffAdminResetVersionButton" class="secondary" type="button">Clear Version Form</button>
-              </div>
-            </form>
+            <div id="documentSignoffAdminVersionResults" class="document-signoff-admin-version-list" data-oh-scroll-region="operational" aria-label="Selected document type versions"></div>
+            <div id="documentSignoffAdminVersionsEmpty" class="people-empty-state hidden" data-oh-empty-state>No versions are available for this document type.</div>
           </section>
 
           <section class="document-signoff-readonly-card" aria-labelledby="documentSignoffAdminSettingsTitle">
@@ -3687,6 +3622,56 @@
             </div>
           </section>
         </section>
+
+        <div id="documentSignoffAdminTypePanelBackdrop" class="visitors-panel-backdrop hidden" data-oh-side-panel-backdrop>
+          <aside id="documentSignoffAdminTypePanel" class="visitors-side-panel document-signoff-admin-panel" aria-labelledby="documentSignoffAdminTypePanelTitle" aria-modal="true" role="dialog" data-oh-side-panel>
+            <header class="visitors-side-panel-header" data-oh-side-panel-header>
+              <div>
+                <p class="oh-app-eyebrow">Document Sign-offs</p>
+                <h2 id="documentSignoffAdminTypePanelTitle" data-oh-side-panel-title>Create Document Type</h2>
+              </div>
+              <button id="documentSignoffAdminTypePanelClose" class="ghost" type="button" aria-label="Close document type panel" data-oh-side-panel-close>Close</button>
+            </header>
+            <form id="documentSignoffAdminTypeForm" class="visitors-planned-form document-signoff-admin-panel-form" novalidate>
+              <input id="documentSignoffAdminTypeId" type="hidden" />
+              <label for="documentSignoffAdminTypeName"><span>Name *</span><input id="documentSignoffAdminTypeName" type="text" autocomplete="off" required /></label>
+              <label for="documentSignoffAdminTypeTitle"><span>Evidence title</span><input id="documentSignoffAdminTypeTitle" type="text" autocomplete="off" /></label>
+              <label for="documentSignoffAdminTypeDescription"><span>Description</span><textarea id="documentSignoffAdminTypeDescription" rows="4"></textarea></label>
+              <label for="documentSignoffAdminTypeActive"><span>Status</span><select id="documentSignoffAdminTypeActive"><option value="true">Active</option><option value="false">Inactive</option></select></label>
+              <label for="documentSignoffAdminTypeRequired"><span>Requirement default</span><select id="documentSignoffAdminTypeRequired"><option value="true">Required</option><option value="false">Optional</option></select></label>
+              <label for="documentSignoffAdminTypeOrder"><span>Display order</span><input id="documentSignoffAdminTypeOrder" type="number" value="100" /></label>
+              <div class="visitors-side-panel-actions" data-oh-side-panel-actions>
+                <button id="documentSignoffAdminSaveTypeButton" type="submit">Save Type</button>
+                <button id="documentSignoffAdminTypeCancelButton" class="secondary" type="button">Cancel</button>
+              </div>
+            </form>
+          </aside>
+        </div>
+
+        <div id="documentSignoffAdminVersionPanelBackdrop" class="visitors-panel-backdrop hidden" data-oh-side-panel-backdrop>
+          <aside id="documentSignoffAdminVersionPanel" class="visitors-side-panel document-signoff-admin-panel" aria-labelledby="documentSignoffAdminVersionPanelTitle" aria-modal="true" role="dialog" data-oh-side-panel>
+            <header class="visitors-side-panel-header" data-oh-side-panel-header>
+              <div>
+                <p class="oh-app-eyebrow">Document Sign-offs</p>
+                <h2 id="documentSignoffAdminVersionPanelTitle" data-oh-side-panel-title>Create Document Version</h2>
+              </div>
+              <button id="documentSignoffAdminVersionPanelClose" class="ghost" type="button" aria-label="Close document version panel" data-oh-side-panel-close>Close</button>
+            </header>
+            <form id="documentSignoffAdminVersionForm" class="visitors-planned-form document-signoff-admin-panel-form" novalidate>
+              <input id="documentSignoffAdminVersionId" type="hidden" />
+              <label for="documentSignoffAdminVersionType"><span>Document type *</span><select id="documentSignoffAdminVersionType" required><option value="">Select document type</option></select></label>
+              <label for="documentSignoffAdminVersionNumber"><span>Version label *</span><input id="documentSignoffAdminVersionNumber" type="text" autocomplete="off" placeholder="2026.1" required /></label>
+              <label for="documentSignoffAdminPdfUrl"><span>File or document URL *</span><input id="documentSignoffAdminPdfUrl" type="url" autocomplete="off" placeholder="https://.../document.pdf" required /></label>
+              <label for="documentSignoffAdminFileName"><span>File name</span><input id="documentSignoffAdminFileName" type="text" autocomplete="off" /></label>
+              <label for="documentSignoffAdminActivateNow"><span>Activate now</span><select id="documentSignoffAdminActivateNow"><option value="true">Yes</option><option value="false">No</option></select></label>
+              <label for="documentSignoffAdminVersionNotes"><span>Notes</span><textarea id="documentSignoffAdminVersionNotes" rows="4"></textarea></label>
+              <div class="visitors-side-panel-actions" data-oh-side-panel-actions>
+                <button id="documentSignoffAdminCreateVersionButton" type="submit">Create Version</button>
+                <button id="documentSignoffAdminVersionCancelButton" class="secondary" type="button">Cancel</button>
+              </div>
+            </form>
+          </aside>
+        </div>
 
         <section id="sharedTerminalsSection" class="hidden" aria-labelledby="sharedTerminalsTitle">
           <div class="shared-terminals-heading">

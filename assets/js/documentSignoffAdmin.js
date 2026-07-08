@@ -3,7 +3,7 @@ import { auditDiffSummary, buildFieldDiff, buildObjectDiff, writeAuditEvent } fr
 import { hasAnyCapability } from "./capabilities.js";
 import { $ } from "./dom.js";
 import { showToast } from "./messages.js";
-import { renderEmptyState, requestPlatformConfirmation } from "./platformUi.js";
+import { createSidePanelController, renderEmptyState, requestPlatformConfirmation } from "./platformUi.js";
 import { showAdministrationWorkspace } from "./shell.js";
 import { AppState } from "./state.js";
 import { loadSystemSettings, saveSetting, settingValue } from "./settings.js";
@@ -38,6 +38,8 @@ let documentSignoffAdminTypes = [];
 let documentSignoffAdminVersions = [];
 let selectedDocumentTypeId = null;
 let documentSignoffAdminLoadSequence = 0;
+let documentTypePanelController = null;
+let documentVersionPanelController = null;
 
 function hasActiveStaffUser() {
   return !!(
@@ -260,10 +262,7 @@ function createTypeCard(type) {
     edit.type = "button";
     edit.className = "secondary";
     edit.textContent = "Edit";
-    edit.addEventListener("click", () => {
-      selectType(type.agreement_type_id);
-      fillTypeForm(type);
-    });
+    edit.addEventListener("click", event => openTypePanel(type, event.currentTarget));
     actions.appendChild(edit);
 
     const toggle = document.createElement("button");
@@ -337,6 +336,15 @@ function createVersionCard(version) {
     open.addEventListener("click", () => window.open(version.pdf_url, "_blank", "noopener"));
     actions.appendChild(open);
   }
+  if (canManageDocumentSignoffAdmin()) {
+    const edit = document.createElement("button");
+    edit.type = "button";
+    edit.className = "secondary";
+    edit.textContent = "Edit Version";
+    edit.addEventListener("click", event => openVersionPanel(version, event.currentTarget));
+    actions.appendChild(edit);
+  }
+
   if (canManageDocumentSignoffAdmin() && !version.is_active) {
     const activate = document.createElement("button");
     activate.type = "button";
@@ -365,6 +373,9 @@ function renderVersions() {
     $("documentSignoffAdminSelectedTypeMeta").textContent = type
       ? textOrDash(type.agreement_name) + " - " + versionsForType(type.agreement_type_id).length + " version(s)"
       : "Select a document type to review its versions.";
+  }
+  if ($("documentSignoffAdminNewVersionButton")) {
+    $("documentSignoffAdminNewVersionButton").disabled = !canManageDocumentSignoffAdmin() || !type;
   }
   const rows = type ? versionsForType(type.agreement_type_id) : [];
   rows.forEach(version => container.appendChild(createVersionCard(version)));
@@ -422,7 +433,8 @@ function resetTypeForm() {
   if ($("documentSignoffAdminTypeActive")) $("documentSignoffAdminTypeActive").value = "true";
   if ($("documentSignoffAdminTypeRequired")) $("documentSignoffAdminTypeRequired").value = "true";
   if ($("documentSignoffAdminTypeOrder")) $("documentSignoffAdminTypeOrder").value = "100";
-  if ($("documentSignoffAdminTypeFormTitle")) $("documentSignoffAdminTypeFormTitle").textContent = "Type Setup";
+  if ($("documentSignoffAdminTypePanelTitle")) $("documentSignoffAdminTypePanelTitle").textContent = "Create Document Type";
+  if ($("documentSignoffAdminSaveTypeButton")) $("documentSignoffAdminSaveTypeButton").textContent = "Save Type";
 }
 
 function fillTypeForm(type) {
@@ -434,14 +446,70 @@ function fillTypeForm(type) {
   $("documentSignoffAdminTypeActive").value = type.is_active === false ? "false" : "true";
   $("documentSignoffAdminTypeRequired").value = type.default_required ? "true" : "false";
   $("documentSignoffAdminTypeOrder").value = String(type.display_order || 100);
-  if ($("documentSignoffAdminTypeFormTitle")) $("documentSignoffAdminTypeFormTitle").textContent = "Edit Type";
+  if ($("documentSignoffAdminTypePanelTitle")) $("documentSignoffAdminTypePanelTitle").textContent = "Edit Document Type";
+  if ($("documentSignoffAdminSaveTypeButton")) $("documentSignoffAdminSaveTypeButton").textContent = "Save Changes";
+}
+
+function openTypePanel(type, trigger) {
+  if (!requireDocumentSignoffAdminManageAccess()) return;
+  if (type) {
+    selectType(type.agreement_type_id);
+    fillTypeForm(type);
+  } else {
+    resetTypeForm();
+  }
+  if (documentTypePanelController) {
+    documentTypePanelController.open({
+      trigger,
+      title: type ? "Edit Document Type" : "Create Document Type",
+      initialFocus: "documentSignoffAdminTypeName"
+    });
+  }
 }
 
 function resetVersionForm() {
   const form = $("documentSignoffAdminVersionForm");
   if (form) form.reset();
-  if ($("documentSignoffAdminVersionType")) $("documentSignoffAdminVersionType").value = selectedDocumentTypeId || "";
+  if ($("documentSignoffAdminVersionId")) $("documentSignoffAdminVersionId").value = "";
+  if ($("documentSignoffAdminVersionType")) {
+    $("documentSignoffAdminVersionType").value = selectedDocumentTypeId || "";
+    $("documentSignoffAdminVersionType").disabled = false;
+  }
   if ($("documentSignoffAdminActivateNow")) $("documentSignoffAdminActivateNow").value = "true";
+  if ($("documentSignoffAdminVersionPanelTitle")) $("documentSignoffAdminVersionPanelTitle").textContent = "Create Document Version";
+  if ($("documentSignoffAdminCreateVersionButton")) $("documentSignoffAdminCreateVersionButton").textContent = "Create Version";
+}
+
+function fillVersionForm(version) {
+  if (!version) return;
+  selectedDocumentTypeId = version.agreement_type_id || selectedDocumentTypeId;
+  $("documentSignoffAdminVersionId").value = version.agreement_version_id || "";
+  $("documentSignoffAdminVersionType").value = version.agreement_type_id || "";
+  $("documentSignoffAdminVersionType").disabled = true;
+  $("documentSignoffAdminVersionNumber").value = version.version_number || "";
+  $("documentSignoffAdminPdfUrl").value = version.pdf_url || "";
+  $("documentSignoffAdminFileName").value = version.file_name || "";
+  $("documentSignoffAdminActivateNow").value = version.is_active ? "true" : "false";
+  $("documentSignoffAdminVersionNotes").value = version.notes || "";
+  if ($("documentSignoffAdminVersionPanelTitle")) $("documentSignoffAdminVersionPanelTitle").textContent = "Edit Document Version";
+  if ($("documentSignoffAdminCreateVersionButton")) $("documentSignoffAdminCreateVersionButton").textContent = "Save Version";
+}
+
+function openVersionPanel(version, trigger) {
+  if (!requireDocumentSignoffAdminManageAccess()) return;
+  if (version) {
+    selectType(version.agreement_type_id);
+    fillVersionForm(version);
+  } else {
+    resetVersionForm();
+  }
+  if (documentVersionPanelController) {
+    documentVersionPanelController.open({
+      trigger,
+      title: version ? "Edit Document Version" : "Create Document Version",
+      initialFocus: version ? "documentSignoffAdminVersionNumber" : "documentSignoffAdminVersionType"
+    });
+  }
 }
 
 function readTypePayload() {
@@ -513,6 +581,7 @@ async function saveType(event) {
 
     showToast("Document type saved", response.message || "Document type setup was saved.", "success");
     resetTypeForm();
+    if (documentTypePanelController) documentTypePanelController.close({ reset: true });
     await loadDocumentSignoffAdmin({ manual: false, keepSelection: true });
   } catch (err) {
     setStatus("Document type could not be saved.", "error");
@@ -563,6 +632,7 @@ async function createVersion(event) {
   if (event) event.preventDefault();
   if (!requireDocumentSignoffAdminManageAccess()) return;
 
+  const versionId = $("documentSignoffAdminVersionId") ? $("documentSignoffAdminVersionId").value : "";
   const typeId = $("documentSignoffAdminVersionType").value;
   const versionNumber = $("documentSignoffAdminVersionNumber").value.trim();
   const pdfUrl = $("documentSignoffAdminPdfUrl").value.trim();
@@ -577,39 +647,48 @@ async function createVersion(event) {
 
   const button = $("documentSignoffAdminCreateVersionButton");
   if (button) button.disabled = true;
-  setStatus("Creating document version...", "info");
+  setStatus(versionId ? "Saving document version..." : "Creating document version...", "info");
   try {
-    const result = await supabaseClient.rpc("create_agreement_version", {
+    const payload = {
       p_version_number: versionNumber,
       p_pdf_url: pdfUrl,
       p_file_name: $("documentSignoffAdminFileName").value.trim() || null,
       p_notes: $("documentSignoffAdminVersionNotes").value.trim() || null,
-      p_activate_now: $("documentSignoffAdminActivateNow").value === "true",
-      p_agreement_type_id: typeId
-    });
+      p_activate_now: $("documentSignoffAdminActivateNow").value === "true"
+    };
+    const result = versionId
+      ? await supabaseClient.rpc("update_agreement_version", {
+        p_agreement_version_id: versionId,
+        ...payload
+      })
+      : await supabaseClient.rpc("create_agreement_version", {
+        ...payload,
+        p_agreement_type_id: typeId
+      });
     if (result.error) throw result.error;
     const response = Array.isArray(result.data) ? result.data[0] : result.data;
     if (response && response.duplicate_found) {
       throw new Error("This document type already has that version label. Use Legacy VMS if an existing version needs correction.");
     }
     if (!response || response.success !== true) {
-      throw new Error(response && response.message ? response.message : "Document version could not be created.");
+      throw new Error(response && response.message ? response.message : "Document version could not be saved.");
     }
 
-    void writeAuditEvent("document_version_created", "agreement_versions", response.agreement_version_id || null, {
-      action: "create",
+    void writeAuditEvent(versionId ? "document_version_updated" : "document_version_created", "agreement_versions", versionId || response.agreement_version_id || null, {
+      action: versionId ? "update" : "create",
       agreement_type_id: typeId,
       version_number: versionNumber,
       activate_now: $("documentSignoffAdminActivateNow").value === "true",
-      summary: "Document version created."
+      summary: versionId ? "Document version updated." : "Document version created."
     });
     selectedDocumentTypeId = typeId;
-    showToast("Document version created", response.message || "Document version was created.", "success");
+    showToast(versionId ? "Document version saved" : "Document version created", response.message || "Document version was saved.", "success");
     resetVersionForm();
+    if (documentVersionPanelController) documentVersionPanelController.close({ reset: true });
     await loadDocumentSignoffAdmin({ manual: false, keepSelection: true });
   } catch (err) {
-    setStatus("Document version could not be created.", "error");
-    showToast("Version not created", err.message || "Could not create document version.", "error");
+    setStatus("Document version could not be saved.", "error");
+    showToast("Version not saved", err.message || "Could not save document version.", "error");
   } finally {
     if (button) button.disabled = false;
   }
@@ -710,18 +789,18 @@ function syncEditability() {
   const readOnlyNotice = $("documentSignoffAdminReadOnlyNotice");
   if (readOnlyNotice) readOnlyNotice.classList.toggle("hidden", editable);
   [
-    "documentSignoffAdminTypeFormCard",
-    "documentSignoffAdminVersionFormCard"
-  ].forEach(id => {
-    const element = $(id);
-    if (element) element.classList.toggle("hidden", !editable);
-  });
-  [
     "documentSignoffAdminNewTypeButton",
     "documentSignoffAdminSaveSettingsButton"
   ].forEach(id => {
     const button = $(id);
     if (button) button.disabled = !editable;
+  });
+  [
+    "documentSignoffAdminNewTypeButton",
+    "documentSignoffAdminNewVersionButton"
+  ].forEach(id => {
+    const button = $(id);
+    if (button) button.classList.toggle("hidden", !editable);
   });
 }
 
@@ -737,6 +816,35 @@ function renderAll() {
   syncEditability();
   renderTypes();
   renderVersions();
+}
+
+function initialisePanelControllers() {
+  if (!documentTypePanelController && $("documentSignoffAdminTypePanel")) {
+    documentTypePanelController = createSidePanelController({
+      backdrop: "documentSignoffAdminTypePanelBackdrop",
+      panel: "documentSignoffAdminTypePanel",
+      title: "documentSignoffAdminTypePanelTitle",
+      initialFocus: "documentSignoffAdminTypeName",
+      closeTriggers: [
+        "documentSignoffAdminTypePanelClose",
+        "documentSignoffAdminTypeCancelButton"
+      ],
+      reset: resetTypeForm
+    });
+  }
+  if (!documentVersionPanelController && $("documentSignoffAdminVersionPanel")) {
+    documentVersionPanelController = createSidePanelController({
+      backdrop: "documentSignoffAdminVersionPanelBackdrop",
+      panel: "documentSignoffAdminVersionPanel",
+      title: "documentSignoffAdminVersionPanelTitle",
+      initialFocus: "documentSignoffAdminVersionType",
+      closeTriggers: [
+        "documentSignoffAdminVersionPanelClose",
+        "documentSignoffAdminVersionCancelButton"
+      ],
+      reset: resetVersionForm
+    });
+  }
 }
 
 export async function loadDocumentSignoffAdmin(options) {
@@ -832,7 +940,13 @@ export function initialiseDocumentSignoffAdministration(dependencies) {
   if ($("documentSignoffAdminSearch")) $("documentSignoffAdminSearch").addEventListener("input", renderTypes);
   if ($("documentSignoffAdminStatusFilter")) $("documentSignoffAdminStatusFilter").addEventListener("change", renderTypes);
   if ($("documentSignoffAdminRequirementFilter")) $("documentSignoffAdminRequirementFilter").addEventListener("change", renderTypes);
-  if ($("documentSignoffAdminNewTypeButton")) $("documentSignoffAdminNewTypeButton").addEventListener("click", resetTypeForm);
+  initialisePanelControllers();
+  if ($("documentSignoffAdminNewTypeButton")) {
+    $("documentSignoffAdminNewTypeButton").addEventListener("click", event => openTypePanel(null, event.currentTarget));
+  }
+  if ($("documentSignoffAdminNewVersionButton")) {
+    $("documentSignoffAdminNewVersionButton").addEventListener("click", event => openVersionPanel(null, event.currentTarget));
+  }
   if ($("documentSignoffAdminClearTypeButton")) {
     $("documentSignoffAdminClearTypeButton").addEventListener("click", () => {
       if ($("documentSignoffAdminSearch")) $("documentSignoffAdminSearch").value = "";
@@ -842,9 +956,7 @@ export function initialiseDocumentSignoffAdministration(dependencies) {
     });
   }
   if ($("documentSignoffAdminTypeForm")) $("documentSignoffAdminTypeForm").addEventListener("submit", saveType);
-  if ($("documentSignoffAdminResetTypeButton")) $("documentSignoffAdminResetTypeButton").addEventListener("click", resetTypeForm);
   if ($("documentSignoffAdminVersionForm")) $("documentSignoffAdminVersionForm").addEventListener("submit", createVersion);
-  if ($("documentSignoffAdminResetVersionButton")) $("documentSignoffAdminResetVersionButton").addEventListener("click", resetVersionForm);
   if ($("documentSignoffAdminVersionType")) $("documentSignoffAdminVersionType").addEventListener("change", event => selectType(event.target.value));
   if ($("documentSignoffAdminSettingsForm")) $("documentSignoffAdminSettingsForm").addEventListener("submit", saveBehaviourSettings);
 
