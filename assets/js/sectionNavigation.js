@@ -620,3 +620,17 @@ export function refreshSectionNavigator(moduleId) {
   observeVisibilityChanges(registration, controller);
   renderNavigator(registration, controller);
 }
+
+export function selectModuleSection(moduleId, sectionId, options) {
+  const registration = moduleRegistrations.get(moduleId);
+  const controller = moduleControllers.get(moduleId);
+  if (!registration || !controller) return false;
+
+  renderNavigator(registration, controller);
+  const switched = selectSection(registration, controller, sectionId, options);
+  updateDebugState(registration, controller, {
+    fallbackUsed: false,
+    errors: switched ? [] : ["Section is not available."]
+  });
+  return switched;
+}

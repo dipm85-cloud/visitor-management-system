@@ -4,6 +4,7 @@ import { hasAnyCapability } from "./capabilities.js";
 import { $ } from "./dom.js";
 import { showToast } from "./messages.js";
 import { createSidePanelController, renderEmptyState, requestPlatformConfirmation } from "./platformUi.js";
+import { refreshSectionNavigator, registerModuleSections, selectModuleSection } from "./sectionNavigation.js";
 import { showAdministrationWorkspace } from "./shell.js";
 import { AppState } from "./state.js";
 import { loadSystemSettings, saveSetting, settingValue } from "./settings.js";
@@ -136,6 +137,10 @@ function selectedType() {
   return documentSignoffAdminTypes.find(type => type.agreement_type_id === selectedDocumentTypeId) || null;
 }
 
+function selectDocumentSignoffAdminSection(sectionId, options) {
+  return selectModuleSection("document-signoff-admin", sectionId, options);
+}
+
 function setStatus(message, type) {
   const box = $("documentSignoffAdminStatus");
   if (!box) return;
@@ -254,7 +259,10 @@ function createTypeCard(type) {
   select.type = "button";
   select.className = "secondary";
   select.textContent = "Review Versions";
-  select.addEventListener("click", () => selectType(type.agreement_type_id));
+  select.addEventListener("click", () => selectType(type.agreement_type_id, {
+    switchToVersions: true,
+    toast: true
+  }));
   actions.appendChild(select);
 
   if (canManageDocumentSignoffAdmin()) {
@@ -371,7 +379,7 @@ function renderVersions() {
   container.replaceChildren();
   if ($("documentSignoffAdminSelectedTypeMeta")) {
     $("documentSignoffAdminSelectedTypeMeta").textContent = type
-      ? textOrDash(type.agreement_name) + " - " + versionsForType(type.agreement_type_id).length + " version(s)"
+      ? textOrDash(type.agreement_name) + " - " + textOrDash(type.agreement_title || type.description) + " - " + versionsForType(type.agreement_type_id).length + " version(s)"
       : "Select a document type to review its versions.";
   }
   if ($("documentSignoffAdminNewVersionButton")) {
@@ -382,10 +390,22 @@ function renderVersions() {
   $("documentSignoffAdminVersionsEmpty").classList.toggle("hidden", rows.length > 0);
   if (!rows.length) {
     renderEmptyState("documentSignoffAdminVersionsEmpty", {
-      title: type ? "No versions for this document type" : "No document type selected",
+      title: type
+        ? "No versions found for this document type."
+        : "Select a document type to review its versions.",
       description: type
-        ? "Create a version or use the Legacy VMS bridge if this setup remains legacy-managed."
-        : "Choose Review Versions on a document type."
+        ? "Create a version if this document type is now managed in Operations Hub."
+        : "Use Review Versions from Document Types to load a specific document type.",
+      action: type
+        ? {
+          label: "New Version",
+          available: canManageDocumentSignoffAdmin(),
+          onClick: event => openVersionPanel(null, event.currentTarget)
+        }
+        : {
+          label: "Back to Document Types",
+          onClick: () => selectDocumentSignoffAdminSection("document-types")
+        }
     });
   }
 }
@@ -408,13 +428,27 @@ function populateVersionTypeSelect() {
   if (current) select.value = current;
 }
 
-function selectType(typeId) {
+function selectType(typeId, options) {
+  const settings = options || {};
   selectedDocumentTypeId = typeId || null;
   if ($("documentSignoffAdminVersionType") && selectedDocumentTypeId) {
     $("documentSignoffAdminVersionType").value = selectedDocumentTypeId;
   }
   renderTypes();
   renderVersions();
+  if (settings.switchToVersions) {
+    selectDocumentSignoffAdminSection("document-versions");
+  }
+  if (settings.toast) {
+    const type = selectedType();
+    showToast(
+      "Document versions loaded",
+      type
+        ? "Reviewing versions for " + textOrDash(type.agreement_name) + "."
+        : "Select a document type to review its versions.",
+      type ? "success" : "error"
+    );
+  }
 }
 
 function validityRuleText() {
@@ -804,18 +838,70 @@ function syncEditability() {
   });
 }
 
+function registerDocumentSignoffAdminSections() {
+  registerModuleSections("document-signoff-admin", [
+    {
+      id: "overview",
+      title: "Overview",
+      icon: "O",
+      target: "documentSignoffAdminOverviewSection",
+      order: 10,
+      default: true,
+      visible: canViewDocumentSignoffAdmin
+    },
+    {
+      id: "document-types",
+      title: "Document Types",
+      icon: "DT",
+      target: "documentSignoffAdminTypesSection",
+      order: 20,
+      visible: canViewDocumentSignoffAdmin
+    },
+    {
+      id: "document-versions",
+      title: "Document Versions",
+      icon: "DV",
+      target: "documentSignoffAdminVersionsSection",
+      order: 30,
+      visible: canViewDocumentSignoffAdmin
+    },
+    {
+      id: "settings",
+      title: "Settings",
+      icon: "S",
+      target: "documentSignoffAdminSettingsSection",
+      order: 40,
+      visible: canViewDocumentSignoffAdmin
+    },
+    {
+      id: "legacy-tools",
+      title: "Legacy Tools",
+      icon: "L",
+      target: "documentSignoffAdminLegacySection",
+      order: 50,
+      visible: canViewDocumentSignoffAdmin
+    }
+  ], {
+    root: "documentSignoffAdminSection",
+    content: "documentSignoffAdminWorkspaceContent",
+    defaultSection: "overview",
+    scrollRoot: "operationsHubWorkspace",
+    label: "Document Sign-off Administration section navigation",
+    title: "Sections",
+    toggleLabel: "Document Sign-off section",
+    emptyMessage: "No Document Sign-off Administration sections are available under your current access."
+  });
+}
+
 function renderAll() {
   renderMetrics();
   populateVersionTypeSelect();
   if (selectedDocumentTypeId && !selectedType()) selectedDocumentTypeId = null;
-  if (!selectedDocumentTypeId && documentSignoffAdminTypes.length) {
-    const firstWithoutActiveVersion = documentSignoffAdminTypes.find(type => type.is_active !== false && !activeVersionForType(type));
-    selectedDocumentTypeId = (firstWithoutActiveVersion || documentSignoffAdminTypes[0]).agreement_type_id;
-  }
   fillSettingsForm();
   syncEditability();
   renderTypes();
   renderVersions();
+  refreshSectionNavigator("document-signoff-admin");
 }
 
 function initialisePanelControllers() {
@@ -906,6 +992,7 @@ export function syncDocumentSignoffAdminVisibility() {
   const nav = $("administrationDocumentSignoffsNav");
   if (nav) nav.classList.toggle("hidden", !visible);
   syncEditability();
+  refreshSectionNavigator("document-signoff-admin");
   if (!visible && $("documentSignoffAdminSection") && !$("documentSignoffAdminSection").classList.contains("hidden")) {
     if (hasAnyCapability(["settings.view", "settings.edit"])) setAdministrationSection("reference");
     else if (hasAnyCapability(["module_configuration.view", "module_configuration.manage", "visitor.housekeeping.run"])) setAdministrationSection("modules");
@@ -919,6 +1006,7 @@ export async function openDocumentSignoffAdministration() {
   if (!requireDocumentSignoffAdminAccess()) return;
   showAdministrationWorkspace();
   setAdministrationSection("documentSignoffs");
+  selectDocumentSignoffAdminSection("overview", { focus: false });
   await loadDocumentSignoffAdmin({ manual: false });
 }
 
@@ -930,6 +1018,7 @@ export function initialiseDocumentSignoffAdministration(dependencies) {
   if (dependencies) configureDocumentSignoffAdmin(dependencies);
   if (documentSignoffAdminInitialised) return;
   documentSignoffAdminInitialised = true;
+  registerDocumentSignoffAdminSections();
 
   if ($("administrationDocumentSignoffsNav")) {
     $("administrationDocumentSignoffsNav").addEventListener("click", openDocumentSignoffAdministration);
@@ -946,6 +1035,15 @@ export function initialiseDocumentSignoffAdministration(dependencies) {
   }
   if ($("documentSignoffAdminNewVersionButton")) {
     $("documentSignoffAdminNewVersionButton").addEventListener("click", event => openVersionPanel(null, event.currentTarget));
+  }
+  if ($("documentSignoffAdminBackToTypesButton")) {
+    $("documentSignoffAdminBackToTypesButton").addEventListener("click", () => {
+      selectDocumentSignoffAdminSection("document-types");
+      window.setTimeout(() => {
+        const target = $("documentSignoffAdminSearch") || $("documentSignoffAdminTypesSection");
+        if (target && typeof target.focus === "function") target.focus({ preventScroll: true });
+      }, 0);
+    });
   }
   if ($("documentSignoffAdminClearTypeButton")) {
     $("documentSignoffAdminClearTypeButton").addEventListener("click", () => {

@@ -3473,45 +3473,54 @@
 
           <div id="documentSignoffAdminStatus" class="local-action-status" aria-live="polite"></div>
 
-          <div class="document-signoff-summary-grid">
-            <article class="document-signoff-summary-card">
-              <span>Total document types</span>
-              <strong id="documentSignoffAdminTotalTypes">-</strong>
-              <p>Agreement and induction type records currently available to Operations Hub.</p>
-            </article>
-            <article class="document-signoff-summary-card">
-              <span>Active types</span>
-              <strong id="documentSignoffAdminActiveTypes">-</strong>
-              <p>Document types available for current sign-off workflows.</p>
-            </article>
-            <article class="document-signoff-summary-card">
-              <span>Inactive types</span>
-              <strong id="documentSignoffAdminInactiveTypes">-</strong>
-              <p>Preserved setup records that are not currently offered.</p>
-            </article>
-            <article class="document-signoff-summary-card">
-              <span>Active versions</span>
-              <strong id="documentSignoffAdminActiveVersions">-</strong>
-              <p>Current versions that can be selected by the existing sign-off workflow.</p>
-            </article>
-            <article class="document-signoff-summary-card">
-              <span>Required visitor documents</span>
-              <strong id="documentSignoffAdminRequiredTypes">-</strong>
-              <p>Active document types marked required by default for visitor use.</p>
-            </article>
-            <article class="document-signoff-summary-card">
-              <span>Optional visitor documents</span>
-              <strong id="documentSignoffAdminOptionalTypes">-</strong>
-              <p>Active document types available as optional visitor sign-offs.</p>
-            </article>
-            <article class="document-signoff-summary-card">
-              <span>No active version</span>
-              <strong id="documentSignoffAdminNoActiveVersion">-</strong>
-              <p>Active document types where no active version was detectable.</p>
-            </article>
-          </div>
+          <div id="documentSignoffAdminWorkspaceContent">
+          <section id="documentSignoffAdminOverviewSection" aria-labelledby="documentSignoffAdminOverviewTitle">
+            <div class="document-signoff-card-heading">
+              <div>
+                <h3 id="documentSignoffAdminOverviewTitle">Overview</h3>
+                <p>High-level setup status for the existing document sign-off foundation.</p>
+              </div>
+            </div>
+            <div class="document-signoff-summary-grid">
+              <article class="document-signoff-summary-card">
+                <span>Total document types</span>
+                <strong id="documentSignoffAdminTotalTypes">-</strong>
+                <p>Agreement and induction type records currently available to Operations Hub.</p>
+              </article>
+              <article class="document-signoff-summary-card">
+                <span>Active types</span>
+                <strong id="documentSignoffAdminActiveTypes">-</strong>
+                <p>Document types available for current sign-off workflows.</p>
+              </article>
+              <article class="document-signoff-summary-card">
+                <span>Inactive types</span>
+                <strong id="documentSignoffAdminInactiveTypes">-</strong>
+                <p>Preserved setup records that are not currently offered.</p>
+              </article>
+              <article class="document-signoff-summary-card">
+                <span>Active versions</span>
+                <strong id="documentSignoffAdminActiveVersions">-</strong>
+                <p>Current versions that can be selected by the existing sign-off workflow.</p>
+              </article>
+              <article class="document-signoff-summary-card">
+                <span>Required visitor documents</span>
+                <strong id="documentSignoffAdminRequiredTypes">-</strong>
+                <p>Active document types marked required by default for visitor use.</p>
+              </article>
+              <article class="document-signoff-summary-card">
+                <span>Optional visitor documents</span>
+                <strong id="documentSignoffAdminOptionalTypes">-</strong>
+                <p>Active document types available as optional visitor sign-offs.</p>
+              </article>
+              <article class="document-signoff-summary-card">
+                <span>No active version</span>
+                <strong id="documentSignoffAdminNoActiveVersion">-</strong>
+                <p>Active document types where no active version was detectable.</p>
+              </article>
+            </div>
+          </section>
 
-          <section class="document-signoff-readonly-card" aria-labelledby="documentSignoffAdminTypesTitle">
+          <section id="documentSignoffAdminTypesSection" class="document-signoff-readonly-card" aria-labelledby="documentSignoffAdminTypesTitle">
             <div class="document-signoff-card-heading">
               <div>
                 <h3 id="documentSignoffAdminTypesTitle">Document Types</h3>
@@ -3550,13 +3559,14 @@
             <div id="documentSignoffAdminTypesEmpty" class="people-empty-state hidden" data-oh-empty-state>No document types are available.</div>
           </section>
 
-          <section class="document-signoff-readonly-card" aria-labelledby="documentSignoffAdminVersionsTitle">
+          <section id="documentSignoffAdminVersionsSection" class="document-signoff-readonly-card" aria-labelledby="documentSignoffAdminVersionsTitle">
             <div class="document-signoff-card-heading">
               <div>
                 <h3 id="documentSignoffAdminVersionsTitle">Document Versions</h3>
                 <p id="documentSignoffAdminSelectedTypeMeta">Select a document type to review its versions.</p>
               </div>
               <div class="document-signoff-native-actions">
+                <button id="documentSignoffAdminBackToTypesButton" class="secondary" type="button">Back to Document Types</button>
                 <button id="documentSignoffAdminNewVersionButton" type="button">New Version</button>
               </div>
             </div>
@@ -3564,7 +3574,7 @@
             <div id="documentSignoffAdminVersionsEmpty" class="people-empty-state hidden" data-oh-empty-state>No versions are available for this document type.</div>
           </section>
 
-          <section class="document-signoff-readonly-card" aria-labelledby="documentSignoffAdminSettingsTitle">
+          <section id="documentSignoffAdminSettingsSection" class="document-signoff-readonly-card" aria-labelledby="documentSignoffAdminSettingsTitle">
             <div class="document-signoff-card-heading">
               <div>
                 <h3 id="documentSignoffAdminSettingsTitle">Sign-off Behaviour</h3>
@@ -3601,6 +3611,10 @@
               </select>
               <label for="documentSignoffAdminValidityDays">Default expiry period</label>
               <input id="documentSignoffAdminValidityDays" type="number" min="1" value="365" />
+              <label for="documentSignoffAdminScrollToEnd">Require scroll to end</label>
+              <select id="documentSignoffAdminScrollToEnd" disabled>
+                <option value="future">Planned - not currently enforceable</option>
+              </select>
               <label class="full" for="documentSignoffAdminAcceptanceText">Confirmation wording</label>
               <textarea id="documentSignoffAdminAcceptanceText" class="full" rows="3"></textarea>
               <div class="document-signoff-admin-form-actions">
@@ -3609,7 +3623,7 @@
             </form>
           </section>
 
-          <section class="document-signoff-legacy-card" aria-labelledby="documentSignoffAdminLegacyTitle">
+          <section id="documentSignoffAdminLegacySection" class="document-signoff-legacy-card" aria-labelledby="documentSignoffAdminLegacyTitle">
             <div>
               <h3 id="documentSignoffAdminLegacyTitle">Legacy VMS Bridge</h3>
               <p>This setup workflow is still managed in Legacy VMS where native setup is not yet supported.</p>
@@ -3621,6 +3635,7 @@
               <button id="documentSignoffAdminLegacyComplianceButton" class="secondary" type="button">Open Legacy Compliance Matrix</button>
             </div>
           </section>
+          </div>
         </section>
 
         <div id="documentSignoffAdminTypePanelBackdrop" class="visitors-panel-backdrop hidden" data-oh-side-panel-backdrop>
