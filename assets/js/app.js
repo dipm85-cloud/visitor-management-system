@@ -561,6 +561,7 @@ window.addEventListener("load", async function () {
         syncNavigationCapabilityVisibility();
         syncAccessControlVisibility();
         syncDocumentSignoffAdminVisibility();
+        syncPrivacyGdprVisibility();
         syncSharedTerminalAdministrationVisibility();
         syncModuleConfigurationVisibility();
         syncVisitorCapabilityVisibility();

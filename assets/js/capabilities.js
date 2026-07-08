@@ -34,6 +34,13 @@ const compatibilityCapabilitiesByRole = {
   super_user: [
     "module_configuration.view",
     "module_configuration.manage",
+    "settings.view",
+    "settings.edit",
+    "audit.view",
+    "gdpr.view",
+    "gdpr.manage",
+    "privacy.view",
+    "privacy.manage",
     "visitor.housekeeping.run",
     "devices.view",
     "devices.manage"

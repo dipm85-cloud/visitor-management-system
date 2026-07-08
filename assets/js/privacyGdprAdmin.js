@@ -39,14 +39,19 @@ function hasActiveStaffUser() {
   );
 }
 
+function isSuperUserProfile() {
+  return !!(
+    AppState.currentProfile &&
+    AppState.currentProfile.role === "super_user"
+  );
+}
+
 function canViewPrivacyGdpr() {
   return hasActiveStaffUser() && hasAnyCapability(PRIVACY_GDPR_VIEW);
 }
 
 function canOpenLegacyPrivacyGdpr() {
-  return canViewPrivacyGdpr() &&
-    AppState.currentProfile &&
-    AppState.currentProfile.role === "super_user";
+  return canViewPrivacyGdpr() && isSuperUserProfile();
 }
 
 function setAdministrationSection(sectionName) {
@@ -83,7 +88,7 @@ function requirePrivacyGdprAccess() {
   if (canViewPrivacyGdpr()) return true;
   showToast(
     "You do not have permission",
-    "Privacy / GDPR requires an existing privacy, GDPR, audit or settings capability.",
+    "Privacy / Data Governance requires an existing privacy, GDPR, audit or settings capability.",
     "error"
   );
   return false;
