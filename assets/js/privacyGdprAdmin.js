@@ -68,6 +68,69 @@ let privacyGdprSearchDetailsPanelController = null;
 let privacyGdprSearchSequence = 0;
 let privacyGdprHasSearched = false;
 
+const SOURCE_SEARCH_CONFIG = {
+  planned_visits: {
+    sectionId: "planned-visits",
+    searchInput: "privacyGdprPlannedSearchText",
+    fromDate: "privacyGdprPlannedFromDate",
+    toDate: "privacyGdprPlannedToDate",
+    status: "privacyGdprPlannedStatus",
+    statusId: "privacyGdprPlannedSearchStatus",
+    searchButton: "privacyGdprPlannedSearchButton",
+    resetButton: "privacyGdprPlannedResetButton",
+    quickButtons: [
+      ["privacyGdprPlannedTodayButton", 0],
+      ["privacyGdprPlannedSevenDaysButton", 6],
+      ["privacyGdprPlannedThirtyDaysButton", 29]
+    ]
+  },
+  visit_log: {
+    sectionId: "visit-log",
+    searchInput: "privacyGdprVisitLogSearchText",
+    fromDate: "privacyGdprVisitLogFromDate",
+    toDate: "privacyGdprVisitLogToDate",
+    status: "privacyGdprVisitLogStatus",
+    statusId: "privacyGdprVisitLogSearchStatus",
+    searchButton: "privacyGdprVisitLogSearchButton",
+    resetButton: "privacyGdprVisitLogResetButton",
+    quickButtons: [
+      ["privacyGdprVisitLogTodayButton", 0],
+      ["privacyGdprVisitLogSevenDaysButton", 6],
+      ["privacyGdprVisitLogThirtyDaysButton", 29]
+    ]
+  },
+  document_evidence: {
+    sectionId: "document-evidence",
+    searchInput: "privacyGdprDocumentSearchText",
+    fromDate: "privacyGdprDocumentFromDate",
+    toDate: "privacyGdprDocumentToDate",
+    status: "privacyGdprDocumentStatus",
+    statusId: "privacyGdprDocumentSearchStatus",
+    searchButton: "privacyGdprDocumentSearchButton",
+    resetButton: "privacyGdprDocumentResetButton",
+    quickButtons: [
+      ["privacyGdprDocumentTodayButton", 0],
+      ["privacyGdprDocumentSevenDaysButton", 6],
+      ["privacyGdprDocumentThirtyDaysButton", 29]
+    ]
+  },
+  audit_events: {
+    sectionId: "audit-events",
+    searchInput: "privacyGdprAuditSearchText",
+    fromDate: "privacyGdprAuditFromDate",
+    toDate: "privacyGdprAuditToDate",
+    eventType: "privacyGdprAuditEventType",
+    statusId: "privacyGdprAuditSearchStatus",
+    searchButton: "privacyGdprAuditSearchButton",
+    resetButton: "privacyGdprAuditResetButton",
+    quickButtons: [
+      ["privacyGdprAuditTodayButton", 0],
+      ["privacyGdprAuditSevenDaysButton", 6],
+      ["privacyGdprAuditThirtyDaysButton", 29]
+    ]
+  }
+};
+
 function hasActiveStaffUser() {
   return !!(
     AppState.currentProfile &&
@@ -89,6 +152,38 @@ function canViewPrivacyGdpr() {
 
 function canOpenLegacyPrivacyGdpr() {
   return canViewPrivacyGdpr() && isSuperUserProfile();
+}
+
+function canViewPlannedVisitPrivacySearch() {
+  return canViewPrivacyGdpr();
+}
+
+function canViewVisitLogPrivacySearch() {
+  return canViewPrivacyGdpr();
+}
+
+function canViewDocumentEvidencePrivacySearch() {
+  return canViewPrivacyGdpr() && hasAnyCapability([
+    "privacy.view",
+    "privacy.manage",
+    "gdpr.view",
+    "gdpr.manage",
+    "audit.view",
+    "visitor.history.view",
+    "module_configuration.manage"
+  ]);
+}
+
+function canViewAuditPrivacySearch() {
+  return canViewPrivacyGdpr() && hasAnyCapability(["audit.view"]);
+}
+
+function canViewSourceSearch(sourceId) {
+  if (sourceId === "planned_visits") return canViewPlannedVisitPrivacySearch();
+  if (sourceId === "visit_log") return canViewVisitLogPrivacySearch();
+  if (sourceId === "document_evidence") return canViewDocumentEvidencePrivacySearch();
+  if (sourceId === "audit_events") return canViewAuditPrivacySearch();
+  return canViewPrivacyGdpr();
 }
 
 function selectPrivacyGdprSection(sectionId, options) {
@@ -353,15 +448,40 @@ function currentSearchPayload() {
   };
 }
 
+function currentSourceSearchPayload(sourceId) {
+  const config = SOURCE_SEARCH_CONFIG[sourceId] || {};
+  return {
+    searchText: config.searchInput && $(config.searchInput) ? $(config.searchInput).value.trim() : "",
+    fromDate: config.fromDate && $(config.fromDate) ? $(config.fromDate).value : "",
+    toDate: config.toDate && $(config.toDate) ? $(config.toDate).value : "",
+    recordType: sourceId,
+    status: config.status && $(config.status) ? $(config.status).value : "all",
+    eventType: config.eventType && $(config.eventType) ? $(config.eventType).value.trim() : ""
+  };
+}
+
 function validateSearchPayload(payload) {
   if (!payload) return "Search filters are unavailable.";
-  if (!hasValue(payload.searchText) && !hasValue(payload.fromDate) && !hasValue(payload.toDate)) {
+  const hasStatusFilter = hasValue(payload.status) && payload.status !== "all";
+  if (!hasValue(payload.searchText) && !hasValue(payload.fromDate) && !hasValue(payload.toDate) && !hasValue(payload.eventType) && !hasStatusFilter) {
     return "Enter search text or a date range before searching.";
   }
   if (payload.fromDate && payload.toDate && payload.fromDate > payload.toDate) {
     return "From date must be on or before to date.";
   }
   return "";
+}
+
+function matchesSelectedStatus(value, selectedStatus) {
+  const selected = normaliseSearchText(selectedStatus || "all");
+  if (!selected || selected === "all") return true;
+  return normaliseSearchText(value).replaceAll(" ", "_").replaceAll("-", "_") === selected;
+}
+
+function evidenceStatus(row) {
+  if (row.has_signature || row.has_visitor_signature) return "signature";
+  if (row.accepted_without_signature) return "tick_acceptance";
+  return "evidence_recorded";
 }
 
 function applyDateRange(query, column, payload, timestampColumn) {
@@ -427,7 +547,7 @@ async function searchPlannedVisits(payload) {
     "security_pass_id",
     "notes",
     "status"
-  ], payload.searchText));
+  ], payload.searchText) && matchesSelectedStatus(row.status || "planned", payload.status));
   return rows.map(row => createSearchRecord("planned_visits", row, {
     id: row.id,
     title: row.visitor_name,
@@ -472,7 +592,10 @@ async function searchVisitLog(payload) {
     "security_pass_id",
     "visit_status",
     "visit_origin"
-  ], payload.searchText));
+  ], payload.searchText) && matchesSelectedStatus(
+    row.visit_status || (row.sign_out_time ? "signed_out" : "signed_in"),
+    payload.status
+  ));
   return rows.map(row => createSearchRecord("visit_log", row, {
     id: row.id,
     title: row.visitor_name,
@@ -543,12 +666,13 @@ async function runAgreementSearch(payload, rpcName) {
 
 async function searchDocumentEvidence(payload) {
   const rows = await runAgreementSearch(payload, "search_visitor_agreements");
-  return rows.map(row => createSearchRecord("document_evidence", row, {
+  return rows.filter(row => matchesSelectedStatus(evidenceStatus(row), payload.status))
+    .map(row => createSearchRecord("document_evidence", row, {
     id: row.agreement_id || row.id || row.agreement_signature_id,
     title: row.visitor_name,
     subtitle: [row.company, row.agreement_name || row.agreement_title].filter(Boolean).join(" - "),
     date: row.signed_at,
-    status: row.has_signature || row.has_visitor_signature ? "Signature" : "Evidence recorded",
+    status: evidenceStatus(row).replaceAll("_", " "),
     module: "Document Sign-offs",
     summary: "Read-only agreement evidence metadata. Signature images and raw evidence payloads are not shown here.",
     fields: [
@@ -574,7 +698,7 @@ async function searchAuditEvents(payload) {
   const result = await supabaseClient.rpc("superuser_list_audit_events", {
     p_from_date: payload.fromDate || null,
     p_to_date: payload.toDate || null,
-    p_event_type: null,
+    p_event_type: payload.eventType || null,
     p_search_text: payload.searchText || null
   });
   if (result.error) throw result.error;
@@ -691,6 +815,16 @@ function clearSearchResultContainers() {
   });
 }
 
+function renderSourceInitialState(sourceId) {
+  const settings = SEARCH_GROUPS[sourceId] || {};
+  const container = settings.container ? $(settings.container) : null;
+  if (!container) return;
+  renderEmptyState(container, {
+    title: "No source search yet",
+    description: "Use this section's filters to search " + (settings.title || "this source") + " records."
+  });
+}
+
 function renderSearchSummary() {
   const summary = $("privacyGdprSearchSummary");
   if (!summary) return;
@@ -718,12 +852,16 @@ function renderSearchSummary() {
 function renderSearchResults() {
   clearSearchResultContainers();
   renderSearchSummary();
-  privacyGdprSearchGroups.forEach(group => {
-    if (!group || group.unavailable || !(group.records || []).length) return;
-    const settings = SEARCH_GROUPS[group.id] || {};
+  ["planned_visits", "visit_log", "document_evidence", "audit_events"].forEach(sourceId => {
+    const settings = SEARCH_GROUPS[sourceId] || {};
     const container = settings.container ? $(settings.container) : null;
-    if (!container) return;
-    container.appendChild(createResultGroupElement(group));
+    if (!container || !canViewSourceSearch(sourceId)) return;
+    const group = searchGroupById(sourceId);
+    if (group) {
+      container.appendChild(createResultGroupElement(group));
+    } else {
+      renderSourceInitialState(sourceId);
+    }
   });
   refreshSectionNavigator("privacy-gdpr");
 }
@@ -808,6 +946,72 @@ async function searchPrivacyDataSubject() {
   setSearchStatus("Privacy search complete. " + count + " read-only record(s) found.", "success");
 }
 
+function replaceSearchGroup(group) {
+  if (!group || !group.id) return;
+  privacyGdprSearchGroups = privacyGdprSearchGroups.filter(existing => existing.id !== group.id);
+  privacyGdprSearchGroups.push(group);
+  privacyGdprHasSearched = privacyGdprSearchGroups.length > 0;
+}
+
+function removeSearchGroup(sourceId) {
+  privacyGdprSearchGroups = privacyGdprSearchGroups.filter(group => group.id !== sourceId);
+  privacyGdprHasSearched = privacyGdprSearchGroups.length > 0;
+}
+
+function setSourceSearchStatus(sourceId, message, type) {
+  const config = SOURCE_SEARCH_CONFIG[sourceId] || {};
+  const element = config.statusId ? $(config.statusId) : null;
+  if (!element) return;
+  element.textContent = message || "";
+  element.className = "local-action-status" + (message ? " " + (type || "info") : "");
+}
+
+async function searchPrivacySource(sourceId) {
+  if (!requirePrivacyGdprAccess()) return;
+  if (!canViewSourceSearch(sourceId)) {
+    showToast("Source unavailable", "You do not have permission to view this privacy source.", "error");
+    return;
+  }
+
+  const payload = currentSourceSearchPayload(sourceId);
+  const validationMessage = validateSearchPayload(payload);
+  if (validationMessage) {
+    showToast("Search needs filters", validationMessage, "error");
+    return;
+  }
+
+  const settings = SEARCH_GROUPS[sourceId] || {};
+  setSourceSearchStatus(sourceId, "Searching " + (settings.title || "source") + " records...", "info");
+  try {
+    const group = await loadSearchGroup(sourceId, payload);
+    replaceSearchGroup(group);
+    renderSearchResults();
+    selectPrivacyGdprSection(SOURCE_SEARCH_CONFIG[sourceId]?.sectionId, { focus: false, resetScroll: false });
+    const count = (group.records || []).length;
+    setSourceSearchStatus(sourceId, "Search complete. " + count + " read-only record(s) found.", "success");
+  } catch (error) {
+    replaceSearchGroup(createUnavailableGroup(
+      sourceId,
+      "This source could not be searched under current permissions."
+    ));
+    renderSearchResults();
+    showToast("Privacy source search failed", error && error.message ? error.message : "The source search could not be completed.", "error");
+    setSourceSearchStatus(sourceId, "Search failed under current permissions.", "error");
+  }
+}
+
+function resetPrivacySourceSearch(sourceId) {
+  const config = SOURCE_SEARCH_CONFIG[sourceId] || {};
+  [config.searchInput, config.fromDate, config.toDate, config.eventType].forEach(id => {
+    if (id && $(id)) $(id).value = "";
+  });
+  if (config.status && $(config.status)) $(config.status).value = "all";
+  removeSearchGroup(sourceId);
+  setSourceSearchStatus(sourceId, "", "");
+  renderSearchResults();
+  selectPrivacyGdprSection(config.sectionId, { focus: false, resetScroll: false });
+}
+
 function resetPrivacySearch() {
   ["privacyGdprSearchText", "privacyGdprSearchFromDate", "privacyGdprSearchToDate"].forEach(id => {
     if ($(id)) $(id).value = "";
@@ -825,6 +1029,12 @@ function applySearchQuickFilter(days) {
   if ($("privacyGdprSearchToDate")) $("privacyGdprSearchToDate").value = todayDate();
 }
 
+function applySourceSearchQuickFilter(sourceId, days) {
+  const config = SOURCE_SEARCH_CONFIG[sourceId] || {};
+  if (config.fromDate && $(config.fromDate)) $(config.fromDate).value = dateDaysAgo(days);
+  if (config.toDate && $(config.toDate)) $(config.toDate).value = todayDate();
+}
+
 function registerPrivacyGdprSections() {
   registerModuleSections("privacy-gdpr", [
     {
@@ -838,7 +1048,7 @@ function registerPrivacyGdprSections() {
     },
     {
       id: "search",
-      title: "Data Subject Search",
+      title: "Search All Sources",
       icon: "S",
       target: "privacyGdprSearchSection",
       order: 20,
@@ -850,7 +1060,7 @@ function registerPrivacyGdprSections() {
       icon: "PV",
       target: "privacyGdprPlannedResultsSection",
       order: 30,
-      visible: () => canViewPrivacyGdpr() && hasSearchGroupRecords("planned_visits")
+      visible: canViewPlannedVisitPrivacySearch
     },
     {
       id: "visit-log",
@@ -858,7 +1068,7 @@ function registerPrivacyGdprSections() {
       icon: "VL",
       target: "privacyGdprVisitLogResultsSection",
       order: 40,
-      visible: () => canViewPrivacyGdpr() && hasSearchGroupRecords("visit_log")
+      visible: canViewVisitLogPrivacySearch
     },
     {
       id: "document-evidence",
@@ -866,7 +1076,7 @@ function registerPrivacyGdprSections() {
       icon: "DE",
       target: "privacyGdprDocumentEvidenceResultsSection",
       order: 50,
-      visible: () => canViewPrivacyGdpr() && hasSearchGroupRecords("document_evidence")
+      visible: canViewDocumentEvidencePrivacySearch
     },
     {
       id: "audit-events",
@@ -874,7 +1084,7 @@ function registerPrivacyGdprSections() {
       icon: "AE",
       target: "privacyGdprAuditResultsSection",
       order: 60,
-      visible: () => canViewPrivacyGdpr() && hasSearchGroupRecords("audit_events")
+      visible: canViewAuditPrivacySearch
     },
     {
       id: "legacy-tools",
@@ -1027,6 +1237,27 @@ export function initialisePrivacyGdprAdministration(dependencies) {
   if ($("privacyGdprSearchThirtyDaysButton")) {
     $("privacyGdprSearchThirtyDaysButton").addEventListener("click", () => applySearchQuickFilter(29));
   }
+  Object.entries(SOURCE_SEARCH_CONFIG).forEach(([sourceId, config]) => {
+    if (config.searchButton && $(config.searchButton)) {
+      $(config.searchButton).addEventListener("click", () => searchPrivacySource(sourceId));
+    }
+    if (config.resetButton && $(config.resetButton)) {
+      $(config.resetButton).addEventListener("click", () => resetPrivacySourceSearch(sourceId));
+    }
+    if (config.searchInput && $(config.searchInput)) {
+      $(config.searchInput).addEventListener("keydown", event => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          searchPrivacySource(sourceId);
+        }
+      });
+    }
+    (config.quickButtons || []).forEach(([buttonId, days]) => {
+      if ($(buttonId)) {
+        $(buttonId).addEventListener("click", () => applySourceSearchQuickFilter(sourceId, days));
+      }
+    });
+  });
 
   LEGACY_PRIVACY_ACTIONS.forEach(([id, action]) => {
     const button = $(id);

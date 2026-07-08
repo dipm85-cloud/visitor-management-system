@@ -3770,8 +3770,8 @@
             <section id="privacyGdprSearchSection" class="privacy-gdpr-card privacy-gdpr-search-card" aria-labelledby="privacyGdprSearchTitle">
               <div class="privacy-gdpr-card-heading">
                 <div>
-                  <h3 id="privacyGdprSearchTitle">Data Subject Search</h3>
-                  <p>Search existing Operations Hub records as separate read-only source records. Results are not identity-linked or deduplicated.</p>
+                  <h3 id="privacyGdprSearchTitle">Search All Sources</h3>
+                  <p>Run a broader read-only privacy search across available source workspaces. Results are not identity-linked or deduplicated.</p>
                 </div>
               </div>
 
@@ -3815,7 +3815,7 @@
 
               <div id="privacyGdprSearchStatus" class="local-action-status" aria-live="polite"></div>
               <div id="privacyGdprSearchSummary" class="privacy-gdpr-search-summary" aria-live="polite">
-                Search results will appear as separate sections after you run a search.
+                Source-specific sections can be searched directly. Search All Sources is available for broader privacy review.
               </div>
             </section>
 
@@ -3823,9 +3823,45 @@
               <div class="privacy-gdpr-card-heading">
                 <div>
                   <h3 id="privacyGdprPlannedResultsTitle">Planned Visits</h3>
-                  <p>Read-only planned visit records returned by the current search.</p>
+                  <p>Search read-only planned visit records directly.</p>
                 </div>
               </div>
+              <div class="oh-filter-panel" role="search" aria-label="Search planned visit privacy records">
+                <div class="oh-filter-quick-group" aria-label="Planned visits quick filters">
+                  <button id="privacyGdprPlannedTodayButton" class="secondary" type="button">Today</button>
+                  <button id="privacyGdprPlannedSevenDaysButton" class="secondary" type="button">Last 7 days</button>
+                  <button id="privacyGdprPlannedThirtyDaysButton" class="secondary" type="button">Last 30 days</button>
+                </div>
+                <div class="oh-responsive-filter-grid oh-filter-field-grid privacy-gdpr-search-filters">
+                  <label>
+                    Search text
+                    <input id="privacyGdprPlannedSearchText" type="search" autocomplete="off" placeholder="Name, company or reference" />
+                  </label>
+                  <label>
+                    From date
+                    <input id="privacyGdprPlannedFromDate" type="date" />
+                  </label>
+                  <label>
+                    To date
+                    <input id="privacyGdprPlannedToDate" type="date" />
+                  </label>
+                  <label>
+                    Status
+                    <select id="privacyGdprPlannedStatus">
+                      <option value="all">All statuses</option>
+                      <option value="planned">Planned</option>
+                      <option value="completed">Completed</option>
+                      <option value="cancelled">Cancelled</option>
+                      <option value="no_show">No-show</option>
+                    </select>
+                  </label>
+                </div>
+                <div class="oh-responsive-filter-actions oh-filter-actions-row">
+                  <button id="privacyGdprPlannedSearchButton" type="button">Search</button>
+                  <button id="privacyGdprPlannedResetButton" class="secondary" type="button">Reset</button>
+                </div>
+              </div>
+              <div id="privacyGdprPlannedSearchStatus" class="local-action-status" aria-live="polite"></div>
               <div id="privacyGdprPlannedResults" class="privacy-gdpr-search-results" aria-live="polite"></div>
             </section>
 
@@ -3833,9 +3869,44 @@
               <div class="privacy-gdpr-card-heading">
                 <div>
                   <h3 id="privacyGdprVisitLogResultsTitle">Visit Log</h3>
-                  <p>Read-only visitor history records returned by the current search.</p>
+                  <p>Search read-only visitor history and visit log records directly.</p>
                 </div>
               </div>
+              <div class="oh-filter-panel" role="search" aria-label="Search visit log privacy records">
+                <div class="oh-filter-quick-group" aria-label="Visit log quick filters">
+                  <button id="privacyGdprVisitLogTodayButton" class="secondary" type="button">Today</button>
+                  <button id="privacyGdprVisitLogSevenDaysButton" class="secondary" type="button">Last 7 days</button>
+                  <button id="privacyGdprVisitLogThirtyDaysButton" class="secondary" type="button">Last 30 days</button>
+                </div>
+                <div class="oh-responsive-filter-grid oh-filter-field-grid privacy-gdpr-search-filters">
+                  <label>
+                    Search text
+                    <input id="privacyGdprVisitLogSearchText" type="search" autocomplete="off" placeholder="Name, company or reference" />
+                  </label>
+                  <label>
+                    From date
+                    <input id="privacyGdprVisitLogFromDate" type="date" />
+                  </label>
+                  <label>
+                    To date
+                    <input id="privacyGdprVisitLogToDate" type="date" />
+                  </label>
+                  <label>
+                    Visit status
+                    <select id="privacyGdprVisitLogStatus">
+                      <option value="all">All statuses</option>
+                      <option value="signed_in">Signed in</option>
+                      <option value="signed_out">Signed out</option>
+                      <option value="completed">Completed</option>
+                    </select>
+                  </label>
+                </div>
+                <div class="oh-responsive-filter-actions oh-filter-actions-row">
+                  <button id="privacyGdprVisitLogSearchButton" type="button">Search</button>
+                  <button id="privacyGdprVisitLogResetButton" class="secondary" type="button">Reset</button>
+                </div>
+              </div>
+              <div id="privacyGdprVisitLogSearchStatus" class="local-action-status" aria-live="polite"></div>
               <div id="privacyGdprVisitLogResults" class="privacy-gdpr-search-results" aria-live="polite"></div>
             </section>
 
@@ -3843,9 +3914,44 @@
               <div class="privacy-gdpr-card-heading">
                 <div>
                   <h3 id="privacyGdprDocumentEvidenceResultsTitle">Document Evidence</h3>
-                  <p>Read-only document sign-off evidence and agreement signature metadata returned by the current search.</p>
+                  <p>Search read-only document sign-off evidence and agreement signature metadata directly.</p>
                 </div>
               </div>
+              <div class="oh-filter-panel" role="search" aria-label="Search document evidence privacy records">
+                <div class="oh-filter-quick-group" aria-label="Document evidence quick filters">
+                  <button id="privacyGdprDocumentTodayButton" class="secondary" type="button">Today</button>
+                  <button id="privacyGdprDocumentSevenDaysButton" class="secondary" type="button">Last 7 days</button>
+                  <button id="privacyGdprDocumentThirtyDaysButton" class="secondary" type="button">Last 30 days</button>
+                </div>
+                <div class="oh-responsive-filter-grid oh-filter-field-grid privacy-gdpr-search-filters">
+                  <label>
+                    Search text
+                    <input id="privacyGdprDocumentSearchText" type="search" autocomplete="off" placeholder="Name, company or document" />
+                  </label>
+                  <label>
+                    From date
+                    <input id="privacyGdprDocumentFromDate" type="date" />
+                  </label>
+                  <label>
+                    To date
+                    <input id="privacyGdprDocumentToDate" type="date" />
+                  </label>
+                  <label>
+                    Evidence type
+                    <select id="privacyGdprDocumentStatus">
+                      <option value="all">All evidence</option>
+                      <option value="signature">Signature</option>
+                      <option value="tick_acceptance">Tick acceptance</option>
+                      <option value="evidence_recorded">Evidence recorded</option>
+                    </select>
+                  </label>
+                </div>
+                <div class="oh-responsive-filter-actions oh-filter-actions-row">
+                  <button id="privacyGdprDocumentSearchButton" type="button">Search</button>
+                  <button id="privacyGdprDocumentResetButton" class="secondary" type="button">Reset</button>
+                </div>
+              </div>
+              <div id="privacyGdprDocumentSearchStatus" class="local-action-status" aria-live="polite"></div>
               <div id="privacyGdprDocumentEvidenceResults" class="privacy-gdpr-search-results" aria-live="polite"></div>
             </section>
 
@@ -3853,9 +3959,39 @@
               <div class="privacy-gdpr-card-heading">
                 <div>
                   <h3 id="privacyGdprAuditResultsTitle">Audit Events</h3>
-                  <p>Read-only audit event records returned by the current search where current access allows it.</p>
+                  <p>Search read-only audit event records directly where current access allows it.</p>
                 </div>
               </div>
+              <div class="oh-filter-panel" role="search" aria-label="Search privacy audit event records">
+                <div class="oh-filter-quick-group" aria-label="Audit event quick filters">
+                  <button id="privacyGdprAuditTodayButton" class="secondary" type="button">Today</button>
+                  <button id="privacyGdprAuditSevenDaysButton" class="secondary" type="button">Last 7 days</button>
+                  <button id="privacyGdprAuditThirtyDaysButton" class="secondary" type="button">Last 30 days</button>
+                </div>
+                <div class="oh-responsive-filter-grid oh-filter-field-grid privacy-gdpr-search-filters">
+                  <label>
+                    Search text
+                    <input id="privacyGdprAuditSearchText" type="search" autocomplete="off" placeholder="Event, actor, entity or reference" />
+                  </label>
+                  <label>
+                    From date
+                    <input id="privacyGdprAuditFromDate" type="date" />
+                  </label>
+                  <label>
+                    To date
+                    <input id="privacyGdprAuditToDate" type="date" />
+                  </label>
+                  <label>
+                    Event type
+                    <input id="privacyGdprAuditEventType" autocomplete="off" placeholder="visit_changed, GDPR..." />
+                  </label>
+                </div>
+                <div class="oh-responsive-filter-actions oh-filter-actions-row">
+                  <button id="privacyGdprAuditSearchButton" type="button">Search</button>
+                  <button id="privacyGdprAuditResetButton" class="secondary" type="button">Reset</button>
+                </div>
+              </div>
+              <div id="privacyGdprAuditSearchStatus" class="local-action-status" aria-live="polite"></div>
               <div id="privacyGdprAuditResults" class="privacy-gdpr-search-results" aria-live="polite"></div>
             </section>
 
