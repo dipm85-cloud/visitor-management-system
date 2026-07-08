@@ -3767,6 +3767,54 @@
               </div>
             </section>
 
+            <section id="privacyGdprCasesSection" class="privacy-gdpr-card privacy-gdpr-result-section" aria-labelledby="privacyGdprCasesWorkspaceTitle">
+              <div class="privacy-gdpr-card-heading">
+                <div>
+                  <h3 id="privacyGdprCasesWorkspaceTitle">Privacy Cases</h3>
+                  <p>Review read-only GDPR case details and supported evidence timeline entries.</p>
+                </div>
+                <span id="privacyGdprCasesWorkspaceCount" class="privacy-gdpr-result-count">-</span>
+              </div>
+
+              <div class="oh-filter-panel" role="search" aria-label="Filter privacy cases">
+                <div class="oh-responsive-filter-grid oh-filter-field-grid privacy-gdpr-search-filters">
+                  <label>
+                    Search text
+                    <input id="privacyGdprCaseSearchText" type="search" autocomplete="off" placeholder="Case reference, requester or decision" />
+                  </label>
+                  <label>
+                    Case type
+                    <select id="privacyGdprCaseTypeFilter">
+                      <option value="all">All types</option>
+                      <option value="access">Access</option>
+                      <option value="sar">SAR</option>
+                      <option value="erasure">Erasure</option>
+                      <option value="rectification">Rectification</option>
+                      <option value="restriction">Restriction</option>
+                      <option value="objection">Objection</option>
+                    </select>
+                  </label>
+                  <label>
+                    Status
+                    <select id="privacyGdprCaseStatusFilter">
+                      <option value="all">All statuses</option>
+                      <option value="open">Open</option>
+                      <option value="in_progress">In progress</option>
+                      <option value="completed">Completed</option>
+                      <option value="rejected">Rejected</option>
+                    </select>
+                  </label>
+                </div>
+                <div class="oh-responsive-filter-actions oh-filter-actions-row">
+                  <button id="privacyGdprCaseFilterButton" type="button">Apply Filters</button>
+                  <button id="privacyGdprCaseResetButton" class="secondary" type="button">Reset</button>
+                  <button id="privacyGdprCaseLegacyButton" class="secondary" type="button">Open Legacy GDPR Case Tools</button>
+                </div>
+              </div>
+              <div id="privacyGdprCaseStatus" class="local-action-status" aria-live="polite"></div>
+              <div id="privacyGdprCasesWorkspaceList" class="privacy-gdpr-search-results" aria-live="polite"></div>
+            </section>
+
             <section id="privacyGdprSearchSection" class="privacy-gdpr-card privacy-gdpr-search-card" aria-labelledby="privacyGdprSearchTitle">
               <div class="privacy-gdpr-card-heading">
                 <div>

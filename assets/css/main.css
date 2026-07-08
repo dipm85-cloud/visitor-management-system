@@ -2384,6 +2384,13 @@ body.document-signoff-overlay-open {
   box-shadow: none;
 }
 
+.privacy-gdpr-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
 .privacy-gdpr-badge {
   flex: 0 0 auto;
   padding: 5px 10px;
@@ -2501,6 +2508,10 @@ body.document-signoff-overlay-open {
   border-top: 1px solid #eef2f6;
 }
 
+.privacy-gdpr-case-result-row {
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, .7fr) minmax(150px, .5fr) auto;
+}
+
 .privacy-gdpr-result-row:first-child {
   border-top: 0;
 }
@@ -2600,6 +2611,76 @@ body.document-signoff-overlay-open {
   overflow-wrap: anywhere;
 }
 
+.privacy-gdpr-timeline-section h3 {
+  margin: 0 0 10px;
+}
+
+.privacy-gdpr-timeline {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.privacy-gdpr-timeline-item {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #e9edf2;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.privacy-gdpr-timeline-item strong,
+.privacy-gdpr-timeline-item span {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.privacy-gdpr-timeline-item span {
+  margin-top: 4px;
+  color: var(--oh-shell-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.privacy-gdpr-timeline-item p {
+  margin: 8px 0 0;
+  color: #475467;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.privacy-gdpr-timeline-item pre {
+  max-height: 220px;
+  margin: 10px 0 0;
+  padding: 10px;
+  overflow: auto;
+  border: 1px solid var(--oh-shell-border);
+  border-radius: 8px;
+  background: #f8fafc;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.privacy-gdpr-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--oh-shell-border);
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.privacy-gdpr-detail-actions p {
+  flex: 1 1 220px;
+  margin: 0;
+  color: var(--oh-shell-muted);
+  line-height: 1.45;
+}
+
 @media (max-width: 900px) {
   .privacy-gdpr-result-row {
     grid-template-columns: minmax(0, 1fr);
@@ -2612,6 +2693,15 @@ body.document-signoff-overlay-open {
 
   .privacy-gdpr-search-details-list {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .privacy-gdpr-card-actions {
+    justify-content: stretch;
+  }
+
+  .privacy-gdpr-card-actions button,
+  .privacy-gdpr-detail-actions button {
+    width: 100%;
   }
 }
 

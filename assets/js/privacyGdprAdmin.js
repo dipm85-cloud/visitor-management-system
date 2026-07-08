@@ -21,6 +21,7 @@ const PRIVACY_GDPR_VIEW = [
 
 const LEGACY_PRIVACY_ACTIONS = [
   ["privacyGdprLegacyCasesButton", "gdpr-cases"],
+  ["privacyGdprCaseLegacyButton", "gdpr-cases"],
   ["privacyGdprLegacySearchButton", "gdpr-search"],
   ["privacyGdprSearchLegacyButton", "gdpr-search"],
   ["privacyGdprLegacySarButton", "gdpr-sar"],
@@ -159,6 +160,10 @@ function canViewPlannedVisitPrivacySearch() {
 }
 
 function canViewVisitLogPrivacySearch() {
+  return canViewPrivacyGdpr();
+}
+
+function canViewPrivacyCaseDetails() {
   return canViewPrivacyGdpr();
 }
 
@@ -374,8 +379,49 @@ function createCaseRow(row) {
     meta.appendChild(wrapper);
   });
 
-  item.append(heading, meta);
+  const actions = document.createElement("div");
+  actions.className = "privacy-gdpr-card-actions";
+  const detailButton = document.createElement("button");
+  detailButton.type = "button";
+  detailButton.className = "secondary";
+  detailButton.textContent = "View Details";
+  detailButton.addEventListener("click", event => openPrivacyCaseDetails(row, event.currentTarget));
+  actions.appendChild(detailButton);
+
+  item.append(heading, meta, actions);
   return item;
+}
+
+function currentCaseFilters() {
+  return {
+    searchText: $("privacyGdprCaseSearchText") ? $("privacyGdprCaseSearchText").value.trim() : "",
+    type: $("privacyGdprCaseTypeFilter") ? $("privacyGdprCaseTypeFilter").value : "all",
+    status: $("privacyGdprCaseStatusFilter") ? $("privacyGdprCaseStatusFilter").value : "all"
+  };
+}
+
+function matchesCaseFilter(row, filters) {
+  const settings = filters || {};
+  const type = normaliseSearchText(settings.type || "all");
+  const status = normaliseSearchText(settings.status || "all");
+  if (type !== "all" && normaliseSearchText(row.request_type).replaceAll(" ", "_") !== type) return false;
+  if (status !== "all" && normaliseSearchText(row.status).replaceAll(" ", "_") !== status) return false;
+  return matchesSearchText(row, [
+    "case_reference",
+    "request_type",
+    "status",
+    "priority",
+    "requester_name",
+    "requester_contact",
+    "decision",
+    "decision_reason",
+    "identity_verification_method"
+  ], settings.searchText);
+}
+
+function filteredPrivacyCases() {
+  const filters = currentCaseFilters();
+  return privacyGdprCases.filter(row => row && matchesCaseFilter(row, filters));
 }
 
 function renderCases() {
@@ -393,6 +439,84 @@ function renderCases() {
       description: "No read-only case records were returned for your current access."
     });
   }
+}
+
+function createCaseWorkspaceRow(row) {
+  const item = document.createElement("article");
+  item.className = "privacy-gdpr-result-row privacy-gdpr-case-result-row";
+
+  const primary = document.createElement("div");
+  const name = document.createElement("strong");
+  name.textContent = textOrDash(row.case_reference);
+  const subtitle = document.createElement("span");
+  subtitle.textContent = [row.requester_name, row.request_type].filter(Boolean).join(" - ") || "Privacy case";
+  primary.append(name, subtitle);
+
+  const source = document.createElement("div");
+  source.className = "privacy-gdpr-result-source";
+  source.textContent = textOrDash(row.status);
+  const priority = document.createElement("small");
+  priority.textContent = "Priority: " + textOrDash(row.priority || "normal");
+  source.appendChild(priority);
+
+  const date = document.createElement("span");
+  date.textContent = formatDate(row.request_received_at || row.created_at);
+
+  const action = document.createElement("button");
+  action.type = "button";
+  action.className = "secondary";
+  action.textContent = "View Details";
+  action.addEventListener("click", event => openPrivacyCaseDetails(row, event.currentTarget));
+
+  item.append(primary, source, date, action);
+  return item;
+}
+
+function renderCaseWorkspace() {
+  const list = $("privacyGdprCasesWorkspaceList");
+  const count = $("privacyGdprCasesWorkspaceCount");
+  if (!list) return;
+  list.replaceChildren();
+  const rows = privacyGdprCasesLoaded ? filteredPrivacyCases() : [];
+  if (count) count.textContent = privacyGdprCasesLoaded ? String(rows.length) : "-";
+
+  if (!privacyGdprCasesLoaded) {
+    renderEmptyState(list, {
+      title: "Case data unavailable",
+      description: "Privacy case data could not be loaded under the current access."
+    });
+    return;
+  }
+
+  if (!rows.length) {
+    renderEmptyState(list, {
+      title: "No privacy cases found",
+      description: "No read-only GDPR case records match the current filters."
+    });
+    return;
+  }
+
+  const group = document.createElement("section");
+  group.className = "privacy-gdpr-result-group";
+  const header = document.createElement("div");
+  header.className = "privacy-gdpr-result-group-header";
+  const titleBlock = document.createElement("div");
+  const title = document.createElement("h4");
+  title.textContent = "Read-only case records";
+  const description = document.createElement("p");
+  description.textContent = "Open a case to review details and timeline evidence supported by existing case data.";
+  titleBlock.append(title, description);
+  const badge = document.createElement("span");
+  badge.className = "privacy-gdpr-result-count";
+  badge.textContent = String(rows.length);
+  header.append(titleBlock, badge);
+
+  const rowsContainer = document.createElement("div");
+  rowsContainer.className = "privacy-gdpr-result-list";
+  rowsContainer.setAttribute("data-oh-scroll-region", "operational");
+  rows.slice(0, 100).forEach(row => rowsContainer.appendChild(createCaseWorkspaceRow(row)));
+  group.append(header, rowsContainer);
+  list.appendChild(group);
 }
 
 function renderSettings() {
@@ -426,6 +550,8 @@ function syncLegacyBridgeVisibility() {
   if (bridge) bridge.classList.toggle("hidden", !available);
   const searchBridge = $("privacyGdprSearchLegacyButton");
   if (searchBridge) searchBridge.classList.toggle("hidden", !available);
+  const caseBridge = $("privacyGdprCaseLegacyButton");
+  if (caseBridge) caseBridge.classList.toggle("hidden", !available);
   const restricted = $("privacyGdprLegacyRestricted");
   if (restricted) restricted.classList.toggle("hidden", available);
 }
@@ -433,6 +559,7 @@ function syncLegacyBridgeVisibility() {
 function renderAll() {
   renderOverview();
   renderCases();
+  renderCaseWorkspace();
   renderSettings();
   renderSearchResults();
   syncLegacyBridgeVisibility();
@@ -866,6 +993,198 @@ function renderSearchResults() {
   refreshSectionNavigator("privacy-gdpr");
 }
 
+function appendDetailsList(parent, fields) {
+  const list = document.createElement("dl");
+  list.className = "privacy-gdpr-search-details-list";
+  (fields || []).filter(field => field.always || hasValue(field.value)).forEach(field => {
+    const wrapper = document.createElement("div");
+    const dt = document.createElement("dt");
+    const dd = document.createElement("dd");
+    dt.textContent = field.label;
+    dd.textContent = textOrDash(field.value);
+    wrapper.append(dt, dd);
+    list.appendChild(wrapper);
+  });
+  parent.appendChild(list);
+  return list;
+}
+
+function timelineItem(kind, title, date, description, meta, details) {
+  return {
+    kind: kind || "case",
+    title: title || "Timeline entry",
+    date: date || "",
+    description: description || "",
+    meta: meta || "",
+    details: details || null
+  };
+}
+
+function createPrivacyCaseTimelineItems(caseRecord, notes) {
+  const items = [];
+  if (caseRecord.request_received_at || caseRecord.created_at) {
+    items.push(timelineItem(
+      "case",
+      "Case received",
+      caseRecord.request_received_at || caseRecord.created_at,
+      "GDPR/privacy case record exists in the current case backend.",
+      "Case reference: " + textOrDash(caseRecord.case_reference)
+    ));
+  }
+  if (caseRecord.completed_at) {
+    items.push(timelineItem(
+      "case",
+      "Case completed",
+      caseRecord.completed_at,
+      textOrDash(caseRecord.decision || caseRecord.status),
+      caseRecord.decision_reason ? "Decision reason recorded" : ""
+    ));
+  }
+  (notes || []).forEach(note => {
+    items.push(timelineItem(
+      "note",
+      textOrDash(note.note_type || "Case note"),
+      note.created_at,
+      note.note_text || "",
+      ["By " + textOrDash(note.created_by_name), note.source_module || note.source_table].filter(Boolean).join(" - "),
+      note.details || null
+    ));
+  });
+  return items.sort((a, b) => {
+    const aDate = a.date ? new Date(a.date).getTime() : 0;
+    const bDate = b.date ? new Date(b.date).getTime() : 0;
+    return aDate - bDate;
+  });
+}
+
+function appendPrivacyTimeline(parent, items) {
+  const section = document.createElement("section");
+  section.className = "privacy-gdpr-timeline-section";
+  const heading = document.createElement("h3");
+  heading.textContent = "Evidence Timeline";
+  section.appendChild(heading);
+
+  if (!items || !items.length) {
+    const empty = document.createElement("div");
+    empty.className = "privacy-gdpr-unavailable";
+    empty.textContent = "No supported case timeline entries are available.";
+    section.appendChild(empty);
+    parent.appendChild(section);
+    return;
+  }
+
+  const list = document.createElement("ol");
+  list.className = "privacy-gdpr-timeline";
+  items.forEach(item => {
+    const row = document.createElement("li");
+    row.className = "privacy-gdpr-timeline-item";
+    const title = document.createElement("strong");
+    title.textContent = item.title;
+    const meta = document.createElement("span");
+    meta.textContent = [formatDate(item.date), item.meta].filter(value => value && value !== "-").join(" - ");
+    const description = document.createElement("p");
+    description.textContent = item.description || "Timeline entry recorded by existing data.";
+    row.append(title, meta, description);
+    if (item.details) {
+      const details = document.createElement("pre");
+      details.textContent = typeof item.details === "string" ? item.details : JSON.stringify(item.details, null, 2);
+      row.appendChild(details);
+    }
+    list.appendChild(row);
+  });
+  section.appendChild(list);
+  parent.appendChild(section);
+}
+
+function appendPrivacyCaseLegacyBridge(parent) {
+  if (!canOpenLegacyPrivacyGdpr()) return;
+  const bridge = document.createElement("section");
+  bridge.className = "privacy-gdpr-detail-actions";
+  const note = document.createElement("p");
+  note.textContent = "This privacy workflow is still completed in Legacy VMS.";
+  const cases = document.createElement("button");
+  cases.type = "button";
+  cases.className = "secondary";
+  cases.textContent = "Open Legacy GDPR Case Tools";
+  cases.addEventListener("click", () => openLegacyPrivacyGdprTarget("gdpr-cases"));
+  const evidence = document.createElement("button");
+  evidence.type = "button";
+  evidence.className = "secondary";
+  evidence.textContent = "Open Legacy GDPR Evidence";
+  evidence.addEventListener("click", () => openLegacyPrivacyGdprTarget("gdpr-evidence"));
+  bridge.append(note, cases, evidence);
+  parent.appendChild(bridge);
+}
+
+async function loadPrivacyCaseTimeline(caseRecord) {
+  if (!caseRecord || !caseRecord.id) return [];
+  const result = await supabaseClient.rpc("superuser_list_gdpr_case_notes", {
+    p_case_id: caseRecord.id
+  });
+  if (result.error) throw result.error;
+  return Array.isArray(result.data) ? result.data : [];
+}
+
+function renderPrivacyCaseDetailsPanel(caseRecord, notes, timelineError) {
+  const title = $("privacyGdprSearchDetailsTitle");
+  const eyebrow = $("privacyGdprSearchDetailsEyebrow");
+  const body = $("privacyGdprSearchDetailsBody");
+  if (title) title.textContent = textOrDash(caseRecord.case_reference);
+  if (eyebrow) eyebrow.textContent = "Privacy Case";
+  if (!body) return;
+
+  body.replaceChildren();
+  const summary = document.createElement("div");
+  summary.className = "privacy-gdpr-search-details-summary";
+  summary.textContent = "Read-only GDPR/privacy case details. No native anonymisation, erasure, export or identity linking is available in this view.";
+
+  body.appendChild(summary);
+  appendDetailsList(body, [
+    recordField("Case reference", caseRecord.case_reference, true),
+    recordField("Subject / requester as stored", caseRecord.requester_name, true),
+    recordField("Requester contact", caseRecord.requester_contact),
+    recordField("Case type", caseRecord.request_type, true),
+    recordField("Status", caseRecord.status, true),
+    recordField("Priority", caseRecord.priority || "normal"),
+    recordField("Received", formatDate(caseRecord.request_received_at || caseRecord.created_at), true),
+    recordField("Due date", caseRecord.due_date),
+    recordField("Completed", formatDate(caseRecord.completed_at)),
+    recordField("Identity verified", caseRecord.identity_verified ? "Yes" : "No"),
+    recordField("Verification method", caseRecord.identity_verification_method),
+    recordField("Outcome / decision", caseRecord.decision),
+    recordField("Decision reason", caseRecord.decision_reason),
+    recordField("Source module", "Legacy GDPR case backend", true),
+    recordField("Case record reference", caseRecord.id, true)
+  ]);
+
+  if (timelineError) {
+    const unavailable = document.createElement("div");
+    unavailable.className = "privacy-gdpr-unavailable";
+    unavailable.textContent = "Timeline evidence could not be loaded under current permissions.";
+    body.appendChild(unavailable);
+  } else {
+    appendPrivacyTimeline(body, createPrivacyCaseTimelineItems(caseRecord, notes));
+  }
+  appendPrivacyCaseLegacyBridge(body);
+}
+
+async function openPrivacyCaseDetails(caseRecord, trigger) {
+  if (!canViewPrivacyCaseDetails()) {
+    showToast("Case details unavailable", "You do not have permission to view Privacy / Data Governance details.", "error");
+    return;
+  }
+  if (!privacyGdprSearchDetailsPanelController || !caseRecord) return;
+  renderPrivacyCaseDetailsPanel(caseRecord, null, false);
+  privacyGdprSearchDetailsPanelController.open({ trigger });
+  try {
+    const notes = await loadPrivacyCaseTimeline(caseRecord);
+    renderPrivacyCaseDetailsPanel(caseRecord, notes, false);
+  } catch (error) {
+    showToast("Case timeline unavailable", error && error.message ? error.message : "The case timeline could not be loaded.", "error");
+    renderPrivacyCaseDetailsPanel(caseRecord, null, true);
+  }
+}
+
 function openSearchResultDetails(record, trigger) {
   if (!privacyGdprSearchDetailsPanelController) return;
   const title = $("privacyGdprSearchDetailsTitle");
@@ -878,18 +1197,8 @@ function openSearchResultDetails(record, trigger) {
     const summary = document.createElement("div");
     summary.className = "privacy-gdpr-search-details-summary";
     summary.textContent = record.summary || "Read-only native privacy search result.";
-    const list = document.createElement("dl");
-    list.className = "privacy-gdpr-search-details-list";
-    (record.fields || []).filter(field => field.always || hasValue(field.value)).forEach(field => {
-      const wrapper = document.createElement("div");
-      const dt = document.createElement("dt");
-      const dd = document.createElement("dd");
-      dt.textContent = field.label;
-      dd.textContent = textOrDash(field.value);
-      wrapper.append(dt, dd);
-      list.appendChild(wrapper);
-    });
-    body.append(summary, list);
+    body.appendChild(summary);
+    appendDetailsList(body, record.fields || []);
   }
   privacyGdprSearchDetailsPanelController.open({ trigger });
 }
@@ -935,7 +1244,6 @@ async function searchPrivacyDataSubject() {
   privacyGdprSearchGroups = groups;
   renderSearchResults();
   selectPrivacyGdprSection("search", { focus: false, resetScroll: false });
-  const count = groups.reduce((sum, group) => sum + ((group.records || []).length), 0);
   if (errors.length) {
     showToast(
       "Privacy search partially loaded",
@@ -943,7 +1251,7 @@ async function searchPrivacyDataSubject() {
       "error"
     );
   }
-  setSearchStatus("Privacy search complete. " + count + " read-only record(s) found.", "success");
+  setSearchStatus("", "");
 }
 
 function replaceSearchGroup(group) {
@@ -987,8 +1295,7 @@ async function searchPrivacySource(sourceId) {
     replaceSearchGroup(group);
     renderSearchResults();
     selectPrivacyGdprSection(SOURCE_SEARCH_CONFIG[sourceId]?.sectionId, { focus: false, resetScroll: false });
-    const count = (group.records || []).length;
-    setSourceSearchStatus(sourceId, "Search complete. " + count + " read-only record(s) found.", "success");
+    setSourceSearchStatus(sourceId, "", "");
   } catch (error) {
     replaceSearchGroup(createUnavailableGroup(
       sourceId,
@@ -1024,6 +1331,24 @@ function resetPrivacySearch() {
   selectPrivacyGdprSection("search", { focus: false, resetScroll: false });
 }
 
+function applyPrivacyCaseFilters() {
+  renderCaseWorkspace();
+  selectPrivacyGdprSection("cases", { focus: false, resetScroll: false });
+}
+
+function resetPrivacyCaseFilters() {
+  if ($("privacyGdprCaseSearchText")) $("privacyGdprCaseSearchText").value = "";
+  if ($("privacyGdprCaseTypeFilter")) $("privacyGdprCaseTypeFilter").value = "all";
+  if ($("privacyGdprCaseStatusFilter")) $("privacyGdprCaseStatusFilter").value = "all";
+  const status = $("privacyGdprCaseStatus");
+  if (status) {
+    status.textContent = "";
+    status.className = "local-action-status";
+  }
+  renderCaseWorkspace();
+  selectPrivacyGdprSection("cases", { focus: false, resetScroll: false });
+}
+
 function applySearchQuickFilter(days) {
   if ($("privacyGdprSearchFromDate")) $("privacyGdprSearchFromDate").value = dateDaysAgo(days);
   if ($("privacyGdprSearchToDate")) $("privacyGdprSearchToDate").value = todayDate();
@@ -1053,6 +1378,14 @@ function registerPrivacyGdprSections() {
       target: "privacyGdprSearchSection",
       order: 20,
       visible: canViewPrivacyGdpr
+    },
+    {
+      id: "cases",
+      title: "Privacy Cases",
+      icon: "C",
+      target: "privacyGdprCasesSection",
+      order: 25,
+      visible: canViewPrivacyCaseDetails
     },
     {
       id: "planned-visits",
@@ -1115,8 +1448,7 @@ async function loadPrivacyGdprCases() {
 
 export async function loadPrivacyGdprAdministration(options) {
   if (!canViewPrivacyGdpr()) return;
-  const settings = options || {};
-  setStatus("Loading privacy and GDPR foundation...", "info");
+  setStatus("", "");
   privacyGdprCases = [];
   privacyGdprCasesLoaded = false;
 
@@ -1128,19 +1460,14 @@ export async function loadPrivacyGdprAdministration(options) {
   renderAll();
   const errors = results.filter(result => result.status === "rejected");
   if (errors.length) {
-    setStatus("Privacy / GDPR foundation loaded with limited read-only data.", "error");
-    if (settings.manual) {
-      showToast(
-        "Privacy / GDPR partially loaded",
-        "Some read-only privacy data is unavailable under current permissions.",
-        "error"
-      );
-    }
+    setStatus("Some read-only privacy data is unavailable under current permissions.", "error");
+    showToast(
+      "Privacy / GDPR partially loaded",
+      "Some read-only privacy data is unavailable under current permissions.",
+      "error"
+    );
   } else {
-    setStatus("Privacy / GDPR foundation loaded.", "success");
-    if (settings.manual) {
-      showToast("Privacy / GDPR refreshed", "Read-only privacy status was loaded.", "success");
-    }
+    setStatus("", "");
   }
 }
 
@@ -1150,6 +1477,8 @@ export function syncPrivacyGdprVisibility() {
   if (nav) nav.classList.toggle("hidden", !visible);
   const searchSection = $("privacyGdprSearchSection");
   if (searchSection) searchSection.classList.toggle("hidden", !visible);
+  const casesSection = $("privacyGdprCasesSection");
+  if (casesSection) casesSection.classList.toggle("hidden", !canViewPrivacyCaseDetails());
   syncLegacyBridgeVisibility();
   refreshSectionNavigator("privacy-gdpr");
   if (!visible && $("privacyGdprSection") && !$("privacyGdprSection").classList.contains("hidden")) {
@@ -1219,6 +1548,20 @@ export function initialisePrivacyGdprAdministration(dependencies) {
   }
   if ($("privacyGdprSearchResetButton")) {
     $("privacyGdprSearchResetButton").addEventListener("click", resetPrivacySearch);
+  }
+  if ($("privacyGdprCaseFilterButton")) {
+    $("privacyGdprCaseFilterButton").addEventListener("click", applyPrivacyCaseFilters);
+  }
+  if ($("privacyGdprCaseResetButton")) {
+    $("privacyGdprCaseResetButton").addEventListener("click", resetPrivacyCaseFilters);
+  }
+  if ($("privacyGdprCaseSearchText")) {
+    $("privacyGdprCaseSearchText").addEventListener("keydown", event => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        applyPrivacyCaseFilters();
+      }
+    });
   }
   if ($("privacyGdprSearchText")) {
     $("privacyGdprSearchText").addEventListener("keydown", event => {
