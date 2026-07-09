@@ -853,7 +853,8 @@ function registerDocumentSignoffAdminSections() {
     },
     {
       id: "document-types",
-      title: "Document Types",
+      title: "Types",
+      fullTitle: "Document Types",
       icon: "DT",
       target: "documentSignoffAdminTypesSection",
       order: 20,
@@ -861,7 +862,8 @@ function registerDocumentSignoffAdminSections() {
     },
     {
       id: "document-versions",
-      title: "Document Versions",
+      title: "Versions",
+      fullTitle: "Document Versions",
       icon: "DV",
       target: "documentSignoffAdminVersionsSection",
       order: 30,

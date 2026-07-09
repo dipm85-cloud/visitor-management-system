@@ -343,6 +343,8 @@ textarea { min-height: 86px; resize: vertical; }
   border-top: 1px solid var(--border);
 }
 .settings-actions button {
+  width: auto;
+  min-width: 0;
   padding: 10px 14px;
   font-size: 14px;
 }
@@ -5695,6 +5697,10 @@ body[data-operations-hub-mode="terminal"] #walkInModalBackdrop button {
   gap: 18px;
 }
 
+.oh-section-nav-layout.has-collapsed-section-nav {
+  grid-template-columns: minmax(0, 1fr) 58px;
+}
+
 .oh-section-nav-flow {
   min-width: 0;
 }
@@ -5723,12 +5729,41 @@ body[data-operations-hub-mode="terminal"] #walkInModalBackdrop button {
 }
 
 .oh-section-nav-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   padding: 4px 8px 8px;
   color: var(--oh-shell-muted);
   font-size: 11px;
   font-weight: 900;
   letter-spacing: .08em;
   text-transform: uppercase;
+}
+
+.oh-section-nav-collapse,
+button.oh-section-nav-collapse {
+  width: 26px;
+  height: 26px;
+  min-height: 0;
+  padding: 0;
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid var(--oh-shell-border);
+  border-radius: 8px;
+  background: #ffffff;
+  color: #475467;
+  font-size: 18px;
+  font-weight: 900;
+  box-shadow: none;
+}
+
+.oh-section-nav-collapse:hover,
+button.oh-section-nav-collapse:hover {
+  transform: none;
+  background: var(--oh-shell-subtle);
+  box-shadow: none;
 }
 
 .oh-section-nav-list {
@@ -5802,6 +5837,39 @@ button.oh-section-nav-item:focus-visible,
   font-weight: 800;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.oh-section-nav-shell.is-collapsed .oh-section-navigator {
+  padding: 8px;
+}
+
+.oh-section-nav-shell.is-collapsed .oh-section-nav-title span,
+.oh-section-nav-shell.is-collapsed .oh-section-nav-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.oh-section-nav-shell.is-collapsed .oh-section-nav-title {
+  justify-content: center;
+  padding: 0 0 8px;
+}
+
+.oh-section-nav-shell.is-collapsed .oh-section-nav-item,
+.oh-section-nav-shell.is-collapsed button.oh-section-nav-item {
+  grid-template-columns: 1fr;
+  justify-items: center;
+  gap: 0;
+  padding: 6px;
+}
+
+.oh-section-nav-shell.is-collapsed .oh-section-nav-icon {
+  width: 28px;
+  height: 28px;
 }
 
 .oh-module-section-panel {
@@ -6174,7 +6242,8 @@ button.oh-section-nav-item:focus-visible,
 
 @media (max-width: 1023px) {
   .oh-app-page { width: min(100% - 32px, 1440px); padding-top: 22px; }
-  .oh-section-nav-layout {
+  .oh-section-nav-layout,
+  .oh-section-nav-layout.has-collapsed-section-nav {
     display: flex;
     flex-direction: column;
     gap: 16px;
@@ -6193,6 +6262,33 @@ button.oh-section-nav-item:focus-visible,
     flex-direction: column;
     gap: 8px;
     pointer-events: auto;
+  }
+  .oh-section-nav-collapse,
+  button.oh-section-nav-collapse {
+    display: none;
+  }
+  .oh-section-nav-shell.is-collapsed .oh-section-nav-title span,
+  .oh-section-nav-shell.is-collapsed .oh-section-nav-label {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: hidden;
+    clip: auto;
+    clip-path: none;
+  }
+  .oh-section-nav-shell.is-collapsed .oh-section-navigator {
+    padding: 10px;
+  }
+  .oh-section-nav-shell.is-collapsed .oh-section-nav-title {
+    justify-content: space-between;
+    padding: 4px 8px 8px;
+  }
+  .oh-section-nav-shell.is-collapsed .oh-section-nav-item,
+  .oh-section-nav-shell.is-collapsed button.oh-section-nav-item {
+    grid-template-columns: 28px minmax(0, 1fr);
+    justify-items: stretch;
+    gap: 8px;
+    padding: 6px 8px;
   }
   .oh-section-nav-toggle,
   button.oh-section-nav-toggle {
@@ -6284,15 +6380,20 @@ button.oh-section-nav-item:focus-visible,
 
 /* Reference Data administration */
 .administration-section-nav {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 8px;
   margin: -4px 0 24px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--oh-shell-border);
+  padding: 10px;
+  border: 1px solid var(--oh-shell-border);
+  border-radius: 16px;
+  background: #f8fafc;
 }
 
 .administration-section-nav button,
 .reference-entity-tabs button {
+  width: 100%;
+  min-width: 0;
   min-height: 42px;
   padding: 9px 14px;
   border: 1px solid var(--oh-shell-border);
@@ -6300,6 +6401,9 @@ button.oh-section-nav-item:focus-visible,
   background: var(--oh-shell-surface);
   color: #344054;
   box-shadow: none;
+  overflow-wrap: normal;
+  word-break: normal;
+  text-align: center;
 }
 
 .administration-section-nav button:hover,
@@ -6314,6 +6418,36 @@ button.oh-section-nav-item:focus-visible,
   border-color: #b9cadf;
   background: var(--oh-shell-active);
   color: #234d77;
+  box-shadow: inset 0 -3px 0 var(--oh-shell-focus);
+}
+
+.oh-filter-actions-row,
+.oh-responsive-filter-actions,
+.document-signoff-admin-card-actions,
+.document-signoff-admin-form-actions,
+.shared-terminal-actions,
+.shared-terminal-form-actions,
+.reference-toolbar-actions,
+.settings-actions {
+  min-width: 0;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.oh-filter-actions-row button,
+.oh-responsive-filter-actions button,
+.document-signoff-admin-card-actions button,
+.document-signoff-admin-form-actions button,
+.shared-terminal-actions button,
+.shared-terminal-form-actions button,
+.reference-toolbar-actions button,
+.settings-actions button {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: normal;
+  word-break: normal;
+  white-space: normal;
 }
 
 .module-configuration-heading {
@@ -6431,6 +6565,79 @@ button.oh-section-nav-item:focus-visible,
 
 .module-configuration-group .settings-section {
   margin-top: 12px;
+}
+
+.module-configuration-group .settings-section {
+  padding: 16px;
+  border-color: var(--oh-shell-border);
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: none;
+}
+
+.module-configuration-group .settings-heading {
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0 0 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--oh-shell-border);
+}
+
+.module-configuration-group .settings-icon,
+.module-configuration-group .settings-section.kiosk .settings-icon,
+.module-configuration-group .settings-section.messages .settings-icon,
+.module-configuration-group .settings-section.branding .settings-icon,
+.module-configuration-group .settings-section.rules .settings-icon {
+  width: 34px;
+  height: 34px;
+  border: 1px solid #d9e4f1;
+  border-radius: 10px;
+  background: #f3f7fb;
+  color: #527aa3;
+  font-size: 15px;
+  box-shadow: none;
+}
+
+.module-configuration-group .settings-heading h3 {
+  margin: 0;
+  color: #101828;
+  font-size: 17px;
+  letter-spacing: 0;
+}
+
+.module-configuration-group .settings-heading p {
+  margin-top: 4px;
+  color: var(--oh-shell-muted);
+  font-size: 13px;
+}
+
+.module-configuration-group .settings-grid {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.module-configuration-group .setting-field,
+.module-configuration-group .field-rule-card {
+  min-width: 0;
+  border-color: #e9edf2;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.module-configuration-group .setting-field.full {
+  grid-column: 1 / -1;
+}
+
+.module-configuration-group .setting-field label,
+.module-configuration-group .field-rule-title {
+  color: #344054;
+}
+
+.module-configuration-group .settings-actions,
+.module-configuration-group .button-row {
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .module-configuration-read-only button:not([data-module-configuration-preserve-enabled]),

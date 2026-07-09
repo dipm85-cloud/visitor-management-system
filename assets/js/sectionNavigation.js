@@ -40,6 +40,7 @@ function normaliseSection(section) {
   return {
     id: String(settings.id || "").trim(),
     title: String(settings.title || "").trim(),
+    fullTitle: String(settings.fullTitle || settings.title || "").trim(),
     icon: settings.icon ? String(settings.icon) : "",
     target: settings.target || settings.element || settings.id,
     order: Number.isFinite(settings.order) ? settings.order : 1000,
@@ -270,7 +271,16 @@ function createNavigator(registration) {
 
   const title = document.createElement("div");
   title.className = "oh-section-nav-title";
-  title.textContent = registration.title || "Sections";
+  const titleText = document.createElement("span");
+  titleText.textContent = registration.title || "Sections";
+
+  const collapse = document.createElement("button");
+  collapse.type = "button";
+  collapse.className = "oh-section-nav-collapse";
+  collapse.setAttribute("aria-label", "Collapse section navigation");
+  collapse.setAttribute("title", "Collapse section navigation");
+  collapse.textContent = "‹";
+  title.append(titleText, collapse);
 
   const list = document.createElement("div");
   list.className = "oh-section-nav-list";
@@ -279,7 +289,7 @@ function createNavigator(registration) {
   nav.append(title, list);
   shell.append(toggle, nav);
 
-  return { shell, toggle, nav, list };
+  return { shell, toggle, nav, list, collapse };
 }
 
 function installWorkspace(registration) {
@@ -313,12 +323,47 @@ function installWorkspace(registration) {
   return {
     ...navigator,
     content,
+    layout,
     flow,
     emptyState,
     activeSectionId: null,
     mutationObserver: null,
     refreshQueued: false
   };
+}
+
+function collapsedPreferenceKey(registration) {
+  return "oh_section_nav_collapsed_" + registration.moduleId;
+}
+
+function readCollapsedPreference(registration) {
+  try {
+    return window.localStorage &&
+      window.localStorage.getItem(collapsedPreferenceKey(registration)) === "true";
+  } catch (error) {
+    return false;
+  }
+}
+
+function writeCollapsedPreference(registration, collapsed) {
+  try {
+    if (window.localStorage) {
+      window.localStorage.setItem(collapsedPreferenceKey(registration), collapsed ? "true" : "false");
+    }
+  } catch (error) {
+    // Preference persistence is optional; layout should still work without it.
+  }
+}
+
+function applyCollapsedState(registration, controller, collapsed) {
+  controller.shell.classList.toggle("is-collapsed", collapsed);
+  if (controller.layout) controller.layout.classList.toggle("has-collapsed-section-nav", collapsed);
+  if (controller.collapse) {
+    controller.collapse.setAttribute("aria-expanded", String(!collapsed));
+    controller.collapse.setAttribute("aria-label", collapsed ? "Expand section navigation" : "Collapse section navigation");
+    controller.collapse.setAttribute("title", collapsed ? "Expand section navigation" : "Collapse section navigation");
+    controller.collapse.textContent = collapsed ? "›" : "‹";
+  }
 }
 
 function markTarget(section, target) {
@@ -572,6 +617,8 @@ function initialiseController(registration) {
   const controller = installWorkspace(registration);
   if (!controller) return null;
 
+  applyCollapsedState(registration, controller, readCollapsedPreference(registration));
+
   controller.closeMenu = () => {
     controller.shell.classList.remove("is-open");
     controller.toggle.setAttribute("aria-expanded", "false");
@@ -587,6 +634,14 @@ function initialiseController(registration) {
       if (active) active.focus();
     }
   });
+
+  if (controller.collapse) {
+    controller.collapse.addEventListener("click", () => {
+      const collapsed = !controller.shell.classList.contains("is-collapsed");
+      applyCollapsedState(registration, controller, collapsed);
+      writeCollapsedPreference(registration, collapsed);
+    });
+  }
 
   controller.list.addEventListener("click", event => activateSectionFromEvent(registration, controller, event));
   controller.list.addEventListener("keydown", event => handleListKeyboard(event, controller));
