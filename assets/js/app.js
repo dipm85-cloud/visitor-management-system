@@ -198,7 +198,6 @@ import {
 } from "./visitors.js";
 import {
   openReferenceDataWorkspace,
-  selectReferenceEntity,
   loadReferenceData,
   renderReferenceDataList,
   openReferenceDataPanel,
@@ -5074,9 +5073,6 @@ window.addEventListener("load", async function () {
     if ($("administrationReferenceNav")) {
       $("administrationReferenceNav").addEventListener("click", openReferenceDataWorkspace);
     }
-    document.querySelectorAll("[data-reference-entity]").forEach(button => {
-      button.addEventListener("click", () => selectReferenceEntity(button.dataset.referenceEntity));
-    });
     if ($("referenceSearch")) $("referenceSearch").addEventListener("input", renderReferenceDataList);
     if ($("referenceReloadButton")) $("referenceReloadButton").addEventListener("click", loadReferenceData);
     if ($("referenceCreateButton")) $("referenceCreateButton").addEventListener("click", () => openReferenceDataPanel(null));

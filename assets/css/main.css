@@ -6457,34 +6457,6 @@ button.oh-section-nav-item:focus-visible,
 }
 
 /* Reference Data administration */
-.reference-entity-tabs button {
-  width: 100%;
-  min-width: 0;
-  min-height: 42px;
-  padding: 9px 14px;
-  border: 1px solid var(--oh-shell-border);
-  border-radius: 10px;
-  background: var(--oh-shell-surface);
-  color: #344054;
-  box-shadow: none;
-  overflow-wrap: normal;
-  word-break: normal;
-  text-align: center;
-}
-
-.reference-entity-tabs button:hover {
-  transform: none;
-  background: var(--oh-shell-subtle);
-  box-shadow: none;
-}
-
-.reference-entity-tabs button.active {
-  border-color: #b9cadf;
-  background: var(--oh-shell-active);
-  color: #234d77;
-  box-shadow: inset 0 -3px 0 var(--oh-shell-focus);
-}
-
 .oh-filter-actions-row,
 .oh-responsive-filter-actions,
 .document-signoff-admin-card-actions,
@@ -6726,20 +6698,6 @@ button.oh-section-nav-item:focus-visible,
 .reference-data-heading h2 { margin: 0; font-size: 25px; }
 .reference-data-heading p { margin: 6px 0 0; color: var(--oh-shell-muted); }
 
-.reference-entity-tabs {
-  display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  margin-bottom: 16px;
-  padding: 4px 2px 8px;
-  scrollbar-width: thin;
-}
-
-.reference-entity-tabs button {
-  flex: 0 0 auto;
-  white-space: nowrap;
-}
-
 .reference-toolbar {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -6761,6 +6719,8 @@ button.oh-section-nav-item:focus-visible,
 
 .reference-toolbar-actions {
   display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
   gap: 10px;
 }
 
@@ -6780,11 +6740,11 @@ button.oh-section-nav-item:focus-visible,
 
 .reference-results-header h3 { margin: 0; font-size: 19px; }
 .reference-results-header p { margin: 4px 0 0; color: var(--oh-shell-muted); font-size: 13px; }
-.reference-table-wrap { overflow-x: auto; }
+.reference-table-wrap { overflow-x: visible; }
 
 .reference-table {
   width: 100%;
-  min-width: 720px;
+  min-width: 100%;
   border-collapse: collapse;
   background: #fff;
 }
@@ -6793,8 +6753,10 @@ button.oh-section-nav-item:focus-visible,
 .reference-table td {
   padding: 13px 16px;
   border-bottom: 1px solid #e9edf2;
+  overflow-wrap: break-word;
   text-align: left;
   vertical-align: middle;
+  word-break: normal;
 }
 
 .reference-table th {
@@ -6807,8 +6769,11 @@ button.oh-section-nav-item:focus-visible,
 .reference-table tbody tr:hover { background: #f8fafc; }
 
 .reference-row-actions {
-  width: 1%;
-  white-space: nowrap;
+  width: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  white-space: normal;
 }
 
 .reference-row-actions button {
@@ -6816,7 +6781,7 @@ button.oh-section-nav-item:focus-visible,
   padding: 8px 12px;
 }
 
-.reference-row-actions button + button { margin-left: 8px; }
+.reference-row-actions button + button { margin-left: 0; }
 
 .shared-terminals-heading {
   display: flex;

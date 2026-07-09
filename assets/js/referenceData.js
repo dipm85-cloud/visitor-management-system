@@ -7,6 +7,11 @@ import { auditDiffSummary, buildFieldDiff, writeAuditEvent } from "./audit.js";
 import { showReferenceDataAdministrationSection } from "./accessControl.js";
 import { hasAnyCapability, hasCapability } from "./capabilities.js";
 import {
+  refreshSectionNavigator,
+  registerModuleSections,
+  selectModuleSection
+} from "./sectionNavigation.js";
+import {
   normaliseBusinessCode,
   titleCaseText
 } from "./utils.js";
@@ -191,9 +196,54 @@ const lookupCache = {
 };
 
 let currentEntityKey = "sites";
+let referenceSectionsRegistered = false;
 
 function currentDefinition() {
   return entityDefinitions[currentEntityKey];
+}
+
+function referenceEntityIcon(key, definition) {
+  if (key === "jobRoles") return "JR";
+  if (key === "shiftPatterns") return "SP";
+  if (key === "breakRules") return "BR";
+  return definition.plural.slice(0, 1).toUpperCase();
+}
+
+function registerReferenceDataSections() {
+  if (referenceSectionsRegistered) return;
+  referenceSectionsRegistered = true;
+
+  registerModuleSections(
+    "reference-data",
+    Object.entries(entityDefinitions).map(([key, definition], index) => ({
+      id: key,
+      title: definition.plural,
+      icon: referenceEntityIcon(key, definition),
+      target: "referenceDataEntityWorkspace",
+      order: (index + 1) * 10,
+      default: key === "sites"
+    })),
+    {
+      content: "referenceDataWorkspaceContent",
+      title: "Reference Data",
+      label: "Reference Data section navigation",
+      toggleLabel: "Reference Data section",
+      defaultSection: "sites",
+      filterOnly: true,
+      onSelect: sectionId => {
+        if (sectionId !== currentEntityKey) void selectReferenceEntity(sectionId);
+      }
+    }
+  );
+}
+
+function syncReferenceEntityNavigation() {
+  refreshSectionNavigator("reference-data");
+  selectModuleSection("reference-data", currentEntityKey, {
+    focus: false,
+    resetScroll: false,
+    notify: false
+  });
 }
 
 function referenceAuditFields(definition) {
@@ -428,13 +478,7 @@ function updateReferencePageLabels() {
   $("referenceSearchEntityLabel").textContent = definition.plural.toLowerCase();
   $("referenceSearch").placeholder = "Search " + definition.plural.toLowerCase();
   $("referenceCreateButton").textContent = "Create " + definition.singular;
-
-  document.querySelectorAll("[data-reference-entity]").forEach(button => {
-    const selected = button.dataset.referenceEntity === currentEntityKey;
-    button.classList.toggle("active", selected);
-    if (selected) button.setAttribute("aria-current", "page");
-    else button.removeAttribute("aria-current");
-  });
+  syncReferenceEntityNavigation();
 }
 
 function recordSearchText(record, definition) {
@@ -452,6 +496,7 @@ function recordSearchText(record, definition) {
 
 export async function openReferenceDataWorkspace() {
   if (!requireReferenceDataAccess()) return;
+  registerReferenceDataSections();
   showAdministrationWorkspace();
   showReferenceDataAdministrationSection();
   $("referenceCreateButton").classList.toggle("hidden", !hasReferenceDataEditAccess());

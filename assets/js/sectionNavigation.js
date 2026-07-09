@@ -119,6 +119,10 @@ function targetSummary(section, registration) {
 }
 
 function sectionTargetIsVisible(section, registration) {
+  if (registration.filterOnly) {
+    return sectionIsAvailable(section, registration);
+  }
+
   const target = getSectionTarget(section, registration);
   return Boolean(target) &&
     !target.classList.contains("oh-module-section-panel-hidden") &&
@@ -183,6 +187,10 @@ function sectionIsAvailable(section, registration) {
   if (boolFromSetting(section.visible, true) === false) return false;
 
   const target = getSectionTarget(section, registration);
+  if (registration.filterOnly) {
+    return !target || isCapabilityVisible(target);
+  }
+
   if (!isCapabilityVisible(target)) return false;
   if (section.hideWhenEmpty && !hasAvailableDescendant(target, section.visibleContentSelector)) {
     return false;
@@ -413,6 +421,13 @@ function applySectionVisibility(registration, controller) {
   const activeSectionId = controller.activeSectionId;
   const hasAvailableSections = registration.availableSections.length > 0;
 
+  if (registration.filterOnly) {
+    if (controller.emptyState) {
+      controller.emptyState.classList.toggle("hidden", hasAvailableSections);
+    }
+    return;
+  }
+
   controller.applyingFrameworkVisibility = true;
   registration.sections.forEach(section => {
     const target = getSectionTarget(section, registration);
@@ -451,6 +466,7 @@ function selectSection(registration, controller, sectionId, options) {
   const next = registration.availableSections.find(section => section.id === sectionId);
   if (!next) return false;
 
+  const previousSectionId = controller.activeSectionId;
   controller.activeSectionId = next.id;
   setActiveButton(controller, next.id);
   applySectionVisibility(registration, controller);
@@ -458,6 +474,13 @@ function selectSection(registration, controller, sectionId, options) {
 
   if (!options || options.focus !== false) focusActiveSection(registration, controller);
   if (!options || options.resetScroll !== false) resetWorkspaceScroll(registration);
+  if (
+    previousSectionId !== next.id &&
+    (!options || options.notify !== false) &&
+    typeof registration.onSelect === "function"
+  ) {
+    registration.onSelect(next.id, next);
+  }
   return true;
 }
 
@@ -545,12 +568,12 @@ function renderNavigator(registration, controller) {
 
     availableSections.forEach(section => {
       const target = getSectionTarget(section, registration);
-      if (!target) return;
+      if (!target && !registration.filterOnly) return;
 
       const item = document.createElement("div");
       item.setAttribute("role", "listitem");
       const button = createButton(section);
-      button.setAttribute("aria-controls", target.id || "");
+      if (target) button.setAttribute("aria-controls", target.id || "");
       item.appendChild(button);
       controller.list.appendChild(item);
     });

@@ -4477,46 +4477,41 @@
             </div>
           </div>
 
-          <nav class="reference-entity-tabs" aria-label="Reference data entities">
-            <button class="active" type="button" data-reference-entity="sites" aria-current="page">Sites</button>
-            <button type="button" data-reference-entity="departments">Departments</button>
-            <button type="button" data-reference-entity="contracts">Contracts</button>
-            <button type="button" data-reference-entity="jobRoles">Job Roles</button>
-            <button type="button" data-reference-entity="shiftPatterns">Shift Patterns</button>
-            <button type="button" data-reference-entity="breakRules">Break Rules</button>
-          </nav>
+          <div id="referenceDataWorkspaceContent">
+            <section id="referenceDataEntityWorkspace" class="reference-data-entity-workspace" aria-labelledby="referenceResultsTitle">
+              <div class="reference-toolbar">
+                <div class="reference-search" role="search">
+                  <label for="referenceSearch">Search <span id="referenceSearchEntityLabel">sites</span></label>
+                  <input id="referenceSearch" type="search" placeholder="Search sites" autocomplete="off" />
+                </div>
+                <div class="reference-toolbar-actions">
+                  <button id="referenceReloadButton" class="secondary" type="button">Refresh</button>
+                  <button id="referenceCreateButton" type="button">Create Site</button>
+                </div>
+              </div>
 
-          <div class="reference-toolbar">
-            <div class="reference-search" role="search">
-              <label for="referenceSearch">Search <span id="referenceSearchEntityLabel">sites</span></label>
-              <input id="referenceSearch" type="search" placeholder="Search sites" autocomplete="off" />
-            </div>
-            <div class="reference-toolbar-actions">
-              <button id="referenceReloadButton" class="secondary" type="button">Refresh</button>
-              <button id="referenceCreateButton" type="button">Create Site</button>
-            </div>
+              <section class="card reference-results-card" aria-labelledby="referenceResultsTitle">
+                <div class="reference-results-header">
+                  <div>
+                    <h3 id="referenceResultsTitle">Sites</h3>
+                    <p id="referenceListStatus" aria-live="polite">Open Reference Data to load records.</p>
+                  </div>
+                </div>
+
+                <div class="reference-table-wrap" data-oh-scroll-region="operational" aria-label="Reference data records">
+                  <table class="reference-table" aria-labelledby="referenceResultsTitle">
+                    <thead>
+                      <tr id="referenceTableHead"></tr>
+                    </thead>
+                    <tbody id="referenceResults"></tbody>
+                  </table>
+                  <div id="referenceEmptyState" class="people-empty-state" data-oh-empty-state>
+                    Choose a reference page to view or create records.
+                  </div>
+                </div>
+              </section>
+            </section>
           </div>
-
-          <section class="card reference-results-card" aria-labelledby="referenceResultsTitle">
-            <div class="reference-results-header">
-              <div>
-                <h3 id="referenceResultsTitle">Sites</h3>
-                <p id="referenceListStatus" aria-live="polite">Open Reference Data to load records.</p>
-              </div>
-            </div>
-
-            <div class="reference-table-wrap" data-oh-scroll-region="operational" aria-label="Reference data records">
-              <table class="reference-table" aria-labelledby="referenceResultsTitle">
-                <thead>
-                  <tr id="referenceTableHead"></tr>
-                </thead>
-                <tbody id="referenceResults"></tbody>
-              </table>
-              <div id="referenceEmptyState" class="people-empty-state" data-oh-empty-state>
-                Choose a reference page to view or create records.
-              </div>
-            </div>
-          </section>
 
           <aside id="referenceDataPanel" class="reference-data-panel hidden" aria-labelledby="referencePanelTitle" aria-hidden="true" data-oh-side-panel>
             <div class="people-panel-header" data-oh-side-panel-header>
