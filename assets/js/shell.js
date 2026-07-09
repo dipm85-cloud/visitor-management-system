@@ -12,6 +12,8 @@ const legacyVmsNav = document.getElementById("ohLegacyVmsNav");
 const peopleNav = document.getElementById("ohPeopleNav");
 const organisationsNav = document.getElementById("ohOrganisationsNav");
 const reportingNav = document.getElementById("ohReportingNav");
+const administrationGroup = document.getElementById("ohAdministrationGroup");
+const administrationChildren = document.getElementById("ohAdministrationChildren");
 const administrationNav = document.getElementById("ohAdministrationNav");
 const settingsShortcut = document.getElementById("ohSettingsShortcut");
 const currentUserButton = document.getElementById("ohCurrentUserButton");
@@ -85,6 +87,25 @@ function setNavigationOpen(open) {
   navToggle.setAttribute("aria-expanded", String(open));
 }
 
+function navigationGroups() {
+  return Array.from(document.querySelectorAll("[data-oh-nav-group]"));
+}
+
+function setNavigationGroupOpen(groupName, open) {
+  navigationGroups().forEach(group => {
+    const selected = group.dataset.ohNavGroup === groupName;
+    const expanded = selected && open;
+    const toggle = group.querySelector(".oh-nav-group-toggle");
+    group.classList.toggle("is-open", expanded);
+    if (toggle) toggle.setAttribute("aria-expanded", String(expanded));
+  });
+}
+
+function syncAdministrationGroupVisibility(visible) {
+  if (administrationGroup) administrationGroup.classList.toggle("hidden", !visible);
+  setNavItemCapabilityVisibility(administrationNav, visible);
+}
+
 function toggleNavigation() {
   if (isPhoneLayout()) {
     setNavigationOpen(!shell.classList.contains("oh-nav-open"));
@@ -130,6 +151,12 @@ function setActiveApp(appName) {
     if (active) item.setAttribute("aria-current", "page");
     else item.removeAttribute("aria-current");
   });
+
+  if (appName === "administration") {
+    setNavigationGroupOpen("administration", true);
+  } else {
+    setNavigationGroupOpen("", false);
+  }
 
   if (workspaceCue) {
     workspaceCue.textContent = "Operations Hub / " + (labels[appName] || "Workspace");
@@ -218,7 +245,7 @@ export function syncNavigationCapabilityVisibility() {
       shouldShowOrganisationNavigation()
     );
     setNavItemCapabilityVisibility(reportingNav, true);
-    setNavItemCapabilityVisibility(administrationNav, shouldShowAdministrationNavigation());
+    syncAdministrationGroupVisibility(shouldShowAdministrationNavigation());
     ensureVisibleWorkspace();
     return;
   }
@@ -232,7 +259,7 @@ export function syncNavigationCapabilityVisibility() {
     shouldShowOrganisationNavigation()
   );
   setNavItemCapabilityVisibility(reportingNav, hasCapability("reports.view"));
-  setNavItemCapabilityVisibility(administrationNav, shouldShowAdministrationNavigation());
+  syncAdministrationGroupVisibility(shouldShowAdministrationNavigation());
   ensureVisibleWorkspace();
 }
 
@@ -388,6 +415,18 @@ if (organisationsNav) organisationsNav.addEventListener("click", () => {
   window.dispatchEvent(new CustomEvent("oh:organisations-nav-requested"));
 });
 if (reportingNav) reportingNav.addEventListener("click", showReportingWorkspace);
+if (administrationNav) {
+  administrationNav.addEventListener("click", () => {
+    setNavigationGroupOpen("administration", true);
+  });
+}
+if (administrationChildren) {
+  administrationChildren.addEventListener("click", event => {
+    if (event.target && event.target.closest(".oh-nav-child-item")) {
+      setNavigationGroupOpen("administration", true);
+    }
+  });
+}
 settingsShortcut.addEventListener("click", openExistingSettingsArea);
 if (currentUserButton) currentUserButton.addEventListener("click", event => {
   event.stopPropagation();

@@ -10,6 +10,11 @@ import {
   showAdministrationWorkspace,
   syncNavigationCapabilityVisibility
 } from "./shell.js";
+import {
+  refreshSectionNavigator,
+  registerModuleSections,
+  selectModuleSection
+} from "./sectionNavigation.js";
 import { AppState } from "./state.js";
 
 const SUPER_USER_ROLE_CODE = "super_user";
@@ -663,15 +668,7 @@ export async function saveRolePresetCapabilities() {
 }
 
 export function showAccessControlView(viewName) {
-  document.querySelectorAll("[data-access-control-panel]").forEach(panel => {
-    panel.classList.toggle("hidden", panel.dataset.accessControlPanel !== viewName);
-  });
-  document.querySelectorAll("[data-access-control-view]").forEach(button => {
-    const active = button.dataset.accessControlView === viewName;
-    button.classList.toggle("active", active);
-    if (active) button.setAttribute("aria-current", "page");
-    else button.removeAttribute("aria-current");
-  });
+  selectModuleSection("access-control", viewName || "roles", { focus: false });
 }
 
 export async function loadAccessControl() {
@@ -797,14 +794,57 @@ export async function openAccessControlWorkspace() {
   if (!requireAccessControlAccess()) return;
   showAdministrationWorkspace();
   setAdministrationSection("access");
+  refreshSectionNavigator("access-control");
   showAccessControlView("roles");
   await loadAccessControl();
+}
+
+function registerAccessControlSections() {
+  registerModuleSections("access-control", [
+    {
+      id: "roles",
+      title: "Role Presets",
+      icon: "RP",
+      target: "accessControlRolesView",
+      order: 10,
+      default: true
+    },
+    {
+      id: "capabilities",
+      title: "Capabilities",
+      icon: "C",
+      target: "accessControlCapabilitiesView",
+      order: 20
+    },
+    {
+      id: "groups",
+      title: "Groups",
+      fullTitle: "Capability Groups",
+      icon: "G",
+      target: "accessControlGroupsView",
+      order: 30
+    },
+    {
+      id: "overrides",
+      title: "User Overrides",
+      icon: "UO",
+      target: "accessControlOverridesView",
+      order: 40
+    }
+  ], {
+    content: "accessControlWorkspaceContent",
+    title: "Access Control",
+    label: "Access Control section navigation",
+    toggleLabel: "Access Control section",
+    defaultSection: "roles"
+  });
 }
 
 export function initialiseAccessControl() {
   if (accessControlInitialised) return;
   accessControlInitialised = true;
 
+  registerAccessControlSections();
   syncAccessControlVisibility();
   $("administrationAccessControlNav").addEventListener("click", openAccessControlWorkspace);
   $("accessControlRefreshButton").addEventListener("click", loadAccessControl);
@@ -820,9 +860,4 @@ export function initialiseAccessControl() {
     "click",
     saveRolePresetCapabilities
   );
-  document.querySelectorAll("[data-access-control-view]").forEach(button => {
-    button.addEventListener("click", () => {
-      showAccessControlView(button.dataset.accessControlView);
-    });
-  });
 }

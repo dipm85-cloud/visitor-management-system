@@ -4912,6 +4912,80 @@ button.oh-nav-item:disabled {
 
 .oh-nav-item.active .oh-nav-icon { background: #d9e5f3; }
 .oh-nav-label { overflow: hidden; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.oh-nav-group {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.oh-nav-group.hidden {
+  display: none !important;
+}
+
+.oh-nav-caret {
+  color: var(--oh-shell-muted);
+  font-size: 18px;
+  font-weight: 900;
+  line-height: 1;
+  transition: transform .15s ease;
+}
+
+.oh-nav-group.is-open .oh-nav-caret {
+  transform: rotate(90deg);
+}
+
+.oh-nav-children {
+  display: none;
+  min-width: 0;
+  gap: 3px;
+  padding: 2px 0 6px 42px;
+}
+
+.oh-nav-group.is-open .oh-nav-children {
+  display: grid;
+}
+
+.oh-nav-child-item,
+button.oh-nav-child-item {
+  width: 100%;
+  min-width: 0;
+  min-height: 34px;
+  padding: 7px 9px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  color: #475467;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.25;
+  overflow-wrap: normal;
+  text-align: left;
+  white-space: normal;
+  word-break: normal;
+  box-shadow: none;
+}
+
+.oh-nav-child-item:hover,
+button.oh-nav-child-item:hover {
+  transform: none;
+  background: var(--oh-shell-subtle);
+  box-shadow: none;
+}
+
+.oh-nav-child-item.active,
+button.oh-nav-child-item.active {
+  border-color: #d6dfec;
+  background: #f1f6fb;
+  color: #234d77;
+  box-shadow: inset 3px 0 0 #527aa3;
+}
+
+.oh-nav-child-item:focus-visible,
+button.oh-nav-child-item:focus-visible {
+  outline: 3px solid rgba(82, 122, 163, .28);
+  outline-offset: 2px;
+}
+
 .oh-nav-status {
   padding: 2px 6px;
   border-radius: 999px;
@@ -5468,6 +5542,8 @@ body[data-operations-hub-mode="terminal"] #walkInModalBackdrop button {
 .operations-hub.oh-nav-collapsed .oh-navigation { padding-inline: 8px; }
 .operations-hub.oh-nav-collapsed .oh-nav-heading > span:first-child,
 .operations-hub.oh-nav-collapsed .oh-nav-label,
+.operations-hub.oh-nav-collapsed .oh-nav-caret,
+.operations-hub.oh-nav-collapsed .oh-nav-children,
 .operations-hub.oh-nav-collapsed .oh-nav-status,
 .operations-hub.oh-nav-collapsed .oh-nav-footnote { display: none; }
 .operations-hub.oh-nav-collapsed .oh-nav-heading-short { display: inline; }
@@ -5578,8 +5654,10 @@ body[data-operations-hub-mode="terminal"] #walkInModalBackdrop button {
 
   .operations-hub.oh-nav-collapsed .oh-nav-heading > span:first-child,
   .operations-hub.oh-nav-collapsed .oh-nav-label,
+  .operations-hub.oh-nav-collapsed .oh-nav-caret,
   .operations-hub.oh-nav-collapsed .oh-nav-status,
   .operations-hub.oh-nav-collapsed .oh-nav-footnote { display: initial; }
+  .operations-hub.oh-nav-collapsed .oh-nav-group.is-open .oh-nav-children { display: grid; }
   .operations-hub.oh-nav-collapsed .oh-nav-heading-short { display: none; }
   .operations-hub.oh-nav-collapsed .oh-nav-heading { padding: 0 10px 8px; text-align: left; }
   .operations-hub.oh-nav-collapsed .oh-nav-item {
@@ -6379,18 +6457,6 @@ button.oh-section-nav-item:focus-visible,
 }
 
 /* Reference Data administration */
-.administration-section-nav {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 8px;
-  margin: -4px 0 24px;
-  padding: 10px;
-  border: 1px solid var(--oh-shell-border);
-  border-radius: 16px;
-  background: #f8fafc;
-}
-
-.administration-section-nav button,
 .reference-entity-tabs button {
   width: 100%;
   min-width: 0;
@@ -6406,14 +6472,12 @@ button.oh-section-nav-item:focus-visible,
   text-align: center;
 }
 
-.administration-section-nav button:hover,
 .reference-entity-tabs button:hover {
   transform: none;
   background: var(--oh-shell-subtle);
   box-shadow: none;
 }
 
-.administration-section-nav button.active,
 .reference-entity-tabs button.active {
   border-color: #b9cadf;
   background: var(--oh-shell-active);
@@ -6974,31 +7038,10 @@ button.oh-section-nav-item:focus-visible,
   line-height: 1.45;
 }
 
-.access-control-tabs {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 16px;
-  overflow-x: auto;
-  padding-bottom: 4px;
-}
-
-.access-control-tabs button {
-  min-height: 42px;
-  flex: 0 0 auto;
-  border: 1px solid var(--oh-shell-border);
-  background: var(--oh-shell-surface);
-  color: var(--oh-shell-text);
-}
-
-.access-control-tabs button.active {
-  border-color: #b9cadf;
-  background: var(--oh-shell-active);
-  color: #234d77;
-}
-
 .access-control-toolbar {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   justify-content: space-between;
   gap: 16px;
   margin-bottom: 18px;
@@ -7011,6 +7054,26 @@ button.oh-section-nav-item:focus-visible,
 .access-control-toolbar p {
   margin: 0;
   color: var(--oh-shell-muted);
+}
+
+.access-control-section-heading {
+  margin: 0 0 14px;
+  padding: 0 0 12px;
+  border-bottom: 1px solid var(--oh-shell-border);
+}
+
+.access-control-section-heading h3 {
+  margin: 0;
+  color: #101828;
+  font-size: 20px;
+  letter-spacing: 0;
+}
+
+.access-control-section-heading p {
+  margin: 5px 0 0;
+  color: var(--oh-shell-muted);
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .access-control-role-grid {
@@ -7291,7 +7354,6 @@ input[data-reference-field="cycle_length_days"][readonly] {
 }
 
 @media (max-width: 599px) {
-  .administration-section-nav { margin-bottom: 18px; }
   .module-configuration-card-grid { grid-template-columns: 1fr; }
   .reference-data-heading h2 { font-size: 22px; }
   .access-control-heading {
