@@ -3867,6 +3867,81 @@
               <div id="privacyGdprEvidencePackResults" class="privacy-gdpr-search-results" aria-live="polite"></div>
             </section>
 
+            <section id="privacyGdprAnonymisationPreviewSection" class="privacy-gdpr-card privacy-gdpr-result-section hidden" aria-labelledby="privacyGdprAnonymisationPreviewTitle">
+              <div class="privacy-gdpr-card-heading">
+                <div>
+                  <h3 id="privacyGdprAnonymisationPreviewTitle">Anonymisation Preview</h3>
+                  <p>Preview records matching the search criteria before any future native anonymisation workflow is enabled.</p>
+                </div>
+                <span id="privacyGdprAnonymisationPreviewCount" class="privacy-gdpr-result-count">No preview</span>
+              </div>
+
+              <div class="privacy-gdpr-readiness-grid" aria-label="Anonymisation readiness summary">
+                <article class="privacy-gdpr-readiness-card">
+                  <span>Native preview</span>
+                  <strong>Available</strong>
+                  <p>Read-only source review is available for authorised users.</p>
+                </article>
+                <article class="privacy-gdpr-readiness-card">
+                  <span>Native anonymisation</span>
+                  <strong>Not enabled</strong>
+                  <p>No Operations Hub anonymisation or erasure action is available here.</p>
+                </article>
+                <article class="privacy-gdpr-readiness-card">
+                  <span>Legacy workflow</span>
+                  <strong>Required</strong>
+                  <p>This anonymisation workflow is still completed in Legacy VMS.</p>
+                </article>
+                <article class="privacy-gdpr-readiness-card">
+                  <span>Manual review</span>
+                  <strong>Required</strong>
+                  <p>Audit and document evidence may require separate compliance review.</p>
+                </article>
+              </div>
+
+              <div class="oh-filter-panel" role="search" aria-label="Anonymisation preview filters">
+                <div class="oh-filter-group-heading">Custom filters</div>
+                <div class="oh-responsive-filter-grid oh-filter-field-grid privacy-gdpr-search-filters">
+                  <label>
+                    Search text
+                    <input id="privacyGdprAnonymisationSearchText" type="search" autocomplete="off" placeholder="Name, company, email or reference" />
+                  </label>
+                  <label>
+                    From date
+                    <input id="privacyGdprAnonymisationFromDate" type="date" />
+                  </label>
+                  <label>
+                    To date
+                    <input id="privacyGdprAnonymisationToDate" type="date" />
+                  </label>
+                </div>
+                <fieldset class="privacy-gdpr-source-picker" aria-label="Anonymisation preview source categories">
+                  <legend>Source selection</legend>
+                  <label><input id="privacyGdprAnonymisationSourcePlanned" type="checkbox" value="planned_visits" checked /> Planned Visits</label>
+                  <label><input id="privacyGdprAnonymisationSourceVisitLog" type="checkbox" value="visit_log" checked /> Visit Log</label>
+                  <label><input id="privacyGdprAnonymisationSourceDocuments" type="checkbox" value="document_evidence" checked /> Document Evidence / Agreement Signatures</label>
+                  <label><input id="privacyGdprAnonymisationSourceAudit" type="checkbox" value="audit_events" checked /> Audit Events where safe</label>
+                  <label><input id="privacyGdprAnonymisationSourceLegacy" type="checkbox" value="legacy_only" checked /> Legacy-only records</label>
+                </fieldset>
+                <div class="oh-filter-group-heading">Actions</div>
+                <div class="oh-responsive-filter-actions oh-filter-actions-row">
+                  <button id="privacyGdprAnonymisationPreviewButton" type="button">Preview Affected Records</button>
+                  <button id="privacyGdprAnonymisationResetButton" class="secondary" type="button">Reset</button>
+                  <button id="privacyGdprAnonymisationLegacyErasureButton" class="secondary" type="button">Open Legacy Erasure / Anonymisation</button>
+                </div>
+                <div class="oh-responsive-filter-actions oh-filter-actions-row">
+                  <button id="privacyGdprAnonymisationLegacySearchButton" class="secondary" type="button">Open Legacy GDPR Search</button>
+                  <button id="privacyGdprAnonymisationLegacyEvidenceButton" class="secondary" type="button">Open Legacy GDPR Evidence</button>
+                  <button id="privacyGdprAnonymisationLegacySarButton" class="secondary" type="button">Open Legacy SAR Export</button>
+                </div>
+              </div>
+
+              <div id="privacyGdprAnonymisationSummary" class="privacy-gdpr-search-summary" aria-live="polite">
+                Records matching the search criteria will appear grouped by source. Matching records are not identity-linked or merged.
+              </div>
+              <div id="privacyGdprAnonymisationResults" class="privacy-gdpr-search-results" aria-live="polite"></div>
+            </section>
+
             <section id="privacyGdprSearchSection" class="privacy-gdpr-card privacy-gdpr-search-card" aria-labelledby="privacyGdprSearchTitle">
               <div class="privacy-gdpr-card-heading">
                 <div>

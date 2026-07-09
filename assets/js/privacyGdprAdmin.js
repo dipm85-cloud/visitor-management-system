@@ -20,6 +20,13 @@ const PRIVACY_GDPR_VIEW = [
   "module_configuration.manage"
 ];
 
+const ANONYMISATION_PREVIEW_CAPABILITIES = [
+  "privacy.manage",
+  "gdpr.manage",
+  "module_configuration.manage",
+  "settings.edit"
+];
+
 const LEGACY_PRIVACY_ACTIONS = [
   ["privacyGdprLegacyCasesButton", "gdpr-cases"],
   ["privacyGdprCaseLegacyButton", "gdpr-cases"],
@@ -29,6 +36,10 @@ const LEGACY_PRIVACY_ACTIONS = [
   ["privacyGdprEvidencePackLegacySarButton", "gdpr-sar"],
   ["privacyGdprEvidencePackLegacyEvidenceButton", "gdpr-evidence"],
   ["privacyGdprEvidencePackLegacyErasureButton", "gdpr-erasure"],
+  ["privacyGdprAnonymisationLegacySearchButton", "gdpr-search"],
+  ["privacyGdprAnonymisationLegacySarButton", "gdpr-sar"],
+  ["privacyGdprAnonymisationLegacyEvidenceButton", "gdpr-evidence"],
+  ["privacyGdprAnonymisationLegacyErasureButton", "gdpr-erasure"],
   ["privacyGdprLegacySarButton", "gdpr-sar"],
   ["privacyGdprLegacyErasureButton", "gdpr-erasure"],
   ["privacyGdprLegacyEvidenceButton", "gdpr-evidence"]
@@ -77,6 +88,10 @@ let privacyGdprEvidencePackGroups = [];
 let privacyGdprEvidencePackPayload = null;
 let privacyGdprEvidencePackHasPreview = false;
 let privacyGdprEvidencePackSequence = 0;
+let privacyGdprAnonymisationGroups = [];
+let privacyGdprAnonymisationPayload = null;
+let privacyGdprAnonymisationHasPreview = false;
+let privacyGdprAnonymisationSequence = 0;
 
 const SOURCE_SEARCH_CONFIG = {
   planned_visits: {
@@ -148,6 +163,14 @@ const EVIDENCE_PACK_SOURCE_INPUTS = [
   ["audit_events", "privacyGdprEvidencePackSourceAudit"]
 ];
 
+const ANONYMISATION_PREVIEW_SOURCE_INPUTS = [
+  ["planned_visits", "privacyGdprAnonymisationSourcePlanned"],
+  ["visit_log", "privacyGdprAnonymisationSourceVisitLog"],
+  ["document_evidence", "privacyGdprAnonymisationSourceDocuments"],
+  ["audit_events", "privacyGdprAnonymisationSourceAudit"],
+  ["legacy_only", "privacyGdprAnonymisationSourceLegacy"]
+];
+
 function hasActiveStaffUser() {
   return !!(
     AppState.currentProfile &&
@@ -169,6 +192,13 @@ function canViewPrivacyGdpr() {
 
 function canOpenLegacyPrivacyGdpr() {
   return canViewPrivacyGdpr() && isSuperUserProfile();
+}
+
+function canViewAnonymisationPreview() {
+  return hasActiveStaffUser() && (
+    isSuperUserProfile() ||
+    hasAnyCapability(ANONYMISATION_PREVIEW_CAPABILITIES)
+  );
 }
 
 function canViewPlannedVisitPrivacySearch() {
@@ -593,7 +623,11 @@ function syncLegacyBridgeVisibility() {
     "privacyGdprEvidencePackLegacySearchButton",
     "privacyGdprEvidencePackLegacySarButton",
     "privacyGdprEvidencePackLegacyEvidenceButton",
-    "privacyGdprEvidencePackLegacyErasureButton"
+    "privacyGdprEvidencePackLegacyErasureButton",
+    "privacyGdprAnonymisationLegacySearchButton",
+    "privacyGdprAnonymisationLegacySarButton",
+    "privacyGdprAnonymisationLegacyEvidenceButton",
+    "privacyGdprAnonymisationLegacyErasureButton"
   ].forEach(id => {
     if ($(id)) $(id).classList.toggle("hidden", !available);
   });
@@ -613,12 +647,28 @@ function syncEvidencePackSourceVisibility() {
   });
 }
 
+function syncAnonymisationPreviewVisibility() {
+  const section = $("privacyGdprAnonymisationPreviewSection");
+  if (section) section.classList.toggle("hidden", !canViewAnonymisationPreview());
+  ANONYMISATION_PREVIEW_SOURCE_INPUTS.forEach(([sourceId, inputId]) => {
+    const input = $(inputId);
+    if (!input) return;
+    const label = input.closest("label");
+    const visible = sourceId === "legacy_only" ? canViewAnonymisationPreview() : canViewSourceSearch(sourceId);
+    input.disabled = !visible;
+    if (!visible) input.checked = false;
+    if (label) label.classList.toggle("hidden", !visible);
+  });
+}
+
 function renderAll() {
   renderOverview();
   renderCases();
   renderCaseWorkspace();
   syncEvidencePackSourceVisibility();
+  syncAnonymisationPreviewVisibility();
   renderEvidencePackPreview();
+  renderAnonymisationPreview();
   renderSettings();
   renderSearchResults();
   syncLegacyBridgeVisibility();
@@ -661,6 +711,23 @@ function currentEvidencePackPayload() {
   };
 }
 
+function selectedAnonymisationPreviewSources() {
+  return ANONYMISATION_PREVIEW_SOURCE_INPUTS
+    .filter(([sourceId, inputId]) => $(inputId) && $(inputId).checked && !$(inputId).disabled && (
+      sourceId === "legacy_only" ? canViewAnonymisationPreview() : canViewSourceSearch(sourceId)
+    ))
+    .map(([sourceId]) => sourceId);
+}
+
+function currentAnonymisationPreviewPayload() {
+  return {
+    searchText: $("privacyGdprAnonymisationSearchText") ? $("privacyGdprAnonymisationSearchText").value.trim() : "",
+    fromDate: $("privacyGdprAnonymisationFromDate") ? $("privacyGdprAnonymisationFromDate").value : "",
+    toDate: $("privacyGdprAnonymisationToDate") ? $("privacyGdprAnonymisationToDate").value : "",
+    sources: selectedAnonymisationPreviewSources()
+  };
+}
+
 function validateSearchPayload(payload) {
   if (!payload) return "Search filters are unavailable.";
   const hasStatusFilter = hasValue(payload.status) && payload.status !== "all";
@@ -678,6 +745,18 @@ function validateEvidencePackPayload(payload) {
   if (!payload.sources || !payload.sources.length) return "Select at least one source category before previewing.";
   if (!hasValue(payload.searchText) && !hasValue(payload.fromDate) && !hasValue(payload.toDate)) {
     return "Enter search text or a date range before previewing an evidence pack.";
+  }
+  if (payload.fromDate && payload.toDate && payload.fromDate > payload.toDate) {
+    return "From date must be on or before to date.";
+  }
+  return "";
+}
+
+function validateAnonymisationPreviewPayload(payload) {
+  if (!payload) return "Anonymisation preview filters are unavailable.";
+  if (!payload.sources || !payload.sources.length) return "Select at least one source category before previewing.";
+  if (!hasValue(payload.searchText) && !hasValue(payload.fromDate) && !hasValue(payload.toDate)) {
+    return "Enter search text or a date range before previewing affected records.";
   }
   if (payload.fromDate && payload.toDate && payload.fromDate > payload.toDate) {
     return "From date must be on or before to date.";
@@ -960,7 +1039,7 @@ function createResultGroupElement(group) {
   const title = document.createElement("h4");
   title.textContent = settings.title || group.title || group.id;
   const description = document.createElement("p");
-  description.textContent = group.message || settings.description || "";
+  description.textContent = group.description || group.message || settings.description || "";
   titleBlock.append(title, description);
   const count = document.createElement("span");
   count.className = "privacy-gdpr-result-count";
@@ -1145,6 +1224,148 @@ function renderEvidencePackPreview() {
   }
 
   privacyGdprEvidencePackGroups.forEach(group => {
+    container.appendChild(createResultGroupElement(group));
+  });
+}
+
+function anonymisationPreviewResultCount() {
+  return privacyGdprAnonymisationGroups.reduce((sum, group) => sum + ((group.records || []).length), 0);
+}
+
+function anonymisationSearchPayloadForSource(sourceId, payload) {
+  return {
+    searchText: payload.searchText,
+    fromDate: payload.fromDate,
+    toDate: payload.toDate,
+    recordType: sourceId,
+    status: "all",
+    eventType: ""
+  };
+}
+
+function sourceDateRange(records) {
+  const dates = (records || [])
+    .map(record => {
+      const date = record && record.date ? new Date(record.date) : null;
+      return date && !Number.isNaN(date.getTime()) ? date : null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.getTime() - b.getTime());
+  if (!dates.length) return "-";
+  return formatDate(dates[0].toISOString()) + " to " + formatDate(dates[dates.length - 1].toISOString());
+}
+
+function anonymisationSourceReadiness(sourceId) {
+  if (sourceId === "legacy_only") return "Legacy anonymisation still required";
+  if (sourceId === "audit_events") return "Manual compliance review required";
+  if (sourceId === "document_evidence") return "Separate evidence review required";
+  return "Native preview available";
+}
+
+function anonymisationPreviewFieldAllowed(field) {
+  const label = normaliseSearchText(field && field.label);
+  if (!label) return false;
+  return ![
+    "actor",
+    "recorded by / witness",
+    "inductor",
+    "modified",
+    "created by",
+    "modified by",
+    "on-site contact"
+  ].includes(label);
+}
+
+function anonymisationPreviewSubtitle(record, sourceId) {
+  if (sourceId === "audit_events") return record.status || "Audit event";
+  return record.subtitle;
+}
+
+function createAnonymisationPreviewGroup(group) {
+  const settings = SEARCH_GROUPS[group.id] || {};
+  if (!group || group.unavailable) {
+    return Object.assign({}, group, {
+      description: group && group.message
+        ? group.message
+        : "This source requires Legacy VMS or is unavailable under current permissions."
+    });
+  }
+
+  const records = (group.records || []).map(record => Object.assign({}, record, {
+    subtitle: anonymisationPreviewSubtitle(record, group.id),
+    summary: "Read-only anonymisation preview result. This record matches the search criteria only; it is not linked, merged or confirmed as belonging to the same person as any other result.",
+    fields: (record.fields || []).filter(anonymisationPreviewFieldAllowed).concat([
+      recordField("Source", settings.title || group.title || group.id, true),
+      recordField("Record type", settings.title || group.title || group.id, true),
+      recordField("Source module/table", record.module, true),
+      recordField("Stored subject data", record.title, true),
+      recordField("Date/time", formatDate(record.date), true),
+      recordField("Status", record.status, true),
+      recordField("Reference", record.sourceId, true),
+      recordField("Linked source record", record.sourceId),
+      recordField("Native anonymisation support", "Preview only - native anonymisation is not enabled.", true),
+      recordField("Review note", "This result is listed because it matches the search criteria. Records are not identity-linked or deduplicated by name.", true)
+    ])
+  }));
+
+  return Object.assign({}, group, {
+    records,
+    description: "Records matching the search criteria. Date range: " +
+      sourceDateRange(records) + ". Status: " + anonymisationSourceReadiness(group.id) + "."
+  });
+}
+
+function renderAnonymisationPreviewSummary() {
+  const summary = $("privacyGdprAnonymisationSummary");
+  const count = $("privacyGdprAnonymisationPreviewCount");
+  if (!summary) return;
+  if (count) count.textContent = privacyGdprAnonymisationHasPreview ? String(anonymisationPreviewResultCount()) : "No preview";
+
+  if (!privacyGdprAnonymisationHasPreview || !privacyGdprAnonymisationPayload) {
+    summary.textContent = "Records matching the search criteria will appear grouped by source. Matching records are not identity-linked or merged.";
+    summary.classList.remove("has-results");
+    return;
+  }
+
+  const unavailable = privacyGdprAnonymisationGroups.filter(group => group.unavailable).length;
+  const available = privacyGdprAnonymisationGroups.filter(group => !group.unavailable);
+  const counts = available.map(group => {
+    const settings = SEARCH_GROUPS[group.id] || {};
+    return (settings.title || group.title || group.id) + ": " + ((group.records || []).length);
+  });
+  summary.textContent = "Records matching the search criteria: " + anonymisationPreviewResultCount() +
+    " record(s). Search text: " + textOrDash(privacyGdprAnonymisationPayload.searchText) +
+    ". Date range: " + textOrDash(privacyGdprAnonymisationPayload.fromDate) + " to " +
+    textOrDash(privacyGdprAnonymisationPayload.toDate) + ". " +
+    (counts.length ? counts.join(" | ") + ". " : "") +
+    (unavailable ? unavailable + " source(s) require Legacy VMS or were unavailable under current permissions. " : "") +
+    "Native anonymisation is not enabled and records are not identity-linked.";
+  summary.classList.toggle("has-results", anonymisationPreviewResultCount() > 0);
+}
+
+function renderAnonymisationPreview() {
+  const container = $("privacyGdprAnonymisationResults");
+  if (!container) return;
+  container.replaceChildren();
+  renderAnonymisationPreviewSummary();
+
+  if (!privacyGdprAnonymisationHasPreview) {
+    renderEmptyState(container, {
+      title: "No anonymisation preview yet",
+      description: "Enter search criteria, choose source categories and preview records matching the criteria."
+    });
+    return;
+  }
+
+  if (!privacyGdprAnonymisationGroups.length) {
+    renderEmptyState(container, {
+      title: "No source categories selected",
+      description: "Select at least one available source category before previewing affected records."
+    });
+    return;
+  }
+
+  privacyGdprAnonymisationGroups.forEach(group => {
     container.appendChild(createResultGroupElement(group));
   });
 }
@@ -1357,6 +1578,88 @@ function resetEvidencePackPreview() {
   setEvidencePackStatus("", "");
   renderEvidencePackPreview();
   selectPrivacyGdprSection("evidence-pack", { focus: false, resetScroll: false });
+}
+
+async function previewAnonymisationRecords() {
+  if (!canViewAnonymisationPreview()) {
+    showToast(
+      "Anonymisation preview unavailable",
+      "Anonymisation Preview requires privacy.manage, gdpr.manage, module_configuration.manage or settings.edit.",
+      "error"
+    );
+    return;
+  }
+
+  const payload = currentAnonymisationPreviewPayload();
+  const validationMessage = validateAnonymisationPreviewPayload(payload);
+  if (validationMessage) {
+    showToast("Preview needs filters", validationMessage, "error");
+    return;
+  }
+
+  const sequence = ++privacyGdprAnonymisationSequence;
+  const previewButton = $("privacyGdprAnonymisationPreviewButton");
+  if (previewButton) previewButton.disabled = true;
+  privacyGdprAnonymisationPayload = payload;
+  privacyGdprAnonymisationHasPreview = true;
+  privacyGdprAnonymisationGroups = [];
+  renderAnonymisationPreview();
+
+  const results = await Promise.allSettled(payload.sources.map(sourceId => {
+    if (sourceId === "legacy_only") {
+      return Promise.resolve(createUnavailableGroup(
+        sourceId,
+        "This anonymisation workflow is still completed in Legacy VMS."
+      ));
+    }
+    if (!canViewSourceSearch(sourceId)) {
+      return Promise.resolve(createUnavailableGroup(sourceId, "This source is not available under current permissions."));
+    }
+    return loadSearchGroup(sourceId, anonymisationSearchPayloadForSource(sourceId, payload));
+  }));
+  if (sequence !== privacyGdprAnonymisationSequence) {
+    if (previewButton) previewButton.disabled = false;
+    return;
+  }
+
+  const groups = [];
+  const errors = [];
+  results.forEach((result, index) => {
+    const sourceId = payload.sources[index];
+    if (result.status === "fulfilled") {
+      groups.push(createAnonymisationPreviewGroup(result.value));
+      return;
+    }
+    errors.push({ sourceId, error: result.reason });
+    groups.push(createUnavailableGroup(sourceId, "This source could not be previewed under current permissions."));
+  });
+
+  privacyGdprAnonymisationGroups = groups;
+  renderAnonymisationPreview();
+  selectPrivacyGdprSection("anonymisation-preview", { focus: false, resetScroll: false });
+  if (errors.length) {
+    showToast(
+      "Anonymisation preview partially loaded",
+      errors.length + " source(s) were unavailable under current permissions.",
+      "error"
+    );
+  }
+  if (previewButton) previewButton.disabled = false;
+}
+
+function resetAnonymisationPreview() {
+  ["privacyGdprAnonymisationSearchText", "privacyGdprAnonymisationFromDate", "privacyGdprAnonymisationToDate"].forEach(id => {
+    if ($(id)) $(id).value = "";
+  });
+  ANONYMISATION_PREVIEW_SOURCE_INPUTS.forEach(([, inputId]) => {
+    if ($(inputId)) $(inputId).checked = true;
+  });
+  syncAnonymisationPreviewVisibility();
+  privacyGdprAnonymisationPayload = null;
+  privacyGdprAnonymisationGroups = [];
+  privacyGdprAnonymisationHasPreview = false;
+  renderAnonymisationPreview();
+  selectPrivacyGdprSection("anonymisation-preview", { focus: false, resetScroll: false });
 }
 
 function appendDetailsList(parent, fields) {
@@ -1762,6 +2065,14 @@ function registerPrivacyGdprSections() {
       visible: canViewSarEvidencePack
     },
     {
+      id: "anonymisation-preview",
+      title: "Anonymisation Preview",
+      icon: "AP",
+      target: "privacyGdprAnonymisationPreviewSection",
+      order: 29,
+      visible: canViewAnonymisationPreview
+    },
+    {
       id: "planned-visits",
       title: "Planned Visits",
       icon: "PV",
@@ -1855,6 +2166,7 @@ export function syncPrivacyGdprVisibility() {
   if (casesSection) casesSection.classList.toggle("hidden", !canViewPrivacyCaseDetails());
   const evidencePackSection = $("privacyGdprEvidencePackSection");
   if (evidencePackSection) evidencePackSection.classList.toggle("hidden", !canViewSarEvidencePack());
+  syncAnonymisationPreviewVisibility();
   syncEvidencePackSourceVisibility();
   syncLegacyBridgeVisibility();
   refreshSectionNavigator("privacy-gdpr");
@@ -1957,6 +2269,20 @@ export function initialisePrivacyGdprAdministration(dependencies) {
       if (event.key === "Enter") {
         event.preventDefault();
         previewEvidencePack();
+      }
+    });
+  }
+  if ($("privacyGdprAnonymisationPreviewButton")) {
+    $("privacyGdprAnonymisationPreviewButton").addEventListener("click", previewAnonymisationRecords);
+  }
+  if ($("privacyGdprAnonymisationResetButton")) {
+    $("privacyGdprAnonymisationResetButton").addEventListener("click", resetAnonymisationPreview);
+  }
+  if ($("privacyGdprAnonymisationSearchText")) {
+    $("privacyGdprAnonymisationSearchText").addEventListener("keydown", event => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        previewAnonymisationRecords();
       }
     });
   }
