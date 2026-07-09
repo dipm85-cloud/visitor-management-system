@@ -3939,6 +3939,36 @@
               <div id="privacyGdprAnonymisationSummary" class="privacy-gdpr-search-summary" aria-live="polite">
                 Records matching the search criteria will appear grouped by source. Matching records are not identity-linked or merged.
               </div>
+              <section id="privacyGdprAnonymisationReviewSection" class="privacy-gdpr-review-panel hidden" aria-labelledby="privacyGdprAnonymisationReviewTitle">
+                <div class="privacy-gdpr-card-heading">
+                  <div>
+                    <h3 id="privacyGdprAnonymisationReviewTitle">Anonymisation readiness review</h3>
+                    <p>This destructive privacy workflow is still completed in Legacy VMS.</p>
+                  </div>
+                  <span id="privacyGdprAnonymisationReviewStatus" class="privacy-gdpr-result-count">Preview required</span>
+                </div>
+                <div id="privacyGdprAnonymisationReviewSummary" class="privacy-gdpr-review-summary" aria-live="polite"></div>
+                <div class="privacy-gdpr-review-form">
+                  <label class="privacy-gdpr-review-reason">
+                    <span>Reason for anonymisation request</span>
+                    <textarea id="privacyGdprAnonymisationReason" rows="3" autocomplete="off" placeholder="Record the operational reason for future review."></textarea>
+                  </label>
+                  <label class="privacy-gdpr-review-check">
+                    <input id="privacyGdprAnonymisationReviewedCheck" type="checkbox" />
+                    <span>I confirm I have reviewed the affected records preview.</span>
+                  </label>
+                  <label>
+                    <span>Typed confirmation</span>
+                    <input id="privacyGdprAnonymisationTypedConfirmation" type="text" autocomplete="off" placeholder="Type ANONYMISATION REVIEW" />
+                  </label>
+                </div>
+                <div id="privacyGdprAnonymisationAuditPrep" class="privacy-gdpr-review-audit"></div>
+                <div class="oh-responsive-filter-actions oh-filter-actions-row">
+                  <button id="privacyGdprAnonymisationCheckReviewButton" class="secondary" type="button">Check Review Readiness</button>
+                  <button id="privacyGdprAnonymisationFutureActionButton" type="button" disabled>Native anonymisation not enabled</button>
+                  <button id="privacyGdprAnonymisationReviewLegacyButton" class="secondary" type="button">Open Legacy Erasure / Anonymisation</button>
+                </div>
+              </section>
               <div id="privacyGdprAnonymisationResults" class="privacy-gdpr-search-results" aria-live="polite"></div>
             </section>
 

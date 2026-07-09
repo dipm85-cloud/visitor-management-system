@@ -2651,6 +2651,170 @@ body.document-signoff-overlay-open {
   background: #f6fbff;
 }
 
+.privacy-gdpr-review-panel {
+  display: grid;
+  gap: 14px;
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid var(--oh-shell-border);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.privacy-gdpr-review-summary {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.privacy-gdpr-review-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.privacy-gdpr-review-summary-card {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #e9edf2;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.privacy-gdpr-review-summary-card span,
+.privacy-gdpr-review-summary-card strong,
+.privacy-gdpr-review-summary-card p {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.privacy-gdpr-review-summary-card span {
+  color: #667085;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.privacy-gdpr-review-summary-card strong {
+  margin-top: 4px;
+  color: #101828;
+}
+
+.privacy-gdpr-review-summary-card p {
+  margin: 5px 0 0;
+  color: var(--oh-shell-muted);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.privacy-gdpr-review-warnings {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #e9edf2;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #475467;
+}
+
+.privacy-gdpr-review-warnings strong {
+  display: block;
+  margin-bottom: 6px;
+  color: #344054;
+}
+
+.privacy-gdpr-review-warnings ul {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding-left: 18px;
+}
+
+.privacy-gdpr-review-warnings li {
+  overflow-wrap: anywhere;
+}
+
+.privacy-gdpr-review-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(240px, .8fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.privacy-gdpr-review-form label,
+.privacy-gdpr-review-form span,
+.privacy-gdpr-review-form input,
+.privacy-gdpr-review-form textarea {
+  min-width: 0;
+}
+
+.privacy-gdpr-review-form label {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  color: #344054;
+  font-weight: 800;
+}
+
+.privacy-gdpr-review-reason {
+  grid-row: span 2;
+}
+
+.privacy-gdpr-review-check {
+  display: flex !important;
+  grid-template-columns: none;
+  gap: 10px !important;
+  align-items: flex-start;
+  padding: 11px 12px;
+  border: 1px solid #e9edf2;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.privacy-gdpr-review-check input {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+}
+
+.privacy-gdpr-review-audit {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #e9edf2;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.privacy-gdpr-review-audit p {
+  margin: 0;
+  color: var(--oh-shell-muted);
+  line-height: 1.45;
+}
+
+.privacy-gdpr-review-audit-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.privacy-gdpr-review-audit-list div {
+  min-width: 0;
+}
+
+.privacy-gdpr-review-audit-list dt {
+  color: #667085;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.privacy-gdpr-review-audit-list dd {
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
+}
+
 .privacy-gdpr-result-section {
   min-width: 0;
 }
@@ -2791,6 +2955,12 @@ body.document-signoff-overlay-open {
 
   .privacy-gdpr-readiness-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .privacy-gdpr-review-summary-grid,
+  .privacy-gdpr-review-form,
+  .privacy-gdpr-review-audit-list {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .privacy-gdpr-card-actions {

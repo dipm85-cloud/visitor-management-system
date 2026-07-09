@@ -40,6 +40,7 @@ const LEGACY_PRIVACY_ACTIONS = [
   ["privacyGdprAnonymisationLegacySarButton", "gdpr-sar"],
   ["privacyGdprAnonymisationLegacyEvidenceButton", "gdpr-evidence"],
   ["privacyGdprAnonymisationLegacyErasureButton", "gdpr-erasure"],
+  ["privacyGdprAnonymisationReviewLegacyButton", "gdpr-erasure"],
   ["privacyGdprLegacySarButton", "gdpr-sar"],
   ["privacyGdprLegacyErasureButton", "gdpr-erasure"],
   ["privacyGdprLegacyEvidenceButton", "gdpr-evidence"]
@@ -92,6 +93,7 @@ let privacyGdprAnonymisationGroups = [];
 let privacyGdprAnonymisationPayload = null;
 let privacyGdprAnonymisationHasPreview = false;
 let privacyGdprAnonymisationSequence = 0;
+let privacyGdprAnonymisationReviewPayload = null;
 
 const SOURCE_SEARCH_CONFIG = {
   planned_visits: {
@@ -170,6 +172,8 @@ const ANONYMISATION_PREVIEW_SOURCE_INPUTS = [
   ["audit_events", "privacyGdprAnonymisationSourceAudit"],
   ["legacy_only", "privacyGdprAnonymisationSourceLegacy"]
 ];
+
+const ANONYMISATION_REVIEW_CONFIRMATION_TEXT = "ANONYMISATION REVIEW";
 
 function hasActiveStaffUser() {
   return !!(
@@ -627,7 +631,8 @@ function syncLegacyBridgeVisibility() {
     "privacyGdprAnonymisationLegacySearchButton",
     "privacyGdprAnonymisationLegacySarButton",
     "privacyGdprAnonymisationLegacyEvidenceButton",
-    "privacyGdprAnonymisationLegacyErasureButton"
+    "privacyGdprAnonymisationLegacyErasureButton",
+    "privacyGdprAnonymisationReviewLegacyButton"
   ].forEach(id => {
     if ($(id)) $(id).classList.toggle("hidden", !available);
   });
@@ -1232,6 +1237,11 @@ function anonymisationPreviewResultCount() {
   return privacyGdprAnonymisationGroups.reduce((sum, group) => sum + ((group.records || []).length), 0);
 }
 
+function sourceLabel(sourceId) {
+  const settings = SEARCH_GROUPS[sourceId] || {};
+  return settings.title || sourceId || "-";
+}
+
 function anonymisationSearchPayloadForSource(sourceId, payload) {
   return {
     searchText: payload.searchText,
@@ -1343,11 +1353,200 @@ function renderAnonymisationPreviewSummary() {
   summary.classList.toggle("has-results", anonymisationPreviewResultCount() > 0);
 }
 
+function anonymisationAffectedSources() {
+  return privacyGdprAnonymisationGroups.map(group => ({
+    id: group.id,
+    label: sourceLabel(group.id),
+    count: (group.records || []).length,
+    unavailable: !!group.unavailable,
+    legacyOnly: group.id === "legacy_only",
+    message: group.message || ""
+  }));
+}
+
+function anonymisationUnsupportedSources() {
+  return anonymisationAffectedSources()
+    .filter(source => source.unavailable && !source.legacyOnly)
+    .map(source => source.label);
+}
+
+function anonymisationLegacyOnlySources() {
+  return anonymisationAffectedSources()
+    .filter(source => source.legacyOnly)
+    .map(source => source.label);
+}
+
+function anonymisationReviewWarnings() {
+  const warnings = [];
+  const sourceIds = privacyGdprAnonymisationGroups.map(group => group.id);
+  if (sourceIds.includes("audit_events")) warnings.push("Audit records may be retained for compliance and require manual review.");
+  if (sourceIds.includes("document_evidence")) warnings.push("Document evidence and agreement signatures may require separate review.");
+  if (anonymisationLegacyOnlySources().length) warnings.push("Legacy-only sources remain outside native preview execution.");
+  if (anonymisationUnsupportedSources().length) warnings.push("Some selected sources were unavailable under current permissions.");
+  if (!warnings.length) warnings.push("Native anonymisation is not enabled; this review prepares a future controlled workflow only.");
+  return warnings;
+}
+
+function createReviewSummaryCard(label, value, detail) {
+  const card = document.createElement("article");
+  card.className = "privacy-gdpr-review-summary-card";
+  const span = document.createElement("span");
+  span.textContent = label;
+  const strong = document.createElement("strong");
+  strong.textContent = textOrDash(value);
+  card.append(span, strong);
+  if (detail) {
+    const p = document.createElement("p");
+    p.textContent = detail;
+    card.appendChild(p);
+  }
+  return card;
+}
+
+function renderAnonymisationReviewSummary() {
+  const container = $("privacyGdprAnonymisationReviewSummary");
+  if (!container) return;
+  container.replaceChildren();
+
+  if (!privacyGdprAnonymisationHasPreview || !privacyGdprAnonymisationPayload) {
+    renderEmptyState(container, {
+      title: "Preview required",
+      description: "Run Preview Affected Records before completing the readiness review."
+    });
+    return;
+  }
+
+  const payload = privacyGdprAnonymisationPayload;
+  const sources = anonymisationAffectedSources();
+  const unsupported = anonymisationUnsupportedSources();
+  const legacyOnly = anonymisationLegacyOnlySources();
+  const counts = sources.map(source => source.label + ": " + source.count).join(" | ");
+  const selected = sources.map(source => source.label).join(", ");
+
+  const grid = document.createElement("div");
+  grid.className = "privacy-gdpr-review-summary-grid";
+  grid.append(
+    createReviewSummaryCard("Affected source categories", selected || "-", counts || "No native source records returned."),
+    createReviewSummaryCard("Affected record counts", String(anonymisationPreviewResultCount()), "Records matching the search criteria only."),
+    createReviewSummaryCard("Selected search criteria", payload.searchText || "-", "Date range: " + textOrDash(payload.fromDate) + " to " + textOrDash(payload.toDate)),
+    createReviewSummaryCard("Unsupported sources", unsupported.length ? unsupported.join(", ") : "-", "Unavailable sources are not native execution-ready."),
+    createReviewSummaryCard("Legacy-only sources", legacyOnly.length ? legacyOnly.join(", ") : "-", "This destructive privacy workflow is still completed in Legacy VMS."),
+    createReviewSummaryCard("Preview reference", payload.previewReference || "-", "Generated: " + formatDate(payload.previewedAt))
+  );
+  container.appendChild(grid);
+
+  const warnings = document.createElement("div");
+  warnings.className = "privacy-gdpr-review-warnings";
+  const title = document.createElement("strong");
+  title.textContent = "Review notes";
+  const list = document.createElement("ul");
+  anonymisationReviewWarnings().forEach(message => {
+    const item = document.createElement("li");
+    item.textContent = message;
+    list.appendChild(item);
+  });
+  warnings.append(title, list);
+  container.appendChild(warnings);
+}
+
+function anonymisationActorSnapshot() {
+  const profile = AppState.currentProfile || {};
+  return {
+    id: profile.id || "",
+    display_name: profile.display_name || "",
+    role: profile.role || ""
+  };
+}
+
+function currentAnonymisationReviewControls() {
+  return {
+    reason: $("privacyGdprAnonymisationReason") ? $("privacyGdprAnonymisationReason").value.trim() : "",
+    reviewed: $("privacyGdprAnonymisationReviewedCheck") ? $("privacyGdprAnonymisationReviewedCheck").checked : false,
+    typedConfirmation: $("privacyGdprAnonymisationTypedConfirmation") ? $("privacyGdprAnonymisationTypedConfirmation").value.trim() : ""
+  };
+}
+
+function buildAnonymisationReviewPayload() {
+  const controls = currentAnonymisationReviewControls();
+  const payload = privacyGdprAnonymisationPayload || {};
+  return {
+    preview_only: true,
+    native_anonymisation_enabled: false,
+    actor: anonymisationActorSnapshot(),
+    reason: controls.reason,
+    search_criteria: {
+      search_text: payload.searchText || "",
+      date_from: payload.fromDate || "",
+      date_to: payload.toDate || ""
+    },
+    affected_source_categories: anonymisationAffectedSources().map(source => source.label),
+    affected_counts: anonymisationAffectedSources().reduce((summary, source) => {
+      summary[source.id] = source.count;
+      return summary;
+    }, {}),
+    unsupported_sources: anonymisationUnsupportedSources(),
+    legacy_only_sources: anonymisationLegacyOnlySources(),
+    confirmation_timestamp: new Date().toISOString(),
+    preview_reference: payload.previewReference || "",
+    previewed_at: payload.previewedAt || "",
+    confirmation_text: controls.typedConfirmation
+  };
+}
+
+function renderAnonymisationAuditPreparation() {
+  const container = $("privacyGdprAnonymisationAuditPrep");
+  if (!container) return;
+  container.replaceChildren();
+
+  const payload = privacyGdprAnonymisationReviewPayload;
+  if (!payload) {
+    const note = document.createElement("p");
+    note.textContent = privacyGdprAnonymisationHasPreview
+      ? "Check review readiness to prepare actor, reason, search criteria, source counts, timestamp and preview reference for future audit capture."
+      : "Preview affected records before preparing future audit capture metadata.";
+    container.appendChild(note);
+    return;
+  }
+
+  const list = document.createElement("dl");
+  list.className = "privacy-gdpr-review-audit-list";
+  [
+    ["Actor", [payload.actor.display_name, payload.actor.role].filter(Boolean).join(" - ")],
+    ["Reason captured", payload.reason],
+    ["Confirmation timestamp", formatDate(payload.confirmation_timestamp)],
+    ["Preview reference", payload.preview_reference],
+    ["Affected counts", Object.entries(payload.affected_counts).map(([key, value]) => sourceLabel(key) + ": " + value).join(" | ")]
+  ].forEach(([label, value]) => {
+    const wrapper = document.createElement("div");
+    const dt = document.createElement("dt");
+    const dd = document.createElement("dd");
+    dt.textContent = label;
+    dd.textContent = textOrDash(value);
+    wrapper.append(dt, dd);
+    list.appendChild(wrapper);
+  });
+  container.appendChild(list);
+}
+
+function renderAnonymisationReview() {
+  const section = $("privacyGdprAnonymisationReviewSection");
+  const status = $("privacyGdprAnonymisationReviewStatus");
+  if (!section) return;
+  const visible = canViewAnonymisationPreview() && privacyGdprAnonymisationHasPreview && privacyGdprAnonymisationGroups.length > 0;
+  section.classList.toggle("hidden", !visible);
+  if (status) {
+    status.textContent = privacyGdprAnonymisationReviewPayload ? "Review checked" : (visible ? "Guardrails pending" : "Preview required");
+  }
+  renderAnonymisationReviewSummary();
+  renderAnonymisationAuditPreparation();
+}
+
 function renderAnonymisationPreview() {
   const container = $("privacyGdprAnonymisationResults");
   if (!container) return;
   container.replaceChildren();
   renderAnonymisationPreviewSummary();
+  renderAnonymisationReview();
 
   if (!privacyGdprAnonymisationHasPreview) {
     renderEmptyState(container, {
@@ -1603,6 +1802,7 @@ async function previewAnonymisationRecords() {
   privacyGdprAnonymisationPayload = payload;
   privacyGdprAnonymisationHasPreview = true;
   privacyGdprAnonymisationGroups = [];
+  privacyGdprAnonymisationReviewPayload = null;
   renderAnonymisationPreview();
 
   const results = await Promise.allSettled(payload.sources.map(sourceId => {
@@ -1635,6 +1835,10 @@ async function previewAnonymisationRecords() {
   });
 
   privacyGdprAnonymisationGroups = groups;
+  privacyGdprAnonymisationPayload = Object.assign({}, payload, {
+    previewReference: "ANON-PREVIEW-" + todayDate() + "-" + String(sequence).padStart(3, "0"),
+    previewedAt: new Date().toISOString()
+  });
   renderAnonymisationPreview();
   selectPrivacyGdprSection("anonymisation-preview", { focus: false, resetScroll: false });
   if (errors.length) {
@@ -1647,10 +1851,53 @@ async function previewAnonymisationRecords() {
   if (previewButton) previewButton.disabled = false;
 }
 
+function checkAnonymisationReviewReadiness() {
+  if (!canViewAnonymisationPreview()) {
+    showToast(
+      "Anonymisation review unavailable",
+      "Anonymisation guardrails require privacy.manage, gdpr.manage, module_configuration.manage or settings.edit.",
+      "error"
+    );
+    return;
+  }
+  if (!privacyGdprAnonymisationHasPreview || !privacyGdprAnonymisationPayload) {
+    showToast("Preview required", "Preview affected records before checking review readiness.", "error");
+    return;
+  }
+
+  const controls = currentAnonymisationReviewControls();
+  if (!controls.reason) {
+    showToast("Reason required", "Enter the reason for the anonymisation request before checking readiness.", "error");
+    return;
+  }
+  if (!controls.reviewed) {
+    showToast("Review confirmation required", "Confirm that you have reviewed the affected records preview.", "error");
+    return;
+  }
+  if (controls.typedConfirmation !== ANONYMISATION_REVIEW_CONFIRMATION_TEXT) {
+    showToast("Typed confirmation mismatch", "Type \"" + ANONYMISATION_REVIEW_CONFIRMATION_TEXT + "\" to confirm this review.", "error");
+    return;
+  }
+
+  privacyGdprAnonymisationReviewPayload = buildAnonymisationReviewPayload();
+  renderAnonymisationReview();
+  showToast("Review guardrails checked", "Review metadata is prepared for future audit capture. Native anonymisation remains disabled.", "success");
+}
+
+function markAnonymisationReviewDirty() {
+  if (!privacyGdprAnonymisationReviewPayload) return;
+  privacyGdprAnonymisationReviewPayload = null;
+  renderAnonymisationReview();
+}
+
 function resetAnonymisationPreview() {
   ["privacyGdprAnonymisationSearchText", "privacyGdprAnonymisationFromDate", "privacyGdprAnonymisationToDate"].forEach(id => {
     if ($(id)) $(id).value = "";
   });
+  ["privacyGdprAnonymisationReason", "privacyGdprAnonymisationTypedConfirmation"].forEach(id => {
+    if ($(id)) $(id).value = "";
+  });
+  if ($("privacyGdprAnonymisationReviewedCheck")) $("privacyGdprAnonymisationReviewedCheck").checked = false;
   ANONYMISATION_PREVIEW_SOURCE_INPUTS.forEach(([, inputId]) => {
     if ($(inputId)) $(inputId).checked = true;
   });
@@ -1658,6 +1905,7 @@ function resetAnonymisationPreview() {
   privacyGdprAnonymisationPayload = null;
   privacyGdprAnonymisationGroups = [];
   privacyGdprAnonymisationHasPreview = false;
+  privacyGdprAnonymisationReviewPayload = null;
   renderAnonymisationPreview();
   selectPrivacyGdprSection("anonymisation-preview", { focus: false, resetScroll: false });
 }
@@ -2278,6 +2526,17 @@ export function initialisePrivacyGdprAdministration(dependencies) {
   if ($("privacyGdprAnonymisationResetButton")) {
     $("privacyGdprAnonymisationResetButton").addEventListener("click", resetAnonymisationPreview);
   }
+  if ($("privacyGdprAnonymisationCheckReviewButton")) {
+    $("privacyGdprAnonymisationCheckReviewButton").addEventListener("click", checkAnonymisationReviewReadiness);
+  }
+  [
+    "privacyGdprAnonymisationReason",
+    "privacyGdprAnonymisationTypedConfirmation",
+    "privacyGdprAnonymisationReviewedCheck"
+  ].forEach(id => {
+    if ($(id)) $(id).addEventListener("input", markAnonymisationReviewDirty);
+    if ($(id)) $(id).addEventListener("change", markAnonymisationReviewDirty);
+  });
   if ($("privacyGdprAnonymisationSearchText")) {
     $("privacyGdprAnonymisationSearchText").addEventListener("keydown", event => {
       if (event.key === "Enter") {
