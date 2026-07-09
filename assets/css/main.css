@@ -6879,6 +6879,210 @@ button.oh-section-nav-item:focus-visible,
   overflow-wrap: anywhere;
 }
 
+.identity-resolution-workspace {
+  min-width: 0;
+}
+
+.identity-resolution-heading-actions,
+.identity-resolution-actions,
+.identity-resolution-card-actions,
+.identity-resolution-detail-actions {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.identity-resolution-card {
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid var(--oh-shell-border);
+  border-radius: 8px;
+  background: var(--oh-shell-surface);
+  box-shadow: 0 8px 22px rgba(16, 24, 40, .05);
+}
+
+.identity-resolution-filter-grid {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.identity-resolution-result-list,
+.identity-resolution-decision-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.identity-resolution-result-card,
+.identity-resolution-decision-item,
+.identity-resolution-source-block {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid #e9edf2;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.identity-resolution-result-header,
+.identity-resolution-decision-item > div {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.identity-resolution-result-header h4 {
+  margin: 0;
+  font-size: 17px;
+}
+
+.identity-resolution-result-header p,
+.identity-resolution-reason,
+.identity-resolution-decision-item p,
+.identity-resolution-decision-item small {
+  margin: 4px 0 0;
+  color: var(--oh-shell-muted);
+  font-size: 13px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.identity-resolution-badge {
+  flex: 0 0 auto;
+  padding: 4px 9px;
+  border: 1px solid var(--oh-shell-border);
+  border-radius: 999px;
+  background: #f2f4f7;
+  color: #475467;
+  font-size: 11px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.identity-resolution-badge.pending,
+.identity-resolution-badge.deferred {
+  border-color: #fedf89;
+  background: #fffaeb;
+  color: #b54708;
+}
+
+.identity-resolution-badge.confirmed {
+  border-color: #abefc6;
+  background: #ecfdf3;
+  color: #067647;
+}
+
+.identity-resolution-badge.rejected,
+.identity-resolution-badge.ignored {
+  border-color: #fecdca;
+  background: #fef3f2;
+  color: #b42318;
+}
+
+.identity-resolution-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+  margin: 12px 0 0;
+}
+
+.identity-resolution-meta-grid div {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid #edf1f6;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.identity-resolution-meta-grid dt {
+  margin-bottom: 3px;
+  color: #667085;
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.identity-resolution-meta-grid dd {
+  margin: 0;
+  color: #101828;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.identity-resolution-source-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.identity-resolution-source-block h4,
+.identity-resolution-detail-decisions h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.identity-resolution-card-actions {
+  margin-top: 12px;
+}
+
+.identity-resolution-panel {
+  max-width: min(720px, calc(100vw - 32px));
+}
+
+.identity-resolution-panel-body {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  overflow: auto;
+}
+
+.identity-resolution-panel-form {
+  gap: 14px;
+}
+
+.identity-resolution-source-fieldset {
+  min-width: 0;
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--oh-shell-border);
+  border-radius: 8px;
+}
+
+.identity-resolution-source-fieldset legend {
+  padding: 0 6px;
+  color: #344054;
+  font-weight: 900;
+}
+
+.identity-resolution-legacy-list {
+  display: grid;
+  gap: 12px;
+}
+
+.identity-resolution-legacy-list div {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #e9edf2;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.identity-resolution-legacy-list strong,
+.identity-resolution-legacy-list span {
+  display: block;
+}
+
+.identity-resolution-legacy-list span {
+  margin-top: 4px;
+  color: var(--oh-shell-muted);
+  font-size: 13px;
+}
+
 .shared-terminal-actions,
 .shared-terminal-form-actions {
   display: flex;

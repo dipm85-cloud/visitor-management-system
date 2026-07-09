@@ -64,6 +64,7 @@ function terminalNotes(device) {
 function setAdministrationSection(sectionName) {
   const selected = {
     reference: sectionName === "reference",
+    identityResolution: sectionName === "identityResolution",
     documentSignoffs: sectionName === "documentSignoffs",
     privacyGdpr: sectionName === "privacyGdpr",
     terminals: sectionName === "terminals",
@@ -72,6 +73,7 @@ function setAdministrationSection(sectionName) {
   };
   const sections = {
     reference: $("referenceDataSection"),
+    identityResolution: $("identityResolutionSection"),
     documentSignoffs: $("documentSignoffAdminSection"),
     privacyGdpr: $("privacyGdprSection"),
     terminals: $("sharedTerminalsSection"),
@@ -80,6 +82,7 @@ function setAdministrationSection(sectionName) {
   };
   const navigation = {
     reference: $("administrationReferenceNav"),
+    identityResolution: $("administrationIdentityResolutionNav"),
     documentSignoffs: $("administrationDocumentSignoffsNav"),
     privacyGdpr: $("administrationPrivacyGdprNav"),
     terminals: $("administrationSharedTerminalsNav"),

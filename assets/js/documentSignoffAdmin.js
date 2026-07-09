@@ -61,6 +61,7 @@ function canManageDocumentSignoffAdmin() {
 function setAdministrationSection(sectionName) {
   const sections = {
     reference: $("referenceDataSection"),
+    identityResolution: $("identityResolutionSection"),
     documentSignoffs: $("documentSignoffAdminSection"),
     privacyGdpr: $("privacyGdprSection"),
     terminals: $("sharedTerminalsSection"),
@@ -69,6 +70,7 @@ function setAdministrationSection(sectionName) {
   };
   const navigation = {
     reference: $("administrationReferenceNav"),
+    identityResolution: $("administrationIdentityResolutionNav"),
     documentSignoffs: $("administrationDocumentSignoffsNav"),
     privacyGdpr: $("administrationPrivacyGdprNav"),
     terminals: $("administrationSharedTerminalsNav"),

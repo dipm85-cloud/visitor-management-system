@@ -233,6 +233,11 @@ import {
   syncPrivacyGdprVisibility
 } from "./privacyGdprAdmin.js";
 import {
+  initialiseIdentityResolutionAdministration,
+  openIdentityResolutionAdministration,
+  syncIdentityResolutionVisibility
+} from "./identityResolutionAdmin.js";
+import {
   initialiseSharedTerminalAdministration,
   openSharedTerminalAdministration,
   syncSharedTerminalAdministrationVisibility
@@ -561,6 +566,7 @@ window.addEventListener("load", async function () {
         syncAccessControlVisibility();
         syncDocumentSignoffAdminVisibility();
         syncPrivacyGdprVisibility();
+        syncIdentityResolutionVisibility();
         syncSharedTerminalAdministrationVisibility();
         syncModuleConfigurationVisibility();
         syncVisitorCapabilityVisibility();
@@ -4992,10 +4998,12 @@ window.addEventListener("load", async function () {
     registerInitialModuleConfigurations();
     initialiseModuleConfigurationFramework();
     initialiseAccessControl();
+    initialiseIdentityResolutionAdministration();
     initialiseSharedTerminalAdministration();
     window.addEventListener("oh:capabilities-changed", syncVisitorCapabilityVisibility);
     window.addEventListener("oh:capabilities-changed", syncDocumentSignoffAdminVisibility);
     window.addEventListener("oh:capabilities-changed", syncPrivacyGdprVisibility);
+    window.addEventListener("oh:capabilities-changed", syncIdentityResolutionVisibility);
     window.addEventListener("oh:capabilities-changed", syncVisitorHousekeepingControls);
     window.addEventListener("oh:capabilities-changed", syncSharedTerminalAdministrationVisibility);
     window.addEventListener("oh:legacy-vms-opened", openStaffAreaFromProfile);
@@ -5050,9 +5058,15 @@ window.addEventListener("load", async function () {
           "gdpr.manage",
           "privacy.view",
           "privacy.manage",
+          "identity_resolution.view",
+          "identity_resolution.manage",
           "audit.view"
         ])) {
-          openPrivacyGdprAdministration();
+          if (hasAnyCapability(["identity_resolution.view", "identity_resolution.manage"])) {
+            openIdentityResolutionAdministration();
+          } else {
+            openPrivacyGdprAdministration();
+          }
           return;
         }
         if (hasAnyCapability(["settings.view", "settings.edit"])) {

@@ -191,6 +191,8 @@ export function shouldShowAdministrationNavigation() {
     "gdpr.manage",
     "privacy.view",
     "privacy.manage",
+    "identity_resolution.view",
+    "identity_resolution.manage",
     "audit.view",
     "access_control.view",
     "access_control.manage"

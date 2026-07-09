@@ -117,6 +117,7 @@
           </button>
           <div id="ohAdministrationChildren" class="oh-nav-children" aria-label="Administration areas">
             <button id="administrationReferenceNav" class="oh-nav-child-item active" type="button" aria-current="page" title="Reference Data">Reference Data</button>
+            <button id="administrationIdentityResolutionNav" class="oh-nav-child-item hidden" type="button" title="Identity Resolution">Identity Resolution</button>
             <button id="administrationDocumentSignoffsNav" class="oh-nav-child-item hidden" type="button" title="Document Sign-offs">Document Sign-offs</button>
             <button id="administrationPrivacyGdprNav" class="oh-nav-child-item hidden" type="button" title="Privacy / Data Governance">Privacy / Data Governance</button>
             <button id="administrationSharedTerminalsNav" class="oh-nav-child-item hidden" type="button" title="Shared Terminals">Shared Terminals</button>
@@ -3686,6 +3687,273 @@
               <div class="visitors-side-panel-actions" data-oh-side-panel-actions>
                 <button id="documentSignoffAdminCreateVersionButton" type="submit">Create Version</button>
                 <button id="documentSignoffAdminVersionCancelButton" class="secondary" type="button">Cancel</button>
+              </div>
+            </form>
+          </aside>
+        </div>
+
+        <section id="identityResolutionSection" class="identity-resolution-workspace hidden" aria-labelledby="identityResolutionTitle">
+          <div class="shared-terminals-heading">
+            <div>
+              <p class="oh-app-eyebrow">Administration</p>
+              <h2 id="identityResolutionTitle">Identity Resolution</h2>
+              <p>Review possible identity matches, record authorised decisions and create confirmed link metadata without changing source records.</p>
+            </div>
+            <div class="identity-resolution-heading-actions">
+              <button id="identityResolutionNewCandidateButton" type="button">New Candidate</button>
+              <button id="identityResolutionRefreshButton" class="secondary" type="button">Refresh</button>
+            </div>
+          </div>
+
+          <div id="identityResolutionReadOnlyNotice" class="callout info hidden">
+            You can review identity resolution records, but decisions require identity resolution management access.
+          </div>
+
+          <div id="identityResolutionWorkspaceContent">
+            <section id="identityResolutionOverviewSection" aria-labelledby="identityResolutionOverviewTitle">
+              <div class="document-signoff-card-heading">
+                <div>
+                  <h3 id="identityResolutionOverviewTitle">Overview</h3>
+                  <p>Identity Resolution stores review candidates, decisions and confirmed link metadata only. Source records are not merged or rewritten.</p>
+                </div>
+              </div>
+              <div class="document-signoff-summary-grid identity-resolution-summary-grid">
+                <article class="document-signoff-summary-card">
+                  <span>Possible matches awaiting review</span>
+                  <strong id="identityResolutionPendingCount">-</strong>
+                  <p>Pending candidates needing authorised review.</p>
+                </article>
+                <article class="document-signoff-summary-card">
+                  <span>Deferred candidates</span>
+                  <strong id="identityResolutionDeferredCount">-</strong>
+                  <p>Possible matches held for later review.</p>
+                </article>
+                <article class="document-signoff-summary-card">
+                  <span>Confirmed links</span>
+                  <strong id="identityResolutionConfirmedLinksCount">-</strong>
+                  <p>Metadata links created from confirmed review decisions.</p>
+                </article>
+                <article class="document-signoff-summary-card">
+                  <span>Rejected or ignored candidates</span>
+                  <strong id="identityResolutionRejectedIgnoredCount">-</strong>
+                  <p>Decision history preserved without modifying source records.</p>
+                </article>
+              </div>
+            </section>
+
+            <section id="identityResolutionQueueSection" class="identity-resolution-card" aria-labelledby="identityResolutionQueueTitle">
+              <div class="document-signoff-card-heading">
+                <div>
+                  <h3 id="identityResolutionQueueTitle">Candidate Queue</h3>
+                  <p>Review possible matches using cautious source labels and explicit decisions.</p>
+                </div>
+                <span id="identityResolutionCandidateCount" class="privacy-gdpr-result-count">-</span>
+              </div>
+              <div class="oh-filter-panel">
+                <div class="oh-responsive-filter-grid identity-resolution-filter-grid">
+                  <label>
+                    <span>Search</span>
+                    <input id="identityResolutionCandidateSearch" type="search" autocomplete="off" placeholder="Reference, reason or source label" />
+                  </label>
+                  <label>
+                    <span>Status</span>
+                    <select id="identityResolutionCandidateStatus">
+                      <option value="pending">Pending</option>
+                      <option value="all">All statuses</option>
+                      <option value="deferred">Deferred</option>
+                      <option value="confirmed">Confirmed</option>
+                      <option value="rejected">Rejected</option>
+                      <option value="ignored">Ignored</option>
+                    </select>
+                  </label>
+                  <label>
+                    <span>Candidate type</span>
+                    <select id="identityResolutionCandidateType">
+                      <option value="all">All types</option>
+                      <option value="person">Person</option>
+                      <option value="organisation">Organisation</option>
+                      <option value="vehicle">Vehicle</option>
+                      <option value="email">Email</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </label>
+                  <label>
+                    <span>Limit</span>
+                    <select id="identityResolutionCandidateLimit">
+                      <option value="50">50</option>
+                      <option value="100">100</option>
+                      <option value="250">250</option>
+                    </select>
+                  </label>
+                  <div class="oh-responsive-filter-actions identity-resolution-actions">
+                    <button id="identityResolutionApplyFiltersButton" type="button">Apply Filters</button>
+                    <button id="identityResolutionResetFiltersButton" class="secondary" type="button">Reset</button>
+                  </div>
+                </div>
+              </div>
+              <div id="identityResolutionCandidateResults" class="identity-resolution-result-list" aria-live="polite"></div>
+              <div id="identityResolutionCandidateEmpty" class="people-empty-state hidden" data-oh-empty-state>No identity resolution candidates are available.</div>
+            </section>
+
+            <section id="identityResolutionLinksSection" class="identity-resolution-card" aria-labelledby="identityResolutionLinksTitle">
+              <div class="document-signoff-card-heading">
+                <div>
+                  <h3 id="identityResolutionLinksTitle">Confirmed Links</h3>
+                  <p>Confirmed links are metadata only. Source records remain unchanged.</p>
+                </div>
+                <span id="identityResolutionLinksCount" class="privacy-gdpr-result-count">-</span>
+              </div>
+              <div class="oh-filter-panel">
+                <div class="oh-responsive-filter-grid identity-resolution-filter-grid">
+                  <label>
+                    <span>Search</span>
+                    <input id="identityResolutionLinkSearch" type="search" autocomplete="off" placeholder="Reference, label or reason" />
+                  </label>
+                  <label>
+                    <span>Identity type</span>
+                    <select id="identityResolutionLinkType">
+                      <option value="all">All types</option>
+                      <option value="person">Person</option>
+                      <option value="organisation">Organisation</option>
+                      <option value="vehicle">Vehicle</option>
+                      <option value="email">Email</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </label>
+                  <label>
+                    <span>Status</span>
+                    <select id="identityResolutionLinkStatus">
+                      <option value="active">Active</option>
+                      <option value="all">All statuses</option>
+                      <option value="revoked">Revoked</option>
+                    </select>
+                  </label>
+                  <label>
+                    <span>Limit</span>
+                    <select id="identityResolutionLinkLimit">
+                      <option value="50">50</option>
+                      <option value="100">100</option>
+                      <option value="250">250</option>
+                    </select>
+                  </label>
+                  <div class="oh-responsive-filter-actions identity-resolution-actions">
+                    <button id="identityResolutionApplyLinkFiltersButton" type="button">Apply Filters</button>
+                    <button id="identityResolutionResetLinkFiltersButton" class="secondary" type="button">Reset</button>
+                  </div>
+                </div>
+              </div>
+              <div id="identityResolutionLinkResults" class="identity-resolution-result-list" aria-live="polite"></div>
+              <div id="identityResolutionLinksEmpty" class="people-empty-state hidden" data-oh-empty-state>No confirmed identity links are available.</div>
+            </section>
+
+            <section id="identityResolutionDecisionsSection" class="identity-resolution-card" aria-labelledby="identityResolutionDecisionsTitle">
+              <div class="document-signoff-card-heading">
+                <div>
+                  <h3 id="identityResolutionDecisionsTitle">Decision History</h3>
+                  <p>Recent candidate decisions are shown without exposing unnecessary staff details.</p>
+                </div>
+                <span id="identityResolutionDecisionCount" class="privacy-gdpr-result-count">-</span>
+              </div>
+              <div id="identityResolutionDecisionResults" class="identity-resolution-decision-list" aria-live="polite"></div>
+              <div id="identityResolutionDecisionsEmpty" class="people-empty-state hidden" data-oh-empty-state>No identity resolution decisions are available.</div>
+            </section>
+
+            <section id="identityResolutionLegacySection" class="identity-resolution-card" aria-labelledby="identityResolutionLegacyTitle">
+              <div class="document-signoff-card-heading">
+                <div>
+                  <h3 id="identityResolutionLegacyTitle">Legacy / Future Tools</h3>
+                  <p>Identity Resolution is optional review metadata. Existing Privacy, Visitor and Legacy VMS workflows continue independently.</p>
+                </div>
+              </div>
+              <div class="identity-resolution-legacy-list">
+                <div>
+                  <strong>No automatic matching</strong>
+                  <span>Future fuzzy matching or imports must create candidates through explicit controlled workflows.</span>
+                </div>
+                <div>
+                  <strong>No merge tools</strong>
+                  <span>Confirmed links do not merge records, rewrite history, anonymise data or erase data.</span>
+                </div>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <div id="identityResolutionDetailPanelBackdrop" class="visitors-panel-backdrop hidden" data-oh-side-panel-backdrop>
+          <aside id="identityResolutionDetailPanel" class="visitors-side-panel identity-resolution-panel" aria-labelledby="identityResolutionDetailPanelTitle" aria-modal="true" role="dialog" data-oh-side-panel>
+            <header class="visitors-side-panel-header" data-oh-side-panel-header>
+              <div>
+                <p class="oh-app-eyebrow">Identity Resolution</p>
+                <h2 id="identityResolutionDetailPanelTitle" data-oh-side-panel-title>Candidate Detail</h2>
+              </div>
+              <button id="identityResolutionDetailPanelClose" class="ghost" type="button" aria-label="Close identity resolution detail" data-oh-side-panel-close>Close</button>
+            </header>
+            <div id="identityResolutionDetailPanelBody" class="identity-resolution-panel-body"></div>
+            <div class="visitors-side-panel-actions identity-resolution-detail-actions" data-oh-side-panel-actions>
+              <button id="identityResolutionDetailConfirmButton" type="button">Confirm Link</button>
+              <button id="identityResolutionDetailRejectButton" class="secondary" type="button">Reject</button>
+              <button id="identityResolutionDetailDeferButton" class="secondary" type="button">Defer</button>
+              <button id="identityResolutionDetailIgnoreButton" class="secondary" type="button">Ignore</button>
+            </div>
+          </aside>
+        </div>
+
+        <div id="identityResolutionCandidatePanelBackdrop" class="visitors-panel-backdrop hidden" data-oh-side-panel-backdrop>
+          <aside id="identityResolutionCandidatePanel" class="visitors-side-panel identity-resolution-panel" aria-labelledby="identityResolutionCandidatePanelTitle" aria-modal="true" role="dialog" data-oh-side-panel>
+            <header class="visitors-side-panel-header" data-oh-side-panel-header>
+              <div>
+                <p class="oh-app-eyebrow">Identity Resolution</p>
+                <h2 id="identityResolutionCandidatePanelTitle" data-oh-side-panel-title>New Candidate</h2>
+              </div>
+              <button id="identityResolutionCandidatePanelClose" class="ghost" type="button" aria-label="Close new candidate panel" data-oh-side-panel-close>Close</button>
+            </header>
+            <form id="identityResolutionCandidateForm" class="visitors-planned-form identity-resolution-panel-form" novalidate>
+              <label for="identityResolutionFormCandidateType"><span>Candidate type</span><select id="identityResolutionFormCandidateType"><option value="person">Person</option><option value="organisation">Organisation</option><option value="vehicle">Vehicle</option><option value="email">Email</option><option value="other">Other</option></select></label>
+              <label for="identityResolutionFormMatchReason"><span>Match reason *</span><textarea id="identityResolutionFormMatchReason" rows="3" required></textarea></label>
+              <label for="identityResolutionFormConfidence"><span>Confidence score</span><input id="identityResolutionFormConfidence" type="number" min="0" max="100" step="0.01" /></label>
+              <label for="identityResolutionFormSuggestedBy"><span>Suggested by</span><input id="identityResolutionFormSuggestedBy" type="text" autocomplete="off" placeholder="manual" /></label>
+              <fieldset class="identity-resolution-source-fieldset">
+                <legend>Source A</legend>
+                <label for="identityResolutionFormSourceAType"><span>Source type *</span><input id="identityResolutionFormSourceAType" type="text" autocomplete="off" required /></label>
+                <label for="identityResolutionFormSourceAId"><span>Record ID *</span><input id="identityResolutionFormSourceAId" type="text" autocomplete="off" required /></label>
+                <label for="identityResolutionFormSourceALabel"><span>Label</span><input id="identityResolutionFormSourceALabel" type="text" autocomplete="off" /></label>
+                <label for="identityResolutionFormSourceASummary"><span>Summary JSON</span><textarea id="identityResolutionFormSourceASummary" rows="4" spellcheck="false" placeholder="{ }"></textarea></label>
+              </fieldset>
+              <fieldset class="identity-resolution-source-fieldset">
+                <legend>Source B</legend>
+                <label for="identityResolutionFormSourceBType"><span>Source type *</span><input id="identityResolutionFormSourceBType" type="text" autocomplete="off" required /></label>
+                <label for="identityResolutionFormSourceBId"><span>Record ID *</span><input id="identityResolutionFormSourceBId" type="text" autocomplete="off" required /></label>
+                <label for="identityResolutionFormSourceBLabel"><span>Label</span><input id="identityResolutionFormSourceBLabel" type="text" autocomplete="off" /></label>
+                <label for="identityResolutionFormSourceBSummary"><span>Summary JSON</span><textarea id="identityResolutionFormSourceBSummary" rows="4" spellcheck="false" placeholder="{ }"></textarea></label>
+              </fieldset>
+              <label for="identityResolutionFormMetadata"><span>Metadata JSON</span><textarea id="identityResolutionFormMetadata" rows="4" spellcheck="false" placeholder="{ }"></textarea></label>
+              <div class="visitors-side-panel-actions" data-oh-side-panel-actions>
+                <button id="identityResolutionCreateCandidateButton" type="submit">Create Candidate</button>
+                <button id="identityResolutionCandidateCancelButton" class="secondary" type="button">Cancel</button>
+              </div>
+            </form>
+          </aside>
+        </div>
+
+        <div id="identityResolutionDecisionPanelBackdrop" class="visitors-panel-backdrop hidden" data-oh-side-panel-backdrop>
+          <aside id="identityResolutionDecisionPanel" class="visitors-side-panel identity-resolution-panel" aria-labelledby="identityResolutionDecisionPanelTitle" aria-modal="true" role="dialog" data-oh-side-panel>
+            <header class="visitors-side-panel-header" data-oh-side-panel-header>
+              <div>
+                <p class="oh-app-eyebrow">Identity Resolution decision</p>
+                <h2 id="identityResolutionDecisionPanelTitle" data-oh-side-panel-title>Review Decision</h2>
+              </div>
+              <button id="identityResolutionDecisionPanelClose" class="ghost" type="button" aria-label="Close decision panel" data-oh-side-panel-close>Close</button>
+            </header>
+            <form id="identityResolutionDecisionForm" class="visitors-planned-form identity-resolution-panel-form" novalidate>
+              <input id="identityResolutionDecisionCandidateId" type="hidden" />
+              <input id="identityResolutionDecisionType" type="hidden" />
+              <div id="identityResolutionDecisionContext" class="assignment-editor-notice"></div>
+              <label for="identityResolutionDecisionReason"><span>Reason</span><textarea id="identityResolutionDecisionReason" rows="4"></textarea></label>
+              <label id="identityResolutionCanonicalLabelField" for="identityResolutionDecisionCanonicalLabel"><span>Canonical label</span><input id="identityResolutionDecisionCanonicalLabel" type="text" autocomplete="off" /></label>
+              <label for="identityResolutionDecisionMetadata"><span>Decision metadata JSON</span><textarea id="identityResolutionDecisionMetadata" rows="4" spellcheck="false" placeholder="{ }"></textarea></label>
+              <div class="visitors-side-panel-actions" data-oh-side-panel-actions>
+                <button id="identityResolutionSaveDecisionButton" type="submit">Save Decision</button>
+                <button id="identityResolutionDecisionCancelButton" class="secondary" type="button">Cancel</button>
               </div>
             </form>
           </aside>
