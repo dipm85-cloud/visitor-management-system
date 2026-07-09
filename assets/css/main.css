@@ -6907,6 +6907,18 @@ button.oh-section-nav-item:focus-visible,
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
 
+.identity-resolution-note,
+.identity-resolution-field-note {
+  margin: 6px 0 0;
+  color: var(--oh-shell-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.identity-resolution-note {
+  margin: 0 0 14px;
+}
+
 .identity-resolution-result-list,
 .identity-resolution-decision-list {
   display: grid;

@@ -150,6 +150,25 @@ function fieldValue(id) {
   return element ? element.value.trim() : "";
 }
 
+function sourceTypeValue(selectId, customId) {
+  const selected = fieldValue(selectId);
+  if (selected === "custom") return fieldValue(customId);
+  return selected;
+}
+
+function normalisedSourceKey(sourceType, recordId) {
+  return (sourceType || "").trim().toLowerCase() + "::" + (recordId || "").trim().toLowerCase();
+}
+
+function syncSourceTypeCustomField(selectId, customFieldId, customInputId) {
+  const select = $(selectId);
+  const customField = $(customFieldId);
+  const customInput = $(customInputId);
+  const custom = select && select.value === "custom";
+  if (customField) customField.classList.toggle("hidden", !custom);
+  if (!custom && customInput) customInput.value = "";
+}
+
 function setText(id, value) {
   const element = $(id);
   if (element) element.textContent = value;
@@ -690,6 +709,8 @@ function resetCandidateForm() {
     if ($(id)) $(id).value = "{}";
   });
   if ($("identityResolutionFormSuggestedBy")) $("identityResolutionFormSuggestedBy").value = "manual";
+  syncSourceTypeCustomField("identityResolutionFormSourceAType", "identityResolutionFormSourceATypeCustomField", "identityResolutionFormSourceATypeCustom");
+  syncSourceTypeCustomField("identityResolutionFormSourceBType", "identityResolutionFormSourceBTypeCustomField", "identityResolutionFormSourceBTypeCustom");
 }
 
 function openCandidatePanel(trigger) {
@@ -697,7 +718,7 @@ function openCandidatePanel(trigger) {
   resetCandidateForm();
   candidatePanelController.open({
     trigger,
-    title: "New Candidate",
+    title: "Advanced Manual Candidate",
     initialFocus: "identityResolutionFormCandidateType"
   });
 }
@@ -707,17 +728,16 @@ async function saveCandidate(event) {
   if (!requireIdentityResolutionManageAccess()) return;
 
   const matchReason = fieldValue("identityResolutionFormMatchReason");
-  if (!matchReason) {
-    showToast("Candidate needs reason", "Enter a match reason before creating a candidate.", "error");
-    return;
-  }
-
-  const sourceAType = fieldValue("identityResolutionFormSourceAType");
+  const sourceAType = sourceTypeValue("identityResolutionFormSourceAType", "identityResolutionFormSourceATypeCustom");
   const sourceAId = fieldValue("identityResolutionFormSourceAId");
-  const sourceBType = fieldValue("identityResolutionFormSourceBType");
+  const sourceBType = sourceTypeValue("identityResolutionFormSourceBType", "identityResolutionFormSourceBTypeCustom");
   const sourceBId = fieldValue("identityResolutionFormSourceBId");
   if (!sourceAType || !sourceAId || !sourceBType || !sourceBId) {
     showToast("Candidate needs sources", "Both source records require a type and record ID.", "error");
+    return;
+  }
+  if (normalisedSourceKey(sourceAType, sourceAId) === normalisedSourceKey(sourceBType, sourceBId)) {
+    showToast("Candidate compares one record", "Source A and Source B must refer to two different source records.", "error");
     return;
   }
 
@@ -740,6 +760,18 @@ async function saveCandidate(event) {
     return;
   }
 
+  const sourceALabel = fieldValue("identityResolutionFormSourceALabel");
+  const sourceBLabel = fieldValue("identityResolutionFormSourceBLabel");
+  if (!matchReason || !sourceALabel || !sourceBLabel) {
+    const confirmed = await requestPlatformConfirmation({
+      title: "Create Manual Candidate",
+      message: "This candidate is easier to review with a match reason and readable labels for both source records. Continue with the current advanced manual entry?",
+      confirmText: "Create Manual Candidate",
+      cancelText: "Review Details"
+    });
+    if (!confirmed) return;
+  }
+
   const button = $("identityResolutionCreateCandidateButton");
   button.disabled = true;
   button.textContent = "Creating...";
@@ -750,11 +782,11 @@ async function saveCandidate(event) {
       p_confidence_score: score,
       p_source_a_type: sourceAType,
       p_source_a_record_id: sourceAId,
-      p_source_a_label: fieldValue("identityResolutionFormSourceALabel") || null,
+      p_source_a_label: sourceALabel || null,
       p_source_a_summary: sourceASummary,
       p_source_b_type: sourceBType,
       p_source_b_record_id: sourceBId,
-      p_source_b_label: fieldValue("identityResolutionFormSourceBLabel") || null,
+      p_source_b_label: sourceBLabel || null,
       p_source_b_summary: sourceBSummary,
       p_suggested_by: fieldValue("identityResolutionFormSuggestedBy") || "manual",
       p_metadata: metadata
@@ -767,7 +799,7 @@ async function saveCandidate(event) {
     showToast("Candidate not created", err.message || "Could not create identity resolution candidate.", "error");
   } finally {
     button.disabled = false;
-    button.textContent = "Create Candidate";
+    button.textContent = "Create Manual Candidate";
   }
 }
 
@@ -933,6 +965,15 @@ export function initialiseIdentityResolutionAdministration() {
   if ($("identityResolutionNewCandidateButton")) {
     $("identityResolutionNewCandidateButton").addEventListener("click", event => openCandidatePanel(event.currentTarget));
   }
+  [
+    ["identityResolutionFormSourceAType", "identityResolutionFormSourceATypeCustomField", "identityResolutionFormSourceATypeCustom"],
+    ["identityResolutionFormSourceBType", "identityResolutionFormSourceBTypeCustomField", "identityResolutionFormSourceBTypeCustom"]
+  ].forEach(([selectId, customFieldId, customInputId]) => {
+    if ($(selectId)) {
+      $(selectId).addEventListener("change", () => syncSourceTypeCustomField(selectId, customFieldId, customInputId));
+      syncSourceTypeCustomField(selectId, customFieldId, customInputId);
+    }
+  });
   if ($("identityResolutionApplyFiltersButton")) {
     $("identityResolutionApplyFiltersButton").addEventListener("click", () => loadIdentityResolutionAdministration({ manual: true }));
   }

@@ -3697,10 +3697,10 @@
             <div>
               <p class="oh-app-eyebrow">Administration</p>
               <h2 id="identityResolutionTitle">Identity Resolution</h2>
-              <p>Review possible identity matches, record authorised decisions and create confirmed link metadata without changing source records.</p>
+              <p>Review candidates comparing two existing records that may represent the same real-world person, organisation, vehicle or email.</p>
             </div>
             <div class="identity-resolution-heading-actions">
-              <button id="identityResolutionNewCandidateButton" type="button">New Candidate</button>
+              <button id="identityResolutionNewCandidateButton" class="secondary" type="button">Advanced Manual Candidate</button>
               <button id="identityResolutionRefreshButton" class="secondary" type="button">Refresh</button>
             </div>
           </div>
@@ -3714,9 +3714,10 @@
               <div class="document-signoff-card-heading">
                 <div>
                   <h3 id="identityResolutionOverviewTitle">Overview</h3>
-                  <p>Identity Resolution stores review candidates, decisions and confirmed link metadata only. Source records are not merged or rewritten.</p>
+                  <p>Identity Resolution stores review candidates, decisions and confirmed link metadata only. Confirming a candidate creates link metadata only; it does not merge, modify or rewrite source records.</p>
                 </div>
               </div>
+              <p class="identity-resolution-note">Future workflows will create candidates directly from Privacy, Visitor, Document and import records so users do not need to type record IDs manually.</p>
               <div class="document-signoff-summary-grid identity-resolution-summary-grid">
                 <article class="document-signoff-summary-card">
                   <span>Possible matches awaiting review</span>
@@ -3745,7 +3746,7 @@
               <div class="document-signoff-card-heading">
                 <div>
                   <h3 id="identityResolutionQueueTitle">Candidate Queue</h3>
-                  <p>Review possible matches using cautious source labels and explicit decisions.</p>
+                  <p>An identity candidate is a review item comparing two existing source records. Pending candidates are possible matches, not confirmed identities.</p>
                 </div>
                 <span id="identityResolutionCandidateCount" class="privacy-gdpr-result-count">-</span>
               </div>
@@ -3903,32 +3904,39 @@
             <header class="visitors-side-panel-header" data-oh-side-panel-header>
               <div>
                 <p class="oh-app-eyebrow">Identity Resolution</p>
-                <h2 id="identityResolutionCandidatePanelTitle" data-oh-side-panel-title>New Candidate</h2>
+                <h2 id="identityResolutionCandidatePanelTitle" data-oh-side-panel-title>Advanced Manual Candidate</h2>
               </div>
-              <button id="identityResolutionCandidatePanelClose" class="ghost" type="button" aria-label="Close new candidate panel" data-oh-side-panel-close>Close</button>
+              <button id="identityResolutionCandidatePanelClose" class="ghost" type="button" aria-label="Close advanced manual candidate panel" data-oh-side-panel-close>Close</button>
             </header>
             <form id="identityResolutionCandidateForm" class="visitors-planned-form identity-resolution-panel-form" novalidate>
+              <div class="assignment-editor-notice">
+                Manual candidate creation is intended for advanced administrative review when exact source record references are known. Source records are not modified; confirmation creates metadata only.
+              </div>
               <label for="identityResolutionFormCandidateType"><span>Candidate type</span><select id="identityResolutionFormCandidateType"><option value="person">Person</option><option value="organisation">Organisation</option><option value="vehicle">Vehicle</option><option value="email">Email</option><option value="other">Other</option></select></label>
-              <label for="identityResolutionFormMatchReason"><span>Match reason *</span><textarea id="identityResolutionFormMatchReason" rows="3" required></textarea></label>
+              <label for="identityResolutionFormMatchReason"><span>Match reason</span><textarea id="identityResolutionFormMatchReason" rows="3" aria-describedby="identityResolutionFormMatchReasonHelp"></textarea><small id="identityResolutionFormMatchReasonHelp" class="identity-resolution-field-note">Recommended. Explain why these two records need authorised review without claiming they are definitely the same identity.</small></label>
               <label for="identityResolutionFormConfidence"><span>Confidence score</span><input id="identityResolutionFormConfidence" type="number" min="0" max="100" step="0.01" /></label>
               <label for="identityResolutionFormSuggestedBy"><span>Suggested by</span><input id="identityResolutionFormSuggestedBy" type="text" autocomplete="off" placeholder="manual" /></label>
               <fieldset class="identity-resolution-source-fieldset">
                 <legend>Source A</legend>
-                <label for="identityResolutionFormSourceAType"><span>Source type *</span><input id="identityResolutionFormSourceAType" type="text" autocomplete="off" required /></label>
-                <label for="identityResolutionFormSourceAId"><span>Record ID *</span><input id="identityResolutionFormSourceAId" type="text" autocomplete="off" required /></label>
-                <label for="identityResolutionFormSourceALabel"><span>Label</span><input id="identityResolutionFormSourceALabel" type="text" autocomplete="off" /></label>
-                <label for="identityResolutionFormSourceASummary"><span>Summary JSON</span><textarea id="identityResolutionFormSourceASummary" rows="4" spellcheck="false" placeholder="{ }"></textarea></label>
+                <p class="identity-resolution-field-note">Source A is the first exact existing record in the comparison.</p>
+                <label for="identityResolutionFormSourceAType"><span>Source type *</span><select id="identityResolutionFormSourceAType" aria-describedby="identityResolutionFormSourceATypeHelp"><option value="">Select source type</option><option value="planned_visits">planned_visits</option><option value="visit_log">visit_log</option><option value="document_evidence">document_evidence</option><option value="privacy_cases">privacy_cases</option><option value="agreement_evidence">agreement_evidence</option><option value="audit_events">audit_events</option><option value="manual">manual</option><option value="other">other</option><option value="custom">Custom value</option></select><small id="identityResolutionFormSourceATypeHelp" class="identity-resolution-field-note">The system or source area that owns the record.</small></label>
+                <label id="identityResolutionFormSourceATypeCustomField" class="hidden" for="identityResolutionFormSourceATypeCustom"><span>Custom source type *</span><input id="identityResolutionFormSourceATypeCustom" type="text" autocomplete="off" placeholder="source_area" /></label>
+                <label for="identityResolutionFormSourceAId"><span>Record ID *</span><input id="identityResolutionFormSourceAId" type="text" autocomplete="off" aria-describedby="identityResolutionFormSourceAIdHelp" /><small id="identityResolutionFormSourceAIdHelp" class="identity-resolution-field-note">The exact identifier from that source, so any future link points to a specific record.</small></label>
+                <label for="identityResolutionFormSourceALabel"><span>Label</span><input id="identityResolutionFormSourceALabel" type="text" autocomplete="off" placeholder="Daniel Perez / GXO" aria-describedby="identityResolutionFormSourceALabelHelp" /><small id="identityResolutionFormSourceALabelHelp" class="identity-resolution-field-note">Recommended human-readable label shown in the review queue.</small></label>
+                <label for="identityResolutionFormSourceASummary"><span>Summary JSON</span><textarea id="identityResolutionFormSourceASummary" rows="4" spellcheck="false" placeholder="{ }" aria-describedby="identityResolutionFormSourceASummaryHelp"></textarea><small id="identityResolutionFormSourceASummaryHelp" class="identity-resolution-field-note">Safe contextual notes for reviewers. Do not include unnecessary third-party personal data.</small></label>
               </fieldset>
               <fieldset class="identity-resolution-source-fieldset">
                 <legend>Source B</legend>
-                <label for="identityResolutionFormSourceBType"><span>Source type *</span><input id="identityResolutionFormSourceBType" type="text" autocomplete="off" required /></label>
-                <label for="identityResolutionFormSourceBId"><span>Record ID *</span><input id="identityResolutionFormSourceBId" type="text" autocomplete="off" required /></label>
-                <label for="identityResolutionFormSourceBLabel"><span>Label</span><input id="identityResolutionFormSourceBLabel" type="text" autocomplete="off" /></label>
-                <label for="identityResolutionFormSourceBSummary"><span>Summary JSON</span><textarea id="identityResolutionFormSourceBSummary" rows="4" spellcheck="false" placeholder="{ }"></textarea></label>
+                <p class="identity-resolution-field-note">Source B is the second exact existing record in the comparison.</p>
+                <label for="identityResolutionFormSourceBType"><span>Source type *</span><select id="identityResolutionFormSourceBType" aria-describedby="identityResolutionFormSourceBTypeHelp"><option value="">Select source type</option><option value="planned_visits">planned_visits</option><option value="visit_log">visit_log</option><option value="document_evidence">document_evidence</option><option value="privacy_cases">privacy_cases</option><option value="agreement_evidence">agreement_evidence</option><option value="audit_events">audit_events</option><option value="manual">manual</option><option value="other">other</option><option value="custom">Custom value</option></select><small id="identityResolutionFormSourceBTypeHelp" class="identity-resolution-field-note">The system or source area that owns the record.</small></label>
+                <label id="identityResolutionFormSourceBTypeCustomField" class="hidden" for="identityResolutionFormSourceBTypeCustom"><span>Custom source type *</span><input id="identityResolutionFormSourceBTypeCustom" type="text" autocomplete="off" placeholder="source_area" /></label>
+                <label for="identityResolutionFormSourceBId"><span>Record ID *</span><input id="identityResolutionFormSourceBId" type="text" autocomplete="off" aria-describedby="identityResolutionFormSourceBIdHelp" /><small id="identityResolutionFormSourceBIdHelp" class="identity-resolution-field-note">The exact identifier from that source, so any future link points to a specific record.</small></label>
+                <label for="identityResolutionFormSourceBLabel"><span>Label</span><input id="identityResolutionFormSourceBLabel" type="text" autocomplete="off" placeholder="Daniel Perez / GXO Logistics" aria-describedby="identityResolutionFormSourceBLabelHelp" /><small id="identityResolutionFormSourceBLabelHelp" class="identity-resolution-field-note">Recommended human-readable label shown in the review queue.</small></label>
+                <label for="identityResolutionFormSourceBSummary"><span>Summary JSON</span><textarea id="identityResolutionFormSourceBSummary" rows="4" spellcheck="false" placeholder="{ }" aria-describedby="identityResolutionFormSourceBSummaryHelp"></textarea><small id="identityResolutionFormSourceBSummaryHelp" class="identity-resolution-field-note">Safe contextual notes for reviewers. Do not include unnecessary third-party personal data.</small></label>
               </fieldset>
               <label for="identityResolutionFormMetadata"><span>Metadata JSON</span><textarea id="identityResolutionFormMetadata" rows="4" spellcheck="false" placeholder="{ }"></textarea></label>
               <div class="visitors-side-panel-actions" data-oh-side-panel-actions>
-                <button id="identityResolutionCreateCandidateButton" type="submit">Create Candidate</button>
+                <button id="identityResolutionCreateCandidateButton" type="submit">Create Manual Candidate</button>
                 <button id="identityResolutionCandidateCancelButton" class="secondary" type="button">Cancel</button>
               </div>
             </form>
