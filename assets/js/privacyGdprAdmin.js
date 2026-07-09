@@ -10,6 +10,8 @@ import { AppState } from "./state.js";
 import { loadSystemSettings, settingValue } from "./settings.js";
 
 const PRIVACY_GDPR_VIEW = [
+  "privacy.case.view",
+  "privacy.case.manage",
   "gdpr.view",
   "gdpr.manage",
   "privacy.view",
@@ -83,8 +85,12 @@ let privacyGdprInitialised = false;
 let privacyGdprDependencies = {};
 let privacyGdprCases = [];
 let privacyGdprCasesLoaded = false;
+let privacyGdprActiveCaseId = null;
+let privacyGdprCaseEvents = {};
 let privacyGdprSearchGroups = [];
 let privacyGdprSearchDetailsPanelController = null;
+let privacyGdprCaseFormPanelController = null;
+let privacyGdprCaseEventPanelController = null;
 let privacyGdprSearchSequence = 0;
 let privacyGdprHasSearched = false;
 let privacyGdprEvidencePackGroups = [];
@@ -307,7 +313,31 @@ function canViewVisitLogPrivacySearch() {
 }
 
 function canViewPrivacyCaseDetails() {
-  return canViewPrivacyGdpr();
+  return hasActiveStaffUser() && (
+    isSuperUserProfile() ||
+    hasAnyCapability([
+      "privacy.case.view",
+      "privacy.case.manage",
+      "privacy.view",
+      "privacy.manage",
+      "gdpr.view",
+      "gdpr.manage",
+      "module_configuration.manage",
+      "settings.view"
+    ])
+  );
+}
+
+function canManagePrivacyCases() {
+  return hasActiveStaffUser() && (
+    isSuperUserProfile() ||
+    hasAnyCapability([
+      "privacy.case.manage",
+      "privacy.manage",
+      "gdpr.manage",
+      "module_configuration.manage"
+    ])
+  );
 }
 
 function canViewSarEvidencePack() {
@@ -408,6 +438,10 @@ function requirePrivacyGdprAccess() {
 function textOrDash(value) {
   const text = String(value == null ? "" : value).trim();
   return text || "-";
+}
+
+function textValue(value) {
+  return String(value == null ? "" : value).trim();
 }
 
 function hasValue(value) {
@@ -518,7 +552,7 @@ function createCaseRow(row) {
   const name = document.createElement("h4");
   name.textContent = textOrDash(row.case_reference);
   const summary = document.createElement("p");
-  summary.textContent = textOrDash(row.request_type) + " - " + textOrDash(row.status);
+  summary.textContent = textOrDash(caseType(row)) + " - " + textOrDash(caseStatus(row));
   title.append(name, summary);
 
   const badge = document.createElement("span");
@@ -529,9 +563,9 @@ function createCaseRow(row) {
   const meta = document.createElement("dl");
   meta.className = "privacy-gdpr-meta";
   [
-    ["Received", formatDate(row.request_received_at)],
-    ["Due", textOrDash(row.due_date)],
-    ["Completed", formatDate(row.completed_at)],
+    ["Received", formatDate(caseReceivedDate(row) || caseCreatedDate(row))],
+    ["Due", textOrDash(caseDueDate(row))],
+    ["Completed", formatDate(caseCompletedDate(row))],
     ["Identity verified", row.identity_verified ? "Yes" : "No"]
   ].forEach(([label, value]) => {
     const wrapper = document.createElement("div");
@@ -560,23 +594,98 @@ function currentCaseFilters() {
   return {
     searchText: $("privacyGdprCaseSearchText") ? $("privacyGdprCaseSearchText").value.trim() : "",
     type: $("privacyGdprCaseTypeFilter") ? $("privacyGdprCaseTypeFilter").value : "all",
-    status: $("privacyGdprCaseStatusFilter") ? $("privacyGdprCaseStatusFilter").value : "all"
+    status: $("privacyGdprCaseStatusFilter") ? $("privacyGdprCaseStatusFilter").value : "all",
+    fromDate: $("privacyGdprCaseFromDate") ? $("privacyGdprCaseFromDate").value : "",
+    toDate: $("privacyGdprCaseToDate") ? $("privacyGdprCaseToDate").value : ""
   };
+}
+
+function caseType(row) {
+  return textValue(row && (row.case_type || row.request_type || row.type));
+}
+
+function caseStatus(row) {
+  return textValue(row && row.status);
+}
+
+function caseSubjectName(row) {
+  return textValue(row && (row.subject_name || row.requester_name || row.data_subject_name));
+}
+
+function caseSubjectCompany(row) {
+  return textValue(row && (row.subject_company || row.company));
+}
+
+function caseSubjectEmail(row) {
+  return textValue(row && (row.subject_email || row.requester_email));
+}
+
+function caseSubjectReference(row) {
+  return textValue(row && (row.subject_reference || row.external_reference || row.reference));
+}
+
+function caseSearchText(row) {
+  return textValue(row && (row.search_text || row.subject_search_text || row.requester_contact));
+}
+
+function caseReason(row) {
+  return textValue(row && (row.reason || row.request_reason));
+}
+
+function caseNotes(row) {
+  return textValue(row && (row.notes || row.internal_notes));
+}
+
+function caseOutcome(row) {
+  return textValue(row && (row.outcome_summary || row.decision || row.decision_reason));
+}
+
+function caseLegacyReference(row) {
+  return textValue(row && (row.legacy_reference || row.legacy_case_reference));
+}
+
+function caseReceivedDate(row) {
+  return textValue(row && (row.request_received_date || row.request_received_at || row.received_at || row.created_at));
+}
+
+function caseDueDate(row) {
+  return textValue(row && row.due_date);
+}
+
+function caseCompletedDate(row) {
+  return textValue(row && (row.completed_date || row.completed_at));
+}
+
+function caseCreatedDate(row) {
+  return textValue(row && row.created_at);
 }
 
 function matchesCaseFilter(row, filters) {
   const settings = filters || {};
   const type = normaliseSearchText(settings.type || "all");
   const status = normaliseSearchText(settings.status || "all");
-  if (type !== "all" && normaliseSearchText(row.request_type).replaceAll(" ", "_") !== type) return false;
-  if (status !== "all" && normaliseSearchText(row.status).replaceAll(" ", "_") !== status) return false;
+  if (type !== "all" && normaliseSearchText(caseType(row)).replaceAll(" ", "_") !== type) return false;
+  if (status !== "all" && normaliseSearchText(caseStatus(row)).replaceAll(" ", "_") !== status) return false;
+  const received = caseDateTime(caseReceivedDate(row));
+  if (settings.fromDate && received != null && received < caseDateTime(settings.fromDate)) return false;
+  if (settings.toDate && received != null && received > caseDateTime(searchDateToTimestampEnd(settings.toDate))) return false;
   return matchesSearchText(row, [
     "case_reference",
+    "case_type",
     "request_type",
     "status",
     "priority",
+    "subject_name",
+    "subject_company",
+    "subject_email",
+    "subject_reference",
+    "search_text",
     "requester_name",
     "requester_contact",
+    "reason",
+    "notes",
+    "outcome_summary",
+    "legacy_reference",
     "decision",
     "decision_reason",
     "identity_verification_method"
@@ -586,6 +695,94 @@ function matchesCaseFilter(row, filters) {
 function filteredPrivacyCases() {
   const filters = currentCaseFilters();
   return privacyGdprCases.filter(row => row && matchesCaseFilter(row, filters));
+}
+
+function caseRpcFilters() {
+  const filters = currentCaseFilters();
+  return {
+    p_search_text: filters.searchText || null,
+    p_status: filters.status && filters.status !== "all" ? filters.status : null,
+    p_case_type: filters.type && filters.type !== "all" ? filters.type : null,
+    p_from_date: filters.fromDate || null,
+    p_to_date: filters.toDate || null
+  };
+}
+
+async function rpcWithFallback(name, params, fallback) {
+  const result = await supabaseClient.rpc(name, params || {});
+  if (!result.error) return result;
+  if (typeof fallback === "function") return fallback(result.error);
+  throw result.error;
+}
+
+function caseDateTime(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.getTime();
+}
+
+function caseIsOpen(row) {
+  return row && !["completed", "cancelled", "rejected"].includes(normaliseSearchText(caseStatus(row)));
+}
+
+function caseIsOverdue(row) {
+  const due = caseDateTime(row && row.due_date);
+  return caseIsOpen(row) && due != null && due < new Date().setHours(0, 0, 0, 0);
+}
+
+function caseIsDueSoon(row) {
+  const due = caseDateTime(row && row.due_date);
+  if (!caseIsOpen(row) || due == null || caseIsOverdue(row)) return false;
+  const end = new Date();
+  end.setDate(end.getDate() + 7);
+  end.setHours(23, 59, 59, 999);
+  return due <= end.getTime();
+}
+
+function activePrivacyCase() {
+  if (!privacyGdprActiveCaseId) return null;
+  return privacyGdprCases.find(row => row && String(row.id) === String(privacyGdprActiveCaseId)) || null;
+}
+
+function createCaseWorkspaceSummaryCard(label, value, detail) {
+  const card = document.createElement("article");
+  card.className = "privacy-gdpr-case-workspace-card";
+  const span = document.createElement("span");
+  span.textContent = label;
+  const strong = document.createElement("strong");
+  strong.textContent = textOrDash(value);
+  card.append(span, strong);
+  if (detail) {
+    const p = document.createElement("p");
+    p.textContent = detail;
+    card.appendChild(p);
+  }
+  return card;
+}
+
+function renderCaseWorkspaceSummary(rows) {
+  const container = $("privacyGdprCaseWorkspaceSummary");
+  if (!container) return;
+  container.replaceChildren();
+
+  if (!privacyGdprCasesLoaded) {
+    container.appendChild(createCaseWorkspaceSummaryCard("Case data", "Unavailable", "Case workspace waits for the read-only backend."));
+    return;
+  }
+
+  const list = rows || [];
+  const open = list.filter(caseIsOpen).length;
+  const overdue = list.filter(caseIsOverdue).length;
+  const dueSoon = list.filter(caseIsDueSoon).length;
+  const verified = list.filter(row => row && row.identity_verified).length;
+
+  container.append(
+    createCaseWorkspaceSummaryCard("Filtered cases", list.length, "Current workspace queue."),
+    createCaseWorkspaceSummaryCard("Open", open, "Not completed or rejected."),
+    createCaseWorkspaceSummaryCard("Due soon", dueSoon, "Open cases due in the next 7 days."),
+    createCaseWorkspaceSummaryCard("Overdue", overdue, "Open cases past due date."),
+    createCaseWorkspaceSummaryCard("Identity verified", verified, "Cases marked verified by the backend.")
+  );
 }
 
 function renderCases() {
@@ -607,33 +804,214 @@ function renderCases() {
 
 function createCaseWorkspaceRow(row) {
   const item = document.createElement("article");
-  item.className = "privacy-gdpr-result-row privacy-gdpr-case-result-row";
+  item.className = "privacy-gdpr-result-row privacy-gdpr-case-result-row privacy-gdpr-case-workspace-row";
+  item.classList.toggle("is-selected", String(row.id) === String(privacyGdprActiveCaseId));
 
   const primary = document.createElement("div");
   const name = document.createElement("strong");
   name.textContent = textOrDash(row.case_reference);
   const subtitle = document.createElement("span");
-  subtitle.textContent = [row.requester_name, row.request_type].filter(Boolean).join(" - ") || "Privacy case";
+  subtitle.textContent = [caseSubjectName(row), caseType(row), caseSubjectCompany(row), caseSubjectEmail(row), caseSubjectReference(row)]
+    .filter(Boolean)
+    .join(" - ") || "Privacy case";
   primary.append(name, subtitle);
 
   const source = document.createElement("div");
   source.className = "privacy-gdpr-result-source";
-  source.textContent = textOrDash(row.status);
+  source.textContent = textOrDash(caseStatus(row));
   const priority = document.createElement("small");
   priority.textContent = "Priority: " + textOrDash(row.priority || "normal");
   source.appendChild(priority);
 
   const date = document.createElement("span");
-  date.textContent = formatDate(row.request_received_at || row.created_at);
+  date.textContent = formatDate(caseReceivedDate(row) || caseCreatedDate(row));
 
+  const actions = document.createElement("div");
+  actions.className = "privacy-gdpr-case-row-actions";
+  const review = document.createElement("button");
+  review.type = "button";
+  review.className = "secondary";
+  review.textContent = "Review in Workspace";
+  review.addEventListener("click", () => {
+    privacyGdprActiveCaseId = row.id || null;
+    renderCaseWorkspace();
+  });
   const action = document.createElement("button");
   action.type = "button";
   action.className = "secondary";
   action.textContent = "View Details";
   action.addEventListener("click", event => openPrivacyCaseDetails(row, event.currentTarget));
+  actions.append(review, action);
 
-  item.append(primary, source, date, action);
+  item.append(primary, source, date, actions);
   return item;
+}
+
+function caseWorkspaceStages(row) {
+  if (!row) return [];
+  return [
+    {
+      title: "Case intake",
+      status: row.case_reference ? "Available" : "Review required",
+      detail: "Read-only case reference and request metadata are loaded."
+    },
+    {
+      title: "Identity verification",
+      status: row.identity_verified ? "Verified" : "Review required",
+      detail: row.identity_verified ? "Backend marks identity as verified." : "No native verification update is available here."
+    },
+    {
+      title: "Subject search",
+      status: "Preview available",
+      detail: "Use source searches or SAR Evidence Pack preview; records are not identity-linked."
+    },
+    {
+      title: "Evidence timeline",
+      status: "Details panel",
+      detail: "Supported timeline entries load in the read-only details panel."
+    },
+    {
+      title: "SAR / evidence pack",
+      status: "Preview available",
+      detail: "Native SAR evidence preview remains internal review, not complete SAR disclosure."
+    },
+    {
+      title: "Erasure / anonymisation",
+      status: "Legacy required",
+      detail: "Destructive privacy workflows remain in Legacy VMS."
+    },
+    {
+      title: "Closure",
+      status: caseIsOpen(row) ? "Legacy/backend controlled" : "Read-only",
+      detail: "Operations Hub does not mark privacy cases completed in this workspace."
+    }
+  ];
+}
+
+function renderCaseWorkspaceInspector(rows) {
+  const inspector = $("privacyGdprCaseWorkspaceInspector");
+  if (!inspector) return;
+  inspector.replaceChildren();
+  inspector.classList.remove("oh-empty-state");
+
+  const filteredRows = rows || [];
+  let selected = activePrivacyCase();
+  if (!selected || !filteredRows.some(row => String(row.id) === String(selected.id))) {
+    selected = filteredRows[0] || null;
+    privacyGdprActiveCaseId = selected ? selected.id : null;
+  }
+
+  if (!privacyGdprCasesLoaded) {
+    renderEmptyState(inspector, {
+      title: "Case workspace unavailable",
+      description: "Read-only case data could not be loaded under current access."
+    });
+    return;
+  }
+
+  if (!selected) {
+    renderEmptyState(inspector, {
+      title: "No case selected",
+      description: "Select a case from the queue to review workspace readiness."
+    });
+    return;
+  }
+
+  const heading = document.createElement("div");
+  heading.className = "privacy-gdpr-case-inspector-heading";
+  const title = document.createElement("h4");
+  title.textContent = textOrDash(selected.case_reference);
+  const meta = document.createElement("p");
+  meta.textContent = [caseType(selected), caseStatus(selected), selected.priority || "normal"].filter(Boolean).join(" - ");
+  heading.append(title, meta);
+
+  const details = document.createElement("dl");
+  details.className = "privacy-gdpr-case-inspector-meta";
+  [
+    ["Requester / subject as stored", selected.requester_name],
+    ["Subject company", caseSubjectCompany(selected)],
+    ["Subject email", caseSubjectEmail(selected)],
+    ["Subject / reference", caseSubjectReference(selected)],
+    ["Search text", caseSearchText(selected)],
+    ["Received", formatDate(caseReceivedDate(selected) || caseCreatedDate(selected))],
+    ["Due", caseDueDate(selected)],
+    ["Completed", formatDate(caseCompletedDate(selected))],
+    ["Reason", caseReason(selected)],
+    ["Legacy reference", caseLegacyReference(selected)],
+    ["Identity verified", selected.identity_verified ? "Yes" : "No"],
+    ["Native case editing", canManagePrivacyCases() ? "Controlled via Edit Case" : "Restricted"],
+    ["Legacy workflow", "Required for destructive privacy actions"]
+  ].forEach(([label, value]) => {
+    const wrapper = document.createElement("div");
+    const dt = document.createElement("dt");
+    const dd = document.createElement("dd");
+    dt.textContent = label;
+    dd.textContent = textOrDash(value);
+    wrapper.append(dt, dd);
+    details.appendChild(wrapper);
+  });
+
+  const stages = document.createElement("ol");
+  stages.className = "privacy-gdpr-case-stage-list";
+  caseWorkspaceStages(selected).forEach(stage => {
+    const item = document.createElement("li");
+    const strong = document.createElement("strong");
+    strong.textContent = stage.title;
+    const status = document.createElement("span");
+    status.textContent = stage.status;
+    const detail = document.createElement("p");
+    detail.textContent = stage.detail;
+    item.append(strong, status, detail);
+    stages.appendChild(item);
+  });
+
+  const actions = document.createElement("div");
+  actions.className = "privacy-gdpr-card-actions privacy-gdpr-case-inspector-actions";
+  const view = document.createElement("button");
+  view.type = "button";
+  view.className = "secondary";
+  view.textContent = "View Details";
+  view.addEventListener("click", event => openPrivacyCaseDetails(selected, event.currentTarget));
+  const evidence = document.createElement("button");
+  evidence.type = "button";
+  evidence.className = "secondary";
+  evidence.textContent = "Open SAR Evidence Pack";
+  evidence.addEventListener("click", () => selectPrivacyGdprSection("evidence-pack", { focus: true, resetScroll: false }));
+  const search = document.createElement("button");
+  search.type = "button";
+  search.className = "secondary";
+  search.textContent = "Open Source Search";
+  search.addEventListener("click", () => selectPrivacyGdprSection("search", { focus: true, resetScroll: false }));
+  actions.append(view, evidence, search);
+  if (canManagePrivacyCases()) {
+    const edit = document.createElement("button");
+    edit.type = "button";
+    edit.className = "secondary";
+    edit.textContent = "Edit Case";
+    edit.addEventListener("click", () => openCaseForm("edit", selected));
+    const event = document.createElement("button");
+    event.type = "button";
+    event.className = "secondary";
+    event.textContent = "Add Note / Event";
+    event.addEventListener("click", () => openCaseEventForm(selected));
+    actions.append(edit, event);
+  }
+  const anon = document.createElement("button");
+  anon.type = "button";
+  anon.className = "secondary";
+  anon.textContent = "Open Anonymisation Preview";
+  anon.addEventListener("click", () => selectPrivacyGdprSection("anonymisation-preview", { focus: true, resetScroll: false }));
+  actions.appendChild(anon);
+  if (canOpenLegacyPrivacyGdpr()) {
+    const legacy = document.createElement("button");
+    legacy.type = "button";
+    legacy.className = "secondary";
+    legacy.textContent = "Open Legacy Case Tools";
+    legacy.addEventListener("click", () => openLegacyPrivacyGdprTarget("gdpr-cases"));
+    actions.appendChild(legacy);
+  }
+
+  inspector.append(heading, details, stages, actions);
 }
 
 function renderCaseWorkspace() {
@@ -641,14 +1019,17 @@ function renderCaseWorkspace() {
   const count = $("privacyGdprCasesWorkspaceCount");
   if (!list) return;
   list.replaceChildren();
+  list.classList.remove("oh-empty-state");
   const rows = privacyGdprCasesLoaded ? filteredPrivacyCases() : [];
   if (count) count.textContent = privacyGdprCasesLoaded ? String(rows.length) : "-";
+  renderCaseWorkspaceSummary(rows);
 
   if (!privacyGdprCasesLoaded) {
     renderEmptyState(list, {
       title: "Case data unavailable",
       description: "Privacy case data could not be loaded under the current access."
     });
+    renderCaseWorkspaceInspector(rows);
     return;
   }
 
@@ -657,7 +1038,12 @@ function renderCaseWorkspace() {
       title: "No privacy cases found",
       description: "No read-only GDPR case records match the current filters."
     });
+    renderCaseWorkspaceInspector(rows);
     return;
+  }
+
+  if (!privacyGdprActiveCaseId || !rows.some(row => String(row.id) === String(privacyGdprActiveCaseId))) {
+    privacyGdprActiveCaseId = rows[0].id || null;
   }
 
   const group = document.createElement("section");
@@ -681,6 +1067,7 @@ function renderCaseWorkspace() {
   rows.slice(0, 100).forEach(row => rowsContainer.appendChild(createCaseWorkspaceRow(row)));
   group.append(header, rowsContainer);
   list.appendChild(group);
+  renderCaseWorkspaceInspector(rows);
 }
 
 function renderSettings() {
@@ -735,6 +1122,18 @@ function syncLegacyBridgeVisibility() {
   if (restricted) restricted.classList.toggle("hidden", available);
 }
 
+function syncPrivacyCaseActionVisibility() {
+  const manageable = canManagePrivacyCases();
+  [
+    "privacyGdprNewCaseButton",
+    "privacyGdprSearchCreateCaseButton",
+    "privacyGdprEvidencePackCreateCaseButton",
+    "privacyGdprAnonymisationCreateCaseButton"
+  ].forEach(id => {
+    if ($(id)) $(id).classList.toggle("hidden", !manageable);
+  });
+}
+
 function syncEvidencePackSourceVisibility() {
   EVIDENCE_PACK_SOURCE_INPUTS.forEach(([sourceId, inputId]) => {
     const input = $(inputId);
@@ -773,6 +1172,7 @@ function renderAll() {
   syncEvidencePackSourceVisibility();
   syncAnonymisationPreviewVisibility();
   syncAnonymisationRulesVisibility();
+  syncPrivacyCaseActionVisibility();
   renderEvidencePackPreview();
   renderAnonymisationPreview();
   renderAnonymisationRules();
@@ -2224,30 +2624,30 @@ function timelineItem(kind, title, date, description, meta, details) {
 
 function createPrivacyCaseTimelineItems(caseRecord, notes) {
   const items = [];
-  if (caseRecord.request_received_at || caseRecord.created_at) {
+  if (caseReceivedDate(caseRecord) || caseCreatedDate(caseRecord)) {
     items.push(timelineItem(
       "case",
       "Case received",
-      caseRecord.request_received_at || caseRecord.created_at,
+      caseReceivedDate(caseRecord) || caseCreatedDate(caseRecord),
       "GDPR/privacy case record exists in the current case backend.",
       "Case reference: " + textOrDash(caseRecord.case_reference)
     ));
   }
-  if (caseRecord.completed_at) {
+  if (caseCompletedDate(caseRecord)) {
     items.push(timelineItem(
       "case",
       "Case completed",
-      caseRecord.completed_at,
-      textOrDash(caseRecord.decision || caseRecord.status),
-      caseRecord.decision_reason ? "Decision reason recorded" : ""
+      caseCompletedDate(caseRecord),
+      textOrDash(caseOutcome(caseRecord) || caseStatus(caseRecord)),
+      caseOutcome(caseRecord) ? "Outcome recorded" : ""
     ));
   }
   (notes || []).forEach(note => {
     items.push(timelineItem(
       "note",
-      textOrDash(note.note_type || "Case note"),
+      textOrDash(note.title || note.event_title || note.event_type || note.note_type || "Case note"),
       note.created_at,
-      note.note_text || "",
+      note.details || note.note_text || "",
       ["By " + textOrDash(note.created_by_name), note.source_module || note.source_table].filter(Boolean).join(" - "),
       note.details || null
     ));
@@ -2309,21 +2709,75 @@ function appendPrivacyCaseLegacyBridge(parent) {
   cases.className = "secondary";
   cases.textContent = "Open Legacy GDPR Case Tools";
   cases.addEventListener("click", () => openLegacyPrivacyGdprTarget("gdpr-cases"));
+  const search = document.createElement("button");
+  search.type = "button";
+  search.className = "secondary";
+  search.textContent = "Open Legacy GDPR Search";
+  search.addEventListener("click", () => openLegacyPrivacyGdprTarget("gdpr-search"));
+  const sar = document.createElement("button");
+  sar.type = "button";
+  sar.className = "secondary";
+  sar.textContent = "Open Legacy SAR Export";
+  sar.addEventListener("click", () => openLegacyPrivacyGdprTarget("gdpr-sar"));
+  const erasure = document.createElement("button");
+  erasure.type = "button";
+  erasure.className = "secondary";
+  erasure.textContent = "Open Legacy Erasure / Anonymisation";
+  erasure.addEventListener("click", () => openLegacyPrivacyGdprTarget("gdpr-erasure"));
   const evidence = document.createElement("button");
   evidence.type = "button";
   evidence.className = "secondary";
   evidence.textContent = "Open Legacy GDPR Evidence";
   evidence.addEventListener("click", () => openLegacyPrivacyGdprTarget("gdpr-evidence"));
-  bridge.append(note, cases, evidence);
+  bridge.append(note, cases, search, sar, erasure, evidence);
   parent.appendChild(bridge);
+}
+
+function appendPrivacyCaseWorkspaceActions(parent, caseRecord) {
+  const section = document.createElement("section");
+  section.className = "privacy-gdpr-detail-actions";
+  const note = document.createElement("p");
+  note.textContent = "Case workspace actions are read-only or controlled case metadata updates. Native anonymisation and erasure are not available.";
+  section.appendChild(note);
+  if (canManagePrivacyCases()) {
+    const edit = document.createElement("button");
+    edit.type = "button";
+    edit.className = "secondary";
+    edit.textContent = "Edit Case";
+    edit.addEventListener("click", () => openCaseForm("edit", caseRecord));
+    const event = document.createElement("button");
+    event.type = "button";
+    event.className = "secondary";
+    event.textContent = "Add Note / Event";
+    event.addEventListener("click", () => openCaseEventForm(caseRecord));
+    section.append(edit, event);
+  }
+  [
+    ["Open SAR Evidence Pack", "evidence-pack"],
+    ["Open Anonymisation Preview", "anonymisation-preview"],
+    ["Open Anonymisation Rules", "anonymisation-rules"]
+  ].forEach(([label, sectionId]) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "secondary";
+    button.textContent = label;
+    button.addEventListener("click", () => selectPrivacyGdprSection(sectionId, { focus: true, resetScroll: false }));
+    section.appendChild(button);
+  });
+  parent.appendChild(section);
 }
 
 async function loadPrivacyCaseTimeline(caseRecord) {
   if (!caseRecord || !caseRecord.id) return [];
-  const result = await supabaseClient.rpc("superuser_list_gdpr_case_notes", {
+  const result = await rpcWithFallback("list_privacy_case_events", {
     p_case_id: caseRecord.id
+  }, async () => {
+    const fallback = await supabaseClient.rpc("superuser_list_gdpr_case_notes", {
+      p_case_id: caseRecord.id
+    });
+    if (fallback.error) throw fallback.error;
+    return fallback;
   });
-  if (result.error) throw result.error;
   return Array.isArray(result.data) ? result.data : [];
 }
 
@@ -2343,19 +2797,25 @@ function renderPrivacyCaseDetailsPanel(caseRecord, notes, timelineError) {
   body.appendChild(summary);
   appendDetailsList(body, [
     recordField("Case reference", caseRecord.case_reference, true),
-    recordField("Subject / requester as stored", caseRecord.requester_name, true),
-    recordField("Requester contact", caseRecord.requester_contact),
-    recordField("Case type", caseRecord.request_type, true),
-    recordField("Status", caseRecord.status, true),
+    recordField("Subject / requester as stored", caseSubjectName(caseRecord), true),
+    recordField("Subject company", caseSubjectCompany(caseRecord)),
+    recordField("Subject email", caseSubjectEmail(caseRecord)),
+    recordField("Subject / reference", caseSubjectReference(caseRecord)),
+    recordField("Search text", caseSearchText(caseRecord)),
+    recordField("Case type", caseType(caseRecord), true),
+    recordField("Status", caseStatus(caseRecord), true),
     recordField("Priority", caseRecord.priority || "normal"),
-    recordField("Received", formatDate(caseRecord.request_received_at || caseRecord.created_at), true),
-    recordField("Due date", caseRecord.due_date),
-    recordField("Completed", formatDate(caseRecord.completed_at)),
+    recordField("Received", formatDate(caseReceivedDate(caseRecord) || caseCreatedDate(caseRecord)), true),
+    recordField("Due date", caseDueDate(caseRecord)),
+    recordField("Completed", formatDate(caseCompletedDate(caseRecord))),
+    recordField("Reason", caseReason(caseRecord)),
+    recordField("Notes", caseNotes(caseRecord)),
     recordField("Identity verified", caseRecord.identity_verified ? "Yes" : "No"),
     recordField("Verification method", caseRecord.identity_verification_method),
-    recordField("Outcome / decision", caseRecord.decision),
-    recordField("Decision reason", caseRecord.decision_reason),
-    recordField("Source module", "Legacy GDPR case backend", true),
+    recordField("Outcome summary", caseOutcome(caseRecord)),
+    recordField("Legacy reference", caseLegacyReference(caseRecord)),
+    recordField("Created", formatDate(caseCreatedDate(caseRecord))),
+    recordField("Source module", caseRecord.case_type ? "Privacy case backend" : "Legacy GDPR case backend", true),
     recordField("Case record reference", caseRecord.id, true)
   ]);
 
@@ -2367,6 +2827,7 @@ function renderPrivacyCaseDetailsPanel(caseRecord, notes, timelineError) {
   } else {
     appendPrivacyTimeline(body, createPrivacyCaseTimelineItems(caseRecord, notes));
   }
+  appendPrivacyCaseWorkspaceActions(body, caseRecord);
   appendPrivacyCaseLegacyBridge(body);
 }
 
@@ -2542,6 +3003,9 @@ function resetPrivacyCaseFilters() {
   if ($("privacyGdprCaseSearchText")) $("privacyGdprCaseSearchText").value = "";
   if ($("privacyGdprCaseTypeFilter")) $("privacyGdprCaseTypeFilter").value = "all";
   if ($("privacyGdprCaseStatusFilter")) $("privacyGdprCaseStatusFilter").value = "all";
+  if ($("privacyGdprCaseFromDate")) $("privacyGdprCaseFromDate").value = "";
+  if ($("privacyGdprCaseToDate")) $("privacyGdprCaseToDate").value = "";
+  privacyGdprActiveCaseId = null;
   const status = $("privacyGdprCaseStatus");
   if (status) {
     status.textContent = "";
@@ -2549,6 +3013,245 @@ function resetPrivacyCaseFilters() {
   }
   renderCaseWorkspace();
   selectPrivacyGdprSection("cases", { focus: false, resetScroll: false });
+}
+
+function caseFormValue(id) {
+  return $(id) ? $(id).value.trim() : "";
+}
+
+function caseFormPayload() {
+  return {
+    id: caseFormValue("privacyGdprCaseFormId"),
+    case_type: caseFormValue("privacyGdprCaseFormType") || "access",
+    status: caseFormValue("privacyGdprCaseFormStatus") || "open",
+    subject_name: caseFormValue("privacyGdprCaseFormSubjectName"),
+    subject_company: caseFormValue("privacyGdprCaseFormSubjectCompany"),
+    subject_email: caseFormValue("privacyGdprCaseFormSubjectEmail"),
+    subject_reference: caseFormValue("privacyGdprCaseFormSubjectReference"),
+    search_text: caseFormValue("privacyGdprCaseFormSearchText"),
+    request_received_date: caseFormValue("privacyGdprCaseFormReceivedDate"),
+    due_date: caseFormValue("privacyGdprCaseFormDueDate"),
+    reason: caseFormValue("privacyGdprCaseFormReason"),
+    notes: caseFormValue("privacyGdprCaseFormNotes"),
+    outcome_summary: caseFormValue("privacyGdprCaseFormOutcome"),
+    legacy_reference: caseFormValue("privacyGdprCaseFormLegacyReference")
+  };
+}
+
+function validateCasePayload(payload, mode) {
+  if (!payload) return "Case form is unavailable.";
+  if (!payload.case_type) return "Select a case type.";
+  if (!payload.status) return "Select a case status.";
+  if (payload.request_received_date && payload.due_date && payload.request_received_date > payload.due_date) {
+    return "Due date must be on or after request received date.";
+  }
+  const useful = [
+    payload.subject_name,
+    payload.subject_company,
+    payload.subject_email,
+    payload.subject_reference,
+    payload.search_text,
+    payload.reason,
+    payload.legacy_reference
+  ].some(hasValue);
+  if (mode === "create" && !useful) {
+    return "Enter a useful subject, search, reason or Legacy reference before creating a case.";
+  }
+  return "";
+}
+
+function setCaseFormMode(mode, caseRecord) {
+  const title = $("privacyGdprCaseFormTitle");
+  const button = $("privacyGdprCaseFormSaveButton");
+  if (title) title.textContent = mode === "edit" ? "Edit Case" : "New Case";
+  if (button) button.textContent = mode === "edit" ? "Save Changes" : "Create Case";
+  if ($("privacyGdprCaseFormId")) $("privacyGdprCaseFormId").value = caseRecord && caseRecord.id ? caseRecord.id : "";
+  if ($("privacyGdprCaseFormType")) $("privacyGdprCaseFormType").value = caseType(caseRecord) || "access";
+  if ($("privacyGdprCaseFormStatus")) $("privacyGdprCaseFormStatus").value = caseStatus(caseRecord) || "open";
+  if ($("privacyGdprCaseFormSubjectName")) $("privacyGdprCaseFormSubjectName").value = caseSubjectName(caseRecord);
+  if ($("privacyGdprCaseFormSubjectCompany")) $("privacyGdprCaseFormSubjectCompany").value = caseSubjectCompany(caseRecord);
+  if ($("privacyGdprCaseFormSubjectEmail")) $("privacyGdprCaseFormSubjectEmail").value = caseSubjectEmail(caseRecord);
+  if ($("privacyGdprCaseFormSubjectReference")) $("privacyGdprCaseFormSubjectReference").value = caseSubjectReference(caseRecord);
+  if ($("privacyGdprCaseFormSearchText")) $("privacyGdprCaseFormSearchText").value = caseSearchText(caseRecord);
+  if ($("privacyGdprCaseFormReceivedDate")) $("privacyGdprCaseFormReceivedDate").value = (caseReceivedDate(caseRecord) || "").slice(0, 10);
+  if ($("privacyGdprCaseFormDueDate")) $("privacyGdprCaseFormDueDate").value = (caseDueDate(caseRecord) || "").slice(0, 10);
+  if ($("privacyGdprCaseFormReason")) $("privacyGdprCaseFormReason").value = caseReason(caseRecord);
+  if ($("privacyGdprCaseFormNotes")) $("privacyGdprCaseFormNotes").value = caseNotes(caseRecord);
+  if ($("privacyGdprCaseFormOutcome")) $("privacyGdprCaseFormOutcome").value = caseOutcome(caseRecord);
+  if ($("privacyGdprCaseFormLegacyReference")) $("privacyGdprCaseFormLegacyReference").value = caseLegacyReference(caseRecord);
+}
+
+function casePayloadToRpcParams(payload) {
+  return {
+    p_case_id: payload.id || null,
+    p_case_type: payload.case_type || null,
+    p_status: payload.status || null,
+    p_subject_name: payload.subject_name || null,
+    p_subject_company: payload.subject_company || null,
+    p_subject_email: payload.subject_email || null,
+    p_subject_reference: payload.subject_reference || null,
+    p_search_text: payload.search_text || null,
+    p_request_received_date: payload.request_received_date || null,
+    p_due_date: payload.due_date || null,
+    p_reason: payload.reason || null,
+    p_notes: payload.notes || null,
+    p_outcome_summary: payload.outcome_summary || null,
+    p_legacy_reference: payload.legacy_reference || null
+  };
+}
+
+function extractCaseId(resultData) {
+  const row = Array.isArray(resultData) ? resultData[0] : resultData;
+  return row && (row.id || row.case_id) ? (row.id || row.case_id) : null;
+}
+
+function openCaseForm(mode, caseRecord) {
+  if (!canManagePrivacyCases()) {
+    showToast("Case editing unavailable", "Managing privacy cases requires privacy.case.manage, privacy.manage, gdpr.manage or module configuration access.", "error");
+    return;
+  }
+  setCaseFormMode(mode || "create", caseRecord || null);
+  if (privacyGdprCaseFormPanelController) privacyGdprCaseFormPanelController.open({
+    title: mode === "edit" ? "Edit Case" : "New Case",
+    initialFocus: "privacyGdprCaseFormType"
+  });
+}
+
+function prefillCaseFormFromCriteria(source) {
+  if (!canManagePrivacyCases()) {
+    showToast("Case creation unavailable", "Managing privacy cases requires privacy case manage access.", "error");
+    return;
+  }
+  let payload = {};
+  let reason = "";
+  if (source === "search") {
+    const criteria = currentSearchPayload();
+    payload = {
+      searchText: criteria.searchText,
+      fromDate: criteria.fromDate,
+      toDate: criteria.toDate
+    };
+    reason = "Created from Privacy source search criteria.";
+  } else if (source === "evidence") {
+    payload = currentEvidencePackPayload();
+    reason = "Created from SAR Evidence Pack preview criteria.";
+  } else if (source === "anonymisation") {
+    payload = currentAnonymisationPreviewPayload();
+    reason = "Created from Anonymisation Preview criteria.";
+  }
+
+  setCaseFormMode("create", null);
+  if ($("privacyGdprCaseFormType")) $("privacyGdprCaseFormType").value = source === "anonymisation" ? "erasure" : "sar";
+  if ($("privacyGdprCaseFormSearchText")) $("privacyGdprCaseFormSearchText").value = payload.searchText || "";
+  if ($("privacyGdprCaseFormReceivedDate")) $("privacyGdprCaseFormReceivedDate").value = todayDate();
+  if ($("privacyGdprCaseFormReason")) $("privacyGdprCaseFormReason").value = reason;
+  if ($("privacyGdprCaseFormNotes")) {
+    $("privacyGdprCaseFormNotes").value = "Criteria date range: " +
+      textOrDash(payload.fromDate) + " to " + textOrDash(payload.toDate) + ". Records are not identity-linked.";
+  }
+  if (privacyGdprCaseFormPanelController) privacyGdprCaseFormPanelController.open({
+    title: "New Case",
+    initialFocus: "privacyGdprCaseFormType"
+  });
+}
+
+async function savePrivacyCase(event) {
+  if (event) event.preventDefault();
+  if (!canManagePrivacyCases()) {
+    showToast("Case save unavailable", "You do not have permission to manage privacy cases.", "error");
+    return;
+  }
+  const payload = caseFormPayload();
+  const mode = payload.id ? "edit" : "create";
+  const validationMessage = validateCasePayload(payload, mode);
+  if (validationMessage) {
+    showToast("Case needs attention", validationMessage, "error");
+    return;
+  }
+  const button = $("privacyGdprCaseFormSaveButton");
+  if (button) button.disabled = true;
+  try {
+    const rpcName = mode === "edit" ? "update_privacy_case" : "create_privacy_case";
+    const params = casePayloadToRpcParams(payload);
+    if (mode === "create") delete params.p_case_id;
+    const result = await supabaseClient.rpc(rpcName, params);
+    if (result.error) throw result.error;
+    const caseId = extractCaseId(result.data) || payload.id;
+    if (caseId) privacyGdprActiveCaseId = caseId;
+    if (privacyGdprCaseFormPanelController) privacyGdprCaseFormPanelController.close();
+    await loadPrivacyGdprAdministration({ manual: true });
+    selectPrivacyGdprSection("cases", { focus: false, resetScroll: false });
+    showToast(mode === "edit" ? "Case updated" : "Case created", "Privacy case workspace was refreshed.", "success");
+  } catch (error) {
+    showToast("Case save failed", error && error.message ? error.message : "The privacy case could not be saved.", "error");
+  } finally {
+    if (button) button.disabled = false;
+  }
+}
+
+function eventFormPayload() {
+  return {
+    case_id: caseFormValue("privacyGdprCaseEventCaseId"),
+    event_type: caseFormValue("privacyGdprCaseEventType") || "note",
+    title: caseFormValue("privacyGdprCaseEventTitleInput"),
+    details: caseFormValue("privacyGdprCaseEventDetails")
+  };
+}
+
+function openCaseEventForm(caseRecord) {
+  if (!canManagePrivacyCases()) {
+    showToast("Event unavailable", "Adding privacy case events requires privacy case manage access.", "error");
+    return;
+  }
+  const selected = caseRecord || activePrivacyCase();
+  if (!selected || !selected.id) {
+    showToast("Select a case", "Select a privacy case before adding a note or event.", "error");
+    return;
+  }
+  if ($("privacyGdprCaseEventCaseId")) $("privacyGdprCaseEventCaseId").value = selected.id;
+  if ($("privacyGdprCaseEventType")) $("privacyGdprCaseEventType").value = "note";
+  if ($("privacyGdprCaseEventTitleInput")) $("privacyGdprCaseEventTitleInput").value = "";
+  if ($("privacyGdprCaseEventDetails")) $("privacyGdprCaseEventDetails").value = "";
+  if (privacyGdprCaseEventPanelController) privacyGdprCaseEventPanelController.open({
+    title: "Add Note / Event",
+    initialFocus: "privacyGdprCaseEventType"
+  });
+}
+
+async function savePrivacyCaseEvent(event) {
+  if (event) event.preventDefault();
+  if (!canManagePrivacyCases()) {
+    showToast("Event save unavailable", "You do not have permission to add privacy case events.", "error");
+    return;
+  }
+  const payload = eventFormPayload();
+  if (!payload.case_id) {
+    showToast("Select a case", "Select a privacy case before adding an event.", "error");
+    return;
+  }
+  if (!payload.title && !payload.details) {
+    showToast("Event needs detail", "Enter an event title or details before saving.", "error");
+    return;
+  }
+  const button = $("privacyGdprCaseEventSaveButton");
+  if (button) button.disabled = true;
+  try {
+    const result = await supabaseClient.rpc("add_privacy_case_event", {
+      p_case_id: payload.case_id,
+      p_event_type: payload.event_type,
+      p_title: payload.title || payload.event_type,
+      p_details: payload.details || null
+    });
+    if (result.error) throw result.error;
+    privacyGdprCaseEvents[payload.case_id] = null;
+    if (privacyGdprCaseEventPanelController) privacyGdprCaseEventPanelController.close();
+    await loadPrivacyGdprAdministration({ manual: true });
+    showToast("Case event added", "Privacy case timeline was refreshed.", "success");
+  } catch (error) {
+    showToast("Case event failed", error && error.message ? error.message : "The privacy case event could not be saved.", "error");
+  } finally {
+    if (button) button.disabled = false;
+  }
 }
 
 function applySearchQuickFilter(days) {
@@ -2666,8 +3369,11 @@ function registerPrivacyGdprSections() {
 }
 
 async function loadPrivacyGdprCases() {
-  const result = await supabaseClient.rpc("superuser_list_gdpr_cases");
-  if (result.error) throw result.error;
+  const result = await rpcWithFallback("list_privacy_cases", caseRpcFilters(), async () => {
+    const fallback = await supabaseClient.rpc("superuser_list_gdpr_cases");
+    if (fallback.error) throw fallback.error;
+    return fallback;
+  });
   privacyGdprCases = Array.isArray(result.data) ? result.data : [];
   privacyGdprCasesLoaded = true;
 }
@@ -2677,6 +3383,8 @@ export async function loadPrivacyGdprAdministration(options) {
   setStatus("", "");
   privacyGdprCases = [];
   privacyGdprCasesLoaded = false;
+  privacyGdprActiveCaseId = null;
+  privacyGdprCaseEvents = {};
 
   const results = await Promise.allSettled([
     loadSystemSettings(),
@@ -2709,6 +3417,7 @@ export function syncPrivacyGdprVisibility() {
   if (evidencePackSection) evidencePackSection.classList.toggle("hidden", !canViewSarEvidencePack());
   syncAnonymisationPreviewVisibility();
   syncAnonymisationRulesVisibility();
+  syncPrivacyCaseActionVisibility();
   syncEvidencePackSourceVisibility();
   syncLegacyBridgeVisibility();
   refreshSectionNavigator("privacy-gdpr");
@@ -2765,6 +3474,24 @@ export function initialisePrivacyGdprAdministration(dependencies) {
       if (body) body.replaceChildren();
     }
   });
+  privacyGdprCaseFormPanelController = createSidePanelController({
+    backdrop: "privacyGdprCaseFormPanelBackdrop",
+    panel: "privacyGdprCaseFormPanel",
+    title: "privacyGdprCaseFormTitle",
+    closeTriggers: [
+      "privacyGdprCaseFormClose",
+      "privacyGdprCaseFormCancelButton"
+    ]
+  });
+  privacyGdprCaseEventPanelController = createSidePanelController({
+    backdrop: "privacyGdprCaseEventPanelBackdrop",
+    panel: "privacyGdprCaseEventPanel",
+    title: "privacyGdprCaseEventTitle",
+    closeTriggers: [
+      "privacyGdprCaseEventClose",
+      "privacyGdprCaseEventCancelButton"
+    ]
+  });
 
   if ($("administrationPrivacyGdprNav")) {
     $("administrationPrivacyGdprNav").addEventListener("click", openPrivacyGdprAdministration);
@@ -2785,6 +3512,27 @@ export function initialisePrivacyGdprAdministration(dependencies) {
   }
   if ($("privacyGdprCaseResetButton")) {
     $("privacyGdprCaseResetButton").addEventListener("click", resetPrivacyCaseFilters);
+  }
+  if ($("privacyGdprNewCaseButton")) {
+    $("privacyGdprNewCaseButton").addEventListener("click", () => openCaseForm("create", null));
+  }
+  if ($("privacyGdprCaseRefreshButton")) {
+    $("privacyGdprCaseRefreshButton").addEventListener("click", () => loadPrivacyGdprAdministration({ manual: true }));
+  }
+  if ($("privacyGdprCaseForm")) {
+    $("privacyGdprCaseForm").addEventListener("submit", savePrivacyCase);
+  }
+  if ($("privacyGdprCaseEventForm")) {
+    $("privacyGdprCaseEventForm").addEventListener("submit", savePrivacyCaseEvent);
+  }
+  if ($("privacyGdprSearchCreateCaseButton")) {
+    $("privacyGdprSearchCreateCaseButton").addEventListener("click", () => prefillCaseFormFromCriteria("search"));
+  }
+  if ($("privacyGdprEvidencePackCreateCaseButton")) {
+    $("privacyGdprEvidencePackCreateCaseButton").addEventListener("click", () => prefillCaseFormFromCriteria("evidence"));
+  }
+  if ($("privacyGdprAnonymisationCreateCaseButton")) {
+    $("privacyGdprAnonymisationCreateCaseButton").addEventListener("click", () => prefillCaseFormFromCriteria("anonymisation"));
   }
   if ($("privacyGdprCaseSearchText")) {
     $("privacyGdprCaseSearchText").addEventListener("keydown", event => {

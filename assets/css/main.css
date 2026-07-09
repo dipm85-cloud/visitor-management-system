@@ -2402,6 +2402,199 @@ body.document-signoff-overlay-open {
   font-weight: 800;
 }
 
+.privacy-gdpr-case-workspace-summary {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  margin: 14px 0 0;
+}
+
+.privacy-gdpr-case-workspace-card {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #e9edf2;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.privacy-gdpr-case-workspace-card span,
+.privacy-gdpr-case-workspace-card strong,
+.privacy-gdpr-case-workspace-card p {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.privacy-gdpr-case-workspace-card span {
+  color: #667085;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.privacy-gdpr-case-workspace-card strong {
+  margin-top: 4px;
+  color: #101828;
+}
+
+.privacy-gdpr-case-workspace-card p {
+  margin: 5px 0 0;
+  color: var(--oh-shell-muted);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.privacy-gdpr-case-workspace-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(320px, .75fr);
+  gap: 14px;
+  align-items: start;
+  min-width: 0;
+}
+
+.privacy-gdpr-case-workspace-inspector {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  max-height: min(680px, calc(100dvh - var(--oh-header-height, 64px) - var(--oh-footer-height, 34px) - 260px));
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 14px;
+  border: 1px solid var(--oh-shell-border);
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.privacy-gdpr-case-inspector-heading h4 {
+  margin: 0;
+}
+
+.privacy-gdpr-case-inspector-heading p {
+  margin: 5px 0 0;
+  color: var(--oh-shell-muted);
+  overflow-wrap: anywhere;
+}
+
+.privacy-gdpr-case-inspector-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.privacy-gdpr-case-inspector-meta div {
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid #e9edf2;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.privacy-gdpr-case-inspector-meta dt {
+  color: #667085;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.privacy-gdpr-case-inspector-meta dd {
+  margin: 3px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.privacy-gdpr-case-stage-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.privacy-gdpr-case-stage-list li {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid #e9edf2;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.privacy-gdpr-case-stage-list strong,
+.privacy-gdpr-case-stage-list span,
+.privacy-gdpr-case-stage-list p {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.privacy-gdpr-case-stage-list span {
+  margin-top: 3px;
+  color: #344054;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.privacy-gdpr-case-stage-list p {
+  margin: 5px 0 0;
+  color: var(--oh-shell-muted);
+  line-height: 1.35;
+}
+
+.privacy-gdpr-case-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.privacy-gdpr-case-workspace-row.is-selected {
+  background: #f6fbff;
+  box-shadow: inset 3px 0 0 #2f80ed;
+}
+
+.privacy-gdpr-case-inspector-actions {
+  justify-content: stretch;
+}
+
+.privacy-gdpr-case-inspector-actions button {
+  flex: 1 1 150px;
+}
+
+.privacy-gdpr-case-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.privacy-gdpr-case-form label {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+  color: #344054;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.privacy-gdpr-case-form label.full {
+  grid-column: 1 / -1;
+}
+
+.privacy-gdpr-case-form input,
+.privacy-gdpr-case-form select,
+.privacy-gdpr-case-form textarea {
+  width: 100%;
+  min-width: 0;
+}
+
+.privacy-gdpr-case-form textarea {
+  resize: vertical;
+}
+
+.privacy-gdpr-case-form .visitors-side-panel-actions {
+  grid-column: 1 / -1;
+}
+
 .privacy-gdpr-meta {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3143,6 +3336,24 @@ body.document-signoff-overlay-open {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .privacy-gdpr-case-workspace-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .privacy-gdpr-case-workspace-layout,
+  .privacy-gdpr-case-form,
+  .privacy-gdpr-case-inspector-meta {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .privacy-gdpr-case-row-actions {
+    justify-content: stretch;
+  }
+
+  .privacy-gdpr-case-row-actions button {
+    width: 100%;
+  }
+
   .privacy-gdpr-review-summary-grid,
   .privacy-gdpr-review-form,
   .privacy-gdpr-review-audit-list {
@@ -3168,6 +3379,7 @@ body.document-signoff-overlay-open {
 }
 
 @media (max-width: 620px) {
+  .privacy-gdpr-case-workspace-summary,
   .privacy-gdpr-readiness-grid,
   .privacy-gdpr-rules-summary,
   .privacy-gdpr-source-picker {

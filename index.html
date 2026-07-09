@@ -3799,20 +3799,35 @@
                     <select id="privacyGdprCaseStatusFilter">
                       <option value="all">All statuses</option>
                       <option value="open">Open</option>
-                      <option value="in_progress">In progress</option>
+                      <option value="in_review">In review</option>
+                      <option value="awaiting_legacy_action">Awaiting Legacy action</option>
                       <option value="completed">Completed</option>
-                      <option value="rejected">Rejected</option>
+                      <option value="cancelled">Cancelled</option>
                     </select>
+                  </label>
+                  <label>
+                    From date
+                    <input id="privacyGdprCaseFromDate" type="date" />
+                  </label>
+                  <label>
+                    To date
+                    <input id="privacyGdprCaseToDate" type="date" />
                   </label>
                 </div>
                 <div class="oh-responsive-filter-actions oh-filter-actions-row">
+                  <button id="privacyGdprNewCaseButton" type="button">New Case</button>
                   <button id="privacyGdprCaseFilterButton" type="button">Apply Filters</button>
                   <button id="privacyGdprCaseResetButton" class="secondary" type="button">Reset</button>
+                  <button id="privacyGdprCaseRefreshButton" class="secondary" type="button">Refresh</button>
                   <button id="privacyGdprCaseLegacyButton" class="secondary" type="button">Open Legacy GDPR Case Tools</button>
                 </div>
               </div>
               <div id="privacyGdprCaseStatus" class="local-action-status" aria-live="polite"></div>
-              <div id="privacyGdprCasesWorkspaceList" class="privacy-gdpr-search-results" aria-live="polite"></div>
+              <div id="privacyGdprCaseWorkspaceSummary" class="privacy-gdpr-case-workspace-summary" aria-label="Privacy case workspace summary"></div>
+              <div class="privacy-gdpr-case-workspace-layout">
+                <div id="privacyGdprCasesWorkspaceList" class="privacy-gdpr-search-results" aria-live="polite"></div>
+                <aside id="privacyGdprCaseWorkspaceInspector" class="privacy-gdpr-case-workspace-inspector" aria-label="Selected privacy case workspace"></aside>
+              </div>
             </section>
 
             <section id="privacyGdprEvidencePackSection" class="privacy-gdpr-card privacy-gdpr-result-section" aria-labelledby="privacyGdprEvidencePackTitle">
@@ -3851,6 +3866,7 @@
                   <button id="privacyGdprEvidencePackResetButton" class="secondary" type="button">Reset</button>
                   <button id="privacyGdprEvidencePackDownloadJsonButton" class="secondary" type="button">Download JSON Metadata</button>
                   <button id="privacyGdprEvidencePackPrintButton" class="secondary" type="button">Print Preview</button>
+                  <button id="privacyGdprEvidencePackCreateCaseButton" class="secondary hidden" type="button">Create Case from Criteria</button>
                 </div>
                 <div class="oh-responsive-filter-actions oh-filter-actions-row">
                   <button id="privacyGdprEvidencePackLegacySarButton" class="secondary" type="button">Open Legacy SAR Export</button>
@@ -3927,6 +3943,7 @@
                 <div class="oh-responsive-filter-actions oh-filter-actions-row">
                   <button id="privacyGdprAnonymisationPreviewButton" type="button">Preview Affected Records</button>
                   <button id="privacyGdprAnonymisationResetButton" class="secondary" type="button">Reset</button>
+                  <button id="privacyGdprAnonymisationCreateCaseButton" class="secondary hidden" type="button">Create Case from Criteria</button>
                   <button id="privacyGdprAnonymisationLegacyErasureButton" class="secondary" type="button">Open Legacy Erasure / Anonymisation</button>
                 </div>
                 <div class="oh-responsive-filter-actions oh-filter-actions-row">
@@ -4037,6 +4054,7 @@
                 <div class="oh-responsive-filter-actions oh-filter-actions-row">
                   <button id="privacyGdprSearchButton" type="button">Search</button>
                   <button id="privacyGdprSearchResetButton" class="secondary" type="button">Reset</button>
+                  <button id="privacyGdprSearchCreateCaseButton" class="secondary hidden" type="button">Create Case from Search Criteria</button>
                   <button id="privacyGdprSearchLegacyButton" class="secondary" type="button">Open Legacy GDPR Search</button>
                 </div>
               </div>
@@ -4256,6 +4274,60 @@
               <div class="visitors-side-panel-actions" data-oh-side-panel-actions>
                 <button id="privacyGdprSearchDetailsCloseBottom" class="secondary" type="button">Close</button>
               </div>
+            </aside>
+          </div>
+
+          <div id="privacyGdprCaseFormPanelBackdrop" class="visitors-panel-backdrop hidden" data-oh-side-panel-backdrop>
+            <aside id="privacyGdprCaseFormPanel" class="visitors-side-panel privacy-gdpr-case-form-panel" aria-labelledby="privacyGdprCaseFormTitle" aria-modal="true" role="dialog" data-oh-side-panel>
+              <header class="visitors-side-panel-header" data-oh-side-panel-header>
+                <div>
+                  <p class="oh-app-eyebrow">Privacy Case</p>
+                  <h2 id="privacyGdprCaseFormTitle" data-oh-side-panel-title>New Case</h2>
+                </div>
+                <button id="privacyGdprCaseFormClose" class="ghost" type="button" aria-label="Close privacy case form" data-oh-side-panel-close>Close</button>
+              </header>
+              <form id="privacyGdprCaseForm" class="privacy-gdpr-case-form oh-side-panel-body">
+                <input id="privacyGdprCaseFormId" type="hidden" />
+                <label><span>Case type</span><select id="privacyGdprCaseFormType"><option value="access">Access</option><option value="sar">SAR</option><option value="erasure">Erasure</option><option value="rectification">Rectification</option><option value="restriction">Restriction</option><option value="objection">Objection</option></select></label>
+                <label><span>Status</span><select id="privacyGdprCaseFormStatus"><option value="open">Open</option><option value="in_review">In review</option><option value="awaiting_legacy_action">Awaiting Legacy action</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></label>
+                <label><span>Subject name</span><input id="privacyGdprCaseFormSubjectName" type="text" autocomplete="off" /></label>
+                <label><span>Subject company</span><input id="privacyGdprCaseFormSubjectCompany" type="text" autocomplete="off" /></label>
+                <label><span>Subject email</span><input id="privacyGdprCaseFormSubjectEmail" type="email" autocomplete="off" /></label>
+                <label><span>Subject / reference</span><input id="privacyGdprCaseFormSubjectReference" type="text" autocomplete="off" /></label>
+                <label class="full"><span>Search text</span><input id="privacyGdprCaseFormSearchText" type="text" autocomplete="off" /></label>
+                <label><span>Request received date</span><input id="privacyGdprCaseFormReceivedDate" type="date" /></label>
+                <label><span>Due date</span><input id="privacyGdprCaseFormDueDate" type="date" /></label>
+                <label class="full"><span>Reason</span><textarea id="privacyGdprCaseFormReason" rows="3"></textarea></label>
+                <label class="full"><span>Notes</span><textarea id="privacyGdprCaseFormNotes" rows="4"></textarea></label>
+                <label class="full"><span>Outcome summary</span><textarea id="privacyGdprCaseFormOutcome" rows="3"></textarea></label>
+                <label class="full"><span>Legacy reference</span><input id="privacyGdprCaseFormLegacyReference" type="text" autocomplete="off" /></label>
+                <div class="visitors-side-panel-actions" data-oh-side-panel-actions>
+                  <button id="privacyGdprCaseFormSaveButton" type="submit">Save Case</button>
+                  <button id="privacyGdprCaseFormCancelButton" class="secondary" type="button">Cancel</button>
+                </div>
+              </form>
+            </aside>
+          </div>
+
+          <div id="privacyGdprCaseEventPanelBackdrop" class="visitors-panel-backdrop hidden" data-oh-side-panel-backdrop>
+            <aside id="privacyGdprCaseEventPanel" class="visitors-side-panel privacy-gdpr-case-form-panel" aria-labelledby="privacyGdprCaseEventTitle" aria-modal="true" role="dialog" data-oh-side-panel>
+              <header class="visitors-side-panel-header" data-oh-side-panel-header>
+                <div>
+                  <p class="oh-app-eyebrow">Privacy Case</p>
+                  <h2 id="privacyGdprCaseEventTitle" data-oh-side-panel-title>Add Note / Event</h2>
+                </div>
+                <button id="privacyGdprCaseEventClose" class="ghost" type="button" aria-label="Close privacy case event form" data-oh-side-panel-close>Close</button>
+              </header>
+              <form id="privacyGdprCaseEventForm" class="privacy-gdpr-case-form oh-side-panel-body">
+                <input id="privacyGdprCaseEventCaseId" type="hidden" />
+                <label><span>Event type</span><select id="privacyGdprCaseEventType"><option value="note">Note</option><option value="search_run">Search run</option><option value="sar_preview_reviewed">SAR preview reviewed</option><option value="anonymisation_preview_reviewed">Anonymisation preview reviewed</option><option value="legacy_action_recorded">Legacy action recorded</option><option value="decision_recorded">Decision recorded</option></select></label>
+                <label><span>Title</span><input id="privacyGdprCaseEventTitleInput" type="text" autocomplete="off" /></label>
+                <label class="full"><span>Details</span><textarea id="privacyGdprCaseEventDetails" rows="5"></textarea></label>
+                <div class="visitors-side-panel-actions" data-oh-side-panel-actions>
+                  <button id="privacyGdprCaseEventSaveButton" type="submit">Add Event</button>
+                  <button id="privacyGdprCaseEventCancelButton" class="secondary" type="button">Cancel</button>
+                </div>
+              </form>
             </aside>
           </div>
         </section>
