@@ -41,6 +41,8 @@ const LEGACY_PRIVACY_ACTIONS = [
   ["privacyGdprAnonymisationLegacyEvidenceButton", "gdpr-evidence"],
   ["privacyGdprAnonymisationLegacyErasureButton", "gdpr-erasure"],
   ["privacyGdprAnonymisationReviewLegacyButton", "gdpr-erasure"],
+  ["privacyGdprAnonymisationRulesLegacyErasureButton", "gdpr-erasure"],
+  ["privacyGdprAnonymisationRulesLegacyEvidenceButton", "gdpr-evidence"],
   ["privacyGdprLegacySarButton", "gdpr-sar"],
   ["privacyGdprLegacyErasureButton", "gdpr-erasure"],
   ["privacyGdprLegacyEvidenceButton", "gdpr-evidence"]
@@ -175,6 +177,93 @@ const ANONYMISATION_PREVIEW_SOURCE_INPUTS = [
 
 const ANONYMISATION_REVIEW_CONFIRMATION_TEXT = "ANONYMISATION REVIEW";
 
+const ANONYMISATION_RULES = [
+  {
+    id: "planned_visits",
+    title: "Planned Visits",
+    sourceModule: "planned_visits / Visitors",
+    nativePreviewSupported: "Yes",
+    nativeAnonymisationSupported: "No - future",
+    legacyWorkflowRequired: "Yes",
+    readiness: ["Preview only", "Future native anonymisation candidate", "Manual review required"],
+    subjectFields: ["visitor_name", "company", "notes", "vehicle_plate when personally identifying"],
+    retainedFields: ["visit_date", "expected_time", "status", "non-identifying operational metadata where appropriate"],
+    reviewNotes: "Host, on-site contact and staff identifiers require review before disclosure or anonymisation."
+  },
+  {
+    id: "visit_log",
+    title: "Visit Log",
+    sourceModule: "visit_log / Visitors",
+    nativePreviewSupported: "Yes",
+    nativeAnonymisationSupported: "No - future",
+    legacyWorkflowRequired: "Yes",
+    readiness: ["Preview only", "Future native anonymisation candidate", "Manual review required"],
+    subjectFields: ["visitor_name", "company", "vehicle_plate", "security_pass_id when personally identifying"],
+    retainedFields: ["sign_in_time", "sign_out_time", "visit_status", "visit_origin", "operational audit metadata where required"],
+    reviewNotes: "Privacy notice version and acceptance timestamps may need retention evidence review."
+  },
+  {
+    id: "document_evidence",
+    title: "Document Sign-off Evidence",
+    sourceModule: "Document Sign-offs",
+    nativePreviewSupported: "Yes",
+    nativeAnonymisationSupported: "No - future",
+    legacyWorkflowRequired: "Yes",
+    readiness: ["Preview only", "Manual review required"],
+    subjectFields: ["visitor_name", "company", "signature evidence where present"],
+    retainedFields: ["agreement_name", "agreement_version_number", "signed_at", "agreement_type_id", "agreement_version_id"],
+    reviewNotes: "Signed evidence may require special handling and should not be modified without review."
+  },
+  {
+    id: "agreement_signatures",
+    title: "Agreement Signatures",
+    sourceModule: "Document Sign-offs / Agreement evidence",
+    nativePreviewSupported: "Yes",
+    nativeAnonymisationSupported: "No - future",
+    legacyWorkflowRequired: "Yes",
+    readiness: ["Preview only", "Manual review required"],
+    subjectFields: ["visitor signature evidence where captured", "visitor_name", "company"],
+    retainedFields: ["evidence timestamp", "document type/version metadata", "visit reference where required"],
+    reviewNotes: "Signature payload availability varies by record and must be reviewed before any future native handling."
+  },
+  {
+    id: "audit_events",
+    title: "Audit Events",
+    sourceModule: "Audit",
+    nativePreviewSupported: "Yes where audit.view allows",
+    nativeAnonymisationSupported: "No - future / may be retained",
+    legacyWorkflowRequired: "Yes",
+    readiness: ["Preview only", "Manual review required"],
+    subjectFields: ["Only where audit detail contains subject data"],
+    retainedFields: ["event_type", "created_at", "entity_type", "entity_id", "actor metadata where legally required"],
+    reviewNotes: "Audit records may need retention even after subject data anonymisation."
+  },
+  {
+    id: "privacy_cases",
+    title: "GDPR / Privacy Cases",
+    sourceModule: "GDPR case backend",
+    nativePreviewSupported: "No - details only",
+    nativeAnonymisationSupported: "No",
+    legacyWorkflowRequired: "Yes",
+    readiness: ["Legacy execution required", "Manual review required"],
+    subjectFields: ["requester_name", "requester_contact", "identity verification details where present"],
+    retainedFields: ["case_reference", "request_type", "status", "priority", "received/due/completed dates", "decision metadata where required"],
+    reviewNotes: "Case records remain read-only in Operations Hub and must not be marked completed by this workflow."
+  },
+  {
+    id: "legacy_only",
+    title: "Legacy-only Records",
+    sourceModule: "Legacy VMS",
+    nativePreviewSupported: "No",
+    nativeAnonymisationSupported: "No",
+    legacyWorkflowRequired: "Yes",
+    readiness: ["Legacy execution required", "Not applicable"],
+    subjectFields: ["Review in Legacy VMS"],
+    retainedFields: ["Review in Legacy VMS"],
+    reviewNotes: "Legacy-only records remain outside native preview and native execution."
+  }
+];
+
 function hasActiveStaffUser() {
   return !!(
     AppState.currentProfile &&
@@ -203,6 +292,10 @@ function canViewAnonymisationPreview() {
     isSuperUserProfile() ||
     hasAnyCapability(ANONYMISATION_PREVIEW_CAPABILITIES)
   );
+}
+
+function canViewAnonymisationRules() {
+  return canViewAnonymisationPreview();
 }
 
 function canViewPlannedVisitPrivacySearch() {
@@ -632,7 +725,9 @@ function syncLegacyBridgeVisibility() {
     "privacyGdprAnonymisationLegacySarButton",
     "privacyGdprAnonymisationLegacyEvidenceButton",
     "privacyGdprAnonymisationLegacyErasureButton",
-    "privacyGdprAnonymisationReviewLegacyButton"
+    "privacyGdprAnonymisationReviewLegacyButton",
+    "privacyGdprAnonymisationRulesLegacyErasureButton",
+    "privacyGdprAnonymisationRulesLegacyEvidenceButton"
   ].forEach(id => {
     if ($(id)) $(id).classList.toggle("hidden", !available);
   });
@@ -666,14 +761,21 @@ function syncAnonymisationPreviewVisibility() {
   });
 }
 
+function syncAnonymisationRulesVisibility() {
+  const section = $("privacyGdprAnonymisationRulesSection");
+  if (section) section.classList.toggle("hidden", !canViewAnonymisationRules());
+}
+
 function renderAll() {
   renderOverview();
   renderCases();
   renderCaseWorkspace();
   syncEvidencePackSourceVisibility();
   syncAnonymisationPreviewVisibility();
+  syncAnonymisationRulesVisibility();
   renderEvidencePackPreview();
   renderAnonymisationPreview();
+  renderAnonymisationRules();
   renderSettings();
   renderSearchResults();
   syncLegacyBridgeVisibility();
@@ -1541,6 +1643,189 @@ function renderAnonymisationReview() {
   renderAnonymisationAuditPreparation();
 }
 
+function createRuleSummaryCard(label, value, detail) {
+  const card = document.createElement("article");
+  card.className = "privacy-gdpr-rules-summary-card";
+  const span = document.createElement("span");
+  span.textContent = label;
+  const strong = document.createElement("strong");
+  strong.textContent = textOrDash(value);
+  card.append(span, strong);
+  if (detail) {
+    const p = document.createElement("p");
+    p.textContent = detail;
+    card.appendChild(p);
+  }
+  return card;
+}
+
+function renderAnonymisationRulesSummary() {
+  const container = $("privacyGdprAnonymisationRulesSummary");
+  const count = $("privacyGdprAnonymisationRulesCount");
+  if (!container) return;
+  container.replaceChildren();
+  if (count) count.textContent = String(ANONYMISATION_RULES.length);
+
+  const nativePreview = ANONYMISATION_RULES.filter(rule => String(rule.nativePreviewSupported).startsWith("Yes")).length;
+  const legacyRequired = ANONYMISATION_RULES.filter(rule => rule.legacyWorkflowRequired === "Yes").length;
+  const manualReview = ANONYMISATION_RULES.filter(rule => (rule.readiness || []).includes("Manual review required")).length;
+  const futureCandidate = ANONYMISATION_RULES.filter(rule => (rule.readiness || []).includes("Future native anonymisation candidate")).length;
+
+  container.append(
+    createRuleSummaryCard("Sources covered", ANONYMISATION_RULES.length, "Internal authorised review only."),
+    createRuleSummaryCard("Native preview", nativePreview, "Source areas with current read-only preview support."),
+    createRuleSummaryCard("Legacy execution", legacyRequired, "Native anonymisation is not active."),
+    createRuleSummaryCard("Manual review", manualReview, "Sources requiring review before future handling."),
+    createRuleSummaryCard("Future candidates", futureCandidate, "Candidate source areas for later native workflow design.")
+  );
+}
+
+function createRulesList(items) {
+  const list = document.createElement("ul");
+  list.className = "privacy-gdpr-rules-field-list";
+  (items || []).forEach(item => {
+    const row = document.createElement("li");
+    row.textContent = item;
+    list.appendChild(row);
+  });
+  return list;
+}
+
+function createRuleStatusChips(rule) {
+  const wrap = document.createElement("div");
+  wrap.className = "privacy-gdpr-rules-statuses";
+  (rule.readiness || []).forEach(status => {
+    const chip = document.createElement("span");
+    chip.textContent = status;
+    wrap.appendChild(chip);
+  });
+  return wrap;
+}
+
+function createRuleMatrixRow(rule) {
+  const row = document.createElement("article");
+  row.className = "privacy-gdpr-rules-row";
+
+  const source = document.createElement("div");
+  source.className = "privacy-gdpr-rules-source";
+  const title = document.createElement("strong");
+  title.textContent = rule.title;
+  const module = document.createElement("span");
+  module.textContent = rule.sourceModule;
+  source.append(title, module, createRuleStatusChips(rule));
+
+  const support = document.createElement("dl");
+  support.className = "privacy-gdpr-rules-support";
+  [
+    ["Native preview", rule.nativePreviewSupported],
+    ["Native anonymisation", rule.nativeAnonymisationSupported],
+    ["Legacy workflow", rule.legacyWorkflowRequired]
+  ].forEach(([label, value]) => {
+    const item = document.createElement("div");
+    const dt = document.createElement("dt");
+    const dd = document.createElement("dd");
+    dt.textContent = label;
+    dd.textContent = value;
+    item.append(dt, dd);
+    support.appendChild(item);
+  });
+
+  const subject = document.createElement("div");
+  subject.className = "privacy-gdpr-rules-fields";
+  const subjectTitle = document.createElement("span");
+  subjectTitle.textContent = "Subject fields";
+  subject.append(subjectTitle, createRulesList(rule.subjectFields));
+
+  const retained = document.createElement("div");
+  retained.className = "privacy-gdpr-rules-fields";
+  const retainedTitle = document.createElement("span");
+  retainedTitle.textContent = "Retained fields";
+  retained.append(retainedTitle, createRulesList(rule.retainedFields));
+
+  const notes = document.createElement("div");
+  notes.className = "privacy-gdpr-rules-notes";
+  const note = document.createElement("p");
+  note.textContent = rule.reviewNotes || "Review required before any future native workflow.";
+  const details = document.createElement("button");
+  details.type = "button";
+  details.className = "secondary";
+  details.textContent = "View Details";
+  details.addEventListener("click", event => openAnonymisationRuleDetails(rule, event.currentTarget));
+  notes.append(note, details);
+
+  row.append(source, support, subject, retained, notes);
+  return row;
+}
+
+function renderAnonymisationRules() {
+  const container = $("privacyGdprAnonymisationRulesMatrix");
+  if (!container) return;
+  renderAnonymisationRulesSummary();
+  container.replaceChildren();
+
+  if (!canViewAnonymisationRules()) {
+    renderEmptyState(container, {
+      title: "Anonymisation rules unavailable",
+      description: "Rules require privacy.manage, gdpr.manage, module_configuration.manage or settings.edit."
+    });
+    return;
+  }
+
+  const intro = document.createElement("div");
+  intro.className = "privacy-gdpr-rules-intro";
+  intro.textContent = "Read-only rules matrix. Native anonymisation is not active and records are not linked, merged or deduplicated by name.";
+  container.appendChild(intro);
+
+  ANONYMISATION_RULES.forEach(rule => {
+    container.appendChild(createRuleMatrixRow(rule));
+  });
+}
+
+function appendRuleDetailSection(parent, title, items) {
+  const section = document.createElement("section");
+  section.className = "privacy-gdpr-rule-detail-section";
+  const heading = document.createElement("h3");
+  heading.textContent = title;
+  section.append(heading, createRulesList(items));
+  parent.appendChild(section);
+}
+
+function openAnonymisationRuleDetails(rule, trigger) {
+  if (!privacyGdprSearchDetailsPanelController || !rule) return;
+  const title = $("privacyGdprSearchDetailsTitle");
+  const eyebrow = $("privacyGdprSearchDetailsEyebrow");
+  const body = $("privacyGdprSearchDetailsBody");
+  if (title) title.textContent = rule.title;
+  if (eyebrow) eyebrow.textContent = "Anonymisation Rule";
+  if (body) {
+    body.replaceChildren();
+    const summary = document.createElement("div");
+    summary.className = "privacy-gdpr-search-details-summary";
+    summary.textContent = "Read-only rule definition for future anonymisation workflow design. Native anonymisation is not enabled.";
+    body.appendChild(summary);
+    appendDetailsList(body, [
+      recordField("Source", rule.title, true),
+      recordField("Source module/table", rule.sourceModule, true),
+      recordField("Native preview supported", rule.nativePreviewSupported, true),
+      recordField("Native anonymisation supported", rule.nativeAnonymisationSupported, true),
+      recordField("Legacy workflow required", rule.legacyWorkflowRequired, true),
+      recordField("Readiness", (rule.readiness || []).join(", "), true),
+      recordField("Review required", rule.reviewNotes, true)
+    ]);
+    appendRuleDetailSection(body, "Subject fields", rule.subjectFields);
+    appendRuleDetailSection(body, "Retained fields", rule.retainedFields);
+  }
+  privacyGdprSearchDetailsPanelController.open({ trigger });
+}
+
+function openAnonymisationPreviewFromRules() {
+  if (!canViewAnonymisationPreview()) {
+    showToast("Anonymisation preview unavailable", "Anonymisation Preview requires privacy.manage, gdpr.manage, module_configuration.manage or settings.edit.", "error");
+    return;
+  }
+  selectPrivacyGdprSection("anonymisation-preview", { focus: true, resetScroll: false });
+}
+
 function renderAnonymisationPreview() {
   const container = $("privacyGdprAnonymisationResults");
   if (!container) return;
@@ -2321,11 +2606,19 @@ function registerPrivacyGdprSections() {
       visible: canViewAnonymisationPreview
     },
     {
+      id: "anonymisation-rules",
+      title: "Anonymisation Rules",
+      icon: "AR",
+      target: "privacyGdprAnonymisationRulesSection",
+      order: 30,
+      visible: canViewAnonymisationRules
+    },
+    {
       id: "planned-visits",
       title: "Planned Visits",
       icon: "PV",
       target: "privacyGdprPlannedResultsSection",
-      order: 30,
+      order: 35,
       visible: canViewPlannedVisitPrivacySearch
     },
     {
@@ -2415,6 +2708,7 @@ export function syncPrivacyGdprVisibility() {
   const evidencePackSection = $("privacyGdprEvidencePackSection");
   if (evidencePackSection) evidencePackSection.classList.toggle("hidden", !canViewSarEvidencePack());
   syncAnonymisationPreviewVisibility();
+  syncAnonymisationRulesVisibility();
   syncEvidencePackSourceVisibility();
   syncLegacyBridgeVisibility();
   refreshSectionNavigator("privacy-gdpr");
@@ -2528,6 +2822,9 @@ export function initialisePrivacyGdprAdministration(dependencies) {
   }
   if ($("privacyGdprAnonymisationCheckReviewButton")) {
     $("privacyGdprAnonymisationCheckReviewButton").addEventListener("click", checkAnonymisationReviewReadiness);
+  }
+  if ($("privacyGdprAnonymisationRulesPreviewButton")) {
+    $("privacyGdprAnonymisationRulesPreviewButton").addEventListener("click", openAnonymisationPreviewFromRules);
   }
   [
     "privacyGdprAnonymisationReason",
