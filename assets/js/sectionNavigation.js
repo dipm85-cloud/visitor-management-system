@@ -194,6 +194,8 @@ function createButton(section) {
   button.type = "button";
   button.className = "oh-section-nav-item";
   button.dataset.ohSectionNavItem = section.id;
+  button.title = section.fullTitle || section.title;
+  button.setAttribute("aria-label", section.fullTitle || section.title);
 
   const icon = document.createElement("span");
   icon.className = "oh-section-nav-icon";

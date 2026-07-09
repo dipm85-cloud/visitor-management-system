@@ -454,6 +454,40 @@ function formatDate(value) {
   return Number.isNaN(date.getTime()) ? textOrDash(value) : date.toLocaleString();
 }
 
+function compactDateTimeParts(value) {
+  const text = textValue(value);
+  if (!text) return { date: "-", time: "" };
+  const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(text);
+  const date = dateOnly
+    ? new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]))
+    : new Date(text);
+  if (Number.isNaN(date.getTime())) return { date: text, time: "" };
+  const dateText = date.toLocaleDateString(undefined, {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric"
+  });
+  const timeText = dateOnly ? "" : date.toLocaleTimeString(undefined, {
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+  return { date: dateText, time: timeText };
+}
+
+function appendCompactDateTime(parent, value) {
+  const parts = compactDateTimeParts(value);
+  const date = document.createElement("span");
+  date.className = "privacy-gdpr-case-date-line";
+  date.textContent = parts.date;
+  parent.appendChild(date);
+  if (parts.time) {
+    const time = document.createElement("span");
+    time.className = "privacy-gdpr-case-time-line";
+    time.textContent = parts.time;
+    parent.appendChild(time);
+  }
+}
+
 function formatDateOnly(date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -804,214 +838,53 @@ function renderCases() {
 
 function createCaseWorkspaceRow(row) {
   const item = document.createElement("article");
-  item.className = "privacy-gdpr-result-row privacy-gdpr-case-result-row privacy-gdpr-case-workspace-row";
-  item.classList.toggle("is-selected", String(row.id) === String(privacyGdprActiveCaseId));
+  item.className = "privacy-gdpr-case-result-card";
 
   const primary = document.createElement("div");
+  primary.className = "privacy-gdpr-case-result-primary";
   const name = document.createElement("strong");
   name.textContent = textOrDash(row.case_reference);
   const subtitle = document.createElement("span");
-  subtitle.textContent = [caseSubjectName(row), caseType(row), caseSubjectCompany(row), caseSubjectEmail(row), caseSubjectReference(row)]
+  subtitle.textContent = [caseSubjectName(row), caseSearchText(row)]
     .filter(Boolean)
     .join(" - ") || "Privacy case";
-  primary.append(name, subtitle);
+  const context = document.createElement("small");
+  context.textContent = [caseSubjectCompany(row), caseSubjectEmail(row), caseSubjectReference(row), caseLegacyReference(row)]
+    .filter(Boolean)
+    .join(" - ") || "No subject context recorded";
+  primary.append(name, subtitle, context);
 
-  const source = document.createElement("div");
-  source.className = "privacy-gdpr-result-source";
-  source.textContent = textOrDash(caseStatus(row));
-  const priority = document.createElement("small");
-  priority.textContent = "Priority: " + textOrDash(row.priority || "normal");
-  source.appendChild(priority);
-
-  const date = document.createElement("span");
-  date.textContent = formatDate(caseReceivedDate(row) || caseCreatedDate(row));
+  const meta = document.createElement("dl");
+  meta.className = "privacy-gdpr-case-result-meta";
+  [
+    ["Type", caseType(row), ""],
+    ["Status", caseStatus(row), ""],
+    ["Received", caseReceivedDate(row) || caseCreatedDate(row), "date"],
+    ["Due", caseDueDate(row), "date"],
+    ["Completed", caseCompletedDate(row), "date"]
+  ].forEach(([label, value, valueType]) => {
+    const wrapper = document.createElement("div");
+    if (valueType === "date") wrapper.classList.add("is-date");
+    const dt = document.createElement("dt");
+    const dd = document.createElement("dd");
+    dt.textContent = label;
+    if (valueType === "date") appendCompactDateTime(dd, value);
+    else dd.textContent = textOrDash(value);
+    wrapper.append(dt, dd);
+    meta.appendChild(wrapper);
+  });
 
   const actions = document.createElement("div");
   actions.className = "privacy-gdpr-case-row-actions";
-  const review = document.createElement("button");
-  review.type = "button";
-  review.className = "secondary";
-  review.textContent = "Review in Workspace";
-  review.addEventListener("click", () => {
-    privacyGdprActiveCaseId = row.id || null;
-    renderCaseWorkspace();
-  });
   const action = document.createElement("button");
   action.type = "button";
   action.className = "secondary";
   action.textContent = "View Details";
   action.addEventListener("click", event => openPrivacyCaseDetails(row, event.currentTarget));
-  actions.append(review, action);
+  actions.append(action);
 
-  item.append(primary, source, date, actions);
+  item.append(primary, meta, actions);
   return item;
-}
-
-function caseWorkspaceStages(row) {
-  if (!row) return [];
-  return [
-    {
-      title: "Case intake",
-      status: row.case_reference ? "Available" : "Review required",
-      detail: "Read-only case reference and request metadata are loaded."
-    },
-    {
-      title: "Identity verification",
-      status: row.identity_verified ? "Verified" : "Review required",
-      detail: row.identity_verified ? "Backend marks identity as verified." : "No native verification update is available here."
-    },
-    {
-      title: "Subject search",
-      status: "Preview available",
-      detail: "Use source searches or SAR Evidence Pack preview; records are not identity-linked."
-    },
-    {
-      title: "Evidence timeline",
-      status: "Details panel",
-      detail: "Supported timeline entries load in the read-only details panel."
-    },
-    {
-      title: "SAR / evidence pack",
-      status: "Preview available",
-      detail: "Native SAR evidence preview remains internal review, not complete SAR disclosure."
-    },
-    {
-      title: "Erasure / anonymisation",
-      status: "Legacy required",
-      detail: "Destructive privacy workflows remain in Legacy VMS."
-    },
-    {
-      title: "Closure",
-      status: caseIsOpen(row) ? "Legacy/backend controlled" : "Read-only",
-      detail: "Operations Hub does not mark privacy cases completed in this workspace."
-    }
-  ];
-}
-
-function renderCaseWorkspaceInspector(rows) {
-  const inspector = $("privacyGdprCaseWorkspaceInspector");
-  if (!inspector) return;
-  inspector.replaceChildren();
-  inspector.classList.remove("oh-empty-state");
-
-  const filteredRows = rows || [];
-  let selected = activePrivacyCase();
-  if (!selected || !filteredRows.some(row => String(row.id) === String(selected.id))) {
-    selected = filteredRows[0] || null;
-    privacyGdprActiveCaseId = selected ? selected.id : null;
-  }
-
-  if (!privacyGdprCasesLoaded) {
-    renderEmptyState(inspector, {
-      title: "Case workspace unavailable",
-      description: "Read-only case data could not be loaded under current access."
-    });
-    return;
-  }
-
-  if (!selected) {
-    renderEmptyState(inspector, {
-      title: "No case selected",
-      description: "Select a case from the queue to review workspace readiness."
-    });
-    return;
-  }
-
-  const heading = document.createElement("div");
-  heading.className = "privacy-gdpr-case-inspector-heading";
-  const title = document.createElement("h4");
-  title.textContent = textOrDash(selected.case_reference);
-  const meta = document.createElement("p");
-  meta.textContent = [caseType(selected), caseStatus(selected), selected.priority || "normal"].filter(Boolean).join(" - ");
-  heading.append(title, meta);
-
-  const details = document.createElement("dl");
-  details.className = "privacy-gdpr-case-inspector-meta";
-  [
-    ["Requester / subject as stored", selected.requester_name],
-    ["Subject company", caseSubjectCompany(selected)],
-    ["Subject email", caseSubjectEmail(selected)],
-    ["Subject / reference", caseSubjectReference(selected)],
-    ["Search text", caseSearchText(selected)],
-    ["Received", formatDate(caseReceivedDate(selected) || caseCreatedDate(selected))],
-    ["Due", caseDueDate(selected)],
-    ["Completed", formatDate(caseCompletedDate(selected))],
-    ["Reason", caseReason(selected)],
-    ["Legacy reference", caseLegacyReference(selected)],
-    ["Identity verified", selected.identity_verified ? "Yes" : "No"],
-    ["Native case editing", canManagePrivacyCases() ? "Controlled via Edit Case" : "Restricted"],
-    ["Legacy workflow", "Required for destructive privacy actions"]
-  ].forEach(([label, value]) => {
-    const wrapper = document.createElement("div");
-    const dt = document.createElement("dt");
-    const dd = document.createElement("dd");
-    dt.textContent = label;
-    dd.textContent = textOrDash(value);
-    wrapper.append(dt, dd);
-    details.appendChild(wrapper);
-  });
-
-  const stages = document.createElement("ol");
-  stages.className = "privacy-gdpr-case-stage-list";
-  caseWorkspaceStages(selected).forEach(stage => {
-    const item = document.createElement("li");
-    const strong = document.createElement("strong");
-    strong.textContent = stage.title;
-    const status = document.createElement("span");
-    status.textContent = stage.status;
-    const detail = document.createElement("p");
-    detail.textContent = stage.detail;
-    item.append(strong, status, detail);
-    stages.appendChild(item);
-  });
-
-  const actions = document.createElement("div");
-  actions.className = "privacy-gdpr-card-actions privacy-gdpr-case-inspector-actions";
-  const view = document.createElement("button");
-  view.type = "button";
-  view.className = "secondary";
-  view.textContent = "View Details";
-  view.addEventListener("click", event => openPrivacyCaseDetails(selected, event.currentTarget));
-  const evidence = document.createElement("button");
-  evidence.type = "button";
-  evidence.className = "secondary";
-  evidence.textContent = "Open SAR Evidence Pack";
-  evidence.addEventListener("click", () => selectPrivacyGdprSection("evidence-pack", { focus: true, resetScroll: false }));
-  const search = document.createElement("button");
-  search.type = "button";
-  search.className = "secondary";
-  search.textContent = "Open Source Search";
-  search.addEventListener("click", () => selectPrivacyGdprSection("search", { focus: true, resetScroll: false }));
-  actions.append(view, evidence, search);
-  if (canManagePrivacyCases()) {
-    const edit = document.createElement("button");
-    edit.type = "button";
-    edit.className = "secondary";
-    edit.textContent = "Edit Case";
-    edit.addEventListener("click", () => openCaseForm("edit", selected));
-    const event = document.createElement("button");
-    event.type = "button";
-    event.className = "secondary";
-    event.textContent = "Add Note / Event";
-    event.addEventListener("click", () => openCaseEventForm(selected));
-    actions.append(edit, event);
-  }
-  const anon = document.createElement("button");
-  anon.type = "button";
-  anon.className = "secondary";
-  anon.textContent = "Open Anonymisation Preview";
-  anon.addEventListener("click", () => selectPrivacyGdprSection("anonymisation-preview", { focus: true, resetScroll: false }));
-  actions.appendChild(anon);
-  if (canOpenLegacyPrivacyGdpr()) {
-    const legacy = document.createElement("button");
-    legacy.type = "button";
-    legacy.className = "secondary";
-    legacy.textContent = "Open Legacy Case Tools";
-    legacy.addEventListener("click", () => openLegacyPrivacyGdprTarget("gdpr-cases"));
-    actions.appendChild(legacy);
-  }
-
-  inspector.append(heading, details, stages, actions);
 }
 
 function renderCaseWorkspace() {
@@ -1029,7 +902,6 @@ function renderCaseWorkspace() {
       title: "Case data unavailable",
       description: "Privacy case data could not be loaded under the current access."
     });
-    renderCaseWorkspaceInspector(rows);
     return;
   }
 
@@ -1038,12 +910,7 @@ function renderCaseWorkspace() {
       title: "No privacy cases found",
       description: "No read-only GDPR case records match the current filters."
     });
-    renderCaseWorkspaceInspector(rows);
     return;
-  }
-
-  if (!privacyGdprActiveCaseId || !rows.some(row => String(row.id) === String(privacyGdprActiveCaseId))) {
-    privacyGdprActiveCaseId = rows[0].id || null;
   }
 
   const group = document.createElement("section");
@@ -1067,7 +934,6 @@ function renderCaseWorkspace() {
   rows.slice(0, 100).forEach(row => rowsContainer.appendChild(createCaseWorkspaceRow(row)));
   group.append(header, rowsContainer);
   list.appendChild(group);
-  renderCaseWorkspaceInspector(rows);
 }
 
 function renderSettings() {
@@ -2611,6 +2477,17 @@ function appendDetailsList(parent, fields) {
   return list;
 }
 
+function appendPrivacyCaseDetailSection(parent, title, fields) {
+  const section = document.createElement("section");
+  section.className = "privacy-gdpr-case-detail-section";
+  const heading = document.createElement("h3");
+  heading.textContent = title;
+  section.appendChild(heading);
+  appendDetailsList(section, fields);
+  parent.appendChild(section);
+  return section;
+}
+
 function timelineItem(kind, title, date, description, meta, details) {
   return {
     kind: kind || "case",
@@ -2795,28 +2672,32 @@ function renderPrivacyCaseDetailsPanel(caseRecord, notes, timelineError) {
   summary.textContent = "Read-only GDPR/privacy case details. No native anonymisation, erasure, export or identity linking is available in this view.";
 
   body.appendChild(summary);
-  appendDetailsList(body, [
+  appendPrivacyCaseDetailSection(body, "Case Summary", [
     recordField("Case reference", caseRecord.case_reference, true),
-    recordField("Subject / requester as stored", caseSubjectName(caseRecord), true),
-    recordField("Subject company", caseSubjectCompany(caseRecord)),
-    recordField("Subject email", caseSubjectEmail(caseRecord)),
-    recordField("Subject / reference", caseSubjectReference(caseRecord)),
-    recordField("Search text", caseSearchText(caseRecord)),
     recordField("Case type", caseType(caseRecord), true),
     recordField("Status", caseStatus(caseRecord), true),
     recordField("Priority", caseRecord.priority || "normal"),
     recordField("Received", formatDate(caseReceivedDate(caseRecord) || caseCreatedDate(caseRecord)), true),
     recordField("Due date", caseDueDate(caseRecord)),
     recordField("Completed", formatDate(caseCompletedDate(caseRecord))),
-    recordField("Reason", caseReason(caseRecord)),
+    recordField("Created", formatDate(caseCreatedDate(caseRecord))),
+    recordField("Case record reference", caseRecord.id, true)
+  ]);
+  appendPrivacyCaseDetailSection(body, "Subject / Search", [
+    recordField("Subject / requester as stored", caseSubjectName(caseRecord), true),
+    recordField("Subject company", caseSubjectCompany(caseRecord)),
+    recordField("Subject email", caseSubjectEmail(caseRecord)),
+    recordField("Subject / reference", caseSubjectReference(caseRecord)),
+    recordField("Search text", caseSearchText(caseRecord)),
     recordField("Notes", caseNotes(caseRecord)),
+    recordField("Reason", caseReason(caseRecord)),
     recordField("Identity verified", caseRecord.identity_verified ? "Yes" : "No"),
-    recordField("Verification method", caseRecord.identity_verification_method),
+    recordField("Verification method", caseRecord.identity_verification_method)
+  ]);
+  appendPrivacyCaseDetailSection(body, "Outcome / Legacy", [
     recordField("Outcome summary", caseOutcome(caseRecord)),
     recordField("Legacy reference", caseLegacyReference(caseRecord)),
-    recordField("Created", formatDate(caseCreatedDate(caseRecord))),
-    recordField("Source module", caseRecord.case_type ? "Privacy case backend" : "Legacy GDPR case backend", true),
-    recordField("Case record reference", caseRecord.id, true)
+    recordField("Source module", caseRecord.case_type ? "Privacy case backend" : "Legacy GDPR case backend", true)
   ]);
 
   if (timelineError) {
@@ -3278,7 +3159,8 @@ function registerPrivacyGdprSections() {
     },
     {
       id: "search",
-      title: "Search All Sources",
+      title: "Search All",
+      fullTitle: "Search All Sources",
       icon: "S",
       target: "privacyGdprSearchSection",
       order: 20,
@@ -3294,7 +3176,8 @@ function registerPrivacyGdprSections() {
     },
     {
       id: "evidence-pack",
-      title: "SAR Evidence Pack",
+      title: "SAR Pack",
+      fullTitle: "SAR Evidence Pack",
       icon: "EP",
       target: "privacyGdprEvidencePackSection",
       order: 28,
@@ -3302,7 +3185,8 @@ function registerPrivacyGdprSections() {
     },
     {
       id: "anonymisation-preview",
-      title: "Anonymisation Preview",
+      title: "Preview",
+      fullTitle: "Anonymisation Preview",
       icon: "AP",
       target: "privacyGdprAnonymisationPreviewSection",
       order: 29,
@@ -3310,7 +3194,8 @@ function registerPrivacyGdprSections() {
     },
     {
       id: "anonymisation-rules",
-      title: "Anonymisation Rules",
+      title: "Rules",
+      fullTitle: "Anonymisation Rules",
       icon: "AR",
       target: "privacyGdprAnonymisationRulesSection",
       order: 30,
@@ -3334,7 +3219,8 @@ function registerPrivacyGdprSections() {
     },
     {
       id: "document-evidence",
-      title: "Document Evidence",
+      title: "Evidence",
+      fullTitle: "Document Evidence",
       icon: "DE",
       target: "privacyGdprDocumentEvidenceResultsSection",
       order: 50,
