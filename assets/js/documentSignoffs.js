@@ -7,6 +7,7 @@ import { settingValue } from "./settings.js";
 import { todayDate } from "./utils.js";
 import { createSidePanelController, renderEmptyState } from "./platformUi.js";
 import { openIdentityReviewRequestFromContext } from "./identityResolutionAdmin.js";
+import { renderLinkedIdentityContext } from "./identityContext.js";
 
 let documentSignoffDependencies = {};
 let documentSignoffInitialised = false;
@@ -504,6 +505,8 @@ function clearDetailPanel() {
   if (actions) actions.replaceChildren();
   const contextActions = $("documentSignoffDetailsContextActions");
   if (contextActions) contextActions.replaceChildren();
+  const linkedContext = $("documentSignoffDetailsLinkedIdentityContext");
+  if (linkedContext) linkedContext.replaceChildren();
   setVisible("documentSignoffDetailsContextSection", false);
   setVisible("documentSignoffDetailsLegacySection", false);
 }
@@ -708,6 +711,13 @@ function renderDetailPanel(details, trigger) {
     });
   }
   renderDetailFields(settings.fields || []);
+  const linkedContext = $("documentSignoffDetailsLinkedIdentityContext");
+  if (linkedContext) {
+    linkedContext.replaceChildren();
+    if (settings.linkedIdentityContext) {
+      renderLinkedIdentityContext(linkedContext, settings.linkedIdentityContext);
+    }
+  }
 
   const contextActions = $("documentSignoffDetailsContextActions");
   const availableContextActions = (settings.contextActions || []).filter(action => action.allowed());
@@ -1047,6 +1057,12 @@ function openEvidenceDetails(record, trigger) {
       { label: "Created", value: formatDateTime(record.created_at) },
       { label: "Updated", value: formatDateTime(record.updated_at) }
     ],
+    linkedIdentityContext: {
+      sourceType: "document_evidence",
+      sourceRecordId: evidenceIdentityReviewSourceId(record),
+      sourceLabel: evidenceIdentityReviewLabel(record),
+      complianceNote: true
+    },
     contextActions: [
       {
         label: "Request Identity Review",

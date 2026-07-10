@@ -42,6 +42,7 @@ import {
   syncDocumentSignoffVisibility
 } from "./documentSignoffs.js";
 import { openIdentityReviewRequestFromContext } from "./identityResolutionAdmin.js";
+import { renderLinkedIdentityContext } from "./identityContext.js";
 
 let visitorsDependencies = {};
 let nativePlannedVisits = [];
@@ -1475,6 +1476,8 @@ function clearVisitorDetailsPanel() {
     "visitorsDetailsAutomaticSignOut"
   ].forEach(id => setText(id, "â€”"));
   setText("visitorsDetailsPanelTitle", "Visitor");
+  const linkedContext = $("visitorsDetailsLinkedIdentityContext");
+  if (linkedContext) linkedContext.replaceChildren();
   renderVisitorHistoryIdentityReviewAction(null);
 }
 
@@ -1520,6 +1523,7 @@ function openVisitorDetails(record, status, returnFocus) {
       ? "Yes" + (record.automatic_sign_out_reason ? " — " + record.automatic_sign_out_reason : "")
       : "No"
   );
+  renderVisitorHistoryLinkedIdentityContext(record);
   renderVisitorHistoryIdentityReviewAction(record);
   if (detailsPanelController) {
     detailsPanelController.open({
@@ -1530,6 +1534,16 @@ function openVisitorDetails(record, status, returnFocus) {
       initialFocus: "visitorsDetailsPanelClose"
     });
   }
+}
+
+function renderVisitorHistoryLinkedIdentityContext(record) {
+  const sourceId = record && record.history_record_type === "visit_log" ? record.id : null;
+  renderLinkedIdentityContext("visitorsDetailsLinkedIdentityContext", {
+    sourceType: "visit_log",
+    sourceRecordId: sourceId,
+    sourceLabel: record ? visitorHistoryIdentityReviewLabel(record) : "",
+    complianceNote: true
+  });
 }
 
 function visitorHistoryIdentityReviewLabel(record) {

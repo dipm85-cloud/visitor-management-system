@@ -9,6 +9,7 @@ import { showAdministrationWorkspace } from "./shell.js";
 import { AppState } from "./state.js";
 import { loadSystemSettings, settingValue } from "./settings.js";
 import { openIdentityReviewRequestFromContext } from "./identityResolutionAdmin.js";
+import { renderLinkedIdentityContext } from "./identityContext.js";
 
 const PRIVACY_GDPR_VIEW = [
   "privacy.case.view",
@@ -2882,6 +2883,14 @@ function renderPrivacyCaseDetailsPanel(caseRecord, notes, timelineError) {
   } else {
     appendPrivacyTimeline(body, createPrivacyCaseTimelineItems(caseRecord, notes));
   }
+  const identityContextHost = document.createElement("div");
+  identityContextHost.className = "linked-identity-context-slot";
+  body.appendChild(identityContextHost);
+  renderLinkedIdentityContext(identityContextHost, {
+    sourceType: "privacy_cases",
+    sourceRecordId: caseRecord.id,
+    sourceLabel: privacyCaseIdentityReviewLabel(caseRecord) || caseRecord.case_reference || "Privacy case"
+  });
   appendPrivacyCaseWorkspaceActions(body, caseRecord);
   appendPrivacyCaseLegacyBridge(body);
 }

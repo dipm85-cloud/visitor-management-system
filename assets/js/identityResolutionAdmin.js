@@ -6,6 +6,7 @@ import { createSidePanelController, renderEmptyState, requestPlatformConfirmatio
 import { refreshSectionNavigator, registerModuleSections } from "./sectionNavigation.js";
 import { showAdministrationWorkspace } from "./shell.js";
 import { AppState } from "./state.js";
+import { friendlyIdentitySourceType, getIdentityLinkDetailRows } from "./identityContext.js";
 
 const IDENTITY_VIEW_CAPABILITIES = [
   "identity_resolution.view",
@@ -53,7 +54,7 @@ const SOURCE_AREA_LABELS = {
   privacy_cases: "Privacy Case",
   visitor_history: "Visitor History",
   planned_visits: "Planned Visit",
-  visit_log: "Visit Log",
+  visit_log: "Visit Log / Visitor History",
   document_evidence: "Document Evidence",
   agreement_evidence: "Agreement Evidence",
   audit_events: "Audit Event",
@@ -819,17 +820,17 @@ async function openLinkDetail(linkId, trigger) {
   }
   try {
     const [recordsResult, decisionsResult] = await Promise.all([
-      supabaseClient.rpc("list_identity_link_records", { p_identity_link_id: linkId }),
+      getIdentityLinkDetailRows(linkId),
       supabaseClient.rpc("list_identity_resolution_decisions", {
         p_candidate_id: null,
         p_identity_link_id: linkId
       })
     ]);
-    if (recordsResult.error) throw recordsResult.error;
     if (decisionsResult.error) throw decisionsResult.error;
-    selectedLink = link;
+    const detailRows = Array.isArray(recordsResult) ? recordsResult : [];
+    selectedLink = Object.assign({}, link, detailRows[0] || {});
     selectedCandidate = null;
-    renderLinkDetail(link, Array.isArray(recordsResult.data) ? recordsResult.data : [], Array.isArray(decisionsResult.data) ? decisionsResult.data : []);
+    renderLinkDetail(selectedLink, detailRows, Array.isArray(decisionsResult.data) ? decisionsResult.data : []);
     detailPanelController.open({
       trigger,
       title: "Link " + textOrDash(link.link_reference),
@@ -1010,30 +1011,82 @@ function renderLinkDetail(link, records, decisions) {
   body.replaceChildren();
   const notice = document.createElement("div");
   notice.className = "assignment-editor-notice";
-  notice.textContent = "This confirmed link is metadata only. Source records have not been merged and history has not been rewritten.";
+  notice.textContent = "This confirmed identity link is metadata only. Source records have not been merged, modified or used to update compliance.";
   const meta = document.createElement("dl");
   meta.className = "identity-resolution-meta-grid";
   meta.append(
-    createMetaItem("Reference", link.link_reference),
+    createMetaItem("Link reference", link.link_reference),
+    createMetaItem("Canonical label", link.canonical_label),
     createMetaItem("Identity type", titleCase(link.identity_type)),
     createMetaItem("Status", titleCase(link.link_status)),
-    createMetaItem("Canonical label", link.canonical_label),
     createMetaItem("Link reason", link.link_reason),
-    createMetaItem("Created date", formatDate(link.created_at)),
+    createMetaItem("Created date", formatDate(link.link_created_at || link.created_at)),
     createMetaItem("Created from candidate", link.created_from_candidate_id)
   );
   const recordWrap = document.createElement("div");
   recordWrap.className = "identity-resolution-source-grid";
   records.forEach((record, index) => {
-    recordWrap.appendChild(createSourceBlock("Linked record " + (index + 1), {
-      type: record.source_type,
-      id: record.source_record_id,
-      label: record.source_label,
-      summary: record.source_summary
-    }));
+    recordWrap.appendChild(createLinkedIdentityRecordBlock(record, index));
   });
   body.append(notice, meta, recordWrap, createDecisionList(decisions));
   updateDetailActions();
+}
+
+function createLinkedIdentityRecordBlock(record, index) {
+  const block = document.createElement("section");
+  block.className = "identity-resolution-source-block";
+  const heading = document.createElement("h4");
+  heading.textContent = "Linked record " + (index + 1);
+  const meta = document.createElement("dl");
+  meta.className = "identity-resolution-meta-grid";
+  meta.append(
+    createMetaItem("Source area", friendlyIdentitySourceType(record.source_type)),
+    createMetaItem("Source label", record.source_label),
+    createMetaItem("Linked date", formatDate(record.source_record_linked_at))
+  );
+  usefulLinkSummaryFields(record.source_summary).forEach(field => {
+    meta.appendChild(createMetaItem(field.label, field.value));
+  });
+  block.append(heading, meta);
+  const technical = document.createElement("details");
+  technical.className = "identity-resolution-request-details identity-resolution-request-advanced";
+  const summary = document.createElement("summary");
+  summary.textContent = "Advanced / Technical Details";
+  const technicalMeta = document.createElement("dl");
+  technicalMeta.className = "identity-resolution-meta-grid";
+  technicalMeta.append(
+    createMetaItem("Source type", record.source_type),
+    createMetaItem("Source record ID", record.source_record_id),
+    createMetaItem("Link record ID", record.link_record_id)
+  );
+  technical.append(summary, technicalMeta);
+  if (record.source_summary && typeof record.source_summary === "object" && Object.keys(record.source_summary).length) {
+    const pre = document.createElement("pre");
+    pre.textContent = JSON.stringify(record.source_summary, null, 2);
+    technical.appendChild(pre);
+  }
+  block.appendChild(technical);
+  return block;
+}
+
+function usefulLinkSummaryFields(summary) {
+  const source = summary && typeof summary === "object" ? summary : {};
+  return [
+    ["result_label", "Label"],
+    ["display_label", "Label"],
+    ["case_reference", "Case reference"],
+    ["visitor_name", "Visitor / subject"],
+    ["company", "Company"],
+    ["document", "Document"],
+    ["status", "Status"],
+    ["visit_status", "Visit status"],
+    ["sign_in_time", "Sign in"],
+    ["signed_at", "Signed"]
+  ].filter(([key]) => source[key] !== null && source[key] !== undefined && String(source[key]).trim())
+    .map(([key, label]) => ({
+      label,
+      value: /_time$|_at$/.test(key) ? formatDate(source[key]) : source[key]
+    }));
 }
 
 function createDecisionList(decisions) {
