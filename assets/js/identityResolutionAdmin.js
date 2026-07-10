@@ -49,6 +49,17 @@ const IDENTITY_REQUEST_CAPABILITIES = [
 const CANDIDATE_STATUSES = ["pending", "confirmed", "rejected", "deferred", "ignored"];
 const REQUEST_STATUSES = ["pending", "in_review", "candidate_created", "closed", "cancelled"];
 const CANDIDATE_TYPES = ["person", "organisation", "vehicle", "email", "other"];
+const SOURCE_AREA_LABELS = {
+  privacy_cases: "Privacy Case",
+  visitor_history: "Visitor History",
+  planned_visits: "Planned Visit",
+  visit_log: "Visit Log",
+  document_evidence: "Document Evidence",
+  agreement_evidence: "Agreement Evidence",
+  audit_events: "Audit Event",
+  manual: "Manual / Other",
+  other: "Manual / Other"
+};
 
 let identityResolutionInitialised = false;
 let identityReviewRequests = [];
@@ -158,6 +169,17 @@ function textOrDash(value) {
 
 function titleCase(value) {
   return textOrDash(value).replace(/_/g, " ").replace(/\b\w/g, character => character.toUpperCase());
+}
+
+function sourceAreaLabel(value) {
+  const key = String(value || "").trim();
+  return SOURCE_AREA_LABELS[key] || titleCase(key);
+}
+
+function displayReference(recordType, recordId) {
+  const type = sourceAreaLabel(recordType);
+  const id = textOrDash(recordId);
+  return [type === "-" ? "" : type, id === "-" ? "" : id].filter(Boolean).join(" - ") || "-";
 }
 
 function formatDate(value) {
@@ -485,12 +507,12 @@ function renderReviewRequests() {
     const meta = document.createElement("dl");
     meta.className = "identity-resolution-meta-grid";
     meta.append(
-      createMetaItem("Source record", [request.source_label, request.source_type].filter(Boolean).join(" - ")),
-      createMetaItem("Source ID", request.source_record_id),
-      createMetaItem("Suggested match", [request.suggested_match_label, request.suggested_match_type].filter(Boolean).join(" - ")),
-      createMetaItem("Context", [request.context_type, request.context_record_id].filter(Boolean).join(" - ")),
+      createMetaItem("Source", request.source_label || displayReference(request.source_type, request.source_record_id)),
+      createMetaItem("Source area", sourceAreaLabel(request.source_type)),
+      createMetaItem("Suggested match", request.suggested_match_label || displayReference(request.suggested_match_type, "")),
+      createMetaItem("Context", sourceAreaLabel(request.context_type)),
       createMetaItem("Created", formatDate(request.created_at)),
-      createMetaItem("Candidate", request.candidate_id || "-")
+      createMetaItem("Candidate", request.candidate_id ? "Candidate linked" : "-")
     );
 
     const reason = document.createElement("p");
@@ -827,6 +849,53 @@ function renderCandidateDetail(candidate, decisions) {
   updateDetailActions();
 }
 
+function createFriendlyContextBlock(title, fields) {
+  const block = document.createElement("section");
+  block.className = "identity-resolution-source-block";
+  const heading = document.createElement("h4");
+  heading.textContent = title;
+  const meta = document.createElement("dl");
+  meta.className = "identity-resolution-meta-grid";
+  (fields || []).forEach(field => {
+    meta.appendChild(createMetaItem(field.label, field.value));
+  });
+  block.append(heading, meta);
+  return block;
+}
+
+function appendTechnicalDetails(parent, request) {
+  const details = document.createElement("details");
+  details.className = "identity-resolution-request-details identity-resolution-request-advanced";
+  const summary = document.createElement("summary");
+  summary.textContent = "Advanced / Technical Details";
+  const grid = document.createElement("div");
+  grid.className = "identity-resolution-source-grid";
+  grid.appendChild(createSourceBlock("Technical source record", {
+    type: request.source_type,
+    id: request.source_record_id,
+    label: request.source_label,
+    summary: request.source_summary
+  }));
+  if (request.suggested_match_type || request.suggested_match_record_id || request.suggested_match_label) {
+    grid.appendChild(createSourceBlock("Technical suggested match", {
+      type: request.suggested_match_type,
+      id: request.suggested_match_record_id,
+      label: request.suggested_match_label,
+      summary: request.suggested_match_summary
+    }));
+  }
+  if (request.context_type || request.context_record_id) {
+    grid.appendChild(createSourceBlock("Technical request context", {
+      type: request.context_type,
+      id: request.context_record_id,
+      label: request.context_type,
+      summary: request.context_summary
+    }));
+  }
+  details.append(summary, grid);
+  parent.appendChild(details);
+}
+
 function renderRequestDetail(request) {
   const body = $("identityResolutionDetailPanelBody");
   body.replaceChildren();
@@ -849,30 +918,26 @@ function renderRequestDetail(request) {
 
   const sources = document.createElement("div");
   sources.className = "identity-resolution-source-grid";
-  sources.appendChild(createSourceBlock("Source record", {
-    type: request.source_type,
-    id: request.source_record_id,
-    label: request.source_label,
-    summary: request.source_summary
-  }));
+  sources.appendChild(createFriendlyContextBlock("Source record", [
+    { label: "Source", value: request.source_label || displayReference(request.source_type, request.source_record_id) },
+    { label: "Source area", value: sourceAreaLabel(request.source_type) },
+    { label: "Reference", value: request.source_label || "-" }
+  ]));
   if (request.suggested_match_type || request.suggested_match_record_id || request.suggested_match_label) {
-    sources.appendChild(createSourceBlock("Suggested match", {
-      type: request.suggested_match_type,
-      id: request.suggested_match_record_id,
-      label: request.suggested_match_label,
-      summary: request.suggested_match_summary
-    }));
+    sources.appendChild(createFriendlyContextBlock("Suggested match", [
+      { label: "Suggested match", value: request.suggested_match_label || displayReference(request.suggested_match_type, request.suggested_match_record_id) },
+      { label: "Source area", value: sourceAreaLabel(request.suggested_match_type) }
+    ]));
   }
   if (request.context_type || request.context_record_id) {
-    sources.appendChild(createSourceBlock("Request context", {
-      type: request.context_type,
-      id: request.context_record_id,
-      label: request.context_type,
-      summary: request.context_summary
-    }));
+    sources.appendChild(createFriendlyContextBlock("Request context", [
+      { label: "Context", value: sourceAreaLabel(request.context_type) },
+      { label: "Reference", value: request.context_summary && request.context_summary.case_reference ? request.context_summary.case_reference : "-" }
+    ]));
   }
 
   body.append(notice, meta, sources);
+  appendTechnicalDetails(body, request);
 
   const actions = document.createElement("div");
   actions.className = "identity-resolution-card-actions";
@@ -1040,6 +1105,84 @@ function resetRequestForm() {
     if ($(id)) $(id).value = "{}";
   });
   if ($("identityResolutionRequestCandidateType")) $("identityResolutionRequestCandidateType").value = "person";
+  if ($("identityResolutionRequestCapturedContext")) $("identityResolutionRequestCapturedContext").classList.add("hidden");
+  if ($("identityResolutionRequestCapturedFields")) $("identityResolutionRequestCapturedFields").replaceChildren();
+  if ($("identityResolutionRequestStandardSource")) $("identityResolutionRequestStandardSource").classList.remove("hidden");
+  if ($("identityResolutionRequestSuggestedSection")) $("identityResolutionRequestSuggestedSection").open = false;
+  if ($("identityResolutionRequestAdvancedSection")) $("identityResolutionRequestAdvancedSection").open = false;
+}
+
+function setSelectValue(selectId, value) {
+  const select = $(selectId);
+  if (!select) return;
+  const option = Array.from(select.options).find(item => item.value === value);
+  select.value = option ? value : (value ? "manual" : "");
+}
+
+function appendContextField(list, label, value) {
+  if (!list || !value) return;
+  const wrapper = document.createElement("div");
+  const term = document.createElement("dt");
+  const detail = document.createElement("dd");
+  term.textContent = label;
+  detail.textContent = textOrDash(value);
+  wrapper.append(term, detail);
+  list.appendChild(wrapper);
+}
+
+function renderCapturedRequestContext(settings) {
+  const card = $("identityResolutionRequestCapturedContext");
+  const label = $("identityResolutionRequestCapturedLabel");
+  const fields = $("identityResolutionRequestCapturedFields");
+  if (!card || !fields) return;
+  const hasContext = Boolean(settings.sourceRecordId && settings.sourceType);
+  card.classList.toggle("hidden", !hasContext);
+  fields.replaceChildren();
+  if (!hasContext) return;
+  if (label) label.textContent = settings.sourceLabel || displayReference(settings.sourceType, settings.sourceRecordId);
+  appendContextField(fields, "Source", sourceAreaLabel(settings.sourceType));
+  appendContextField(fields, "Reference", settings.sourceSummary?.case_reference || settings.sourceLabel || settings.sourceRecordId);
+  appendContextField(fields, "Subject/Search", settings.sourceSummary?.search_text || settings.sourceSummary?.subject_reference);
+  appendContextField(fields, "Status", settings.sourceSummary?.status);
+}
+
+function standardSummary(area, reference, label) {
+  return {
+    source_area: sourceAreaLabel(area),
+    display_reference: reference || null,
+    display_label: label || null
+  };
+}
+
+function syncStandardRequestFieldsToTechnical() {
+  const sourceArea = fieldValue("identityResolutionRequestSourceArea");
+  const sourceReference = fieldValue("identityResolutionRequestSourceReference");
+  const sourceLabel = fieldValue("identityResolutionRequestSourceDisplayLabel") || sourceReference;
+  const suggestedArea = fieldValue("identityResolutionRequestSuggestedArea");
+  const suggestedReference = fieldValue("identityResolutionRequestSuggestedReference");
+  const suggestedLabel = fieldValue("identityResolutionRequestSuggestedDisplayLabel") || suggestedReference;
+
+  if ($("identityResolutionRequestSourceType")) $("identityResolutionRequestSourceType").value = sourceArea;
+  if ($("identityResolutionRequestSourceId")) $("identityResolutionRequestSourceId").value = sourceReference;
+  if ($("identityResolutionRequestSourceLabel")) $("identityResolutionRequestSourceLabel").value = sourceLabel;
+  if ($("identityResolutionRequestSourceSummary")) {
+    $("identityResolutionRequestSourceSummary").value = JSON.stringify(
+      standardSummary(sourceArea, sourceReference, sourceLabel),
+      null,
+      2
+    );
+  }
+
+  if ($("identityResolutionRequestSuggestedType")) $("identityResolutionRequestSuggestedType").value = suggestedArea;
+  if ($("identityResolutionRequestSuggestedId")) $("identityResolutionRequestSuggestedId").value = suggestedReference;
+  if ($("identityResolutionRequestSuggestedLabel")) $("identityResolutionRequestSuggestedLabel").value = suggestedLabel;
+  if ($("identityResolutionRequestSuggestedSummary")) {
+    $("identityResolutionRequestSuggestedSummary").value = JSON.stringify(
+      standardSummary(suggestedArea, suggestedReference, suggestedLabel),
+      null,
+      2
+    );
+  }
 }
 
 function applyRequestContext(context) {
@@ -1049,12 +1192,18 @@ function applyRequestContext(context) {
   }
   if ($("identityResolutionRequestReason")) $("identityResolutionRequestReason").value = settings.requestReason || "";
   if ($("identityResolutionRequesterNotes")) $("identityResolutionRequesterNotes").value = settings.requesterNotes || "";
+  setSelectValue("identityResolutionRequestSourceArea", settings.sourceType || "");
+  if ($("identityResolutionRequestSourceReference")) $("identityResolutionRequestSourceReference").value = settings.sourceRecordId || "";
+  if ($("identityResolutionRequestSourceDisplayLabel")) $("identityResolutionRequestSourceDisplayLabel").value = settings.sourceLabel || "";
   if ($("identityResolutionRequestSourceType")) $("identityResolutionRequestSourceType").value = settings.sourceType || "";
   if ($("identityResolutionRequestSourceId")) $("identityResolutionRequestSourceId").value = settings.sourceRecordId || "";
   if ($("identityResolutionRequestSourceLabel")) $("identityResolutionRequestSourceLabel").value = settings.sourceLabel || "";
   if ($("identityResolutionRequestSourceSummary")) {
     $("identityResolutionRequestSourceSummary").value = JSON.stringify(settings.sourceSummary || {}, null, 2);
   }
+  setSelectValue("identityResolutionRequestSuggestedArea", settings.suggestedMatchType || "");
+  if ($("identityResolutionRequestSuggestedReference")) $("identityResolutionRequestSuggestedReference").value = settings.suggestedMatchRecordId || "";
+  if ($("identityResolutionRequestSuggestedDisplayLabel")) $("identityResolutionRequestSuggestedDisplayLabel").value = settings.suggestedMatchLabel || "";
   if ($("identityResolutionRequestSuggestedType")) $("identityResolutionRequestSuggestedType").value = settings.suggestedMatchType || "";
   if ($("identityResolutionRequestSuggestedId")) $("identityResolutionRequestSuggestedId").value = settings.suggestedMatchRecordId || "";
   if ($("identityResolutionRequestSuggestedLabel")) $("identityResolutionRequestSuggestedLabel").value = settings.suggestedMatchLabel || "";
@@ -1069,6 +1218,11 @@ function applyRequestContext(context) {
   if ($("identityResolutionRequestMetadata")) {
     $("identityResolutionRequestMetadata").value = JSON.stringify(settings.metadata || {}, null, 2);
   }
+  const lockedContext = Boolean(settings.sourceType && settings.sourceRecordId && settings.contextType);
+  if ($("identityResolutionRequestStandardSource")) {
+    $("identityResolutionRequestStandardSource").classList.toggle("hidden", lockedContext);
+  }
+  renderCapturedRequestContext(settings);
 }
 
 function openRequestPanel(trigger, context) {
@@ -1091,6 +1245,8 @@ export function openIdentityReviewRequestFromContext(context, trigger) {
 }
 
 function requestPayloadFromForm() {
+  const advancedOpen = $("identityResolutionRequestAdvancedSection")?.open === true;
+  if (!advancedOpen) syncStandardRequestFieldsToTechnical();
   const suggestedType = fieldValue("identityResolutionRequestSuggestedType");
   const suggestedId = fieldValue("identityResolutionRequestSuggestedId");
   return {
@@ -1129,11 +1285,11 @@ async function saveIdentityReviewRequest(event) {
     return;
   }
   if (!payload.sourceType || !payload.sourceId) {
-    showToast("Source record required", "Source type and source record ID are required.", "error");
+    showToast("Source record required", "Choose a source area and enter the known source reference.", "error");
     return;
   }
   if ((payload.suggestedType && !payload.suggestedId) || (!payload.suggestedType && payload.suggestedId)) {
-    showToast("Suggested match incomplete", "Suggested match type and record ID must be provided together.", "error");
+    showToast("Suggested match incomplete", "Suggested match area and reference must be provided together.", "error");
     return;
   }
   if (
@@ -1504,6 +1660,17 @@ export function initialiseIdentityResolutionAdministration() {
   if ($("identityResolutionRequestForm")) {
     $("identityResolutionRequestForm").addEventListener("submit", saveIdentityReviewRequest);
   }
+  [
+    "identityResolutionRequestSourceArea",
+    "identityResolutionRequestSourceReference",
+    "identityResolutionRequestSourceDisplayLabel",
+    "identityResolutionRequestSuggestedArea",
+    "identityResolutionRequestSuggestedReference",
+    "identityResolutionRequestSuggestedDisplayLabel"
+  ].forEach(id => {
+    if ($(id)) $(id).addEventListener("input", syncStandardRequestFieldsToTechnical);
+    if ($(id)) $(id).addEventListener("change", syncStandardRequestFieldsToTechnical);
+  });
   if ($("identityResolutionDecisionForm")) {
     $("identityResolutionDecisionForm").addEventListener("submit", saveDecision);
   }

@@ -3985,7 +3985,7 @@
             </header>
             <form id="identityResolutionCandidateForm" class="visitors-planned-form identity-resolution-panel-form" novalidate>
               <div class="assignment-editor-notice">
-                Manual candidate creation is intended for advanced administrative review when exact source record references are known. Source records are not modified; confirmation creates metadata only.
+                Advanced manual candidate creation is secondary. Use this only when exact technical source references are known. Source records are not modified; confirmation creates metadata only.
               </div>
               <label for="identityResolutionFormCandidateType"><span>Candidate type</span><select id="identityResolutionFormCandidateType"><option value="person">Person</option><option value="organisation">Organisation</option><option value="vehicle">Vehicle</option><option value="email">Email</option><option value="other">Other</option></select></label>
               <label for="identityResolutionFormMatchReason"><span>Match reason</span><textarea id="identityResolutionFormMatchReason" rows="3" aria-describedby="identityResolutionFormMatchReasonHelp"></textarea><small id="identityResolutionFormMatchReasonHelp" class="identity-resolution-field-note">Recommended. Explain why these two records need authorised review without claiming they are definitely the same identity.</small></label>
@@ -4028,32 +4028,47 @@
               <button id="identityResolutionRequestPanelClose" class="ghost" type="button" aria-label="Close identity review request panel" data-oh-side-panel-close>Close</button>
             </header>
             <form id="identityResolutionRequestForm" class="visitors-planned-form identity-resolution-panel-form" novalidate>
-              <input id="identityResolutionRequestContextType" type="hidden" />
-              <input id="identityResolutionRequestContextId" type="hidden" />
-              <textarea id="identityResolutionRequestContextSummary" class="hidden" aria-hidden="true"></textarea>
-              <textarea id="identityResolutionRequestMetadata" class="hidden" aria-hidden="true"></textarea>
               <div class="assignment-editor-notice">
                 This creates a request for review only. It does not merge, link, erase, anonymise or change source records.
               </div>
+              <section id="identityResolutionRequestCapturedContext" class="identity-resolution-context-card hidden" aria-labelledby="identityResolutionRequestCapturedContextTitle">
+                <h3 id="identityResolutionRequestCapturedContextTitle">Review subject</h3>
+                <strong id="identityResolutionRequestCapturedLabel">Known source record</strong>
+                <dl id="identityResolutionRequestCapturedFields" class="identity-resolution-context-list"></dl>
+              </section>
               <label for="identityResolutionRequestCandidateType"><span>Candidate type *</span><select id="identityResolutionRequestCandidateType"><option value="person">Person</option><option value="organisation">Organisation</option><option value="vehicle">Vehicle</option><option value="email">Email</option><option value="other">Other</option></select></label>
               <label for="identityResolutionRequestReason"><span>Request reason *</span><textarea id="identityResolutionRequestReason" rows="3" aria-describedby="identityResolutionRequestReasonHelp"></textarea><small id="identityResolutionRequestReasonHelp" class="identity-resolution-field-note">Describe why this source record needs authorised identity review without claiming a confirmed match.</small></label>
               <label for="identityResolutionRequesterNotes"><span>Requester notes</span><textarea id="identityResolutionRequesterNotes" rows="3"></textarea></label>
-              <fieldset class="identity-resolution-source-fieldset">
+              <fieldset id="identityResolutionRequestStandardSource" class="identity-resolution-source-fieldset">
                 <legend>Source record</legend>
-                <p class="identity-resolution-field-note">The exact source record that needs review.</p>
-                <label for="identityResolutionRequestSourceType"><span>Source type *</span><input id="identityResolutionRequestSourceType" type="text" autocomplete="off" placeholder="privacy_cases" /></label>
-                <label for="identityResolutionRequestSourceId"><span>Source record ID *</span><input id="identityResolutionRequestSourceId" type="text" autocomplete="off" /></label>
-                <label for="identityResolutionRequestSourceLabel"><span>Source label</span><input id="identityResolutionRequestSourceLabel" type="text" autocomplete="off" /></label>
+                <p class="identity-resolution-field-note">Use this form only when you have a known record reference. Requests from record details can prefill this context for you.</p>
+                <label for="identityResolutionRequestSourceArea"><span>Source area *</span><select id="identityResolutionRequestSourceArea"><option value="">Select source area</option><option value="privacy_cases">Privacy Case</option><option value="visitor_history">Visitor History</option><option value="planned_visits">Planned Visit</option><option value="visit_log">Visit Log</option><option value="document_evidence">Document Evidence</option><option value="agreement_evidence">Agreement Evidence</option><option value="audit_events">Audit Event</option><option value="manual">Manual / Other</option></select></label>
+                <label for="identityResolutionRequestSourceReference"><span>Source reference *</span><input id="identityResolutionRequestSourceReference" type="text" autocomplete="off" placeholder="Known record reference" /></label>
+                <label for="identityResolutionRequestSourceDisplayLabel"><span>Display label</span><input id="identityResolutionRequestSourceDisplayLabel" type="text" autocomplete="off" placeholder="Readable label for reviewers" /></label>
+              </fieldset>
+              <details id="identityResolutionRequestSuggestedSection" class="identity-resolution-request-details">
+                <summary>Suggested match (optional)</summary>
+                <p class="identity-resolution-field-note">If you know the record this should be compared with, add it here. Otherwise leave this blank and a reviewer can investigate.</p>
+                <label for="identityResolutionRequestSuggestedArea"><span>Suggested match area</span><select id="identityResolutionRequestSuggestedArea"><option value="">Select source area</option><option value="privacy_cases">Privacy Case</option><option value="visitor_history">Visitor History</option><option value="planned_visits">Planned Visit</option><option value="visit_log">Visit Log</option><option value="document_evidence">Document Evidence</option><option value="agreement_evidence">Agreement Evidence</option><option value="audit_events">Audit Event</option><option value="manual">Manual / Other</option></select></label>
+                <label for="identityResolutionRequestSuggestedReference"><span>Suggested match reference</span><input id="identityResolutionRequestSuggestedReference" type="text" autocomplete="off" /></label>
+                <label for="identityResolutionRequestSuggestedDisplayLabel"><span>Suggested match label</span><input id="identityResolutionRequestSuggestedDisplayLabel" type="text" autocomplete="off" /></label>
+              </details>
+              <details id="identityResolutionRequestAdvancedSection" class="identity-resolution-request-details identity-resolution-request-advanced">
+                <summary>Advanced Technical Request</summary>
+                <p class="identity-resolution-field-note">Use this only when exact technical source references are known. Normal users should prefer requests from record details.</p>
+                <label for="identityResolutionRequestSourceType"><span>Technical source_type *</span><input id="identityResolutionRequestSourceType" type="text" autocomplete="off" placeholder="privacy_cases" /></label>
+                <label for="identityResolutionRequestSourceId"><span>Technical source_record_id *</span><input id="identityResolutionRequestSourceId" type="text" autocomplete="off" /></label>
+                <label for="identityResolutionRequestSourceLabel"><span>Stored source_label</span><input id="identityResolutionRequestSourceLabel" type="text" autocomplete="off" /></label>
+                <label for="identityResolutionRequestSuggestedType"><span>Technical suggested_match_type</span><input id="identityResolutionRequestSuggestedType" type="text" autocomplete="off" /></label>
+                <label for="identityResolutionRequestSuggestedId"><span>Technical suggested_match_record_id</span><input id="identityResolutionRequestSuggestedId" type="text" autocomplete="off" /></label>
+                <label for="identityResolutionRequestSuggestedLabel"><span>Stored suggested_match_label</span><input id="identityResolutionRequestSuggestedLabel" type="text" autocomplete="off" /></label>
                 <label for="identityResolutionRequestSourceSummary"><span>Source summary JSON</span><textarea id="identityResolutionRequestSourceSummary" rows="3" spellcheck="false" placeholder="{ }"></textarea></label>
-              </fieldset>
-              <fieldset class="identity-resolution-source-fieldset">
-                <legend>Suggested match</legend>
-                <p class="identity-resolution-field-note">If you know the exact record to compare against, add it as a suggested match. If not, submit the request and a reviewer can investigate.</p>
-                <label for="identityResolutionRequestSuggestedType"><span>Suggested match type</span><input id="identityResolutionRequestSuggestedType" type="text" autocomplete="off" /></label>
-                <label for="identityResolutionRequestSuggestedId"><span>Suggested match record ID</span><input id="identityResolutionRequestSuggestedId" type="text" autocomplete="off" /></label>
-                <label for="identityResolutionRequestSuggestedLabel"><span>Suggested match label</span><input id="identityResolutionRequestSuggestedLabel" type="text" autocomplete="off" /></label>
                 <label for="identityResolutionRequestSuggestedSummary"><span>Suggested match summary JSON</span><textarea id="identityResolutionRequestSuggestedSummary" rows="3" spellcheck="false" placeholder="{ }"></textarea></label>
-              </fieldset>
+                <label for="identityResolutionRequestContextType"><span>Context type</span><input id="identityResolutionRequestContextType" type="text" autocomplete="off" /></label>
+                <label for="identityResolutionRequestContextId"><span>Context record ID</span><input id="identityResolutionRequestContextId" type="text" autocomplete="off" /></label>
+                <label for="identityResolutionRequestContextSummary"><span>Context summary JSON</span><textarea id="identityResolutionRequestContextSummary" rows="3" spellcheck="false" placeholder="{ }"></textarea></label>
+                <label for="identityResolutionRequestMetadata"><span>Metadata JSON</span><textarea id="identityResolutionRequestMetadata" rows="3" spellcheck="false" placeholder="{ }"></textarea></label>
+              </details>
               <div class="visitors-side-panel-actions" data-oh-side-panel-actions>
                 <button id="identityResolutionCreateRequestButton" type="submit">Create Review Request</button>
                 <button id="identityResolutionRequestCancelButton" class="secondary" type="button">Cancel</button>

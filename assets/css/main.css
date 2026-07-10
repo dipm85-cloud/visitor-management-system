@@ -7058,6 +7058,68 @@ button.oh-section-nav-item:focus-visible,
   min-height: 36px;
 }
 
+.identity-resolution-context-card,
+.identity-resolution-request-details {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--oh-shell-border);
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.identity-resolution-context-card h3,
+.identity-resolution-context-card strong {
+  display: block;
+  margin: 0;
+}
+
+.identity-resolution-context-card strong {
+  margin-top: 6px;
+  overflow-wrap: anywhere;
+}
+
+.identity-resolution-context-list {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0 0;
+}
+
+.identity-resolution-context-list div {
+  display: grid;
+  grid-template-columns: minmax(110px, .45fr) minmax(0, 1fr);
+  gap: 10px;
+}
+
+.identity-resolution-context-list dt {
+  color: #667085;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.identity-resolution-context-list dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.identity-resolution-request-details {
+  display: block;
+}
+
+.identity-resolution-request-details summary {
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.identity-resolution-request-details[open] {
+  display: grid;
+  gap: 12px;
+}
+
+.identity-resolution-request-advanced {
+  background: #fff;
+}
+
 .identity-resolution-panel {
   max-width: min(720px, calc(100vw - 32px));
 }
