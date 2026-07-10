@@ -1276,6 +1276,17 @@ export function openIdentityReviewRequestFromContext(context, trigger) {
   openRequestPanel(trigger, context);
 }
 
+function isIdentityResolutionWorkspaceVisible() {
+  const workspace = $("administrationWorkspace");
+  const section = $("identityResolutionSection");
+  return Boolean(
+    workspace &&
+    section &&
+    !workspace.classList.contains("hidden") &&
+    !section.classList.contains("hidden")
+  );
+}
+
 function requestPayloadFromForm() {
   const advancedOpen = $("identityResolutionRequestAdvancedSection")?.open === true;
   if (!advancedOpen) syncStandardRequestFieldsToTechnical();
@@ -1357,7 +1368,7 @@ async function saveIdentityReviewRequest(event) {
     requestPanelController.close({ restoreFocus: false });
     showToast("Review request created", "The identity review request was created.", "success");
     await loadIdentityResolutionAdministration({ manual: false });
-    if (result.data && result.data.id) {
+    if (result.data && result.data.id && isIdentityResolutionWorkspaceVisible()) {
       await openRequestDetail(result.data.id, $("identityResolutionNewRequestButton") || button);
     }
   } catch (err) {
