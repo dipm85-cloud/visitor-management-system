@@ -2190,20 +2190,28 @@ body.document-signoff-overlay-open {
   padding: 0;
 }
 
+.document-signoff-detail-context,
 .document-signoff-detail-legacy {
   display: grid;
   gap: 14px;
   margin: 4px 0 28px;
   padding: 16px;
-  border: 1px dashed var(--oh-shell-border);
+  border: 1px solid var(--oh-shell-border);
   border-radius: 12px;
+  background: #fff;
+}
+
+.document-signoff-detail-legacy {
+  border: 1px dashed var(--oh-shell-border);
   background: #f8fafc;
 }
 
+.document-signoff-detail-context h3,
 .document-signoff-detail-legacy h3 {
   margin: 0;
 }
 
+.document-signoff-detail-context p,
 .document-signoff-detail-legacy p {
   margin: 5px 0 0;
   color: var(--oh-shell-muted);

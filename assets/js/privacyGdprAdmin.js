@@ -2662,6 +2662,112 @@ function identityReviewContextFromPrivacyCase(caseRecord) {
   };
 }
 
+function searchResultIdentityReviewSourceType(record) {
+  if (!record || !record.groupId) return "";
+  if (record.groupId === "planned_visits") return "planned_visits";
+  if (record.groupId === "visit_log") return "visit_log";
+  if (record.groupId === "document_evidence") return "document_evidence";
+  if (record.groupId === "audit_events") return "audit_events";
+  return "";
+}
+
+function searchResultHasExactIdentitySource(record) {
+  const sourceId = String(record && record.sourceId ? record.sourceId : "").trim();
+  return Boolean(searchResultIdentityReviewSourceType(record) && sourceId && sourceId !== "-");
+}
+
+function searchResultIdentityReviewLabel(record) {
+  if (!record) return "";
+  const sourceType = searchResultIdentityReviewSourceType(record);
+  const area = sourceType === "visit_log" ? "Visit Log" : sourceType === "planned_visits"
+    ? "Planned Visit"
+    : sourceType === "document_evidence"
+      ? "Document Evidence"
+      : sourceType === "audit_events"
+        ? "Audit Event"
+        : SEARCH_GROUPS[record.groupId]?.title || "Privacy Record";
+  const raw = record.raw || {};
+  if (sourceType === "document_evidence") {
+    return [
+      area,
+      raw.agreement_name || raw.agreement_title || record.subtitle,
+      [raw.visitor_name || record.title, raw.company].filter(Boolean).join(" / ")
+    ].filter(Boolean).join(" - ");
+  }
+  if (sourceType === "audit_events") {
+    return [area, raw.event_type || record.title, formatDate(raw.created_at || record.date)].filter(Boolean).join(" - ");
+  }
+  const subject = [raw.visitor_name || record.title, raw.company || record.subtitle].filter(Boolean).join(" / ");
+  return [area, subject, formatDate(raw.sign_in_time || raw.visit_date || record.date)].filter(Boolean).join(" - ");
+}
+
+function identityReviewContextFromSearchResult(record) {
+  const raw = record.raw || {};
+  const sourceType = searchResultIdentityReviewSourceType(record);
+  const sourceLabel = searchResultIdentityReviewLabel(record);
+  return {
+    candidateType: "person",
+    requestReason: "Source record requires identity review.",
+    sourceType,
+    sourceRecordId: record.sourceId,
+    sourceLabel,
+    sourceSummary: {
+      source_area: sourceAreaTitle(sourceType),
+      result_label: sourceLabel,
+      visitor_name: raw.visitor_name || null,
+      company: raw.company || null,
+      visit_date: raw.visit_date || null,
+      sign_in_time: raw.sign_in_time || null,
+      signed_at: raw.signed_at || null,
+      document: raw.agreement_name || raw.agreement_title || null,
+      event_type: raw.event_type || null,
+      status: record.status || null
+    },
+    contextType: "privacy_source_result",
+    contextRecordId: record.sourceId,
+    contextSummary: {
+      context_label: SEARCH_GROUPS[record.groupId]?.title || "Privacy source result",
+      source_area: sourceAreaTitle(sourceType),
+      result_label: sourceLabel
+    },
+    metadata: {
+      launched_from: "privacy_source_result",
+      privacy_search_group: record.groupId
+    }
+  };
+}
+
+function sourceAreaTitle(sourceType) {
+  if (sourceType === "planned_visits") return "Planned Visit";
+  if (sourceType === "visit_log") return "Visit Log";
+  if (sourceType === "document_evidence") return "Document Evidence";
+  if (sourceType === "audit_events") return "Audit Event";
+  return textOrDash(sourceType).replace(/_/g, " ");
+}
+
+function appendSearchResultIdentityReviewAction(parent, record) {
+  if (!parent || !canRequestIdentityReviewFromPrivacy() || !searchResultHasExactIdentitySource(record)) return;
+  const section = document.createElement("section");
+  section.className = "privacy-gdpr-detail-actions";
+  const note = document.createElement("p");
+  note.textContent = "Request authorised identity review for this exact source record. No source data is changed.";
+  const requestReview = document.createElement("button");
+  requestReview.type = "button";
+  requestReview.className = "secondary";
+  requestReview.textContent = "Request Identity Review";
+  requestReview.addEventListener("click", event => {
+    if (privacyGdprSearchDetailsPanelController) {
+      privacyGdprSearchDetailsPanelController.close({ restoreFocus: false });
+    }
+    openIdentityReviewRequestFromContext(
+      identityReviewContextFromSearchResult(record),
+      event.currentTarget
+    );
+  });
+  section.append(note, requestReview);
+  parent.appendChild(section);
+}
+
 function appendPrivacyCaseWorkspaceActions(parent, caseRecord) {
   const section = document.createElement("section");
   section.className = "privacy-gdpr-detail-actions";
@@ -2811,6 +2917,7 @@ function openSearchResultDetails(record, trigger) {
     summary.textContent = record.summary || "Read-only native privacy search result.";
     body.appendChild(summary);
     appendDetailsList(body, record.fields || []);
+    appendSearchResultIdentityReviewAction(body, record);
   }
   privacyGdprSearchDetailsPanelController.open({ trigger });
 }

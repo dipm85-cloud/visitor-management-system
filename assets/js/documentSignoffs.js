@@ -6,6 +6,7 @@ import { AppState } from "./state.js";
 import { settingValue } from "./settings.js";
 import { todayDate } from "./utils.js";
 import { createSidePanelController, renderEmptyState } from "./platformUi.js";
+import { openIdentityReviewRequestFromContext } from "./identityResolutionAdmin.js";
 
 let documentSignoffDependencies = {};
 let documentSignoffInitialised = false;
@@ -39,6 +40,15 @@ const NATIVE_SIGNOFF_FOCUSABLE_SELECTOR = [
   "textarea:not([disabled])",
   "[tabindex]:not([tabindex='-1'])"
 ].join(",");
+
+const IDENTITY_REVIEW_REQUEST_CAPABILITIES = [
+  "identity_resolution.request",
+  "identity_resolution.manage",
+  "privacy.manage",
+  "gdpr.manage",
+  "module_configuration.manage",
+  "settings.edit"
+];
 
 function isActiveStaffUser() {
   return AppState.currentProfile &&
@@ -85,6 +95,10 @@ function canOpenLegacyEvidence() {
     "audit.view",
     "visitor.history.view"
   ]);
+}
+
+function canRequestIdentityReviewFromDocumentSignoffs() {
+  return isActiveStaffUser() && hasAnyCapability(IDENTITY_REVIEW_REQUEST_CAPABILITIES);
 }
 
 function canUseNativeVisitorSignoff() {
@@ -488,6 +502,9 @@ function clearDetailPanel() {
   if (list) list.replaceChildren();
   const actions = $("documentSignoffDetailsLegacyActions");
   if (actions) actions.replaceChildren();
+  const contextActions = $("documentSignoffDetailsContextActions");
+  if (contextActions) contextActions.replaceChildren();
+  setVisible("documentSignoffDetailsContextSection", false);
   setVisible("documentSignoffDetailsLegacySection", false);
 }
 
@@ -667,6 +684,15 @@ function createLegacyActionButton(action) {
   return button;
 }
 
+function createContextActionButton(action) {
+  const button = document.createElement("button");
+  button.className = "secondary";
+  button.type = "button";
+  button.textContent = action.label;
+  button.addEventListener("click", event => action.handler(event.currentTarget));
+  return button;
+}
+
 function renderDetailPanel(details, trigger) {
   if (!documentSignoffDetailsPanelController) return;
   const settings = details || {};
@@ -682,6 +708,14 @@ function renderDetailPanel(details, trigger) {
     });
   }
   renderDetailFields(settings.fields || []);
+
+  const contextActions = $("documentSignoffDetailsContextActions");
+  const availableContextActions = (settings.contextActions || []).filter(action => action.allowed());
+  if (contextActions) {
+    contextActions.replaceChildren();
+    availableContextActions.forEach(action => contextActions.appendChild(createContextActionButton(action)));
+  }
+  setVisible("documentSignoffDetailsContextSection", availableContextActions.length > 0);
 
   const actions = $("documentSignoffDetailsLegacyActions");
   const availableActions = (settings.legacyActions || []).filter(action => action.allowed());
@@ -942,6 +976,50 @@ function openDocumentVersionDetails(version, trigger) {
   }, trigger);
 }
 
+function evidenceIdentityReviewSourceId(record) {
+  return record && (record.id || record.agreement_id || record.agreement_signature_id);
+}
+
+function evidenceIdentityReviewLabel(record) {
+  const subject = [record.visitor_name, record.company].filter(Boolean).join(" / ");
+  return [
+    "Document Evidence",
+    record.agreement_name || record.agreement_title,
+    subject
+  ].filter(Boolean).join(" - ");
+}
+
+function evidenceIdentityReviewContext(record) {
+  const label = evidenceIdentityReviewLabel(record);
+  const sourceId = evidenceIdentityReviewSourceId(record);
+  return {
+    candidateType: "person",
+    requestReason: "Document evidence requires identity review.",
+    sourceType: "document_evidence",
+    sourceRecordId: sourceId,
+    sourceLabel: label,
+    sourceSummary: {
+      result_label: label,
+      visitor_name: record.visitor_name || null,
+      company: record.company || null,
+      document: record.agreement_name || record.agreement_title || null,
+      version: record.agreement_version_number || null,
+      signed_at: record.signed_at || null,
+      visit_log_id: record.visit_log_id || record.visitor_log_id || null,
+      evidence_type: evidenceType(record)
+    },
+    contextType: "document_signoff_evidence",
+    contextRecordId: sourceId,
+    contextSummary: {
+      context_label: "Document Sign-off Evidence",
+      result_label: label
+    },
+    metadata: {
+      launched_from: "document_signoff_evidence_detail"
+    }
+  };
+}
+
 function openEvidenceDetails(record, trigger) {
   renderDetailPanel({
     type: "sign-off-evidence",
@@ -968,6 +1046,18 @@ function openEvidenceDetails(record, trigger) {
       { label: "Document version ID", value: record.agreement_version_id },
       { label: "Created", value: formatDateTime(record.created_at) },
       { label: "Updated", value: formatDateTime(record.updated_at) }
+    ],
+    contextActions: [
+      {
+        label: "Request Identity Review",
+        allowed: () => canRequestIdentityReviewFromDocumentSignoffs() && !!evidenceIdentityReviewSourceId(record),
+        handler: button => {
+          if (documentSignoffDetailsPanelController) {
+            documentSignoffDetailsPanelController.close({ restoreFocus: false });
+          }
+          openIdentityReviewRequestFromContext(evidenceIdentityReviewContext(record), button);
+        }
+      }
     ],
     legacyActions: [
       {

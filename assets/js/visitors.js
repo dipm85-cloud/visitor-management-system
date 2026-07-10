@@ -41,6 +41,7 @@ import {
   loadDocumentSignoffOverview,
   syncDocumentSignoffVisibility
 } from "./documentSignoffs.js";
+import { openIdentityReviewRequestFromContext } from "./identityResolutionAdmin.js";
 
 let visitorsDependencies = {};
 let nativePlannedVisits = [];
@@ -74,6 +75,15 @@ const walkInFieldDefaults = {
   pass: { visible: true, required: false }
 };
 
+const IDENTITY_REVIEW_REQUEST_CAPABILITIES = [
+  "identity_resolution.request",
+  "identity_resolution.manage",
+  "privacy.manage",
+  "gdpr.manage",
+  "module_configuration.manage",
+  "settings.edit"
+];
+
 function isActiveStaffUser() {
   return AppState.currentProfile &&
     AppState.currentProfile.active &&
@@ -100,6 +110,10 @@ function canViewVisitorHistory() {
 
 function canViewVisitorReporting() {
   return canViewVisitorHistory() && hasCapability("reports.view");
+}
+
+function canRequestIdentityReviewFromVisitors() {
+  return isActiveStaffUser() && hasAnyCapability(IDENTITY_REVIEW_REQUEST_CAPABILITIES);
 }
 
 function canOpenVisitorConfiguration() {
@@ -1461,6 +1475,7 @@ function clearVisitorDetailsPanel() {
     "visitorsDetailsAutomaticSignOut"
   ].forEach(id => setText(id, "â€”"));
   setText("visitorsDetailsPanelTitle", "Visitor");
+  renderVisitorHistoryIdentityReviewAction(null);
 }
 
 function openVisitorDetails(record, status, returnFocus) {
@@ -1505,6 +1520,7 @@ function openVisitorDetails(record, status, returnFocus) {
       ? "Yes" + (record.automatic_sign_out_reason ? " — " + record.automatic_sign_out_reason : "")
       : "No"
   );
+  renderVisitorHistoryIdentityReviewAction(record);
   if (detailsPanelController) {
     detailsPanelController.open({
       trigger: returnFocus,
@@ -1514,6 +1530,62 @@ function openVisitorDetails(record, status, returnFocus) {
       initialFocus: "visitorsDetailsPanelClose"
     });
   }
+}
+
+function visitorHistoryIdentityReviewLabel(record) {
+  const subject = [record.visitor_name, record.company].filter(Boolean).join(" / ");
+  const date = record.sign_in_time ? "Signed in " + formatVisitorDateTime(record.sign_in_time) : historyRecordDate(record);
+  return ["Visitor History", subject, date].filter(Boolean).join(" - ");
+}
+
+function visitorHistoryIdentityReviewContext(record) {
+  const label = visitorHistoryIdentityReviewLabel(record);
+  return {
+    candidateType: "person",
+    requestReason: "Visitor history record requires identity review.",
+    sourceType: "visit_log",
+    sourceRecordId: record.id,
+    sourceLabel: label,
+    sourceSummary: {
+      result_label: label,
+      visitor_name: record.visitor_name || null,
+      company: record.company || null,
+      sign_in_time: record.sign_in_time || null,
+      sign_out_time: record.sign_out_time || null,
+      visit_status: historyRecordStatus(record),
+      visit_origin: visitorOrigin(record)
+    },
+    contextType: "visitor_history",
+    contextRecordId: record.id,
+    contextSummary: {
+      context_label: "Visitor History",
+      result_label: label
+    },
+    metadata: {
+      launched_from: "visitor_history_detail"
+    }
+  };
+}
+
+function renderVisitorHistoryIdentityReviewAction(record) {
+  const actions = $("visitorsDetailsActions");
+  if (!actions) return;
+  actions.replaceChildren();
+  const canRequest = canRequestIdentityReviewFromVisitors() &&
+    record &&
+    record.id &&
+    record.history_record_type === "visit_log";
+  actions.classList.toggle("hidden", !canRequest);
+  if (!canRequest) return;
+  const requestReview = document.createElement("button");
+  requestReview.type = "button";
+  requestReview.className = "secondary";
+  requestReview.textContent = "Request Identity Review";
+  requestReview.addEventListener("click", event => {
+    if (detailsPanelController) detailsPanelController.close({ restoreFocus: false });
+    openIdentityReviewRequestFromContext(visitorHistoryIdentityReviewContext(record), event.currentTarget);
+  });
+  actions.appendChild(requestReview);
 }
 
 function closeVisitorDetails() {

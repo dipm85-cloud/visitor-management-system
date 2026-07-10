@@ -182,6 +182,35 @@ function displayReference(recordType, recordId) {
   return [type === "-" ? "" : type, id === "-" ? "" : id].filter(Boolean).join(" - ") || "-";
 }
 
+function summaryValue(summary, keys) {
+  const source = summary && typeof summary === "object" ? summary : {};
+  const values = Array.isArray(keys) ? keys : [keys];
+  for (const key of values) {
+    const value = source[key];
+    if (value !== null && value !== undefined && String(value).trim()) return value;
+  }
+  return "";
+}
+
+function requestSourceLabel(request) {
+  return request.source_label ||
+    summaryValue(request.source_summary, ["display_label", "source_label", "result_label", "case_reference"]) ||
+    displayReference(request.source_type, request.source_record_id);
+}
+
+function requestSuggestedLabel(request) {
+  if (!request.suggested_match_type && !request.suggested_match_record_id && !request.suggested_match_label) return "-";
+  return request.suggested_match_label ||
+    summaryValue(request.suggested_match_summary, ["display_label", "source_label", "result_label"]) ||
+    displayReference(request.suggested_match_type, request.suggested_match_record_id);
+}
+
+function requestContextLabel(request) {
+  if (!request.context_type && !request.context_record_id) return "-";
+  return summaryValue(request.context_summary, ["context_label", "display_label", "result_label", "case_reference"]) ||
+    sourceAreaLabel(request.context_type);
+}
+
 function formatDate(value) {
   if (!value) return "-";
   const date = new Date(value);
@@ -507,12 +536,14 @@ function renderReviewRequests() {
     const meta = document.createElement("dl");
     meta.className = "identity-resolution-meta-grid";
     meta.append(
-      createMetaItem("Source", request.source_label || displayReference(request.source_type, request.source_record_id)),
+      createMetaItem("Source", requestSourceLabel(request)),
       createMetaItem("Source area", sourceAreaLabel(request.source_type)),
-      createMetaItem("Suggested match", request.suggested_match_label || displayReference(request.suggested_match_type, "")),
-      createMetaItem("Context", sourceAreaLabel(request.context_type)),
+      createMetaItem("Context", requestContextLabel(request)),
+      createMetaItem("Reason", request.request_reason),
+      createMetaItem("Requester notes", request.requester_notes),
       createMetaItem("Created", formatDate(request.created_at)),
-      createMetaItem("Candidate", request.candidate_id ? "Candidate linked" : "-")
+      createMetaItem("Candidate", request.candidate_id ? "Candidate linked" : "-"),
+      createMetaItem("Suggested match", requestSuggestedLabel(request))
     );
 
     const reason = document.createElement("p");
@@ -919,20 +950,21 @@ function renderRequestDetail(request) {
   const sources = document.createElement("div");
   sources.className = "identity-resolution-source-grid";
   sources.appendChild(createFriendlyContextBlock("Source record", [
-    { label: "Source", value: request.source_label || displayReference(request.source_type, request.source_record_id) },
+    { label: "Source", value: requestSourceLabel(request) },
     { label: "Source area", value: sourceAreaLabel(request.source_type) },
-    { label: "Reference", value: request.source_label || "-" }
+    { label: "Reference", value: summaryValue(request.source_summary, ["display_reference", "case_reference"]) || request.source_label || "-" }
   ]));
   if (request.suggested_match_type || request.suggested_match_record_id || request.suggested_match_label) {
     sources.appendChild(createFriendlyContextBlock("Suggested match", [
-      { label: "Suggested match", value: request.suggested_match_label || displayReference(request.suggested_match_type, request.suggested_match_record_id) },
+      { label: "Suggested match", value: requestSuggestedLabel(request) },
       { label: "Source area", value: sourceAreaLabel(request.suggested_match_type) }
     ]));
   }
   if (request.context_type || request.context_record_id) {
     sources.appendChild(createFriendlyContextBlock("Request context", [
-      { label: "Context", value: sourceAreaLabel(request.context_type) },
-      { label: "Reference", value: request.context_summary && request.context_summary.case_reference ? request.context_summary.case_reference : "-" }
+      { label: "Context", value: requestContextLabel(request) },
+      { label: "Context area", value: sourceAreaLabel(request.context_type) },
+      { label: "Reference", value: summaryValue(request.context_summary, ["case_reference", "display_reference"]) || "-" }
     ]));
   }
 

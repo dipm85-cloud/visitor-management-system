@@ -1173,6 +1173,7 @@
               <div><dt>Modified by</dt><dd id="visitorsDetailsModifiedBy">—</dd></div>
               <div><dt>Automatic sign-out</dt><dd id="visitorsDetailsAutomaticSignOut">—</dd></div>
             </dl>
+            <div id="visitorsDetailsActions" class="visitors-side-panel-actions hidden" data-oh-side-panel-actions></div>
           </aside>
         </div>
 
@@ -1189,6 +1190,13 @@
               <div id="documentSignoffDetailsStatus" class="document-signoff-detail-badges" aria-label="Document sign-off statuses"></div>
               <p id="documentSignoffDetailsSummary" class="document-signoff-detail-summary"></p>
               <dl id="documentSignoffDetailsList" class="visitors-details-list document-signoff-details-list"></dl>
+              <section id="documentSignoffDetailsContextSection" class="document-signoff-detail-context hidden" aria-labelledby="documentSignoffDetailsContextTitle">
+                <div>
+                  <h3 id="documentSignoffDetailsContextTitle">Context Actions</h3>
+                  <p>Actions for this exact record only. Source evidence is not modified.</p>
+                </div>
+                <div id="documentSignoffDetailsContextActions" class="document-signoff-legacy-actions"></div>
+              </section>
               <section id="documentSignoffDetailsLegacySection" class="document-signoff-detail-legacy" aria-labelledby="documentSignoffDetailsLegacyTitle">
                 <div>
                   <h3 id="documentSignoffDetailsLegacyTitle">Legacy Workflow</h3>
