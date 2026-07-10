@@ -9,6 +9,17 @@ import { AppState } from "./state.js";
 
 const IDENTITY_VIEW_CAPABILITIES = [
   "identity_resolution.view",
+  "identity_resolution.request",
+  "identity_resolution.manage",
+  "module_configuration.manage",
+  "privacy.case.view",
+  "privacy.case.manage",
+  "privacy.manage",
+  "gdpr.manage"
+];
+
+const IDENTITY_RECORD_VIEW_CAPABILITIES = [
+  "identity_resolution.view",
   "identity_resolution.manage",
   "module_configuration.manage",
   "privacy.case.view",
@@ -25,10 +36,23 @@ const IDENTITY_MANAGE_CAPABILITIES = [
   "gdpr.manage"
 ];
 
+const IDENTITY_REQUEST_CAPABILITIES = [
+  "identity_resolution.request",
+  "identity_resolution.manage",
+  "privacy.case.manage",
+  "privacy.manage",
+  "gdpr.manage",
+  "module_configuration.manage",
+  "settings.edit"
+];
+
 const CANDIDATE_STATUSES = ["pending", "confirmed", "rejected", "deferred", "ignored"];
+const REQUEST_STATUSES = ["pending", "in_review", "candidate_created", "closed", "cancelled"];
 const CANDIDATE_TYPES = ["person", "organisation", "vehicle", "email", "other"];
 
 let identityResolutionInitialised = false;
+let identityReviewRequests = [];
+let identityOverviewRequests = [];
 let identityCandidates = [];
 let identityOverviewCandidates = [];
 let identityLinks = [];
@@ -38,6 +62,7 @@ let selectedCandidate = null;
 let selectedLink = null;
 let detailPanelController = null;
 let candidatePanelController = null;
+let requestPanelController = null;
 let decisionPanelController = null;
 
 function hasActiveStaffUser() {
@@ -52,8 +77,16 @@ function canViewIdentityResolution() {
   return hasActiveStaffUser() && hasAnyCapability(IDENTITY_VIEW_CAPABILITIES);
 }
 
+function canViewIdentityResolutionRecords() {
+  return hasActiveStaffUser() && hasAnyCapability(IDENTITY_RECORD_VIEW_CAPABILITIES);
+}
+
 function canManageIdentityResolution() {
   return hasActiveStaffUser() && hasAnyCapability(IDENTITY_MANAGE_CAPABILITIES);
+}
+
+function canRequestIdentityResolution() {
+  return hasActiveStaffUser() && hasAnyCapability(IDENTITY_REQUEST_CAPABILITIES);
 }
 
 function setAdministrationSection(sectionName) {
@@ -103,6 +136,16 @@ function requireIdentityResolutionManageAccess() {
   showToast(
     "You do not have permission",
     "Managing Identity Resolution requires identity resolution management access.",
+    "error"
+  );
+  return false;
+}
+
+function requireIdentityResolutionRequestAccess() {
+  if (canRequestIdentityResolution()) return true;
+  showToast(
+    "You do not have permission",
+    "Requesting identity review requires identity review request access.",
     "error"
   );
   return false;
@@ -175,7 +218,8 @@ function setText(id, value) {
 }
 
 function statusClass(status) {
-  return CANDIDATE_STATUSES.includes(status) ? status : "pending";
+  if (CANDIDATE_STATUSES.includes(status) || REQUEST_STATUSES.includes(status)) return status;
+  return "pending";
 }
 
 function createBadge(text, className) {
@@ -226,6 +270,10 @@ function hideEmpty(targetId) {
 
 function setManageControls() {
   const manage = canManageIdentityResolution();
+  const request = canRequestIdentityResolution();
+  if ($("identityResolutionNewRequestButton")) {
+    $("identityResolutionNewRequestButton").classList.toggle("hidden", !request);
+  }
   if ($("identityResolutionNewCandidateButton")) {
     $("identityResolutionNewCandidateButton").classList.toggle("hidden", !manage);
   }
@@ -248,25 +296,35 @@ function registerIdentityResolutionSections() {
       default: true
     },
     {
+      id: "requests",
+      title: "Review Requests",
+      icon: "RR",
+      target: "identityResolutionRequestsSection",
+      order: 20
+    },
+    {
       id: "queue",
       title: "Candidate Queue",
       icon: "CQ",
       target: "identityResolutionQueueSection",
-      order: 20
+      order: 30,
+      visible: canViewIdentityResolutionRecords
     },
     {
       id: "links",
       title: "Confirmed Links",
       icon: "CL",
       target: "identityResolutionLinksSection",
-      order: 30
+      order: 40,
+      visible: canViewIdentityResolutionRecords
     },
     {
       id: "decisions",
       title: "Decision History",
       icon: "DH",
       target: "identityResolutionDecisionsSection",
-      order: 40
+      order: 50,
+      visible: canViewIdentityResolutionRecords
     },
     {
       id: "legacy",
@@ -274,7 +332,7 @@ function registerIdentityResolutionSections() {
       fullTitle: "Legacy / Future Tools",
       icon: "LT",
       target: "identityResolutionLegacySection",
-      order: 50
+      order: 60
     }
   ], {
     content: "identityResolutionWorkspaceContent",
@@ -295,6 +353,16 @@ function candidateFilterPayload(options) {
   };
 }
 
+function requestFilterPayload(options) {
+  const settings = options || {};
+  return {
+    p_status: settings.status !== undefined ? settings.status : fieldValue("identityResolutionRequestStatus"),
+    p_candidate_type: settings.type !== undefined ? settings.type : fieldValue("identityResolutionRequestType"),
+    p_search_text: settings.search !== undefined ? settings.search : fieldValue("identityResolutionRequestSearch"),
+    p_limit: settings.limit !== undefined ? settings.limit : Number(fieldValue("identityResolutionRequestLimit") || 50)
+  };
+}
+
 function linkFilterPayload(options) {
   const settings = options || {};
   return {
@@ -312,23 +380,43 @@ async function loadCandidateQueue() {
   renderCandidateQueue();
 }
 
+async function loadReviewRequests() {
+  const result = await supabaseClient.rpc("list_identity_resolution_requests", requestFilterPayload());
+  if (result.error) throw result.error;
+  identityReviewRequests = Array.isArray(result.data) ? result.data : [];
+  renderReviewRequests();
+}
+
 async function loadOverviewData() {
-  const [candidateResult, linkResult] = await Promise.all([
-    supabaseClient.rpc("list_identity_resolution_candidates", candidateFilterPayload({
+  const canLoadRecords = canViewIdentityResolutionRecords();
+  const [requestResult, candidateResult, linkResult] = await Promise.all([
+    supabaseClient.rpc("list_identity_resolution_requests", requestFilterPayload({
       status: "all",
       type: "all",
       search: "",
       limit: 500
     })),
-    supabaseClient.rpc("list_identity_links", linkFilterPayload({
-      type: "all",
-      search: "",
-      status: "active",
-      limit: 500
-    }))
+    canLoadRecords
+      ? supabaseClient.rpc("list_identity_resolution_candidates", candidateFilterPayload({
+        status: "all",
+        type: "all",
+        search: "",
+        limit: 500
+      }))
+      : Promise.resolve({ data: [], error: null }),
+    canLoadRecords
+      ? supabaseClient.rpc("list_identity_links", linkFilterPayload({
+        type: "all",
+        search: "",
+        status: "active",
+        limit: 500
+      }))
+      : Promise.resolve({ data: [], error: null })
   ]);
+  if (requestResult.error) throw requestResult.error;
   if (candidateResult.error) throw candidateResult.error;
   if (linkResult.error) throw linkResult.error;
+  identityOverviewRequests = Array.isArray(requestResult.data) ? requestResult.data : [];
   identityOverviewCandidates = Array.isArray(candidateResult.data) ? candidateResult.data : [];
   identityOverviewLinks = Array.isArray(linkResult.data) ? linkResult.data : [];
   renderOverview();
@@ -352,6 +440,10 @@ async function loadDecisionHistory() {
 }
 
 function renderOverview() {
+  setText("identityResolutionRequestPendingCount", String(identityOverviewRequests.filter(item => item.status === "pending").length));
+  setText("identityResolutionRequestInReviewCount", String(identityOverviewRequests.filter(item => item.status === "in_review").length));
+  setText("identityResolutionRequestCandidateCount", String(identityOverviewRequests.filter(item => item.candidate_id || item.status === "candidate_created").length));
+  setText("identityResolutionRequestClosedCount", String(identityOverviewRequests.filter(item => item.status === "closed" || item.status === "cancelled").length));
   setText("identityResolutionPendingCount", String(identityOverviewCandidates.filter(item => item.status === "pending").length));
   setText("identityResolutionDeferredCount", String(identityOverviewCandidates.filter(item => item.status === "deferred").length));
   setText("identityResolutionConfirmedLinksCount", String(identityOverviewLinks.length));
@@ -359,6 +451,89 @@ function renderOverview() {
     "identityResolutionRejectedIgnoredCount",
     String(identityOverviewCandidates.filter(item => item.status === "rejected" || item.status === "ignored").length)
   );
+}
+
+function renderReviewRequests() {
+  const container = $("identityResolutionRequestResults");
+  if (!container) return;
+  container.replaceChildren();
+  setText("identityResolutionRequestCount", identityReviewRequests.length + " shown");
+
+  if (!identityReviewRequests.length) {
+    renderEmpty("identityResolutionRequestsEmpty", {
+      title: "No matching review requests",
+      description: "No identity review requests are available for the selected filters."
+    });
+    return;
+  }
+  hideEmpty("identityResolutionRequestsEmpty");
+
+  identityReviewRequests.forEach(request => {
+    const card = document.createElement("article");
+    card.className = "identity-resolution-result-card identity-resolution-request-card";
+
+    const header = document.createElement("div");
+    header.className = "identity-resolution-result-header";
+    const title = document.createElement("div");
+    const heading = document.createElement("h4");
+    heading.textContent = request.request_reference || "Review request";
+    const subtitle = document.createElement("p");
+    subtitle.textContent = "Possible identity review - " + titleCase(request.candidate_type);
+    title.append(heading, subtitle);
+    header.append(title, createBadge(titleCase(request.status), statusClass(request.status)));
+
+    const meta = document.createElement("dl");
+    meta.className = "identity-resolution-meta-grid";
+    meta.append(
+      createMetaItem("Source record", [request.source_label, request.source_type].filter(Boolean).join(" - ")),
+      createMetaItem("Source ID", request.source_record_id),
+      createMetaItem("Suggested match", [request.suggested_match_label, request.suggested_match_type].filter(Boolean).join(" - ")),
+      createMetaItem("Context", [request.context_type, request.context_record_id].filter(Boolean).join(" - ")),
+      createMetaItem("Created", formatDate(request.created_at)),
+      createMetaItem("Candidate", request.candidate_id || "-")
+    );
+
+    const reason = document.createElement("p");
+    reason.className = "identity-resolution-reason";
+    reason.textContent = request.request_reason || "No request reason recorded.";
+
+    const actions = document.createElement("div");
+    actions.className = "identity-resolution-card-actions";
+    const details = document.createElement("button");
+    details.type = "button";
+    details.className = "secondary";
+    details.textContent = "View Details";
+    details.addEventListener("click", event => openRequestDetail(request.id, event.currentTarget));
+    actions.appendChild(details);
+
+    if (request.candidate_id && canViewIdentityResolutionRecords()) {
+      const openCandidate = document.createElement("button");
+      openCandidate.type = "button";
+      openCandidate.className = "secondary";
+      openCandidate.textContent = "Open Candidate";
+      openCandidate.addEventListener("click", event => openCandidateDetail(request.candidate_id, event.currentTarget));
+      actions.appendChild(openCandidate);
+    }
+
+    if (canManageIdentityResolution()) {
+      [
+        ["in_review", "Mark In Review"],
+        ["closed", "Close Request"],
+        ["cancelled", "Cancel Request"]
+      ].forEach(([status, label]) => {
+        const action = document.createElement("button");
+        action.type = "button";
+        action.className = "secondary";
+        action.textContent = label;
+        action.disabled = request.status === status;
+        action.addEventListener("click", event => updateRequestStatus(request, status, event.currentTarget));
+        actions.appendChild(action);
+      });
+    }
+
+    card.append(header, meta, reason, actions);
+    container.appendChild(card);
+  });
 }
 
 function renderCandidateQueue() {
@@ -537,6 +712,26 @@ function decisionLabel(type) {
   return "Decide";
 }
 
+async function openRequestDetail(requestId, trigger) {
+  if (!requireIdentityResolutionAccess()) return;
+  try {
+    const result = await supabaseClient.rpc("get_identity_resolution_request", {
+      p_request_id: requestId
+    });
+    if (result.error) throw result.error;
+    selectedCandidate = null;
+    selectedLink = null;
+    renderRequestDetail(result.data);
+    detailPanelController.open({
+      trigger,
+      title: "Review Request " + textOrDash(result.data && result.data.request_reference),
+      initialFocus: "identityResolutionDetailPanelClose"
+    });
+  } catch (err) {
+    showToast("Review request unavailable", err.message || "The review request could not be loaded.", "error");
+  }
+}
+
 async function openCandidateDetail(candidateId, trigger) {
   if (!requireIdentityResolutionAccess()) return;
   try {
@@ -632,6 +827,87 @@ function renderCandidateDetail(candidate, decisions) {
   updateDetailActions();
 }
 
+function renderRequestDetail(request) {
+  const body = $("identityResolutionDetailPanelBody");
+  body.replaceChildren();
+  const notice = document.createElement("div");
+  notice.className = "assignment-editor-notice";
+  notice.textContent = "This is a request for identity review. Source records are not modified, and request-only users cannot approve identity links.";
+
+  const meta = document.createElement("dl");
+  meta.className = "identity-resolution-meta-grid";
+  meta.append(
+    createMetaItem("Request reference", request.request_reference),
+    createMetaItem("Status", titleCase(request.status)),
+    createMetaItem("Candidate type", titleCase(request.candidate_type)),
+    createMetaItem("Request reason", request.request_reason),
+    createMetaItem("Requester notes", request.requester_notes),
+    createMetaItem("Created", formatDate(request.created_at)),
+    createMetaItem("Reviewed", formatDate(request.reviewed_at)),
+    createMetaItem("Review notes", request.review_notes)
+  );
+
+  const sources = document.createElement("div");
+  sources.className = "identity-resolution-source-grid";
+  sources.appendChild(createSourceBlock("Source record", {
+    type: request.source_type,
+    id: request.source_record_id,
+    label: request.source_label,
+    summary: request.source_summary
+  }));
+  if (request.suggested_match_type || request.suggested_match_record_id || request.suggested_match_label) {
+    sources.appendChild(createSourceBlock("Suggested match", {
+      type: request.suggested_match_type,
+      id: request.suggested_match_record_id,
+      label: request.suggested_match_label,
+      summary: request.suggested_match_summary
+    }));
+  }
+  if (request.context_type || request.context_record_id) {
+    sources.appendChild(createSourceBlock("Request context", {
+      type: request.context_type,
+      id: request.context_record_id,
+      label: request.context_type,
+      summary: request.context_summary
+    }));
+  }
+
+  body.append(notice, meta, sources);
+
+  const actions = document.createElement("div");
+  actions.className = "identity-resolution-card-actions";
+  if (request.candidate_id && canViewIdentityResolutionRecords()) {
+    const candidateNote = document.createElement("p");
+    candidateNote.className = "identity-resolution-note";
+    candidateNote.textContent = "Managers must review and decide linked candidates through the Candidate Queue.";
+    body.appendChild(candidateNote);
+    const openCandidate = document.createElement("button");
+    openCandidate.type = "button";
+    openCandidate.className = "secondary";
+    openCandidate.textContent = "Open Candidate";
+    openCandidate.addEventListener("click", event => openCandidateDetail(request.candidate_id, event.currentTarget));
+    actions.appendChild(openCandidate);
+  }
+
+  if (canManageIdentityResolution()) {
+    [
+      ["in_review", "Mark In Review"],
+      ["closed", "Close Request"],
+      ["cancelled", "Cancel Request"]
+    ].forEach(([status, label]) => {
+      const action = document.createElement("button");
+      action.type = "button";
+      action.className = "secondary";
+      action.textContent = label;
+      action.disabled = request.status === status;
+      action.addEventListener("click", event => updateRequestStatus(request, status, event.currentTarget));
+      actions.appendChild(action);
+    });
+  }
+  if (actions.children.length) body.appendChild(actions);
+  updateDetailActions();
+}
+
 function renderLinkDetail(link, records, decisions) {
   const body = $("identityResolutionDetailPanelBody");
   body.replaceChildren();
@@ -703,6 +979,46 @@ function updateDetailActions() {
   });
 }
 
+async function updateRequestStatus(request, status, trigger) {
+  if (!requireIdentityResolutionManageAccess()) return;
+  const confirmed = await requestPlatformConfirmation({
+    title: titleCase(status),
+    message: "This updates the review request status only. It does not modify source records or decide any identity candidate.",
+    confirmText: titleCase(status),
+    cancelText: "Cancel",
+    danger: status === "cancelled"
+  });
+  if (!confirmed) return;
+
+  const button = trigger instanceof HTMLButtonElement ? trigger : null;
+  const originalLabel = button ? button.textContent : "";
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Saving...";
+  }
+  try {
+    const result = await supabaseClient.rpc("update_identity_resolution_request_status", {
+      p_request_id: request.id,
+      p_status: status,
+      p_review_notes: null,
+      p_candidate_id: request.candidate_id || null
+    });
+    if (result.error) throw result.error;
+    showToast("Request status updated", "The identity review request was updated.", "success");
+    await loadIdentityResolutionAdministration({ manual: false });
+    if (detailPanelController && detailPanelController.isOpen()) {
+      renderRequestDetail(result.data);
+    }
+  } catch (err) {
+    showToast("Request status not updated", err.message || "Could not update the identity review request.", "error");
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = originalLabel;
+    }
+  }
+}
+
 function resetCandidateForm() {
   if ($("identityResolutionCandidateForm")) $("identityResolutionCandidateForm").reset();
   ["identityResolutionFormSourceASummary", "identityResolutionFormSourceBSummary", "identityResolutionFormMetadata"].forEach(id => {
@@ -711,6 +1027,157 @@ function resetCandidateForm() {
   if ($("identityResolutionFormSuggestedBy")) $("identityResolutionFormSuggestedBy").value = "manual";
   syncSourceTypeCustomField("identityResolutionFormSourceAType", "identityResolutionFormSourceATypeCustomField", "identityResolutionFormSourceATypeCustom");
   syncSourceTypeCustomField("identityResolutionFormSourceBType", "identityResolutionFormSourceBTypeCustomField", "identityResolutionFormSourceBTypeCustom");
+}
+
+function resetRequestForm() {
+  if ($("identityResolutionRequestForm")) $("identityResolutionRequestForm").reset();
+  [
+    "identityResolutionRequestSourceSummary",
+    "identityResolutionRequestSuggestedSummary",
+    "identityResolutionRequestContextSummary",
+    "identityResolutionRequestMetadata"
+  ].forEach(id => {
+    if ($(id)) $(id).value = "{}";
+  });
+  if ($("identityResolutionRequestCandidateType")) $("identityResolutionRequestCandidateType").value = "person";
+}
+
+function applyRequestContext(context) {
+  const settings = context || {};
+  if ($("identityResolutionRequestCandidateType")) {
+    $("identityResolutionRequestCandidateType").value = settings.candidateType || "person";
+  }
+  if ($("identityResolutionRequestReason")) $("identityResolutionRequestReason").value = settings.requestReason || "";
+  if ($("identityResolutionRequesterNotes")) $("identityResolutionRequesterNotes").value = settings.requesterNotes || "";
+  if ($("identityResolutionRequestSourceType")) $("identityResolutionRequestSourceType").value = settings.sourceType || "";
+  if ($("identityResolutionRequestSourceId")) $("identityResolutionRequestSourceId").value = settings.sourceRecordId || "";
+  if ($("identityResolutionRequestSourceLabel")) $("identityResolutionRequestSourceLabel").value = settings.sourceLabel || "";
+  if ($("identityResolutionRequestSourceSummary")) {
+    $("identityResolutionRequestSourceSummary").value = JSON.stringify(settings.sourceSummary || {}, null, 2);
+  }
+  if ($("identityResolutionRequestSuggestedType")) $("identityResolutionRequestSuggestedType").value = settings.suggestedMatchType || "";
+  if ($("identityResolutionRequestSuggestedId")) $("identityResolutionRequestSuggestedId").value = settings.suggestedMatchRecordId || "";
+  if ($("identityResolutionRequestSuggestedLabel")) $("identityResolutionRequestSuggestedLabel").value = settings.suggestedMatchLabel || "";
+  if ($("identityResolutionRequestSuggestedSummary")) {
+    $("identityResolutionRequestSuggestedSummary").value = JSON.stringify(settings.suggestedMatchSummary || {}, null, 2);
+  }
+  if ($("identityResolutionRequestContextType")) $("identityResolutionRequestContextType").value = settings.contextType || "";
+  if ($("identityResolutionRequestContextId")) $("identityResolutionRequestContextId").value = settings.contextRecordId || "";
+  if ($("identityResolutionRequestContextSummary")) {
+    $("identityResolutionRequestContextSummary").value = JSON.stringify(settings.contextSummary || {}, null, 2);
+  }
+  if ($("identityResolutionRequestMetadata")) {
+    $("identityResolutionRequestMetadata").value = JSON.stringify(settings.metadata || {}, null, 2);
+  }
+}
+
+function openRequestPanel(trigger, context) {
+  if (!requireIdentityResolutionRequestAccess()) return;
+  if (!requestPanelController) {
+    showToast("Request panel unavailable", "Identity review request controls are not ready.", "error");
+    return;
+  }
+  resetRequestForm();
+  applyRequestContext(context);
+  requestPanelController.open({
+    trigger,
+    title: "Request Identity Review",
+    initialFocus: "identityResolutionRequestCandidateType"
+  });
+}
+
+export function openIdentityReviewRequestFromContext(context, trigger) {
+  openRequestPanel(trigger, context);
+}
+
+function requestPayloadFromForm() {
+  const suggestedType = fieldValue("identityResolutionRequestSuggestedType");
+  const suggestedId = fieldValue("identityResolutionRequestSuggestedId");
+  return {
+    candidateType: fieldValue("identityResolutionRequestCandidateType") || "person",
+    reason: fieldValue("identityResolutionRequestReason"),
+    requesterNotes: fieldValue("identityResolutionRequesterNotes"),
+    sourceType: fieldValue("identityResolutionRequestSourceType"),
+    sourceId: fieldValue("identityResolutionRequestSourceId"),
+    sourceLabel: fieldValue("identityResolutionRequestSourceLabel"),
+    sourceSummary: safeJson(fieldValue("identityResolutionRequestSourceSummary"), {}),
+    suggestedType,
+    suggestedId,
+    suggestedLabel: fieldValue("identityResolutionRequestSuggestedLabel"),
+    suggestedSummary: safeJson(fieldValue("identityResolutionRequestSuggestedSummary"), {}),
+    contextType: fieldValue("identityResolutionRequestContextType"),
+    contextId: fieldValue("identityResolutionRequestContextId"),
+    contextSummary: safeJson(fieldValue("identityResolutionRequestContextSummary"), {}),
+    metadata: safeJson(fieldValue("identityResolutionRequestMetadata"), {})
+  };
+}
+
+async function saveIdentityReviewRequest(event) {
+  event.preventDefault();
+  if (!requireIdentityResolutionRequestAccess()) return;
+
+  let payload;
+  try {
+    payload = requestPayloadFromForm();
+  } catch (err) {
+    showToast("Invalid JSON", err.message, "error");
+    return;
+  }
+
+  if (!payload.reason) {
+    showToast("Request reason required", "Enter why this source record needs identity review.", "error");
+    return;
+  }
+  if (!payload.sourceType || !payload.sourceId) {
+    showToast("Source record required", "Source type and source record ID are required.", "error");
+    return;
+  }
+  if ((payload.suggestedType && !payload.suggestedId) || (!payload.suggestedType && payload.suggestedId)) {
+    showToast("Suggested match incomplete", "Suggested match type and record ID must be provided together.", "error");
+    return;
+  }
+  if (
+    payload.suggestedType &&
+    normalisedSourceKey(payload.sourceType, payload.sourceId) === normalisedSourceKey(payload.suggestedType, payload.suggestedId)
+  ) {
+    showToast("Suggested match is the source", "Source record and suggested match must be different records.", "error");
+    return;
+  }
+
+  const button = $("identityResolutionCreateRequestButton");
+  button.disabled = true;
+  button.textContent = "Creating...";
+  try {
+    const result = await supabaseClient.rpc("create_identity_resolution_request", {
+      p_candidate_type: payload.candidateType,
+      p_request_reason: payload.reason,
+      p_requester_notes: payload.requesterNotes || null,
+      p_source_type: payload.sourceType,
+      p_source_record_id: payload.sourceId,
+      p_source_label: payload.sourceLabel || null,
+      p_source_summary: payload.sourceSummary,
+      p_suggested_match_type: payload.suggestedType || null,
+      p_suggested_match_record_id: payload.suggestedId || null,
+      p_suggested_match_label: payload.suggestedLabel || null,
+      p_suggested_match_summary: payload.suggestedSummary,
+      p_context_type: payload.contextType || null,
+      p_context_record_id: payload.contextId || null,
+      p_context_summary: payload.contextSummary,
+      p_metadata: payload.metadata
+    });
+    if (result.error) throw result.error;
+    requestPanelController.close({ restoreFocus: false });
+    showToast("Review request created", "The identity review request was created.", "success");
+    await loadIdentityResolutionAdministration({ manual: false });
+    if (result.data && result.data.id) {
+      await openRequestDetail(result.data.id, $("identityResolutionNewRequestButton") || button);
+    }
+  } catch (err) {
+    showToast("Review request not created", err.message || "Could not create the identity review request.", "error");
+  } finally {
+    button.disabled = false;
+    button.textContent = "Create Review Request";
+  }
 }
 
 function openCandidatePanel(trigger) {
@@ -889,12 +1356,22 @@ export async function loadIdentityResolutionAdministration(options) {
   const settings = options || {};
   setManageControls();
   try {
-    await Promise.all([
+    const work = [
       loadOverviewData(),
-      loadCandidateQueue(),
-      loadConfirmedLinks(),
-      loadDecisionHistory()
-    ]);
+      loadReviewRequests()
+    ];
+    if (canViewIdentityResolutionRecords()) {
+      work.push(
+        loadCandidateQueue(),
+        loadConfirmedLinks(),
+        loadDecisionHistory()
+      );
+    } else {
+      identityCandidates = [];
+      identityLinks = [];
+      identityDecisions = [];
+    }
+    await Promise.all(work);
     refreshSectionNavigator("identity-resolution");
   } catch (err) {
     renderEmpty("identityResolutionCandidateEmpty", {
@@ -929,6 +1406,7 @@ export function syncIdentityResolutionVisibility() {
     else if (hasAnyCapability(["access_control.view", "access_control.manage"])) setAdministrationSection("access");
   }
   setManageControls();
+  refreshSectionNavigator("identity-resolution");
 }
 
 export function initialiseIdentityResolutionAdministration() {
@@ -949,6 +1427,13 @@ export function initialiseIdentityResolutionAdministration() {
     closeTriggers: ["identityResolutionCandidatePanelClose", "identityResolutionCandidateCancelButton"],
     reset: resetCandidateForm
   });
+  requestPanelController = createSidePanelController({
+    backdrop: "identityResolutionRequestPanelBackdrop",
+    panel: "identityResolutionRequestPanel",
+    title: "identityResolutionRequestPanelTitle",
+    closeTriggers: ["identityResolutionRequestPanelClose", "identityResolutionRequestCancelButton"],
+    reset: resetRequestForm
+  });
   decisionPanelController = createSidePanelController({
     backdrop: "identityResolutionDecisionPanelBackdrop",
     panel: "identityResolutionDecisionPanel",
@@ -964,6 +1449,9 @@ export function initialiseIdentityResolutionAdministration() {
   }
   if ($("identityResolutionNewCandidateButton")) {
     $("identityResolutionNewCandidateButton").addEventListener("click", event => openCandidatePanel(event.currentTarget));
+  }
+  if ($("identityResolutionNewRequestButton")) {
+    $("identityResolutionNewRequestButton").addEventListener("click", event => openRequestPanel(event.currentTarget));
   }
   [
     ["identityResolutionFormSourceAType", "identityResolutionFormSourceATypeCustomField", "identityResolutionFormSourceATypeCustom"],
@@ -986,6 +1474,18 @@ export function initialiseIdentityResolutionAdministration() {
       loadIdentityResolutionAdministration({ manual: true });
     });
   }
+  if ($("identityResolutionApplyRequestFiltersButton")) {
+    $("identityResolutionApplyRequestFiltersButton").addEventListener("click", () => loadIdentityResolutionAdministration({ manual: true }));
+  }
+  if ($("identityResolutionResetRequestFiltersButton")) {
+    $("identityResolutionResetRequestFiltersButton").addEventListener("click", () => {
+      $("identityResolutionRequestSearch").value = "";
+      $("identityResolutionRequestStatus").value = "pending";
+      $("identityResolutionRequestType").value = "all";
+      $("identityResolutionRequestLimit").value = "50";
+      loadIdentityResolutionAdministration({ manual: true });
+    });
+  }
   if ($("identityResolutionApplyLinkFiltersButton")) {
     $("identityResolutionApplyLinkFiltersButton").addEventListener("click", () => loadIdentityResolutionAdministration({ manual: true }));
   }
@@ -1000,6 +1500,9 @@ export function initialiseIdentityResolutionAdministration() {
   }
   if ($("identityResolutionCandidateForm")) {
     $("identityResolutionCandidateForm").addEventListener("submit", saveCandidate);
+  }
+  if ($("identityResolutionRequestForm")) {
+    $("identityResolutionRequestForm").addEventListener("submit", saveIdentityReviewRequest);
   }
   if ($("identityResolutionDecisionForm")) {
     $("identityResolutionDecisionForm").addEventListener("submit", saveDecision);

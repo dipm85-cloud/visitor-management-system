@@ -8,6 +8,7 @@ import { refreshSectionNavigator, registerModuleSections, selectModuleSection } 
 import { showAdministrationWorkspace } from "./shell.js";
 import { AppState } from "./state.js";
 import { loadSystemSettings, settingValue } from "./settings.js";
+import { openIdentityReviewRequestFromContext } from "./identityResolutionAdmin.js";
 
 const PRIVACY_GDPR_VIEW = [
   "privacy.case.view",
@@ -23,6 +24,16 @@ const PRIVACY_GDPR_VIEW = [
 ];
 
 const ANONYMISATION_PREVIEW_CAPABILITIES = [
+  "privacy.manage",
+  "gdpr.manage",
+  "module_configuration.manage",
+  "settings.edit"
+];
+
+const IDENTITY_REVIEW_REQUEST_CAPABILITIES = [
+  "identity_resolution.request",
+  "identity_resolution.manage",
+  "privacy.case.manage",
   "privacy.manage",
   "gdpr.manage",
   "module_configuration.manage",
@@ -338,6 +349,10 @@ function canManagePrivacyCases() {
       "module_configuration.manage"
     ])
   );
+}
+
+function canRequestIdentityReviewFromPrivacy() {
+  return hasActiveStaffUser() && hasAnyCapability(IDENTITY_REVIEW_REQUEST_CAPABILITIES);
 }
 
 function canViewSarEvidencePack() {
@@ -2612,6 +2627,41 @@ function appendPrivacyCaseLegacyBridge(parent) {
   parent.appendChild(bridge);
 }
 
+function privacyCaseIdentityReviewLabel(caseRecord) {
+  return [
+    caseRecord.case_reference,
+    caseSubjectName(caseRecord),
+    caseSubjectReference(caseRecord),
+    caseSearchText(caseRecord)
+  ].map(value => String(value || "").trim()).filter(Boolean).slice(0, 2).join(" - ");
+}
+
+function identityReviewContextFromPrivacyCase(caseRecord) {
+  return {
+    candidateType: "person",
+    requestReason: "Privacy case requires identity review.",
+    sourceType: "privacy_cases",
+    sourceRecordId: caseRecord.id,
+    sourceLabel: privacyCaseIdentityReviewLabel(caseRecord) || caseRecord.case_reference || "Privacy case",
+    sourceSummary: {
+      case_reference: caseRecord.case_reference || null,
+      case_type: caseType(caseRecord) || null,
+      status: caseStatus(caseRecord) || null,
+      subject_reference: caseSubjectReference(caseRecord) || null,
+      search_text: caseSearchText(caseRecord) || null
+    },
+    contextType: "privacy_case",
+    contextRecordId: caseRecord.id,
+    contextSummary: {
+      case_reference: caseRecord.case_reference || null,
+      source: "privacy_case_detail"
+    },
+    metadata: {
+      launched_from: "privacy_case_detail"
+    }
+  };
+}
+
 function appendPrivacyCaseWorkspaceActions(parent, caseRecord) {
   const section = document.createElement("section");
   section.className = "privacy-gdpr-detail-actions";
@@ -2630,6 +2680,22 @@ function appendPrivacyCaseWorkspaceActions(parent, caseRecord) {
     event.textContent = "Add Note / Event";
     event.addEventListener("click", () => openCaseEventForm(caseRecord));
     section.append(edit, event);
+  }
+  if (canRequestIdentityReviewFromPrivacy() && caseRecord && caseRecord.id) {
+    const requestReview = document.createElement("button");
+    requestReview.type = "button";
+    requestReview.className = "secondary";
+    requestReview.textContent = "Request Identity Review";
+    requestReview.addEventListener("click", event => {
+      if (privacyGdprSearchDetailsPanelController) {
+        privacyGdprSearchDetailsPanelController.close({ restoreFocus: false });
+      }
+      openIdentityReviewRequestFromContext(
+        identityReviewContextFromPrivacyCase(caseRecord),
+        event.currentTarget
+      );
+    });
+    section.appendChild(requestReview);
   }
   [
     ["Open SAR Evidence Pack", "evidence-pack"],

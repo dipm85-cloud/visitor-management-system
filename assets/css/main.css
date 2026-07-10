@@ -6986,8 +6986,22 @@ button.oh-section-nav-item:focus-visible,
   color: #067647;
 }
 
+.identity-resolution-badge.in_review,
+.identity-resolution-badge.candidate_created {
+  border-color: #b2ddff;
+  background: #eff8ff;
+  color: #175cd3;
+}
+
+.identity-resolution-badge.closed {
+  border-color: #d0d5dd;
+  background: #f2f4f7;
+  color: #344054;
+}
+
 .identity-resolution-badge.rejected,
-.identity-resolution-badge.ignored {
+.identity-resolution-badge.ignored,
+.identity-resolution-badge.cancelled {
   border-color: #fecdca;
   background: #fef3f2;
   color: #b42318;
@@ -7038,6 +7052,10 @@ button.oh-section-nav-item:focus-visible,
 
 .identity-resolution-card-actions {
   margin-top: 12px;
+}
+
+.identity-resolution-request-card .identity-resolution-card-actions button {
+  min-height: 36px;
 }
 
 .identity-resolution-panel {

@@ -3700,6 +3700,7 @@
               <p>Review candidates comparing two existing records that may represent the same real-world person, organisation, vehicle or email.</p>
             </div>
             <div class="identity-resolution-heading-actions">
+              <button id="identityResolutionNewRequestButton" type="button">Request Identity Review</button>
               <button id="identityResolutionNewCandidateButton" class="secondary" type="button">Advanced Manual Candidate</button>
               <button id="identityResolutionRefreshButton" class="secondary" type="button">Refresh</button>
             </div>
@@ -3719,6 +3720,26 @@
               </div>
               <p class="identity-resolution-note">Future workflows will create candidates directly from Privacy, Visitor, Document and import records so users do not need to type record IDs manually.</p>
               <div class="document-signoff-summary-grid identity-resolution-summary-grid">
+                <article class="document-signoff-summary-card">
+                  <span>Pending review requests</span>
+                  <strong id="identityResolutionRequestPendingCount">-</strong>
+                  <p>Requests waiting for reviewer triage.</p>
+                </article>
+                <article class="document-signoff-summary-card">
+                  <span>Requests in review</span>
+                  <strong id="identityResolutionRequestInReviewCount">-</strong>
+                  <p>Requests currently being reviewed.</p>
+                </article>
+                <article class="document-signoff-summary-card">
+                  <span>Requests with candidates</span>
+                  <strong id="identityResolutionRequestCandidateCount">-</strong>
+                  <p>Requests linked to pending candidate review.</p>
+                </article>
+                <article class="document-signoff-summary-card">
+                  <span>Closed or cancelled requests</span>
+                  <strong id="identityResolutionRequestClosedCount">-</strong>
+                  <p>Completed request workflow records.</p>
+                </article>
                 <article class="document-signoff-summary-card">
                   <span>Possible matches awaiting review</span>
                   <strong id="identityResolutionPendingCount">-</strong>
@@ -3740,6 +3761,60 @@
                   <p>Decision history preserved without modifying source records.</p>
                 </article>
               </div>
+            </section>
+
+            <section id="identityResolutionRequestsSection" class="identity-resolution-card" aria-labelledby="identityResolutionRequestsTitle">
+              <div class="document-signoff-card-heading">
+                <div>
+                  <h3 id="identityResolutionRequestsTitle">Review Requests</h3>
+                  <p>Review requests ask authorised reviewers to investigate possible identity matches. They do not modify source records.</p>
+                </div>
+                <span id="identityResolutionRequestCount" class="privacy-gdpr-result-count">-</span>
+              </div>
+              <div class="oh-filter-panel">
+                <div class="oh-responsive-filter-grid identity-resolution-filter-grid">
+                  <label>
+                    <span>Search</span>
+                    <input id="identityResolutionRequestSearch" type="search" autocomplete="off" placeholder="Reference, reason, source or suggested match" />
+                  </label>
+                  <label>
+                    <span>Status</span>
+                    <select id="identityResolutionRequestStatus">
+                      <option value="pending">Pending</option>
+                      <option value="all">All statuses</option>
+                      <option value="in_review">In review</option>
+                      <option value="candidate_created">Candidate created</option>
+                      <option value="closed">Closed</option>
+                      <option value="cancelled">Cancelled</option>
+                    </select>
+                  </label>
+                  <label>
+                    <span>Candidate type</span>
+                    <select id="identityResolutionRequestType">
+                      <option value="all">All types</option>
+                      <option value="person">Person</option>
+                      <option value="organisation">Organisation</option>
+                      <option value="vehicle">Vehicle</option>
+                      <option value="email">Email</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </label>
+                  <label>
+                    <span>Limit</span>
+                    <select id="identityResolutionRequestLimit">
+                      <option value="50">50</option>
+                      <option value="100">100</option>
+                      <option value="250">250</option>
+                    </select>
+                  </label>
+                  <div class="oh-responsive-filter-actions identity-resolution-actions">
+                    <button id="identityResolutionApplyRequestFiltersButton" type="button">Apply Filters</button>
+                    <button id="identityResolutionResetRequestFiltersButton" class="secondary" type="button">Reset</button>
+                  </div>
+                </div>
+              </div>
+              <div id="identityResolutionRequestResults" class="identity-resolution-result-list" aria-live="polite"></div>
+              <div id="identityResolutionRequestsEmpty" class="people-empty-state hidden" data-oh-empty-state>No identity review requests are available.</div>
             </section>
 
             <section id="identityResolutionQueueSection" class="identity-resolution-card" aria-labelledby="identityResolutionQueueTitle">
@@ -3938,6 +4013,50 @@
               <div class="visitors-side-panel-actions" data-oh-side-panel-actions>
                 <button id="identityResolutionCreateCandidateButton" type="submit">Create Manual Candidate</button>
                 <button id="identityResolutionCandidateCancelButton" class="secondary" type="button">Cancel</button>
+              </div>
+            </form>
+          </aside>
+        </div>
+
+        <div id="identityResolutionRequestPanelBackdrop" class="visitors-panel-backdrop hidden" data-oh-side-panel-backdrop>
+          <aside id="identityResolutionRequestPanel" class="visitors-side-panel identity-resolution-panel" aria-labelledby="identityResolutionRequestPanelTitle" aria-modal="true" role="dialog" data-oh-side-panel>
+            <header class="visitors-side-panel-header" data-oh-side-panel-header>
+              <div>
+                <p class="oh-app-eyebrow">Identity review request</p>
+                <h2 id="identityResolutionRequestPanelTitle" data-oh-side-panel-title>Request Identity Review</h2>
+              </div>
+              <button id="identityResolutionRequestPanelClose" class="ghost" type="button" aria-label="Close identity review request panel" data-oh-side-panel-close>Close</button>
+            </header>
+            <form id="identityResolutionRequestForm" class="visitors-planned-form identity-resolution-panel-form" novalidate>
+              <input id="identityResolutionRequestContextType" type="hidden" />
+              <input id="identityResolutionRequestContextId" type="hidden" />
+              <textarea id="identityResolutionRequestContextSummary" class="hidden" aria-hidden="true"></textarea>
+              <textarea id="identityResolutionRequestMetadata" class="hidden" aria-hidden="true"></textarea>
+              <div class="assignment-editor-notice">
+                This creates a request for review only. It does not merge, link, erase, anonymise or change source records.
+              </div>
+              <label for="identityResolutionRequestCandidateType"><span>Candidate type *</span><select id="identityResolutionRequestCandidateType"><option value="person">Person</option><option value="organisation">Organisation</option><option value="vehicle">Vehicle</option><option value="email">Email</option><option value="other">Other</option></select></label>
+              <label for="identityResolutionRequestReason"><span>Request reason *</span><textarea id="identityResolutionRequestReason" rows="3" aria-describedby="identityResolutionRequestReasonHelp"></textarea><small id="identityResolutionRequestReasonHelp" class="identity-resolution-field-note">Describe why this source record needs authorised identity review without claiming a confirmed match.</small></label>
+              <label for="identityResolutionRequesterNotes"><span>Requester notes</span><textarea id="identityResolutionRequesterNotes" rows="3"></textarea></label>
+              <fieldset class="identity-resolution-source-fieldset">
+                <legend>Source record</legend>
+                <p class="identity-resolution-field-note">The exact source record that needs review.</p>
+                <label for="identityResolutionRequestSourceType"><span>Source type *</span><input id="identityResolutionRequestSourceType" type="text" autocomplete="off" placeholder="privacy_cases" /></label>
+                <label for="identityResolutionRequestSourceId"><span>Source record ID *</span><input id="identityResolutionRequestSourceId" type="text" autocomplete="off" /></label>
+                <label for="identityResolutionRequestSourceLabel"><span>Source label</span><input id="identityResolutionRequestSourceLabel" type="text" autocomplete="off" /></label>
+                <label for="identityResolutionRequestSourceSummary"><span>Source summary JSON</span><textarea id="identityResolutionRequestSourceSummary" rows="3" spellcheck="false" placeholder="{ }"></textarea></label>
+              </fieldset>
+              <fieldset class="identity-resolution-source-fieldset">
+                <legend>Suggested match</legend>
+                <p class="identity-resolution-field-note">If you know the exact record to compare against, add it as a suggested match. If not, submit the request and a reviewer can investigate.</p>
+                <label for="identityResolutionRequestSuggestedType"><span>Suggested match type</span><input id="identityResolutionRequestSuggestedType" type="text" autocomplete="off" /></label>
+                <label for="identityResolutionRequestSuggestedId"><span>Suggested match record ID</span><input id="identityResolutionRequestSuggestedId" type="text" autocomplete="off" /></label>
+                <label for="identityResolutionRequestSuggestedLabel"><span>Suggested match label</span><input id="identityResolutionRequestSuggestedLabel" type="text" autocomplete="off" /></label>
+                <label for="identityResolutionRequestSuggestedSummary"><span>Suggested match summary JSON</span><textarea id="identityResolutionRequestSuggestedSummary" rows="3" spellcheck="false" placeholder="{ }"></textarea></label>
+              </fieldset>
+              <div class="visitors-side-panel-actions" data-oh-side-panel-actions>
+                <button id="identityResolutionCreateRequestButton" type="submit">Create Review Request</button>
+                <button id="identityResolutionRequestCancelButton" class="secondary" type="button">Cancel</button>
               </div>
             </form>
           </aside>
