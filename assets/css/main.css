@@ -7237,7 +7237,22 @@ button.oh-section-nav-item:focus-visible,
   color: var(--oh-shell-muted);
 }
 
+.access-control-toolbar-actions,
+.access-control-filter-actions,
+.access-control-row-actions,
+.access-control-detail-actions,
+.role-capability-group-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
 .access-control-section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
   margin: 0 0 14px;
   padding: 0 0 12px;
   border-bottom: 1px solid var(--oh-shell-border);
@@ -7255,6 +7270,60 @@ button.oh-section-nav-item:focus-visible,
   color: var(--oh-shell-muted);
   font-size: 13px;
   line-height: 1.45;
+}
+
+.access-control-filter-bar {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.2fr) minmax(150px, auto) minmax(240px, auto);
+  gap: 12px;
+  align-items: end;
+  margin-bottom: 12px;
+  padding: 14px;
+  border: 1px solid var(--oh-shell-border);
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.access-control-filter-bar label,
+.access-control-panel-field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 7px;
+  color: var(--oh-shell-muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.access-control-filter-bar input,
+.access-control-panel-field input,
+.access-control-panel-field textarea {
+  width: 100%;
+}
+
+.access-control-check-option {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  flex-direction: row;
+  gap: 8px;
+  color: var(--oh-shell-muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.access-control-check-option input {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+}
+
+.access-control-result-summary {
+  min-height: 20px;
+  margin: 0 0 10px;
+  color: var(--oh-shell-muted);
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .access-control-role-grid {
@@ -7356,6 +7425,10 @@ button.oh-section-nav-item:focus-visible,
   border-collapse: collapse;
 }
 
+.access-control-role-table {
+  min-width: 960px;
+}
+
 .access-control-table th,
 .access-control-table td {
   padding: 12px 14px;
@@ -7373,6 +7446,55 @@ button.oh-section-nav-item:focus-visible,
 
 .access-control-table td {
   font-size: 13px;
+}
+
+.access-control-table-primary,
+.access-control-table-secondary {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.access-control-table-primary {
+  color: #101828;
+  font-weight: 900;
+}
+
+.access-control-table-secondary {
+  margin-top: 4px;
+  color: var(--oh-shell-muted);
+  line-height: 1.35;
+}
+
+.access-control-type-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.access-control-type-badge.system {
+  color: #344054;
+  background: #eef2f6;
+}
+
+.access-control-type-badge.custom {
+  color: #067647;
+  background: #ecfdf3;
+}
+
+.access-control-row-actions {
+  min-width: 190px;
+}
+
+.access-control-row-actions button,
+.access-control-detail-actions button {
+  min-height: 34px;
+  padding: 7px 10px;
 }
 
 .access-control-placeholder {
@@ -7400,6 +7522,93 @@ button.oh-section-nav-item:focus-visible,
   padding: 22px 24px 0;
 }
 
+.access-control-role-panel {
+  width: min(640px, calc(100% - var(--oh-nav-rail-width)));
+}
+
+.access-control-role-form {
+  display: grid;
+  gap: 14px;
+}
+
+.access-control-panel-check {
+  justify-self: start;
+}
+
+.access-control-panel-subtitle {
+  margin: 0 0 10px;
+  font-size: 16px;
+}
+
+.access-control-capability-picker {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--oh-shell-border);
+}
+
+.access-control-picker-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.access-control-picker-header .access-control-result-summary {
+  margin: 0;
+  white-space: nowrap;
+}
+
+.access-control-detail-list {
+  display: grid;
+  gap: 0;
+  margin: 0 0 18px;
+  padding: 0;
+}
+
+.access-control-detail-list > div {
+  display: grid;
+  grid-template-columns: minmax(120px, .55fr) minmax(0, 1fr);
+  gap: 14px;
+  padding: 11px 0;
+  border-bottom: 1px solid #e9edf2;
+}
+
+.access-control-detail-list dt {
+  color: var(--oh-shell-muted);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.access-control-detail-list dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.access-control-assignment-note {
+  margin: 0 0 18px;
+  padding: 11px 12px;
+  border: 1px solid var(--oh-shell-border);
+  border-radius: 10px;
+  color: var(--oh-shell-muted);
+  background: #f8fafc;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.access-control-detail-capabilities {
+  display: grid;
+  gap: 12px;
+}
+
+.access-control-detail-actions {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--oh-shell-border);
+}
+
 .role-capability-groups {
   display: grid;
   gap: 18px;
@@ -7418,6 +7627,16 @@ button.oh-section-nav-item:focus-visible,
   padding: 0 6px;
   font-size: 14px;
   font-weight: 900;
+}
+
+.role-capability-group-actions {
+  margin-bottom: 8px;
+}
+
+.role-capability-group-actions button {
+  min-height: 30px;
+  padding: 6px 9px;
+  font-size: 12px;
 }
 
 .role-capability-option {
@@ -7484,6 +7703,10 @@ button.oh-section-nav-item:focus-visible,
   box-shadow: -16px 0 36px rgba(16, 24, 40, .16);
 }
 
+.reference-data-panel.access-control-role-panel {
+  width: min(640px, calc(100% - var(--oh-nav-rail-width)));
+}
+
 .reference-form-field {
   margin-bottom: 16px;
 }
@@ -7529,6 +7752,13 @@ input[data-reference-field="cycle_length_days"][readonly] {
 
 @media (max-width: 1023px) {
   .reference-data-panel { width: min(480px, calc(100% - 40px)); }
+  .access-control-role-panel { width: min(640px, calc(100% - 40px)); }
+  .access-control-filter-bar {
+    grid-template-columns: minmax(0, 1fr) minmax(150px, auto);
+  }
+  .access-control-filter-actions {
+    grid-column: 1 / -1;
+  }
   .access-control-role-grid { grid-template-columns: 1fr; }
   .module-configuration-card-grid { grid-template-columns: 1fr 1fr; }
   .shared-terminal-status-grid { grid-template-columns: 1fr; }
@@ -7546,7 +7776,29 @@ input[data-reference-field="cycle_length_days"][readonly] {
     align-items: stretch;
     flex-direction: column;
   }
-  .access-control-toolbar button { width: 100%; }
+  .access-control-section-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .access-control-toolbar button,
+  .access-control-section-heading button,
+  .access-control-filter-actions button,
+  .access-control-row-actions button,
+  .access-control-detail-actions button { width: 100%; }
+  .access-control-filter-bar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .access-control-check-option {
+    min-height: 38px;
+  }
+  .access-control-picker-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .access-control-detail-list > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
   .access-control-role-group li { grid-template-columns: 1fr; }
   .access-control-role-group li code { text-align: left; }
 

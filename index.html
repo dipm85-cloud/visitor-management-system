@@ -4821,28 +4821,63 @@
             <div>
               <p class="oh-app-eyebrow">Administration</p>
               <h2 id="accessControlTitle">Access Control</h2>
-              <p>Edit role preset assignments and review the read-only capability catalogue and groups.</p>
+              <p>Manage custom role presets and review the capability catalogue.</p>
             </div>
-            <span class="access-control-mode">Role assignments editable</span>
+            <span id="accessControlPermissionBadge" class="access-control-mode">Read only</span>
           </div>
 
           <div class="access-control-migration-note">
-            Capability assignments are saved here, but some legacy areas still use role-based checks until migration is complete.
+            Role presets are templates for assigning capabilities. Capabilities remain the real permission model.
           </div>
 
           <div class="access-control-toolbar">
-            <p id="accessControlStatus" aria-live="polite">Open Access Control to load capability data.</p>
-            <button id="accessControlRefreshButton" class="secondary" type="button">Refresh</button>
+            <p id="accessControlStatus" aria-live="polite"></p>
+            <div class="access-control-toolbar-actions">
+              <button id="accessControlRefreshButton" class="secondary" type="button">Refresh</button>
+            </div>
           </div>
 
           <div id="accessControlWorkspaceContent">
             <section id="accessControlRolesView" class="access-control-view" data-access-control-panel="roles" aria-labelledby="accessControlRolesTitle">
               <div class="access-control-section-heading">
-                <h3 id="accessControlRolesTitle">Role Presets</h3>
-                <p>Review role presets and manage assigned capabilities where permitted.</p>
+                <div>
+                  <h3 id="accessControlRolesTitle">Role Presets</h3>
+                  <p>View protected system presets and manage reusable custom presets.</p>
+                </div>
+                <button id="accessControlNewRolePresetButton" type="button">New Role Preset</button>
               </div>
-              <div id="accessControlRolePresets" class="access-control-role-grid"></div>
-              <div id="accessControlRolesEmpty" class="people-empty-state hidden" data-oh-empty-state>No role presets are available.</div>
+              <div class="access-control-filter-bar">
+                <label for="accessControlRoleSearch">
+                  Search
+                  <input id="accessControlRoleSearch" type="search" placeholder="Role name, code or description" autocomplete="off" />
+                </label>
+                <label class="access-control-check-option" for="accessControlIncludeInactive">
+                  <input id="accessControlIncludeInactive" type="checkbox" checked />
+                  <span>Include inactive</span>
+                </label>
+                <div class="access-control-filter-actions">
+                  <button id="accessControlRolePresetRefreshButton" class="secondary" type="button">Refresh</button>
+                  <button id="accessControlRolePresetResetButton" class="secondary" type="button">Reset Filters</button>
+                </div>
+              </div>
+              <div id="accessControlRolePresetSummary" class="access-control-result-summary"></div>
+              <div class="access-control-table-wrap" data-oh-scroll-region="operational" aria-label="Role presets">
+                <table class="access-control-table access-control-role-table" aria-label="Role presets">
+                  <thead>
+                    <tr>
+                      <th scope="col">Role</th>
+                      <th scope="col">Code</th>
+                      <th scope="col">Type</th>
+                      <th scope="col">Status</th>
+                      <th scope="col">Capabilities</th>
+                      <th scope="col">Updated</th>
+                      <th scope="col">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="accessControlRolePresets"></tbody>
+                </table>
+                <div id="accessControlRolesEmpty" class="people-empty-state hidden" data-oh-empty-state>No role presets are available.</div>
+              </div>
             </section>
 
             <section id="accessControlCapabilitiesView" class="access-control-view" data-access-control-panel="capabilities" aria-labelledby="accessControlCapabilitiesTitle">
@@ -4903,21 +4938,18 @@
             </section>
           </div>
 
-          <aside id="rolePresetCapabilityPanel" class="reference-data-panel hidden" aria-labelledby="rolePresetCapabilityPanelTitle" aria-hidden="true" data-oh-side-panel>
+          <aside id="rolePresetCapabilityPanel" class="reference-data-panel access-control-role-panel hidden" aria-labelledby="rolePresetCapabilityPanelTitle" aria-hidden="true" data-oh-side-panel>
             <div class="people-panel-header" data-oh-side-panel-header>
               <div>
                 <p class="oh-app-eyebrow">Role preset</p>
-                <h2 id="rolePresetCapabilityPanelTitle">Edit Capabilities</h2>
+                <h2 id="rolePresetCapabilityPanelTitle">Role Preset</h2>
                 <p id="rolePresetCapabilityPanelRole" class="assignment-panel-person"></p>
               </div>
-              <button id="rolePresetCapabilityPanelCloseButton" class="oh-icon-button" type="button" aria-label="Close role capability editor">Ã—</button>
+              <button id="rolePresetCapabilityPanelCloseButton" class="oh-icon-button" type="button" aria-label="Close role preset panel">Close</button>
             </div>
 
-            <div class="role-capability-panel-body">
-              <div id="rolePresetCapabilitySafetyNotice" class="assignment-editor-notice">
-                Select the capabilities assigned to this role preset.
-              </div>
-              <div id="rolePresetCapabilityMessage" class="modal-message" aria-live="polite"></div>
+            <div id="rolePresetPanelBody" class="role-capability-panel-body">
+              <div id="rolePresetCapabilitySafetyNotice" class="assignment-editor-notice"></div>
               <div id="rolePresetCapabilityGroups" class="role-capability-groups"></div>
             </div>
 
