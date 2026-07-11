@@ -247,11 +247,11 @@
               <strong id="dashboardPlannedTodayCount">-</strong>
               <p>Planned visits dated today.</p>
             </article>
-            <article class="dashboard-kpi-card">
+            <button id="dashboardSignedInCardButton" class="dashboard-kpi-card dashboard-kpi-button" type="button">
               <span>Currently signed in</span>
               <strong id="dashboardSignedInCount">-</strong>
               <p>Visitor records without sign-out time.</p>
-            </article>
+            </button>
             <article class="dashboard-kpi-card">
               <span>Overdue visitors</span>
               <strong id="dashboardOverdueCount">-</strong>
@@ -936,7 +936,7 @@
               <div class="document-signoff-card-heading">
                 <div>
                   <h3 id="documentSignoffEvidenceTitle">Recent Signature Evidence</h3>
-                  <p>Read-only metadata from existing visitor agreement evidence. Signature images are not shown here.</p>
+                  <p>Read-only metadata from existing visitor agreement evidence. Signature images are not shown here. Evidence search/filter will be handled by a future Document Evidence workspace.</p>
                 </div>
               </div>
               <div class="document-signoff-table-wrap" data-oh-scroll-region="history" aria-label="Recent document sign-off evidence">
@@ -1191,14 +1191,15 @@
               <div id="documentSignoffDetailsStatus" class="document-signoff-detail-badges" aria-label="Document sign-off statuses"></div>
               <p id="documentSignoffDetailsSummary" class="document-signoff-detail-summary"></p>
               <dl id="documentSignoffDetailsList" class="visitors-details-list document-signoff-details-list"></dl>
-              <div id="documentSignoffDetailsLinkedIdentityContext" class="linked-identity-context-slot"></div>
               <section id="documentSignoffDetailsContextSection" class="document-signoff-detail-context hidden" aria-labelledby="documentSignoffDetailsContextTitle">
                 <div>
-                  <h3 id="documentSignoffDetailsContextTitle">Context Actions</h3>
+                  <h3 id="documentSignoffDetailsContextTitle">Contextual Actions</h3>
                   <p>Actions for this exact record only. Source evidence is not modified.</p>
                 </div>
                 <div id="documentSignoffDetailsContextActions" class="document-signoff-legacy-actions"></div>
               </section>
+              <div id="documentSignoffDetailsLinkedIdentityContext" class="linked-identity-context-slot"></div>
+              <div id="documentSignoffDetailsAdvanced" class="document-signoff-detail-advanced"></div>
               <section id="documentSignoffDetailsLegacySection" class="document-signoff-detail-legacy" aria-labelledby="documentSignoffDetailsLegacyTitle">
                 <div>
                   <h3 id="documentSignoffDetailsLegacyTitle">Legacy Workflow</h3>
@@ -3625,7 +3626,7 @@
               </select>
               <label for="documentSignoffAdminValidityDays">Default expiry period</label>
               <input id="documentSignoffAdminValidityDays" type="number" min="1" value="365" />
-              <label for="documentSignoffAdminUseIdentityLinksCompliance">Confirmed identity evidence</label>
+              <label for="documentSignoffAdminUseIdentityLinksCompliance">Use confirmed identity links for document/induction compliance</label>
               <div class="document-signoff-sensitive-setting">
                 <select id="documentSignoffAdminUseIdentityLinksCompliance">
                   <option value="false">Off</option>

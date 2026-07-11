@@ -134,6 +134,9 @@ export function initialiseDashboard() {
   if ($("dashboardOpenVisitorsButton")) $("dashboardOpenVisitorsButton").addEventListener("click", () => {
     if (dashboardDependencies.openVisitors) dashboardDependencies.openVisitors();
   });
+  if ($("dashboardSignedInCardButton")) $("dashboardSignedInCardButton").addEventListener("click", () => {
+    if (dashboardDependencies.openVisitors) dashboardDependencies.openVisitors("current-visitors");
+  });
   if ($("dashboardOpenPeopleButton")) $("dashboardOpenPeopleButton").addEventListener("click", () => {
     if (dashboardDependencies.openPeople) dashboardDependencies.openPeople();
   });

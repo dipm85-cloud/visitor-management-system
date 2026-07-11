@@ -1993,6 +1993,13 @@ body.document-signoff-overlay-open {
   margin-top: 8px;
 }
 
+.document-signoff-linked-evidence-unavailable {
+  align-self: center;
+  color: var(--oh-shell-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .document-signoff-native-selection-summary {
   color: var(--oh-shell-muted);
   font-size: 13px;
@@ -2181,6 +2188,12 @@ body.document-signoff-overlay-open {
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 10px;
+  min-width: 0;
+}
+
+.document-signoff-legacy-actions button {
+  max-width: 100%;
+  white-space: normal;
 }
 
 .document-signoff-details-panel {
@@ -2218,6 +2231,14 @@ body.document-signoff-overlay-open {
   border: 1px solid var(--oh-shell-border);
   border-radius: 12px;
   background: #fff;
+}
+
+.document-signoff-detail-context .document-signoff-legacy-actions {
+  justify-content: flex-start;
+}
+
+.document-signoff-detail-advanced:empty {
+  display: none;
 }
 
 .document-signoff-detail-legacy {
@@ -6209,6 +6230,22 @@ button.oh-section-nav-item:focus-visible,
   padding: 18px;
 }
 
+.dashboard-kpi-button {
+  display: block;
+  width: 100%;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dashboard-kpi-button:hover,
+.dashboard-kpi-button:focus-visible {
+  border-color: var(--oh-shell-focus);
+  box-shadow: 0 0 0 3px rgba(31, 79, 143, .14);
+  outline: none;
+}
+
 .dashboard-kpi-card strong {
   display: block;
   margin-top: 10px;
@@ -7228,6 +7265,94 @@ button.oh-section-nav-item:focus-visible,
   border: 1px solid #abefc6;
   border-radius: 8px;
   background: #f6fef9;
+}
+
+.linked-identity-context-card.is-compact {
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+  gap: 5px;
+  margin: 3px 0;
+  padding: 6px 8px;
+  border-color: #bbf7d0;
+  border-radius: 6px;
+  background: #f8fdf9;
+  box-shadow: none;
+}
+
+.linked-identity-context-card.is-compact .identity-resolution-card-actions {
+  grid-column: 1 / -1;
+  justify-content: flex-start;
+  gap: 6px;
+}
+
+.linked-identity-context-card.is-compact .identity-resolution-card-actions button {
+  padding: 6px 9px;
+  font-size: 12px;
+}
+
+.linked-identity-context-card.is-compact .linked-identity-context-heading {
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.linked-identity-context-card.is-compact .linked-identity-context-heading > div {
+  min-width: 0;
+}
+
+.linked-identity-context-card.is-compact .linked-identity-context-heading strong {
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.linked-identity-context-card.is-compact .linked-identity-context-heading span {
+  margin-top: 1px;
+  font-size: 12px;
+  line-height: 1.3;
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  overflow-wrap: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  word-break: normal;
+}
+
+.linked-identity-context-card.is-compact .identity-resolution-badge {
+  flex: 0 0 auto;
+  padding: 4px 7px;
+  font-size: 11px;
+}
+
+.linked-identity-context-card.is-compact .identity-resolution-meta-grid {
+  margin-top: 2px;
+}
+
+.linked-identity-context-expanded {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  max-height: min(52vh, 520px);
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--oh-shell-border);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.linked-identity-expanded-summary {
+  margin: 0;
+  color: var(--oh-shell-muted);
+  font-size: 13px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.linked-identity-context-inline-records {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
 }
 
 .linked-identity-context-card.is-empty {

@@ -515,6 +515,8 @@ function clearDetailPanel() {
   if (contextActions) contextActions.replaceChildren();
   const linkedContext = $("documentSignoffDetailsLinkedIdentityContext");
   if (linkedContext) linkedContext.replaceChildren();
+  const advanced = $("documentSignoffDetailsAdvanced");
+  if (advanced) advanced.replaceChildren();
   setVisible("documentSignoffDetailsContextSection", false);
   setVisible("documentSignoffDetailsLegacySection", false);
 }
@@ -684,6 +686,16 @@ function renderDetailFields(fields) {
     });
 }
 
+function createDetailMetaItem(label, value) {
+  const wrapper = document.createElement("div");
+  const dt = document.createElement("dt");
+  const dd = document.createElement("dd");
+  dt.textContent = label;
+  dd.textContent = textOrDash(value);
+  wrapper.append(dt, dd);
+  return wrapper;
+}
+
 function createLegacyActionButton(action) {
   const button = document.createElement("button");
   button.className = "secondary";
@@ -697,11 +709,51 @@ function createLegacyActionButton(action) {
 
 function createContextActionButton(action) {
   const button = document.createElement("button");
-  button.className = "secondary";
+  button.className = action.primary ? "" : "secondary";
   button.type = "button";
   button.textContent = action.label;
   button.addEventListener("click", event => action.handler(event.currentTarget));
   return button;
+}
+
+function copyDetailTechnicalId(value) {
+  const text = String(value || "").trim();
+  if (!text) return;
+  if (!navigator.clipboard || !navigator.clipboard.writeText) {
+    showToast("Copy unavailable", "Clipboard access is not available in this browser.", "error");
+    return;
+  }
+  navigator.clipboard.writeText(text)
+    .then(() => showToast("Technical ID copied", "The record reference was copied.", "success"))
+    .catch(() => showToast("Copy failed", "The record reference could not be copied.", "error"));
+}
+
+function renderDetailAdvanced(fields) {
+  const host = $("documentSignoffDetailsAdvanced");
+  if (!host) return;
+  host.replaceChildren();
+  const visibleFields = (fields || []).filter(field => field && hasValue(field.value));
+  if (!visibleFields.length) return;
+  const details = document.createElement("details");
+  details.className = "identity-resolution-request-details identity-resolution-request-advanced";
+  const summary = document.createElement("summary");
+  summary.textContent = "Advanced / Technical Details";
+  const meta = document.createElement("dl");
+  meta.className = "identity-resolution-meta-grid";
+  visibleFields.forEach(field => {
+    meta.appendChild(createDetailMetaItem(field.label, field.value));
+  });
+  details.append(summary, meta);
+  const technicalId = visibleFields.find(field => /evidence id|record id|reference/i.test(field.label || "") && field.value);
+  if (technicalId) {
+    const copy = document.createElement("button");
+    copy.type = "button";
+    copy.className = "secondary";
+    copy.textContent = "Copy Technical ID";
+    copy.addEventListener("click", () => copyDetailTechnicalId(technicalId.value));
+    details.appendChild(copy);
+  }
+  host.appendChild(details);
 }
 
 function renderDetailPanel(details, trigger) {
@@ -719,6 +771,7 @@ function renderDetailPanel(details, trigger) {
     });
   }
   renderDetailFields(settings.fields || []);
+  renderDetailAdvanced(settings.advancedFields || []);
   const linkedContext = $("documentSignoffDetailsLinkedIdentityContext");
   if (linkedContext) {
     linkedContext.replaceChildren();
@@ -909,11 +962,26 @@ function evidenceRecordIdFromStatus(status) {
   return status && (
     status.evidence_record_id ||
     status.agreement_id ||
-    status.id ||
     status.agreement_signature_id ||
     status.last_agreement_id ||
     ""
   );
+}
+
+function evidenceVisitLogIdFromStatus(status) {
+  if (!status) return "";
+  return String(
+    status.evidence_visit_log_id ||
+    status.visit_log_id ||
+    status.visitor_log_id ||
+    status.linked_visit_log_id ||
+    (
+      LINKED_COMPLIANCE_VISIT_SOURCE_TYPES.has(String(status.linked_source_type || "").trim().toLowerCase())
+        ? status.linked_source_record_id
+        : ""
+    ) ||
+    ""
+  ).trim();
 }
 
 function evidenceSignedAtFromStatus(status) {
@@ -962,7 +1030,9 @@ function linkedEvidenceStatusForSource(source, status) {
     linked_source_label: source.linked_source_label || source.canonical_label || "",
     linked_source_type: source.linked_source_type || "",
     linked_source_record_id: source.linked_source_record_id || "",
-    evidence_record_id: evidenceRecordIdFromStatus(status),
+    evidence_visit_log_id: linkedVisitLogId(source) || status.visit_log_id || status.visitor_log_id || "",
+    evidence_record_id: evidenceRecordIdFromStatus(status) ||
+      (LINKED_COMPLIANCE_EVIDENCE_SOURCE_TYPES.has(linkedSourceType(source)) ? source.linked_source_record_id : ""),
     evidence_signed_at: evidenceSignedAtFromStatus(status),
     evidence_document_title: evidenceDocumentTitleFromStatus(status),
     evidence_document_version: evidenceDocumentVersionFromStatus(status),
@@ -1258,11 +1328,14 @@ function openEvidenceDetails(record, trigger) {
       { label: "Recorded by / witness", value: record.signed_by_name },
       { label: "Inductor", value: record.inductor_name },
       { label: "Linked visit", value: record.visit_log_id || record.visitor_log_id },
-      { label: "Evidence ID", value: record.id || record.agreement_signature_id },
-      { label: "Document type ID", value: record.agreement_type_id },
-      { label: "Document version ID", value: record.agreement_version_id },
       { label: "Created", value: formatDateTime(record.created_at) },
       { label: "Updated", value: formatDateTime(record.updated_at) }
+    ],
+    advancedFields: [
+      { label: "Evidence ID", value: record.id || record.agreement_id || record.agreement_signature_id },
+      { label: "Document type ID", value: record.agreement_type_id },
+      { label: "Document version ID", value: record.agreement_version_id },
+      { label: "Visit record ID", value: record.visit_log_id || record.visitor_log_id }
     ],
     linkedIdentityContext: {
       sourceType: "document_evidence",
@@ -1271,6 +1344,19 @@ function openEvidenceDetails(record, trigger) {
       complianceNote: true
     },
     contextActions: [
+      {
+        label: "View / Print Evidence",
+        primary: true,
+        allowed: () => true,
+        handler: button => {
+          if (documentSignoffDetailsPanelController) {
+            documentSignoffDetailsPanelController.close({ restoreFocus: false });
+          }
+          window.dispatchEvent(new CustomEvent("oh:agreement-evidence-printout-requested", {
+            detail: { record }
+          }));
+        }
+      },
       {
         label: "Request Identity Review",
         allowed: () => canRequestIdentityReviewFromDocumentSignoffs() && !!evidenceIdentityReviewSourceId(record),
@@ -1297,6 +1383,157 @@ function openEvidenceDetails(record, trigger) {
       }
     ]
   }, trigger);
+}
+
+function evidenceRecordMatches(record, sourceRecordId) {
+  const id = String(sourceRecordId || "").trim();
+  if (!id || !record) return false;
+  return [
+    record.id,
+    record.agreement_id,
+    record.agreement_signature_id,
+    record.document_evidence_id,
+    record.evidence_id
+  ].some(value => String(value || "").trim() === id);
+}
+
+function openFullEvidencePreview(record) {
+  if (!record) return;
+  window.dispatchEvent(new CustomEvent("oh:agreement-evidence-printout-requested", {
+    detail: { record }
+  }));
+}
+
+async function searchEvidenceRowsForWindow(days, filters) {
+  const settings = filters || {};
+  const result = await supabaseClient.rpc("search_visitor_agreements", {
+    p_date_from: dateDaysAgo(days),
+    p_date_to: todayDate(),
+    p_visitor_name: null,
+    p_company: null,
+    p_agreement_version_id: settings.agreementVersionId || null,
+    p_agreement_type_id: settings.agreementTypeId || null
+  });
+  if (result.error) throw result.error;
+  return result.data || [];
+}
+
+async function findEvidenceRecordById(sourceRecordId) {
+  const cached = (documentSignoffOverviewState.recentEvidence || [])
+    .find(record => evidenceRecordMatches(record, sourceRecordId));
+  if (cached) return cached;
+
+  const searchWindows = [3650, 36500];
+  for (const days of searchWindows) {
+    const record = (await searchEvidenceRowsForWindow(days))
+      .find(row => evidenceRecordMatches(row, sourceRecordId));
+    if (record) return record;
+  }
+  return null;
+}
+
+function evidenceRecordMatchesStatus(record, status, fallbackVisitId) {
+  if (!record || !status) return false;
+  const visitId = evidenceVisitLogIdFromStatus(status) || String(fallbackVisitId || "").trim();
+  const typeId = String(status.agreement_type_id || "").trim();
+  const versionId = String(status.agreement_version_id || status.active_agreement_version_id || "").trim();
+  const signedAt = String(evidenceSignedAtFromStatus(status) || "").trim();
+
+  if (visitId) {
+    const recordVisitId = String(record.visit_log_id || record.visitor_log_id || "").trim();
+    if (recordVisitId && recordVisitId !== visitId) return false;
+  }
+
+  if (versionId) {
+    const recordVersionId = String(record.agreement_version_id || "").trim();
+    if (recordVersionId && recordVersionId !== versionId) return false;
+  } else if (typeId) {
+    const recordTypeId = String(record.agreement_type_id || "").trim();
+    if (recordTypeId && recordTypeId !== typeId) return false;
+  }
+
+  if (!visitId && !typeId && !versionId) return false;
+  if (!signedAt) return true;
+  const recordSignedAt = String(record.signed_at || "").trim();
+  if (!recordSignedAt) return true;
+  return Date.parse(recordSignedAt) === Date.parse(signedAt) ||
+    recordSignedAt.slice(0, 19) === signedAt.slice(0, 19);
+}
+
+async function findEvidenceRecordForStatus(status, fallbackVisitId) {
+  const evidenceId = evidenceRecordIdFromStatus(status);
+  if (evidenceId) {
+    const byId = await findEvidenceRecordById(evidenceId);
+    if (byId) return byId;
+  }
+
+  const filters = {
+    agreementVersionId: status && (status.agreement_version_id || status.active_agreement_version_id),
+    agreementTypeId: status && status.agreement_type_id
+  };
+  const searchWindows = [3650, 36500];
+  for (const days of searchWindows) {
+    const record = (await searchEvidenceRowsForWindow(days, filters))
+      .find(row => evidenceRecordMatchesStatus(row, status, fallbackVisitId));
+    if (record) return record;
+  }
+  return null;
+}
+
+export async function openDocumentSignoffEvidenceById(sourceRecordId, trigger) {
+  if (!canViewDocumentSignoffs()) {
+    showToast("Evidence unavailable", "You do not have permission to view document sign-off evidence.", "error");
+    return;
+  }
+  const id = String(sourceRecordId || "").trim();
+  if (!id) return;
+  try {
+    const record = await findEvidenceRecordById(id);
+    if (!record) {
+      showToast("Evidence not found", "No agreement evidence record was found for that reference.", "error");
+      return;
+    }
+    openFullEvidencePreview(record);
+  } catch (error) {
+    showToast(
+      "Evidence unavailable",
+      error && error.message ? error.message : "The evidence record could not be opened.",
+      "error"
+    );
+  }
+}
+
+async function openDocumentSignoffEvidencePreviewById(sourceRecordId, trigger) {
+  await openDocumentSignoffEvidenceById(sourceRecordId, trigger);
+}
+
+async function openDocumentSignoffEvidencePreviewForStatus(status, fallbackVisitId, trigger) {
+  if (!canViewDocumentSignoffs()) {
+    showToast("Evidence unavailable", "You do not have permission to view document sign-off evidence.", "error");
+    return;
+  }
+  if (!status) {
+    showToast("Evidence unavailable", "Evidence context is unavailable for this agreement.", "error");
+    return;
+  }
+  try {
+    const record = await findEvidenceRecordForStatus(status, fallbackVisitId);
+    if (!record) {
+      showToast(
+        "Evidence not found",
+        "No agreement evidence record matched the linked compliance result.",
+        "error"
+      );
+      return;
+    }
+    openFullEvidencePreview(record);
+  } catch (error) {
+    showToast(
+      "Evidence unavailable",
+      error && error.message ? error.message : "The agreement evidence could not be opened.",
+      "error"
+    );
+  }
 }
 
 function openComplianceStatusDetails(trigger) {
@@ -1362,6 +1599,63 @@ function groupPendingNativeCandidates(rows) {
   return grouped;
 }
 
+function signoffIdentityReviewLabel(visit) {
+  const subject = [visit.visitor_name, visit.company].filter(Boolean).join(" / ");
+  const pending = (visit.required_requirements || []).map(row => row.agreement_name).filter(Boolean).join(", ");
+  return [
+    "Visitor Requiring Sign-off",
+    subject,
+    pending ? pending + " pending" : "Document/induction pending"
+  ].filter(Boolean).join(" - ");
+}
+
+function signoffIdentityReviewContext(visit) {
+  const visitId = visit && (visit.visit_log_id || visit.id);
+  const label = signoffIdentityReviewLabel(visit || {});
+  return {
+    candidateType: "person",
+    requestReason: "Visitor requiring sign-off may need identity review.",
+    sourceType: "visit_log",
+    sourceRecordId: visitId,
+    sourceLabel: label,
+    sourceSummary: {
+      result_label: label,
+      visitor_name: visit.visitor_name || null,
+      company: visit.company || null,
+      sign_in_time: visit.sign_in_time || null,
+      pending_agreements: (visit.required_requirements || []).map(row => row.agreement_name).filter(Boolean),
+      visit_status: "signed_in"
+    },
+    contextType: "document_signoff_required_visitor",
+    contextRecordId: visitId,
+    contextSummary: {
+      context_label: "Visitor Requiring Sign-off",
+      result_label: label
+    },
+    metadata: {
+      launched_from: "document_signoff_required_visitor"
+    }
+  };
+}
+
+function appendSignoffIdentityReviewAction(container, visit) {
+  const visitId = visit && (visit.visit_log_id || visit.id);
+  if (!container || !canRequestIdentityReviewFromDocumentSignoffs()) return;
+  const request = document.createElement("button");
+  request.type = "button";
+  request.className = "secondary";
+  request.textContent = "Request Identity Review";
+  request.disabled = !visitId;
+  if (!visitId) {
+    request.title = "Exact visit-log context is not available for this sign-off item.";
+  } else {
+    request.addEventListener("click", event => {
+      openIdentityReviewRequestFromContext(signoffIdentityReviewContext(visit), event.currentTarget);
+    });
+  }
+  container.appendChild(request);
+}
+
 function renderNativeSignoffCandidates(rows) {
   const box = $("documentSignoffNativeResults");
   if (!box) return;
@@ -1420,10 +1714,51 @@ function renderNativeSignoffCandidates(rows) {
       );
     });
     actions.appendChild(legacy);
+    appendSignoffIdentityReviewAction(actions, visit);
 
     card.append(body, actions);
     box.appendChild(card);
   });
+}
+
+async function filterNativeSignoffCandidatesForLinkedCompliance(rows) {
+  const candidates = Array.isArray(rows) ? rows : [];
+  if (!useIdentityLinksForDocumentCompliance() || !candidates.length) return candidates;
+
+  const statusesByVisit = new Map();
+  const filtered = [];
+  for (const row of candidates) {
+    const visitId = row.visit_log_id || row.id;
+    const agreementTypeId = row.agreement_type_id;
+    if (!visitId || !agreementTypeId) {
+      filtered.push(row);
+      continue;
+    }
+
+    if (!statusesByVisit.has(visitId)) {
+      try {
+        const statuses = await getNativeAgreementStatusesForVisit(visitId);
+        const statusMap = new Map();
+        (statuses || []).forEach(status => {
+          if (status.agreement_type_id) statusMap.set(status.agreement_type_id, status);
+        });
+        statusesByVisit.set(visitId, statusMap);
+      } catch (error) {
+        console.warn("Could not apply linked identity compliance filtering to sign-off queue.", error);
+        statusesByVisit.set(visitId, null);
+      }
+    }
+
+    const statusMap = statusesByVisit.get(visitId);
+    if (!statusMap) {
+      filtered.push(row);
+      continue;
+    }
+    const status = statusMap.get(agreementTypeId);
+    if (!directEvidenceIsValid(status)) filtered.push(row);
+  }
+
+  return filtered;
 }
 
 async function loadNativeSignoffCandidates(manual) {
@@ -1431,6 +1766,7 @@ async function loadNativeSignoffCandidates(manual) {
     showToast("You do not have permission", "Native visitor sign-off requires agreement or visitor sign-off access.", "error");
     return;
   }
+  // TODO: Future notification milestone - notify compliance users/groups when sign-off action is required.
   const box = $("documentSignoffNativeResults");
   if (box) box.textContent = "Loading visitors requiring sign-off...";
   setNativeStatus("Loading visitors requiring agreement action...", "info");
@@ -1446,8 +1782,14 @@ async function loadNativeSignoffCandidates(manual) {
     showToast("Native sign-off failed", result.error.message, "error");
     return;
   }
-  renderNativeSignoffCandidates(result.data || []);
-  setNativeStatus((result.data || []).length + " agreement action(s) loaded.", (result.data || []).length ? "info" : "success");
+  const rows = result.data || [];
+  const displayRows = await filterNativeSignoffCandidatesForLinkedCompliance(rows);
+  renderNativeSignoffCandidates(displayRows);
+  const statusText = displayRows.length + " agreement action(s) loaded." +
+    (useIdentityLinksForDocumentCompliance() && rows.length !== displayRows.length
+      ? " " + (rows.length - displayRows.length) + " action(s) satisfied by direct or confirmed identity-linked evidence were hidden."
+      : "");
+  setNativeStatus(statusText, displayRows.length ? "info" : "success");
   if (manual) {
     showToast("Native sign-off loaded", "Current visitor agreement actions were loaded.", "success");
   }
@@ -1478,17 +1820,20 @@ function linkedEvidenceNoteText(status) {
     [source, evidence].filter(Boolean).join(" | ");
 }
 
-function appendLinkedIdentityContextAction(row, status) {
+function createLinkedIdentityContextButton(status) {
   if (!nativeSignoffCurrentVisit) return;
   const visitId = nativeSignoffCurrentVisit.visit_log_id || nativeSignoffCurrentVisit.id;
   if (!visitId) return;
-  const actions = document.createElement("div");
-  actions.className = "document-signoff-linked-evidence-actions";
   const button = document.createElement("button");
   button.type = "button";
   button.className = "secondary";
   button.textContent = "View Linked Identity Context";
   button.addEventListener("click", event => {
+    closeNativeSignoffWorkflow({
+      restoreFocus: false,
+      reset: false,
+      reason: "open_linked_identity_context"
+    });
     openLinkedIdentityContextDetails({
       sourceType: "visit_log",
       sourceRecordId: String(visitId),
@@ -1497,7 +1842,66 @@ function appendLinkedIdentityContextAction(row, status) {
       highlightedIdentityLinkId: status.identity_link_id || null
     }, event.currentTarget);
   });
+  return button;
+}
+
+function appendLinkedIdentityContextAction(row, status) {
+  const button = createLinkedIdentityContextButton(status);
+  if (!button) return;
+  const actions = document.createElement("div");
+  actions.className = "document-signoff-linked-evidence-actions";
   actions.appendChild(button);
+  row.appendChild(actions);
+}
+
+function signoffEvidenceActionRecordId(status) {
+  return String(
+    status && (
+      status.evidence_record_id ||
+      evidenceRecordIdFromStatus(status) ||
+      ""
+    ) || ""
+  ).trim();
+}
+
+function hasSignoffEvidenceLookupContext(status) {
+  if (!status) return false;
+  if (signoffEvidenceActionRecordId(status)) return true;
+  return !!(
+    (evidenceVisitLogIdFromStatus(status) ||
+      (nativeSignoffCurrentVisit && (nativeSignoffCurrentVisit.visit_log_id || nativeSignoffCurrentVisit.id))) &&
+    (status.agreement_type_id || status.agreement_version_id || status.active_agreement_version_id)
+  );
+}
+
+function appendSignoffEvidenceActions(row, status, options) {
+  const settings = options || {};
+  const actions = document.createElement("div");
+  actions.className = "document-signoff-linked-evidence-actions";
+  const canLookupEvidence = hasSignoffEvidenceLookupContext(status);
+  if (canLookupEvidence) {
+    const viewEvidence = document.createElement("button");
+    viewEvidence.type = "button";
+    viewEvidence.textContent = settings.linked ? "View Sign-off Evidence" : "View Evidence";
+    viewEvidence.addEventListener("click", async event => {
+      const fallbackVisitId = nativeSignoffCurrentVisit && (nativeSignoffCurrentVisit.visit_log_id || nativeSignoffCurrentVisit.id);
+      closeNativeSignoffWorkflow({
+        restoreFocus: false,
+        reset: false,
+        reason: settings.linked ? "open_linked_signoff_evidence" : "open_signoff_evidence"
+      });
+      await openDocumentSignoffEvidencePreviewForStatus(status, fallbackVisitId, event.currentTarget);
+    });
+    actions.appendChild(viewEvidence);
+  }
+  if (!canLookupEvidence) {
+    const unavailable = document.createElement("span");
+    unavailable.className = "document-signoff-linked-evidence-unavailable";
+    unavailable.textContent = "Evidence context unavailable.";
+    actions.appendChild(unavailable);
+  }
+  const linkedContext = settings.linked ? createLinkedIdentityContextButton(status) : null;
+  if (linkedContext) actions.appendChild(linkedContext);
   row.appendChild(actions);
 }
 
@@ -1605,7 +2009,9 @@ function renderNativeAgreementSelection(types, statuses, additionalOnly) {
       sourceNote.className = "document-signoff-linked-evidence-note";
       sourceNote.textContent = linkedEvidenceNoteText(status);
       row.appendChild(sourceNote);
-      appendLinkedIdentityContextAction(row, status);
+      appendSignoffEvidenceActions(row, status, { linked: true });
+    } else if (alreadyValid || evidenceRecordIdFromStatus(status)) {
+      appendSignoffEvidenceActions(row, status, { linked: false });
     } else if (status.identity_link_lookup_note) {
       const sourceNote = document.createElement("p");
       sourceNote.className = "document-signoff-linked-evidence-note muted";
@@ -2039,7 +2445,7 @@ function renderEvidence(rows) {
     appendTextCell(row, record.agreement_version_number);
     appendTextCell(row, formatDateTime(record.signed_at), record.signed_by_name || "");
     appendTextCell(row, evidenceType(record), record.inductor_name ? "Inductor: " + record.inductor_name : "");
-    appendDetailsCell(row, "View Details", trigger => openEvidenceDetails(record, trigger));
+    appendDetailsCell(row, "View / Print Evidence", () => openFullEvidencePreview(record));
     body.appendChild(row);
   });
   setVisible("documentSignoffEvidenceEmpty", rows.length === 0);

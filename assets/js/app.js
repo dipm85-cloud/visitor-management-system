@@ -19,6 +19,7 @@ import {
   initialisePlatformUi,
   setActionAvailable
 } from "./platformUi.js";
+import { selectModuleSection } from "./sectionNavigation.js";
 import {
   $,
   buildResultSummary,
@@ -230,8 +231,12 @@ import {
 import {
   initialisePrivacyGdprAdministration,
   openPrivacyGdprAdministration,
+  openPrivacyCaseRecordById,
   syncPrivacyGdprVisibility
 } from "./privacyGdprAdmin.js";
+import {
+  openDocumentSignoffEvidenceById
+} from "./documentSignoffs.js";
 import {
   initialiseIdentityResolutionAdministration,
   openIdentityResolutionAdministration,
@@ -455,7 +460,14 @@ window.addEventListener("load", async function () {
       openLoginModal
     });
     configureDashboard({
-      openVisitors: showVisitorWorkspace,
+      openVisitors(sectionId) {
+        showVisitorWorkspace();
+        if (sectionId) {
+          window.setTimeout(() => {
+            selectModuleSection("visitors", sectionId, { focus: true, resetScroll: false });
+          }, 0);
+        }
+      },
       openPeople: openPeopleWorkspace,
       openReferenceData: openReferenceDataWorkspace
     });
@@ -1894,7 +1906,15 @@ window.addEventListener("load", async function () {
         "<div class='agreement-evidence-footer'><strong>Agreement Reference</strong><br>" + safe(record.agreement_id) + "<br><strong>Visit Reference</strong><br>" + safe(record.visit_log_id) + "</div>" +
       "</div>";
     }
-    function openAgreementEvidenceModal(record) { currentEvidenceRecord = record; $("agreementEvidenceContent").innerHTML = evidenceHtml(record); $("agreementEvidenceModalBackdrop").classList.add("active"); }
+    function openAgreementEvidenceModal(record) {
+      currentEvidenceRecord = record;
+      $("agreementEvidenceContent").innerHTML = evidenceHtml(record);
+      $("agreementEvidenceModalBackdrop").classList.add("active");
+      setTimeout(() => {
+        const closeButton = $("closeAgreementEvidenceModalButton");
+        if (closeButton) closeButton.focus({ preventScroll: true });
+      }, 0);
+    }
     function closeAgreementEvidenceModal() { $("agreementEvidenceModalBackdrop").classList.remove("active"); currentEvidenceRecord = null; }
     function printAgreementEvidence() {
       if (!currentEvidenceRecord) return;
@@ -5009,6 +5029,44 @@ window.addEventListener("load", async function () {
     window.addEventListener("oh:legacy-vms-opened", openStaffAreaFromProfile);
     window.addEventListener("oh:report-shortcut-requested", event => {
       openExistingReportShortcut(event.detail && event.detail.shortcut);
+    });
+    window.addEventListener("oh:linked-source-record-requested", event => {
+      const detail = event.detail || {};
+      if (detail.sourceType === "visit_log" || detail.sourceType === "visitor_history") {
+        showVisitorWorkspace();
+        window.setTimeout(() => {
+          selectModuleSection("visitors", "visitor-history", { focus: true, resetScroll: false });
+          window.dispatchEvent(new CustomEvent("oh:visitor-history-requested", {
+            detail: { sourceRecordId: detail.sourceRecordId }
+          }));
+        }, 0);
+      } else if (detail.sourceType === "planned_visits" || detail.sourceType === "planned_visit") {
+        showVisitorWorkspace();
+        window.setTimeout(() => {
+          selectModuleSection("visitors", "planned-visits", { focus: true, resetScroll: false });
+          window.dispatchEvent(new CustomEvent("oh:planned-visit-record-requested", {
+            detail: { sourceRecordId: detail.sourceRecordId }
+          }));
+        }, 0);
+      } else if (detail.sourceType === "privacy_cases" || detail.sourceType === "privacy_case") {
+        window.setTimeout(() => {
+          openPrivacyCaseRecordById(detail.sourceRecordId);
+        }, 0);
+      } else if (
+        detail.sourceType === "document_evidence" ||
+        detail.sourceType === "agreement_evidence" ||
+        detail.sourceType === "document_signoff_evidence"
+      ) {
+        showVisitorWorkspace();
+        window.setTimeout(() => {
+          selectModuleSection("visitors", "document-signoffs", { focus: true, resetScroll: false });
+          openDocumentSignoffEvidenceById(detail.sourceRecordId);
+        }, 0);
+      }
+    });
+    window.addEventListener("oh:agreement-evidence-printout-requested", event => {
+      const detail = event.detail || {};
+      if (detail.record) openAgreementEvidenceModal(detail.record);
     });
     window.addEventListener("oh:terminal-workflow-requested", event => {
       const workflowId = event.detail && event.detail.workflowId;

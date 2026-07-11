@@ -28,7 +28,8 @@ import {
 } from "./printing.js";
 import {
   refreshSectionNavigator,
-  registerModuleSections
+  registerModuleSections,
+  selectModuleSection
 } from "./sectionNavigation.js";
 import {
   createOperationalFormReset,
@@ -753,6 +754,8 @@ function renderNativeHistory() {
     const origin = visitorOrigin(record);
     const date = historyRecordDate(record);
     const searchable = [
+      record.id,
+      record.planned_visit_id,
       record.visitor_name,
       record.company,
       record.onsite_contact
@@ -911,14 +914,48 @@ function applyNativeHistoryQuickFilter(filter) {
   renderNativeHistory();
 }
 
-function openNativeHistory() {
+async function openVisitorHistoryRecordById(recordId) {
+  const id = String(recordId || "").trim();
+  if (!id) return false;
+
+  let record = nativeHistoryRecords.find(item => item.history_record_type === "visit_log" && item.id === id);
+  if (!record) {
+    const result = await supabaseClient
+      .from("visit_log")
+      .select("id, planned_visit_id, visitor_name, company, visit_reason, vehicle_plate, onsite_contact, security_pass_id, privacy_notice_version, privacy_notice_accepted_at, sign_in_time, sign_out_time, visit_status, visit_origin, signed_out_automatically, automatic_sign_out_reason")
+      .eq("id", id)
+      .maybeSingle();
+    if (result.error) {
+      showToast("Visitor history unavailable", "The exact visitor history record could not be loaded.", "error");
+      return false;
+    }
+    record = result.data ? { ...result.data, history_record_type: "visit_log" } : null;
+  }
+
+  if (!record) {
+    showToast("Visitor history unavailable", "No visitor history record was found for this reference.", "error");
+    return false;
+  }
+
+  openVisitorDetails(record, historyRecordStatus(record), $("visitorsHistorySearch"));
+  return true;
+}
+
+async function openNativeHistory(event) {
   if (!hasCapability("visitor.history.view")) {
     showToast("You do not have permission", "Visitor history requires visitor.history.view.", "error");
     return;
   }
+  selectModuleSection("visitors", "visitor-history", { focus: true, resetScroll: false });
   const section = $("visitorsHistorySection");
   if (!section) return;
   section.scrollIntoView({ behavior: "smooth", block: "start" });
+  const detail = event && event.detail ? event.detail : {};
+  const sourceRecordId = detail.sourceRecordId || detail.visitLogId || "";
+  if (sourceRecordId) {
+    await openVisitorHistoryRecordById(sourceRecordId);
+    return;
+  }
   setTimeout(() => $("visitorsHistorySearch").focus({ preventScroll: true }), 0);
 }
 
@@ -1537,11 +1574,13 @@ function openVisitorDetails(record, status, returnFocus) {
 }
 
 function renderVisitorHistoryLinkedIdentityContext(record) {
-  const sourceId = record && record.history_record_type === "visit_log" ? record.id : null;
+  const sourceId = record && record.id && (record.history_record_type === "visit_log" || record.sign_in_time)
+    ? record.id
+    : null;
   renderLinkedIdentityContext("visitorsDetailsLinkedIdentityContext", {
     sourceType: "visit_log",
     sourceRecordId: sourceId,
-    sourceLabel: record ? visitorHistoryIdentityReviewLabel(record) : "",
+    sourceLabel: record ? visitorIdentityReviewLabel(record) : "",
     complianceNote: true
   });
 }
@@ -1552,11 +1591,26 @@ function visitorHistoryIdentityReviewLabel(record) {
   return ["Visitor History", subject, date].filter(Boolean).join(" - ");
 }
 
-function visitorHistoryIdentityReviewContext(record) {
-  const label = visitorHistoryIdentityReviewLabel(record);
+function currentVisitorIdentityReviewLabel(record) {
+  const subject = [record.visitor_name, record.company].filter(Boolean).join(" / ");
+  const date = record.sign_in_time ? "Signed in " + formatVisitorDateTime(record.sign_in_time) : "";
+  return ["Current Visitor", subject, date].filter(Boolean).join(" - ");
+}
+
+function visitorIdentityReviewLabel(record) {
+  return record && record.sign_in_time && !record.sign_out_time
+    ? currentVisitorIdentityReviewLabel(record)
+    : visitorHistoryIdentityReviewLabel(record);
+}
+
+function visitorIdentityReviewContext(record) {
+  const isCurrent = record.sign_in_time && !record.sign_out_time;
+  const label = visitorIdentityReviewLabel(record);
   return {
     candidateType: "person",
-    requestReason: "Visitor history record requires identity review.",
+    requestReason: isCurrent
+      ? "Current visitor requires identity review."
+      : "Visitor history record requires identity review.",
     sourceType: "visit_log",
     sourceRecordId: record.id,
     sourceLabel: label,
@@ -1569,14 +1623,14 @@ function visitorHistoryIdentityReviewContext(record) {
       visit_status: historyRecordStatus(record),
       visit_origin: visitorOrigin(record)
     },
-    contextType: "visitor_history",
+    contextType: isCurrent ? "current_visitor" : "visitor_history",
     contextRecordId: record.id,
     contextSummary: {
-      context_label: "Visitor History",
+      context_label: isCurrent ? "Current Visitor" : "Visitor History",
       result_label: label
     },
     metadata: {
-      launched_from: "visitor_history_detail"
+      launched_from: isCurrent ? "current_visitor_detail" : "visitor_history_detail"
     }
   };
 }
@@ -1588,7 +1642,7 @@ function renderVisitorHistoryIdentityReviewAction(record) {
   const canRequest = canRequestIdentityReviewFromVisitors() &&
     record &&
     record.id &&
-    record.history_record_type === "visit_log";
+    (record.history_record_type === "visit_log" || record.sign_in_time);
   actions.classList.toggle("hidden", !canRequest);
   if (!canRequest) return;
   const requestReview = document.createElement("button");
@@ -1597,7 +1651,7 @@ function renderVisitorHistoryIdentityReviewAction(record) {
   requestReview.textContent = "Request Identity Review";
   requestReview.addEventListener("click", event => {
     if (detailsPanelController) detailsPanelController.close({ restoreFocus: false });
-    openIdentityReviewRequestFromContext(visitorHistoryIdentityReviewContext(record), event.currentTarget);
+    openIdentityReviewRequestFromContext(visitorIdentityReviewContext(record), event.currentTarget);
   });
   actions.appendChild(requestReview);
 }
@@ -2086,15 +2140,45 @@ export async function loadVisitorsWorkspace() {
 }
 
 function showNativeOnSite(status) {
+  selectModuleSection("visitors", "current-visitors", { focus: true, resetScroll: false });
   $("visitorsOnSiteStatusFilter").value = status || "all";
   renderNativeActiveVisitors();
   $("visitorsOnSiteSection").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function showNativePlannedSignIn() {
+  selectModuleSection("visitors", "planned-visits", { focus: true, resetScroll: false });
   $("visitorsPlannedStatusFilter").value = "pending";
   renderNativePlannedVisits();
   $("visitorsPlannedTitle").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+async function openPlannedVisitRecordById(recordId) {
+  const id = String(recordId || "").trim();
+  if (!id) return false;
+
+  let record = nativePlannedVisits.find(item => item.id === id) ||
+    nativeHistoryRecords.find(item => item.history_record_type === "planned_visit" && item.id === id);
+  if (!record) {
+    const result = await supabaseClient
+      .from("planned_visits")
+      .select("id, visitor_name, company, host_id, visit_date, expected_time, visit_reason, vehicle_plate, onsite_contact, security_pass_id, notes, status, created_by, modified_by, modified_at")
+      .eq("id", id)
+      .maybeSingle();
+    if (result.error) {
+      showToast("Planned visit unavailable", "The exact planned visit could not be loaded.", "error");
+      return false;
+    }
+    record = result.data ? { ...result.data, history_record_type: "planned_visit" } : null;
+  }
+
+  if (!record) {
+    showToast("Planned visit unavailable", "No planned visit was found for this reference.", "error");
+    return false;
+  }
+
+  openVisitorDetails(record, plannedStatusFor(record), $("visitorsPlannedSearch"));
+  return true;
 }
 
 function openLegacy(action) {
@@ -2370,6 +2454,19 @@ export function initialiseVisitorsWorkspace() {
   window.addEventListener("oh:visitors-opened", loadVisitorsWorkspace);
   window.addEventListener("oh:visitor-data-changed", loadVisitorsWorkspace);
   window.addEventListener("oh:visitor-history-requested", openNativeHistory);
+  window.addEventListener("oh:planned-visit-record-requested", async event => {
+    if (!hasCapability("visitor.view")) {
+      showToast("You do not have permission", "Visitors requires visitor.view.", "error");
+      return;
+    }
+    selectModuleSection("visitors", "planned-visits", { focus: true, resetScroll: false });
+    const section = $("visitorsPlannedSection");
+    if (section) section.scrollIntoView({ behavior: "smooth", block: "start" });
+    const detail = event && event.detail ? event.detail : {};
+    if (detail.sourceRecordId) {
+      await openPlannedVisitRecordById(detail.sourceRecordId);
+    }
+  });
   window.addEventListener("oh:visitor-reporting-requested", openNativeReporting);
   window.addEventListener("oh:capabilities-changed", syncVisitorsWorkspaceCapabilities);
   syncVisitorsWorkspaceCapabilities();

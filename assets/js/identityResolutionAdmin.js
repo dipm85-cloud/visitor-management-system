@@ -1,12 +1,16 @@
 import { supabaseClient } from "./api.js";
-import { hasAnyCapability } from "./capabilities.js";
+import { hasAnyCapability, hasCapability } from "./capabilities.js";
 import { $ } from "./dom.js";
 import { showToast } from "./messages.js";
 import { createSidePanelController, renderEmptyState, requestPlatformConfirmation } from "./platformUi.js";
 import { refreshSectionNavigator, registerModuleSections } from "./sectionNavigation.js";
 import { showAdministrationWorkspace } from "./shell.js";
 import { AppState } from "./state.js";
-import { friendlyIdentitySourceType, getIdentityLinkDetailRows } from "./identityContext.js";
+import {
+  enrichIdentityLinkRowsForDisplay,
+  friendlyIdentitySourceType,
+  getIdentityLinkDetailRows
+} from "./identityContext.js";
 
 const IDENTITY_VIEW_CAPABILITIES = [
   "identity_resolution.view",
@@ -52,11 +56,14 @@ const REQUEST_STATUSES = ["pending", "in_review", "candidate_created", "closed",
 const CANDIDATE_TYPES = ["person", "organisation", "vehicle", "email", "other"];
 const SOURCE_AREA_LABELS = {
   privacy_cases: "Privacy Case",
+  privacy_case: "Privacy Case",
   visitor_history: "Visitor History",
   planned_visits: "Planned Visit",
+  planned_visit: "Planned Visit",
   visit_log: "Visit Log / Visitor History",
   document_evidence: "Document Evidence",
   agreement_evidence: "Agreement Evidence",
+  document_signoff_evidence: "Document Sign-off Evidence",
   audit_events: "Audit Event",
   manual: "Manual / Other",
   other: "Manual / Other"
@@ -291,7 +298,21 @@ function createMetaItem(label, value) {
   return item;
 }
 
+function candidateSourceRecord(record) {
+  return {
+    source_type: record.type,
+    source_record_id: record.id,
+    source_label: record.label,
+    source_summary: record.summary
+  };
+}
+
 function createSourceBlock(label, record) {
+  const sourceRecord = candidateSourceRecord(record || {});
+  const sourceLabel = linkedRecordFriendlyLabel(sourceRecord);
+  const sourceSummary = sourceRecord.source_summary && typeof sourceRecord.source_summary === "object"
+    ? sourceRecord.source_summary
+    : {};
   const block = document.createElement("section");
   block.className = "identity-resolution-source-block";
   const heading = document.createElement("h4");
@@ -299,12 +320,42 @@ function createSourceBlock(label, record) {
   const meta = document.createElement("dl");
   meta.className = "identity-resolution-meta-grid";
   meta.append(
-    createMetaItem("Type", record.type),
-    createMetaItem("Record ID", record.id),
-    createMetaItem("Label", record.label),
-    createMetaItem("Summary", summaryText(record.summary))
+    createMetaItem("Source area", friendlyIdentitySourceType(sourceRecord.source_type)),
+    createMetaItem("Label", sourceLabel)
   );
+  usefulLinkSummaryFields(sourceSummary).forEach(field => {
+    meta.appendChild(createMetaItem(field.label, field.value));
+  });
   block.append(heading, meta);
+  appendLinkedRecordActions(block, sourceRecord);
+
+  const technical = document.createElement("details");
+  technical.className = "identity-resolution-request-details identity-resolution-request-advanced";
+  const technicalSummary = document.createElement("summary");
+  technicalSummary.textContent = "Advanced / Technical Details";
+  const technicalMeta = document.createElement("dl");
+  technicalMeta.className = "identity-resolution-meta-grid";
+  technicalMeta.append(
+    createMetaItem("Source type", sourceRecord.source_type),
+    createMetaItem("Source record ID", sourceRecord.source_record_id),
+    createMetaItem("Stored source label", sourceRecord.source_label),
+    createMetaItem("Source summary", summaryText(sourceSummary))
+  );
+  technical.append(technicalSummary, technicalMeta);
+  if (sourceSummary && Object.keys(sourceSummary).length) {
+    const pre = document.createElement("pre");
+    pre.textContent = JSON.stringify(sourceSummary, null, 2);
+    technical.appendChild(pre);
+  }
+  if (sourceRecord.source_record_id) {
+    const copy = document.createElement("button");
+    copy.type = "button";
+    copy.className = "secondary";
+    copy.textContent = "Copy Technical ID";
+    copy.addEventListener("click", () => copyTechnicalId(sourceRecord.source_record_id));
+    technical.appendChild(copy);
+  }
+  block.appendChild(technical);
   return block;
 }
 
@@ -428,7 +479,7 @@ function linkFilterPayload(options) {
 async function loadCandidateQueue() {
   const result = await supabaseClient.rpc("list_identity_resolution_candidates", candidateFilterPayload());
   if (result.error) throw result.error;
-  identityCandidates = Array.isArray(result.data) ? result.data : [];
+  identityCandidates = await enrichCandidatesForDisplay(Array.isArray(result.data) ? result.data : []);
   renderCandidateQueue();
 }
 
@@ -469,7 +520,7 @@ async function loadOverviewData() {
   if (candidateResult.error) throw candidateResult.error;
   if (linkResult.error) throw linkResult.error;
   identityOverviewRequests = Array.isArray(requestResult.data) ? requestResult.data : [];
-  identityOverviewCandidates = Array.isArray(candidateResult.data) ? candidateResult.data : [];
+  identityOverviewCandidates = await enrichCandidatesForDisplay(Array.isArray(candidateResult.data) ? candidateResult.data : []);
   identityOverviewLinks = Array.isArray(linkResult.data) ? linkResult.data : [];
   renderOverview();
 }
@@ -489,6 +540,38 @@ async function loadDecisionHistory() {
   if (result.error) throw result.error;
   identityDecisions = Array.isArray(result.data) ? result.data : [];
   renderDecisionHistory();
+}
+
+async function enrichCandidateForDisplay(candidate) {
+  if (!candidate) return candidate;
+  const rows = await enrichIdentityLinkRowsForDisplay([
+    {
+      source_type: candidate.source_a_type,
+      source_record_id: candidate.source_a_record_id,
+      source_label: candidate.source_a_label,
+      source_summary: candidate.source_a_summary
+    },
+    {
+      source_type: candidate.source_b_type,
+      source_record_id: candidate.source_b_record_id,
+      source_label: candidate.source_b_label,
+      source_summary: candidate.source_b_summary
+    }
+  ]);
+  const sourceA = rows[0] || {};
+  const sourceB = rows[1] || {};
+  return {
+    ...candidate,
+    source_a_label: sourceA.source_label || candidate.source_a_label,
+    source_a_summary: sourceA.source_summary || candidate.source_a_summary,
+    source_b_label: sourceB.source_label || candidate.source_b_label,
+    source_b_summary: sourceB.source_summary || candidate.source_b_summary
+  };
+}
+
+async function enrichCandidatesForDisplay(candidates) {
+  const rows = Array.isArray(candidates) ? candidates : [];
+  return Promise.all(rows.map(candidate => enrichCandidateForDisplay(candidate)));
 }
 
 function renderOverview() {
@@ -798,7 +881,7 @@ async function openCandidateDetail(candidateId, trigger) {
     ]);
     if (candidateResult.error) throw candidateResult.error;
     if (decisionsResult.error) throw decisionsResult.error;
-    selectedCandidate = candidateResult.data;
+    selectedCandidate = await enrichCandidateForDisplay(candidateResult.data);
     selectedLink = null;
     renderCandidateDetail(selectedCandidate, Array.isArray(decisionsResult.data) ? decisionsResult.data : []);
     detailPanelController.open({
@@ -1032,6 +1115,117 @@ function renderLinkDetail(link, records, decisions) {
   updateDetailActions();
 }
 
+function isUuidLike(value) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    String(value || "").trim()
+  );
+}
+
+function shortReference(value) {
+  const text = String(value || "").trim();
+  return text.length > 8 ? text.slice(0, 8) + "..." : text;
+}
+
+function linkedRecordFriendlyLabel(record) {
+  const summary = record.source_summary && typeof record.source_summary === "object" ? record.source_summary : {};
+  const storedLabel = String(record.source_label || "").trim();
+  if (storedLabel && !isUuidLike(storedLabel)) return storedLabel;
+  const sourceArea = friendlyIdentitySourceType(record.source_type);
+  const subject = [summary.visitor_name || summary.subject_name, summary.company].filter(Boolean).join(" / ");
+
+  if (record.source_type === "visit_log" || record.source_type === "visitor_history") {
+    const signedIn = summary.sign_in_time ? "Signed in " + formatDate(summary.sign_in_time) : "";
+    return [sourceArea, subject, signedIn].filter(Boolean).join(" - ") ||
+      sourceArea + " record - reference " + shortReference(record.source_record_id);
+  }
+
+  if (record.source_type === "planned_visits" || record.source_type === "planned_visit") {
+    const date = summary.visit_date ? "Visit date " + summary.visit_date : "";
+    const host = summary.host || summary.host_name || summary.onsite_contact;
+    return [sourceArea, subject, date, host ? "Host " + host : ""].filter(Boolean).join(" - ") ||
+      sourceArea + " record - reference " + shortReference(record.source_record_id);
+  }
+
+  if (record.source_type === "document_evidence" || record.source_type === "agreement_evidence" || record.source_type === "document_signoff_evidence") {
+    const documentTitle = summary.document || summary.agreement_title || summary.agreement_name || summary.evidence_document_title;
+    const version = summary.version || summary.agreement_version_number || summary.evidence_document_version;
+    const signed = summary.signed_at ? "Signed " + formatDate(summary.signed_at) : "";
+    const documentLabel = [documentTitle, version ? "version " + version : ""].filter(Boolean).join(" ");
+    return [sourceArea, documentLabel, subject, signed].filter(Boolean).join(" - ") ||
+      sourceArea + " record - reference " + shortReference(record.source_record_id);
+  }
+
+  if (record.source_type === "privacy_cases" || record.source_type === "privacy_case") {
+    const caseReference = summary.case_reference || summary.case_id;
+    const subjectLabel = summary.search_text || summary.subject_reference || summary.result_label;
+    return [sourceArea, caseReference, subjectLabel].filter(Boolean).join(" - ") ||
+      sourceArea + " record - reference " + shortReference(record.source_record_id);
+  }
+
+  return storedLabel || sourceArea + " record - reference " + shortReference(record.source_record_id);
+}
+
+function copyTechnicalId(value) {
+  const text = String(value || "").trim();
+  if (!text) return;
+  if (!navigator.clipboard || !navigator.clipboard.writeText) {
+    showToast("Copy unavailable", "Clipboard access is not available in this browser.", "error");
+    return;
+  }
+  navigator.clipboard.writeText(text)
+    .then(() => showToast("Technical ID copied", "The record reference was copied.", "success"))
+    .catch(() => showToast("Copy failed", "The record reference could not be copied.", "error"));
+}
+
+function appendLinkedRecordActions(block, record) {
+  if (!record.source_record_id) return;
+  const isVisitLog = record.source_type === "visit_log" || record.source_type === "visitor_history";
+  const isPlannedVisit = record.source_type === "planned_visits" || record.source_type === "planned_visit";
+  const isPrivacyCase = record.source_type === "privacy_cases" || record.source_type === "privacy_case";
+  const isEvidence = record.source_type === "document_evidence" ||
+    record.source_type === "agreement_evidence" ||
+    record.source_type === "document_signoff_evidence";
+  const canOpenPrivacyCase = isPrivacyCase && hasAnyCapability([
+    "privacy.case.view",
+    "privacy.case.manage",
+    "privacy.view",
+    "privacy.manage",
+    "gdpr.view",
+    "gdpr.manage"
+  ]);
+  const canOpenEvidence = isEvidence &&
+    hasCapability("visitor.view") &&
+    hasAnyCapability(["agreements.view", "audit.view", "visitor.history.view", "module_configuration.manage"]);
+  if (!isVisitLog && !isPlannedVisit && !isPrivacyCase && !isEvidence) return;
+  if (isPrivacyCase && !canOpenPrivacyCase) return;
+  if (isEvidence && !canOpenEvidence) return;
+  const actions = document.createElement("div");
+  actions.className = "identity-resolution-card-actions";
+  const open = document.createElement("button");
+  open.type = "button";
+  open.className = "secondary";
+  open.textContent = isVisitLog
+    ? "Open Visitor History Record"
+    : isPlannedVisit
+      ? "Open Planned Visit"
+      : isPrivacyCase
+        ? "Open Privacy Case"
+        : "Open Document Evidence";
+  open.addEventListener("click", () => {
+    if (detailPanelController) {
+      detailPanelController.close({ restoreFocus: false });
+    }
+    window.dispatchEvent(new CustomEvent("oh:linked-source-record-requested", {
+      detail: {
+        sourceType: record.source_type,
+        sourceRecordId: record.source_record_id
+      }
+    }));
+  });
+  actions.appendChild(open);
+  block.appendChild(actions);
+}
+
 function createLinkedIdentityRecordBlock(record, index) {
   const block = document.createElement("section");
   block.className = "identity-resolution-source-block";
@@ -1041,13 +1235,14 @@ function createLinkedIdentityRecordBlock(record, index) {
   meta.className = "identity-resolution-meta-grid";
   meta.append(
     createMetaItem("Source area", friendlyIdentitySourceType(record.source_type)),
-    createMetaItem("Source label", record.source_label),
+    createMetaItem("Source label", linkedRecordFriendlyLabel(record)),
     createMetaItem("Linked date", formatDate(record.source_record_linked_at))
   );
   usefulLinkSummaryFields(record.source_summary).forEach(field => {
     meta.appendChild(createMetaItem(field.label, field.value));
   });
   block.append(heading, meta);
+  appendLinkedRecordActions(block, record);
   const technical = document.createElement("details");
   technical.className = "identity-resolution-request-details identity-resolution-request-advanced";
   const summary = document.createElement("summary");
@@ -1065,6 +1260,16 @@ function createLinkedIdentityRecordBlock(record, index) {
     pre.textContent = JSON.stringify(record.source_summary, null, 2);
     technical.appendChild(pre);
   }
+  const copy = document.createElement("button");
+  copy.type = "button";
+  copy.className = "secondary";
+  copy.textContent = "Copy Technical ID";
+  copy.addEventListener("click", () => copyTechnicalId(record.source_record_id));
+  technical.appendChild(copy);
+  const note = document.createElement("p");
+  note.className = "linked-identity-readiness-note";
+  note.textContent = "Future platform rule: operational searches should support authorised internal reference lookup. Use this technical ID for support/admin lookup when a direct Open Record action is not available.";
+  technical.appendChild(note);
   block.appendChild(technical);
   return block;
 }
@@ -1078,11 +1283,26 @@ function usefulLinkSummaryFields(summary) {
     ["visitor_name", "Visitor / subject"],
     ["company", "Company"],
     ["document", "Document"],
+    ["agreement_name", "Agreement"],
+    ["agreement_title", "Agreement title"],
+    ["agreement_version_number", "Version"],
+    ["version", "Version"],
     ["status", "Status"],
     ["visit_status", "Visit status"],
+    ["visit_date", "Visit date"],
+    ["expected_time", "Expected time"],
+    ["host", "Host"],
+    ["host_name", "Host"],
+    ["onsite_contact", "Host / contact"],
     ["sign_in_time", "Sign in"],
-    ["signed_at", "Signed"]
+    ["sign_out_time", "Sign out"],
+    ["evidence_document_title", "Document"],
+    ["evidence_document_version", "Version"],
+    ["signed_at", "Signed"],
+    ["signed_by_name", "Signed by"],
+    ["evidence_type", "Evidence type"]
   ].filter(([key]) => source[key] !== null && source[key] !== undefined && String(source[key]).trim())
+    .filter(([key]) => !["result_label", "display_label"].includes(key) || !isUuidLike(source[key]))
     .map(([key, label]) => ({
       label,
       value: /_time$|_at$/.test(key) ? formatDate(source[key]) : source[key]

@@ -2912,6 +2912,37 @@ async function openPrivacyCaseDetails(caseRecord, trigger) {
   }
 }
 
+export async function openPrivacyCaseRecordById(caseId, trigger) {
+  if (!canViewPrivacyCaseDetails()) {
+    showToast("Case details unavailable", "You do not have permission to view Privacy / Data Governance details.", "error");
+    return;
+  }
+  const id = String(caseId || "").trim();
+  if (!id) return;
+  showAdministrationWorkspace();
+  setAdministrationSection("privacyGdpr");
+  selectPrivacyGdprSection("cases", { focus: false, resetScroll: false });
+  try {
+    const result = await supabaseClient
+      .from("privacy_cases")
+      .select("id, case_reference, case_type, status, priority, subject_name, subject_company, subject_email, subject_reference, search_text, request_received_date, due_date, reason, notes, outcome_summary, legacy_reference, identity_verified, identity_verification_method, decision, decision_reason, completed_at, metadata, created_at, updated_at")
+      .eq("id", id)
+      .maybeSingle();
+    if (result.error) throw result.error;
+    if (!result.data) {
+      showToast("Case unavailable", "The privacy case could not be opened under current permissions.", "error");
+      return;
+    }
+    await openPrivacyCaseDetails(result.data, trigger);
+  } catch (error) {
+    showToast(
+      "Case unavailable",
+      error && error.message ? error.message : "The privacy case could not be opened.",
+      "error"
+    );
+  }
+}
+
 function openSearchResultDetails(record, trigger) {
   if (!privacyGdprSearchDetailsPanelController) return;
   const title = $("privacyGdprSearchDetailsTitle");
