@@ -538,12 +538,12 @@ function ensureLinkedIdentityPanel() {
     backdrop.className = "visitors-panel-backdrop hidden";
     backdrop.setAttribute("data-oh-side-panel-backdrop", "");
     backdrop.innerHTML =
-      "<aside id=\"linkedIdentityContextPanel\" class=\"visitors-side-panel identity-resolution-panel linked-identity-panel\" aria-labelledby=\"linkedIdentityContextPanelTitle\" aria-modal=\"true\" role=\"dialog\" data-oh-side-panel>" +
+      "<aside id=\"linkedIdentityContextPanel\" class=\"visitors-side-panel identity-resolution-panel linked-identity-panel oh-detail-panel\" aria-labelledby=\"linkedIdentityContextPanelTitle\" aria-modal=\"true\" role=\"dialog\" data-oh-side-panel>" +
         "<header class=\"visitors-side-panel-header\" data-oh-side-panel-header>" +
           "<div><p class=\"oh-app-eyebrow\">Linked identity context</p><h2 id=\"linkedIdentityContextPanelTitle\" data-oh-side-panel-title>Linked Records</h2></div>" +
           "<button id=\"linkedIdentityContextPanelClose\" class=\"ghost\" type=\"button\" aria-label=\"Close linked identity context\" data-oh-side-panel-close>Close</button>" +
         "</header>" +
-        "<div id=\"linkedIdentityContextPanelBody\" class=\"identity-resolution-panel-body linked-identity-panel-body\"></div>" +
+        "<div id=\"linkedIdentityContextPanelBody\" class=\"identity-resolution-panel-body linked-identity-panel-body oh-side-panel-body oh-detail-body\"></div>" +
       "</aside>";
     document.body.appendChild(backdrop);
   }

@@ -211,6 +211,58 @@ export function applyContextualActions(rules, options) {
   });
 }
 
+export function createDetailSection(options) {
+  const settings = options || {};
+  const section = document.createElement("section");
+  section.className = ["oh-detail-section", settings.className || ""].filter(Boolean).join(" ");
+  if (settings.title) {
+    const heading = document.createElement("h3");
+    heading.textContent = settings.title;
+    section.appendChild(heading);
+  }
+  if (settings.description) {
+    const description = document.createElement("p");
+    description.className = "oh-detail-section-description";
+    description.textContent = settings.description;
+    section.appendChild(description);
+  }
+  if (settings.content) {
+    if (Array.isArray(settings.content)) section.append(...settings.content.filter(Boolean));
+    else section.appendChild(settings.content);
+  }
+  return section;
+}
+
+export function createDetailActions(actions, options) {
+  const settings = options || {};
+  const availableActions = (actions || []).filter(action => {
+    if (!action) return false;
+    return typeof action.available === "function" ? action.available() : action.available !== false;
+  });
+  if (!availableActions.length && !settings.description) return null;
+  const section = createDetailSection({
+    title: settings.title || "Contextual Actions",
+    description: settings.description || "",
+    className: "oh-detail-actions-section"
+  });
+  const group = document.createElement("div");
+  group.className = "oh-detail-actions";
+  availableActions.forEach(action => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = action.primary ? "" : "secondary";
+    button.textContent = action.label;
+    if (action.disabled) button.disabled = true;
+    if (action.title) button.title = action.title;
+    button.addEventListener("click", event => {
+      if (typeof action.handler === "function") action.handler(event.currentTarget, event);
+    });
+    group.appendChild(button);
+  });
+  section.appendChild(group);
+  return section;
+}
+
 export function makeScrollableRegion(target, variant, options) {
   const element = resolveElement(target, options && options.root);
   if (!element) return null;

@@ -3391,6 +3391,16 @@ body.document-signoff-overlay-open {
   line-height: 1.45;
 }
 
+.privacy-gdpr-detail-actions.oh-detail-actions-section {
+  display: grid;
+  align-items: stretch;
+  border-radius: 8px;
+}
+
+.privacy-gdpr-detail-actions.oh-detail-actions-section p {
+  flex: initial;
+}
+
 @media (max-width: 900px) {
   .privacy-gdpr-result-row {
     grid-template-columns: minmax(0, 1fr);
@@ -4353,6 +4363,79 @@ body.document-signoff-overlay-open {
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
+}
+
+.oh-detail-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.oh-detail-panel > .visitors-side-panel-header {
+  flex: 0 0 auto;
+}
+
+.oh-detail-body {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  min-width: 0;
+  padding-bottom: 32px;
+}
+
+.oh-detail-section,
+.oh-detail-actions-section,
+.oh-detail-advanced-slot {
+  min-width: 0;
+}
+
+.oh-detail-section {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--oh-shell-border);
+  border-radius: 8px;
+  background: var(--oh-shell-surface);
+}
+
+.oh-detail-section h3,
+.oh-detail-actions-section h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.oh-detail-section-description,
+.oh-detail-actions-section > p {
+  margin: 0;
+  color: var(--oh-shell-muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.oh-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.oh-detail-actions button {
+  max-width: 100%;
+  white-space: normal;
+}
+
+.oh-detail-actions-section {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--oh-shell-border);
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.oh-detail-advanced-slot:empty {
+  display: none;
 }
 
 .oh-side-panel-actions {

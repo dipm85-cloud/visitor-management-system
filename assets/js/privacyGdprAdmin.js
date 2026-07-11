@@ -2749,9 +2749,13 @@ function sourceAreaTitle(sourceType) {
 function appendSearchResultIdentityReviewAction(parent, record) {
   if (!parent || !canRequestIdentityReviewFromPrivacy() || !searchResultHasExactIdentitySource(record)) return;
   const section = document.createElement("section");
-  section.className = "privacy-gdpr-detail-actions";
+  section.className = "privacy-gdpr-detail-actions oh-detail-actions-section";
+  const heading = document.createElement("h3");
+  heading.textContent = "Contextual Actions";
   const note = document.createElement("p");
   note.textContent = "Request authorised identity review for this exact source record. No source data is changed.";
+  const actions = document.createElement("div");
+  actions.className = "oh-detail-actions";
   const requestReview = document.createElement("button");
   requestReview.type = "button";
   requestReview.className = "secondary";
@@ -2765,16 +2769,20 @@ function appendSearchResultIdentityReviewAction(parent, record) {
       event.currentTarget
     );
   });
-  section.append(note, requestReview);
+  actions.appendChild(requestReview);
+  section.append(heading, note, actions);
   parent.appendChild(section);
 }
 
 function appendPrivacyCaseWorkspaceActions(parent, caseRecord) {
   const section = document.createElement("section");
-  section.className = "privacy-gdpr-detail-actions";
+  section.className = "privacy-gdpr-detail-actions oh-detail-actions-section";
+  const heading = document.createElement("h3");
+  heading.textContent = "Contextual Actions";
   const note = document.createElement("p");
   note.textContent = "Case workspace actions are read-only or controlled case metadata updates. Native anonymisation and erasure are not available.";
-  section.appendChild(note);
+  const actions = document.createElement("div");
+  actions.className = "oh-detail-actions";
   if (canManagePrivacyCases()) {
     const edit = document.createElement("button");
     edit.type = "button";
@@ -2786,7 +2794,7 @@ function appendPrivacyCaseWorkspaceActions(parent, caseRecord) {
     event.className = "secondary";
     event.textContent = "Add Note / Event";
     event.addEventListener("click", () => openCaseEventForm(caseRecord));
-    section.append(edit, event);
+    actions.append(edit, event);
   }
   if (canRequestIdentityReviewFromPrivacy() && caseRecord && caseRecord.id) {
     const requestReview = document.createElement("button");
@@ -2802,7 +2810,7 @@ function appendPrivacyCaseWorkspaceActions(parent, caseRecord) {
         event.currentTarget
       );
     });
-    section.appendChild(requestReview);
+    actions.appendChild(requestReview);
   }
   [
     ["Open SAR Evidence Pack", "evidence-pack"],
@@ -2814,8 +2822,9 @@ function appendPrivacyCaseWorkspaceActions(parent, caseRecord) {
     button.className = "secondary";
     button.textContent = label;
     button.addEventListener("click", () => selectPrivacyGdprSection(sectionId, { focus: true, resetScroll: false }));
-    section.appendChild(button);
+    actions.appendChild(button);
   });
+  section.append(heading, note, actions);
   parent.appendChild(section);
 }
 
@@ -2855,8 +2864,7 @@ function renderPrivacyCaseDetailsPanel(caseRecord, notes, timelineError) {
     recordField("Received", formatDate(caseReceivedDate(caseRecord) || caseCreatedDate(caseRecord)), true),
     recordField("Due date", caseDueDate(caseRecord)),
     recordField("Completed", formatDate(caseCompletedDate(caseRecord))),
-    recordField("Created", formatDate(caseCreatedDate(caseRecord))),
-    recordField("Case record reference", caseRecord.id, true)
+    recordField("Created", formatDate(caseCreatedDate(caseRecord)))
   ]);
   appendPrivacyCaseDetailSection(body, "Subject / Search", [
     recordField("Subject / requester as stored", caseSubjectName(caseRecord), true),
@@ -2874,6 +2882,7 @@ function renderPrivacyCaseDetailsPanel(caseRecord, notes, timelineError) {
     recordField("Legacy reference", caseLegacyReference(caseRecord)),
     recordField("Source module", caseRecord.case_type ? "Privacy case backend" : "Legacy GDPR case backend", true)
   ]);
+  appendPrivacyCaseAdvancedDetails(body, caseRecord);
 
   if (timelineError) {
     const unavailable = document.createElement("div");
@@ -2893,6 +2902,42 @@ function renderPrivacyCaseDetailsPanel(caseRecord, notes, timelineError) {
   });
   appendPrivacyCaseWorkspaceActions(body, caseRecord);
   appendPrivacyCaseLegacyBridge(body);
+}
+
+function appendPrivacyCaseAdvancedDetails(parent, caseRecord) {
+  if (!parent || !caseRecord) return;
+  const details = document.createElement("details");
+  details.className = "oh-detail-advanced identity-resolution-request-details identity-resolution-request-advanced";
+  const summary = document.createElement("summary");
+  summary.textContent = "Advanced / Technical Details";
+  const meta = document.createElement("dl");
+  meta.className = "identity-resolution-meta-grid";
+  [
+    ["Case record ID", caseRecord.id],
+    ["Legacy reference", caseLegacyReference(caseRecord)],
+    ["Created", formatDate(caseCreatedDate(caseRecord))],
+    ["Updated", formatDate(caseRecord.updated_at)]
+  ].filter(([, value]) => value != null && String(value).trim()).forEach(([label, value]) => {
+    meta.appendChild(recordField(label, value, true));
+  });
+  details.append(summary, meta);
+  if (caseRecord.id) {
+    const copy = document.createElement("button");
+    copy.type = "button";
+    copy.className = "secondary";
+    copy.textContent = "Copy Technical ID";
+    copy.addEventListener("click", () => {
+      if (!navigator.clipboard || !navigator.clipboard.writeText) {
+        showToast("Copy unavailable", "Clipboard access is not available in this browser.", "error");
+        return;
+      }
+      navigator.clipboard.writeText(String(caseRecord.id))
+        .then(() => showToast("Technical ID copied", "The privacy case reference was copied.", "success"))
+        .catch(() => showToast("Copy failed", "The privacy case reference could not be copied.", "error"));
+    });
+    details.appendChild(copy);
+  }
+  parent.appendChild(details);
 }
 
 async function openPrivacyCaseDetails(caseRecord, trigger) {

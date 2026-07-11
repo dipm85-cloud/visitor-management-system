@@ -32,6 +32,7 @@ import {
   selectModuleSection
 } from "./sectionNavigation.js";
 import {
+  createDetailActions,
   createOperationalFormReset,
   createSidePanelController,
   requestPlatformConfirmation
@@ -1504,8 +1505,6 @@ function clearVisitorDetailsPanel() {
     "visitorsDetailsVehicle",
     "visitorsDetailsPass",
     "visitorsDetailsOrigin",
-    "visitorsDetailsRecordId",
-    "visitorsDetailsPlannedId",
     "visitorsDetailsPrivacy",
     "visitorsDetailsLastUpdated",
     "visitorsDetailsCreatedBy",
@@ -1515,6 +1514,8 @@ function clearVisitorDetailsPanel() {
   setText("visitorsDetailsPanelTitle", "Visitor");
   const linkedContext = $("visitorsDetailsLinkedIdentityContext");
   if (linkedContext) linkedContext.replaceChildren();
+  const advanced = $("visitorsDetailsAdvanced");
+  if (advanced) advanced.replaceChildren();
   renderVisitorHistoryIdentityReviewAction(null);
 }
 
@@ -1542,8 +1543,6 @@ function openVisitorDetails(record, status, returnFocus) {
       ? "Walk-in"
       : "Planned"
   );
-  setText("visitorsDetailsRecordId", textOrDash(record.id));
-  setText("visitorsDetailsPlannedId", textOrDash(record.planned_visit_id));
   setText(
     "visitorsDetailsPrivacy",
     record.privacy_notice_accepted_at
@@ -1561,6 +1560,7 @@ function openVisitorDetails(record, status, returnFocus) {
       : "No"
   );
   renderVisitorHistoryLinkedIdentityContext(record);
+  renderVisitorDetailsAdvanced(record);
   renderVisitorHistoryIdentityReviewAction(record);
   if (detailsPanelController) {
     detailsPanelController.open({
@@ -1571,6 +1571,52 @@ function openVisitorDetails(record, status, returnFocus) {
       initialFocus: "visitorsDetailsPanelClose"
     });
   }
+}
+
+function renderVisitorDetailsAdvanced(record) {
+  const host = $("visitorsDetailsAdvanced");
+  if (!host) return;
+  host.replaceChildren();
+  if (!record) return;
+  const details = document.createElement("details");
+  details.className = "oh-detail-advanced identity-resolution-request-details identity-resolution-request-advanced";
+  const summary = document.createElement("summary");
+  summary.textContent = "Advanced / Technical Details";
+  const meta = document.createElement("dl");
+  meta.className = "identity-resolution-meta-grid";
+  [
+    ["Record ID", record.id],
+    ["Planned visit ID", record.planned_visit_id],
+    ["History record type", record.history_record_type],
+    ["Created", formatVisitorDateTime(record.created_at)],
+    ["Updated", formatVisitorDateTime(record.modified_at)]
+  ].filter(([, value]) => value != null && String(value).trim()).forEach(([label, value]) => {
+    const wrapper = document.createElement("div");
+    const dt = document.createElement("dt");
+    const dd = document.createElement("dd");
+    dt.textContent = label;
+    dd.textContent = textOrDash(value);
+    wrapper.append(dt, dd);
+    meta.appendChild(wrapper);
+  });
+  details.append(summary, meta);
+  if (record.id) {
+    const copy = document.createElement("button");
+    copy.type = "button";
+    copy.className = "secondary";
+    copy.textContent = "Copy Technical ID";
+    copy.addEventListener("click", () => {
+      if (!navigator.clipboard || !navigator.clipboard.writeText) {
+        showToast("Copy unavailable", "Clipboard access is not available in this browser.", "error");
+        return;
+      }
+      navigator.clipboard.writeText(String(record.id))
+        .then(() => showToast("Technical ID copied", "The visitor record reference was copied.", "success"))
+        .catch(() => showToast("Copy failed", "The visitor record reference could not be copied.", "error"));
+    });
+    details.appendChild(copy);
+  }
+  host.appendChild(details);
 }
 
 function renderVisitorHistoryLinkedIdentityContext(record) {
@@ -1643,17 +1689,20 @@ function renderVisitorHistoryIdentityReviewAction(record) {
     record &&
     record.id &&
     (record.history_record_type === "visit_log" || record.sign_in_time);
-  actions.classList.toggle("hidden", !canRequest);
-  if (!canRequest) return;
-  const requestReview = document.createElement("button");
-  requestReview.type = "button";
-  requestReview.className = "secondary";
-  requestReview.textContent = "Request Identity Review";
-  requestReview.addEventListener("click", event => {
-    if (detailsPanelController) detailsPanelController.close({ restoreFocus: false });
-    openIdentityReviewRequestFromContext(visitorIdentityReviewContext(record), event.currentTarget);
+  const section = createDetailActions([{
+    label: "Request Identity Review",
+    primary: false,
+    available: canRequest,
+    handler: button => {
+      if (detailsPanelController) detailsPanelController.close({ restoreFocus: false });
+      openIdentityReviewRequestFromContext(visitorIdentityReviewContext(record), button);
+    }
+  }], {
+    title: "Contextual Actions",
+    description: "Actions for this exact visitor record. Source visitor data is not modified."
   });
-  actions.appendChild(requestReview);
+  if (section) actions.append(...Array.from(section.childNodes));
+  actions.classList.toggle("hidden", !section);
 }
 
 function closeVisitorDetails() {
