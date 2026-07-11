@@ -13,14 +13,18 @@ const DOCUMENT_SIGNOFF_ADMIN_VIEW = [
   "module_configuration.manage",
   "settings.edit",
   "document_signoff.manage",
-  "agreements.manage"
+  "agreements.manage",
+  "privacy.manage",
+  "gdpr.manage"
 ];
 
 const DOCUMENT_SIGNOFF_ADMIN_MANAGE = [
   "module_configuration.manage",
   "settings.edit",
   "document_signoff.manage",
-  "agreements.manage"
+  "agreements.manage",
+  "privacy.manage",
+  "gdpr.manage"
 ];
 
 const SIGNOFF_SETTING_DEFINITIONS = [
@@ -30,6 +34,7 @@ const SIGNOFF_SETTING_DEFINITIONS = [
   ["inductor_signoff_mode", "documentSignoffAdminInductorMode", value => value || "typed_name", "Inductor sign-off mode"],
   ["agreement_validity_mode", "documentSignoffAdminValidityMode", value => value || "version", "Agreement validity mode"],
   ["agreement_validity_days", "documentSignoffAdminValidityDays", value => Number(value || 365), "Agreement validity days"],
+  ["document_signoff.use_confirmed_identity_links_for_compliance", "documentSignoffAdminUseIdentityLinksCompliance", value => value === "true", "Use confirmed identity links for document/induction compliance"],
   ["agreement_acceptance_text", "documentSignoffAdminAcceptanceText", value => value.trim() || "I confirm that I have read, understood, and agree to follow the requirements of this agreement/induction.", "Visitor acceptance wording"]
 ];
 
@@ -779,6 +784,7 @@ function defaultSettingValue(key) {
     inductor_signoff_mode: "typed_name",
     agreement_validity_mode: "version",
     agreement_validity_days: 365,
+    "document_signoff.use_confirmed_identity_links_for_compliance": false,
     agreement_acceptance_text: "I confirm that I have read, understood, and agree to follow the requirements of this agreement/induction."
   };
   return defaults[key];

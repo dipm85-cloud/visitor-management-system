@@ -7,7 +7,7 @@ import { settingValue } from "./settings.js";
 import { todayDate } from "./utils.js";
 import { createSidePanelController, renderEmptyState } from "./platformUi.js";
 import { openIdentityReviewRequestFromContext } from "./identityResolutionAdmin.js";
-import { renderLinkedIdentityContext } from "./identityContext.js";
+import { openLinkedIdentityContextDetails, renderLinkedIdentityContext } from "./identityContext.js";
 
 let documentSignoffDependencies = {};
 let documentSignoffInitialised = false;
@@ -50,6 +50,14 @@ const IDENTITY_REVIEW_REQUEST_CAPABILITIES = [
   "module_configuration.manage",
   "settings.edit"
 ];
+const DOCUMENT_COMPLIANCE_IDENTITY_LINK_SETTING =
+  "document_signoff.use_confirmed_identity_links_for_compliance";
+const LINKED_COMPLIANCE_VISIT_SOURCE_TYPES = new Set(["visit_log", "visitor_history"]);
+const LINKED_COMPLIANCE_EVIDENCE_SOURCE_TYPES = new Set([
+  "document_evidence",
+  "agreement_evidence",
+  "document_signoff_evidence"
+]);
 
 function isActiveStaffUser() {
   return AppState.currentProfile &&
@@ -845,6 +853,208 @@ function nativeRequiresDocumentReviewCompletion() {
   return value === true || value === "true";
 }
 
+function settingEnabled(key, fallback) {
+  const value = settingValue(key, fallback);
+  return value === true || value === "true";
+}
+
+function useIdentityLinksForDocumentCompliance() {
+  return settingEnabled(DOCUMENT_COMPLIANCE_IDENTITY_LINK_SETTING, false);
+}
+
+function directEvidenceIsValid(status) {
+  const normalized = String(status && status.status || "").toLowerCase();
+  return status && (
+    status.already_valid === true ||
+    ["valid", "current", "signed", "complete", "compliant"].includes(normalized)
+  );
+}
+
+function sourceSummaryObject(source) {
+  const summary = source && source.linked_source_summary;
+  if (!summary) return {};
+  if (typeof summary === "object") return summary;
+  try {
+    return JSON.parse(summary);
+  } catch (err) {
+    return {};
+  }
+}
+
+function linkedSourceType(source) {
+  return String(source && source.linked_source_type || "").trim().toLowerCase();
+}
+
+function linkedVisitLogId(source) {
+  const type = linkedSourceType(source);
+  if (LINKED_COMPLIANCE_VISIT_SOURCE_TYPES.has(type)) {
+    return source && source.linked_source_record_id ? String(source.linked_source_record_id) : "";
+  }
+
+  const summary = sourceSummaryObject(source);
+  if (LINKED_COMPLIANCE_EVIDENCE_SOURCE_TYPES.has(type) || type === "planned_visits" || type === "planned_visit") {
+    return String(
+      summary.visit_log_id ||
+      summary.visitor_log_id ||
+      summary.visit_id ||
+      summary.linked_visit_log_id ||
+      ""
+    ).trim();
+  }
+
+  return "";
+}
+
+function evidenceRecordIdFromStatus(status) {
+  return status && (
+    status.evidence_record_id ||
+    status.agreement_id ||
+    status.id ||
+    status.agreement_signature_id ||
+    status.last_agreement_id ||
+    ""
+  );
+}
+
+function evidenceSignedAtFromStatus(status) {
+  return status && (
+    status.evidence_signed_at ||
+    status.last_signed_at ||
+    status.signed_at ||
+    status.inductor_signed_at ||
+    ""
+  );
+}
+
+function evidenceDocumentTitleFromStatus(status) {
+  return status && (
+    status.evidence_document_title ||
+    status.agreement_title ||
+    status.agreement_name ||
+    ""
+  );
+}
+
+function evidenceDocumentVersionFromStatus(status) {
+  return status && (
+    status.evidence_document_version ||
+    status.agreement_version_number ||
+    status.active_agreement_version_number ||
+    status.version_number ||
+    ""
+  );
+}
+
+function linkedEvidenceStatusForSource(source, status) {
+  return {
+    ...status,
+    compliance_status: "valid",
+    status: "valid",
+    already_valid: true,
+    can_select: false,
+    selected_by_default: false,
+    locked_selected: false,
+    evidence_source: "confirmed_identity_link",
+    evidence_source_label: "Confirmed identity link",
+    identity_link_reference: source.link_reference || "",
+    identity_link_id: source.identity_link_id || "",
+    identity_link_reference_label: source.link_reference || source.canonical_label || "Confirmed identity link",
+    linked_source_label: source.linked_source_label || source.canonical_label || "",
+    linked_source_type: source.linked_source_type || "",
+    linked_source_record_id: source.linked_source_record_id || "",
+    evidence_record_id: evidenceRecordIdFromStatus(status),
+    evidence_signed_at: evidenceSignedAtFromStatus(status),
+    evidence_document_title: evidenceDocumentTitleFromStatus(status),
+    evidence_document_version: evidenceDocumentVersionFromStatus(status),
+    explanation: "Valid evidence found via confirmed identity link.",
+    reason: "Valid evidence found via confirmed identity link."
+  };
+}
+
+async function getNativeAgreementStatusesForVisitDirect(visitId) {
+  const result = await supabaseClient.rpc("get_visit_agreement_status_all", {
+    p_visit_log_id: visitId
+  });
+  if (result.error) throw result.error;
+  return result.data || [];
+}
+
+async function loadDocumentComplianceIdentityLinkSources(visitId) {
+  const result = await supabaseClient.rpc("list_document_compliance_identity_link_sources", {
+    p_source_type: "visit_log",
+    p_source_record_id: String(visitId)
+  });
+  if (result.error) throw result.error;
+  return result.data || [];
+}
+
+async function augmentNativeStatusesWithLinkedEvidence(visitId, statuses) {
+  if (!useIdentityLinksForDocumentCompliance() || !visitId || !statuses || !statuses.length) return statuses || [];
+
+  let sources = [];
+  try {
+    sources = await loadDocumentComplianceIdentityLinkSources(visitId);
+  } catch (err) {
+    console.warn("Could not load linked identity sources for document compliance. Falling back to direct evidence.", err);
+    return statuses;
+  }
+
+  if (!sources.length) return statuses;
+
+  const linkedStatusByType = new Map();
+  let checkedLinkedVisitCount = 0;
+  const checkedVisitIds = new Set();
+
+  for (const source of sources) {
+    const linkedVisitId = linkedVisitLogId(source);
+    if (!linkedVisitId || checkedVisitIds.has(linkedVisitId)) continue;
+    checkedVisitIds.add(linkedVisitId);
+    checkedLinkedVisitCount += 1;
+
+    try {
+      const linkedStatuses = await getNativeAgreementStatusesForVisitDirect(linkedVisitId);
+      (linkedStatuses || []).forEach(linkedStatus => {
+        if (!directEvidenceIsValid(linkedStatus) || !linkedStatus.agreement_type_id) return;
+        if (!linkedStatusByType.has(linkedStatus.agreement_type_id)) {
+          linkedStatusByType.set(linkedStatus.agreement_type_id, linkedEvidenceStatusForSource(source, linkedStatus));
+        }
+      });
+    } catch (err) {
+      console.warn("Could not check linked visit evidence for document compliance. Continuing with direct evidence.", err);
+    }
+  }
+
+  return statuses.map(status => {
+    if (directEvidenceIsValid(status)) {
+      return {
+        ...status,
+        evidence_source: status.evidence_source || "direct",
+        evidence_source_label: status.evidence_source_label || "Direct evidence"
+      };
+    }
+
+    const linked = linkedStatusByType.get(status.agreement_type_id);
+    if (linked) {
+      return {
+        ...status,
+        ...linked,
+        direct_compliance_status: status.status || "missing",
+        direct_reason: status.reason || ""
+      };
+    }
+
+    return {
+      ...status,
+      evidence_source: status.evidence_source || "none",
+      identity_link_source_count: sources.length,
+      identity_link_checked_visit_count: checkedLinkedVisitCount,
+      identity_link_lookup_note: checkedLinkedVisitCount > 0
+        ? "Confirmed identity links exist, but no valid document evidence was found through them."
+        : "Confirmed identity links exist, but none exposes a supported visit evidence source."
+    };
+  });
+}
+
 function syncNativeDocumentReviewRequirement() {
   const required = nativeRequiresDocumentReviewCompletion();
   nativeDocumentReviewReachedEnd = !required;
@@ -870,11 +1080,8 @@ async function loadNativeAgreementTypesIfNeeded() {
 }
 
 async function getNativeAgreementStatusesForVisit(visitId) {
-  const result = await supabaseClient.rpc("get_visit_agreement_status_all", {
-    p_visit_log_id: visitId
-  });
-  if (result.error) throw result.error;
-  return result.data || [];
+  const statuses = await getNativeAgreementStatusesForVisitDirect(visitId);
+  return augmentNativeStatusesWithLinkedEvidence(visitId, statuses);
 }
 
 async function getNativeAgreementVersion(versionId) {
@@ -1247,6 +1454,7 @@ async function loadNativeSignoffCandidates(manual) {
 }
 
 function nativeAgreementStateBadge(status, type) {
+  if (status.evidence_source === "confirmed_identity_link") return { label: "Valid via identity link", className: "status-in" };
   if (status.already_valid === true) return { label: "Already signed", className: "status-in" };
   if (status.status === "outdated") return { label: "Outdated", className: "status-no-show" };
   if (status.status === "expired") return { label: "Expired", className: "status-no-show" };
@@ -1254,6 +1462,43 @@ function nativeAgreementStateBadge(status, type) {
   if (!status.active_agreement_version_id) return { label: "Missing active version", className: "status-inactive" };
   if (type.default_required === true) return { label: "Required", className: "status-overdue" };
   return { label: "Optional", className: "" };
+}
+
+function linkedEvidenceNoteText(status) {
+  const source = [
+    status.identity_link_reference ? "Link " + status.identity_link_reference : "Confirmed identity link",
+    status.linked_source_label || status.linked_source_type
+  ].filter(Boolean).join(" - ");
+  const evidence = [
+    status.evidence_document_title,
+    status.evidence_document_version ? "version " + status.evidence_document_version : "",
+    status.evidence_signed_at ? "signed " + formatDateTime(status.evidence_signed_at) : ""
+  ].filter(Boolean).join(", ");
+  return "Valid evidence found via confirmed identity link. " +
+    [source, evidence].filter(Boolean).join(" | ");
+}
+
+function appendLinkedIdentityContextAction(row, status) {
+  if (!nativeSignoffCurrentVisit) return;
+  const visitId = nativeSignoffCurrentVisit.visit_log_id || nativeSignoffCurrentVisit.id;
+  if (!visitId) return;
+  const actions = document.createElement("div");
+  actions.className = "document-signoff-linked-evidence-actions";
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "secondary";
+  button.textContent = "View Linked Identity Context";
+  button.addEventListener("click", event => {
+    openLinkedIdentityContextDetails({
+      sourceType: "visit_log",
+      sourceRecordId: String(visitId),
+      sourceLabel: nativeSignoffCurrentVisit.visitor_name || "Visit log",
+      complianceNote: true,
+      highlightedIdentityLinkId: status.identity_link_id || null
+    }, event.currentTarget);
+  });
+  actions.appendChild(button);
+  row.appendChild(actions);
 }
 
 function updateNativeSelectionSummary() {
@@ -1355,6 +1600,18 @@ function renderNativeAgreementSelection(types, statuses, additionalOnly) {
       meta.textContent += " | Last signed: " + formatDateTime(status.last_signed_at);
     }
     row.append(label, meta);
+    if (status.evidence_source === "confirmed_identity_link") {
+      const sourceNote = document.createElement("p");
+      sourceNote.className = "document-signoff-linked-evidence-note";
+      sourceNote.textContent = linkedEvidenceNoteText(status);
+      row.appendChild(sourceNote);
+      appendLinkedIdentityContextAction(row, status);
+    } else if (status.identity_link_lookup_note) {
+      const sourceNote = document.createElement("p");
+      sourceNote.className = "document-signoff-linked-evidence-note muted";
+      sourceNote.textContent = status.identity_link_lookup_note;
+      row.appendChild(sourceNote);
+    }
     list.appendChild(row);
   });
   updateNativeSelectionSummary();

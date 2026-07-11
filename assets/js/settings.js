@@ -10,6 +10,8 @@ import { boolString } from "./utils.js";
 let appSettings;
 let appVersion;
 let dependencies;
+const DOCUMENT_COMPLIANCE_IDENTITY_LINK_SETTING =
+  "document_signoff.use_confirmed_identity_links_for_compliance";
 
 export function configureSettings(options) {
   appSettings = options.appSettings;
@@ -140,6 +142,9 @@ export async function loadSystemSettings() {
 
   if (result.error) {
     console.warn("Could not load system settings. Defaults will be used.", result.error);
+    AppState.systemSettingsRaw = {
+      [DOCUMENT_COMPLIANCE_IDENTITY_LINK_SETTING]: false
+    };
     return;
   }
 
@@ -147,6 +152,21 @@ export async function loadSystemSettings() {
   (result.data || []).forEach(row => {
     settings[row.setting_key] = row.setting_value;
   });
+  if (settings[DOCUMENT_COMPLIANCE_IDENTITY_LINK_SETTING] == null) {
+    settings[DOCUMENT_COMPLIANCE_IDENTITY_LINK_SETTING] = false;
+  }
+
+  try {
+    const identityLinkComplianceResult = await supabaseClient.rpc("get_use_identity_links_for_document_compliance");
+    if (!identityLinkComplianceResult.error && identityLinkComplianceResult.data != null) {
+      settings[DOCUMENT_COMPLIANCE_IDENTITY_LINK_SETTING] = identityLinkComplianceResult.data === true;
+    } else if (identityLinkComplianceResult.error) {
+      console.warn("Could not read document compliance identity-link setting. Defaulting to off.", identityLinkComplianceResult.error);
+    }
+  } catch (err) {
+    console.warn("Could not read document compliance identity-link setting. Defaulting to off.", err);
+  }
+
   AppState.systemSettingsRaw = settings;
 
   if (settings.confirmation_auto_close_seconds != null) {

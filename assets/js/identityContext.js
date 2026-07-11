@@ -2,6 +2,10 @@ import { supabaseClient } from "./api.js";
 import { hasAnyCapability } from "./capabilities.js";
 import { showToast } from "./messages.js";
 import { createSidePanelController, renderEmptyState } from "./platformUi.js";
+import { settingValue } from "./settings.js";
+
+const DOCUMENT_COMPLIANCE_IDENTITY_LINK_SETTING =
+  "document_signoff.use_confirmed_identity_links_for_compliance";
 
 const IDENTITY_CONTEXT_CAPABILITIES = [
   "identity_resolution.view",
@@ -42,6 +46,11 @@ function formatDate(value) {
 
 export function canViewLinkedIdentityContext() {
   return hasAnyCapability(IDENTITY_CONTEXT_CAPABILITIES);
+}
+
+function useIdentityLinksForDocumentCompliance() {
+  const value = settingValue(DOCUMENT_COMPLIANCE_IDENTITY_LINK_SETTING, false);
+  return value === true || value === "true";
 }
 
 export function friendlyIdentitySourceType(value) {
@@ -320,7 +329,11 @@ export function renderLinkedIdentityContext(target, options) {
     const note = document.createElement("p");
     note.className = "linked-identity-readiness-note";
     note.textContent = settings.complianceNote
-      ? "Confirmed identity links are currently shown for review context. Document/induction compliance is not automatically updated from identity links yet."
+      ? (
+        useIdentityLinksForDocumentCompliance()
+          ? "Confirmed identity links may be used for compliance only when linked evidence satisfies the existing document and induction validity rules. Source records are not modified."
+          : "Confirmed identity links are shown for context only. Compliance is not using identity links."
+      )
       : "Source records are not modified by confirmed identity link metadata.";
 
     const actions = document.createElement("div");

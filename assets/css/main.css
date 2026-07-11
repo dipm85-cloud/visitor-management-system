@@ -1974,6 +1974,25 @@ body.document-signoff-overlay-open {
   line-height: 1.35;
 }
 
+.document-signoff-linked-evidence-note {
+  padding-top: 4px;
+  color: #166534 !important;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.document-signoff-linked-evidence-note.muted {
+  color: var(--oh-shell-muted) !important;
+  font-weight: 700;
+}
+
+.document-signoff-linked-evidence-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
 .document-signoff-native-selection-summary {
   color: var(--oh-shell-muted);
   font-size: 13px;
@@ -2316,6 +2335,19 @@ body.document-signoff-overlay-open {
 .document-signoff-admin-form-grid textarea {
   min-width: 0;
   max-width: 100%;
+}
+
+.document-signoff-sensitive-setting {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+}
+
+.document-signoff-sensitive-setting p {
+  margin: 0;
+  color: var(--oh-shell-muted);
+  font-size: 13px;
+  line-height: 1.4;
 }
 
 .document-signoff-admin-form-grid .full {

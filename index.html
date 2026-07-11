@@ -3625,6 +3625,14 @@
               </select>
               <label for="documentSignoffAdminValidityDays">Default expiry period</label>
               <input id="documentSignoffAdminValidityDays" type="number" min="1" value="365" />
+              <label for="documentSignoffAdminUseIdentityLinksCompliance">Confirmed identity evidence</label>
+              <div class="document-signoff-sensitive-setting">
+                <select id="documentSignoffAdminUseIdentityLinksCompliance">
+                  <option value="false">Off</option>
+                  <option value="true">On</option>
+                </select>
+                <p>Use confirmed identity links for document/induction compliance. When enabled, document and induction compliance checks may use valid evidence from active confirmed identity-linked records. Source evidence will be shown. Source records are not merged or changed.</p>
+              </div>
               <label for="documentSignoffAdminScrollToEnd">Require scroll to end</label>
               <select id="documentSignoffAdminScrollToEnd" disabled>
                 <option value="future">Planned - not currently enforceable</option>
