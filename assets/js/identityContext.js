@@ -34,6 +34,19 @@ const SOURCE_TYPE_LABELS = {
   other: "Other Source"
 };
 
+const SOURCE_TYPE_ALIASES = {
+  visitor_history: "visit_log",
+  current_visitor: "visit_log",
+  current_visitors: "visit_log",
+  planned_visit: "planned_visits",
+  privacy_case: "privacy_cases",
+  document_signoff_evidence: "document_evidence",
+  agreement_signature: "agreement_evidence",
+  agreement_signatures: "agreement_evidence",
+  audit_event: "audit_events",
+  manual_record: "manual"
+};
+
 let linkedIdentityPanelController = null;
 
 function textOrDash(value) {
@@ -81,6 +94,11 @@ function useIdentityLinksForDocumentCompliance() {
 export function friendlyIdentitySourceType(value) {
   const key = String(value || "").trim();
   return SOURCE_TYPE_LABELS[key] || textOrDash(key).replace(/_/g, " ").replace(/\b\w/g, character => character.toUpperCase());
+}
+
+export function canonicalIdentitySourceType(value) {
+  const key = String(value || "").trim().toLowerCase();
+  return SOURCE_TYPE_ALIASES[key] || key;
 }
 
 function createMetaItem(label, value) {
@@ -132,7 +150,7 @@ function usefulSummaryFields(summary) {
 }
 
 function friendlySourceLabel(sourceType, sourceRecordId, sourceLabel, sourceSummary) {
-  const type = String(sourceType || "").trim();
+  const type = canonicalIdentitySourceType(sourceType);
   const summary = summaryObject(sourceSummary);
   const storedLabel = String(sourceLabel || "").trim();
   if (storedLabel && !isUuidLike(storedLabel)) return storedLabel;
@@ -140,21 +158,21 @@ function friendlySourceLabel(sourceType, sourceRecordId, sourceLabel, sourceSumm
   const sourceArea = friendlyIdentitySourceType(type);
   const subject = [summary.visitor_name || summary.subject_name, summary.company].filter(Boolean).join(" / ");
 
-  if (type === "visit_log" || type === "visitor_history") {
+  if (type === "visit_log") {
     const signedIn = summary.sign_in_time ? "Signed in " + formatDate(summary.sign_in_time) : "";
     const signedOut = summary.sign_out_time ? "Signed out " + formatDate(summary.sign_out_time) : "";
     return [sourceArea, subject, signedIn || signedOut].filter(Boolean).join(" - ") ||
       sourceArea + " record - reference " + shortReference(sourceRecordId);
   }
 
-  if (type === "planned_visits" || type === "planned_visit") {
+  if (type === "planned_visits") {
     const date = summary.visit_date ? "Visit date " + summary.visit_date : "";
     const host = summary.host || summary.host_name || summary.onsite_contact;
     return [sourceArea, subject, date, host ? "Host " + host : ""].filter(Boolean).join(" - ") ||
       sourceArea + " record - reference " + shortReference(sourceRecordId);
   }
 
-  if (type === "document_evidence" || type === "agreement_evidence" || type === "document_signoff_evidence") {
+  if (type === "document_evidence" || type === "agreement_evidence") {
     const documentTitle = summary.document || summary.agreement_title || summary.agreement_name || summary.evidence_document_title;
     const version = summary.version || summary.agreement_version_number || summary.evidence_document_version;
     const signed = summary.signed_at ? "Signed " + formatDate(summary.signed_at) : "";
@@ -163,7 +181,7 @@ function friendlySourceLabel(sourceType, sourceRecordId, sourceLabel, sourceSumm
       sourceArea + " record - reference " + shortReference(sourceRecordId);
   }
 
-  if (type === "privacy_cases" || type === "privacy_case") {
+  if (type === "privacy_cases") {
     const caseReference = summary.case_reference || summary.case_id;
     const subjectLabel = summary.search_text || summary.subject_reference || summary.result_label;
     return [sourceArea, caseReference, subjectLabel].filter(Boolean).join(" - ") ||
@@ -174,7 +192,7 @@ function friendlySourceLabel(sourceType, sourceRecordId, sourceLabel, sourceSumm
 }
 
 function sourceTypeForRow(row) {
-  return row && (row.linked_source_type || row.source_type || "");
+  return canonicalIdentitySourceType(row && (row.linked_source_type || row.source_type || ""));
 }
 
 function sourceRecordIdForRow(row) {
@@ -182,12 +200,12 @@ function sourceRecordIdForRow(row) {
 }
 
 async function lookupSourceRecordSummary(sourceType, sourceRecordId) {
-  const type = String(sourceType || "").trim();
+  const type = canonicalIdentitySourceType(sourceType);
   const id = String(sourceRecordId || "").trim();
   if (!type || !id) return null;
 
   try {
-    if (type === "visit_log" || type === "visitor_history") {
+    if (type === "visit_log") {
       const result = await supabaseClient
         .from("visit_log")
         .select("id, visitor_name, company, onsite_contact, sign_in_time, sign_out_time, visit_status, visit_origin")
@@ -205,7 +223,7 @@ async function lookupSourceRecordSummary(sourceType, sourceRecordId) {
       };
     }
 
-    if (type === "planned_visits" || type === "planned_visit") {
+    if (type === "planned_visits") {
       const result = await supabaseClient
         .from("planned_visits")
         .select("id, visitor_name, company, onsite_contact, visit_date, expected_time, status")
@@ -222,7 +240,7 @@ async function lookupSourceRecordSummary(sourceType, sourceRecordId) {
       };
     }
 
-    if (type === "privacy_cases" || type === "privacy_case") {
+    if (type === "privacy_cases") {
       const result = await supabaseClient
         .from("privacy_cases")
         .select("id, case_reference, case_type, status, subject_name, subject_company, subject_reference, search_text, request_received_date")
@@ -241,7 +259,7 @@ async function lookupSourceRecordSummary(sourceType, sourceRecordId) {
       };
     }
 
-    if (type === "document_evidence" || type === "agreement_evidence" || type === "document_signoff_evidence") {
+    if (type === "document_evidence" || type === "agreement_evidence") {
       const evidence = await lookupAgreementEvidenceSummary(id);
       if (evidence) return evidence;
     }
@@ -387,13 +405,13 @@ function appendTechnicalDetails(parent, title, fields, summary) {
 }
 
 function appendLinkedSourceActions(parent, sourceType, sourceRecordId) {
-  const type = String(sourceType || "").trim();
+  const type = canonicalIdentitySourceType(sourceType);
   const id = String(sourceRecordId || "").trim();
   if (!id) return;
-  const isVisitLog = type === "visit_log" || type === "visitor_history";
-  const isPlannedVisit = type === "planned_visits" || type === "planned_visit";
-  const isPrivacyCase = type === "privacy_cases" || type === "privacy_case";
-  const isEvidence = type === "document_evidence" || type === "agreement_evidence" || type === "document_signoff_evidence";
+  const isVisitLog = type === "visit_log";
+  const isPlannedVisit = type === "planned_visits";
+  const isPrivacyCase = type === "privacy_cases";
+  const isEvidence = type === "document_evidence" || type === "agreement_evidence";
   const canOpenPrivacyCase = isPrivacyCase && hasAnyCapability([
     "privacy.case.view",
     "privacy.case.manage",
@@ -466,7 +484,7 @@ function createLinkCard(link, requestedSource) {
   (link.records || []).forEach((record, index) => {
     const block = document.createElement("section");
     block.className = "identity-resolution-source-block";
-    const sourceType = record.linked_source_type || record.source_type;
+    const sourceType = sourceTypeForRow(record);
     const sourceRecordId = record.linked_source_record_id || record.source_record_id;
     const sourceSummary = summaryObject(record.linked_source_summary || record.source_summary);
     const sourceLabel = friendlySourceLabel(
@@ -508,26 +526,35 @@ function createLinkCard(link, requestedSource) {
 }
 
 function groupRowsByLink(rows) {
-  const links = new Map();
-  (rows || []).forEach(row => {
-    const key = row.identity_link_id || row.link_reference || "link";
-    if (!links.has(key)) {
-      links.set(key, {
-        identity_link_id: row.identity_link_id,
-        link_reference: row.link_reference,
-        identity_type: row.identity_type,
-        link_status: row.link_status,
-        canonical_label: row.canonical_label,
-        link_reason: row.link_reason,
-        created_from_candidate_id: row.created_from_candidate_id,
-        link_created_at: row.link_created_at,
-        link_updated_at: row.link_updated_at,
-        records: []
-      });
-    }
-    links.get(key).records.push(row);
+  const records = Array.isArray(rows) ? rows : [];
+  if (!records.length) return [];
+  const activeRows = records.filter(row => row.link_status === "active");
+  const root = activeRows[0] || records[0];
+  const seenRecords = new Set();
+  const uniqueRecords = [];
+  records.forEach(row => {
+    const sourceType = sourceTypeForRow(row);
+    const sourceRecordId = sourceRecordIdForRow(row);
+    const key = sourceType + "::" + String(sourceRecordId || "").trim();
+    if (!sourceRecordId || seenRecords.has(key)) return;
+    seenRecords.add(key);
+    uniqueRecords.push({
+      ...row,
+      linked_source_type: sourceType
+    });
   });
-  return Array.from(links.values());
+  return [{
+    identity_link_id: root.identity_link_id,
+    link_reference: root.link_reference,
+    identity_type: root.identity_type,
+    link_status: root.link_status,
+    canonical_label: root.canonical_label,
+    link_reason: root.link_reason,
+    created_from_candidate_id: root.created_from_candidate_id,
+    link_created_at: root.link_created_at,
+    link_updated_at: root.link_updated_at,
+    records: uniqueRecords
+  }];
 }
 
 function ensureLinkedIdentityPanel() {
@@ -560,7 +587,7 @@ function ensureLinkedIdentityPanel() {
 
 async function loadContextRows(sourceType, sourceRecordId) {
   const result = await supabaseClient.rpc("list_identity_context_for_source_record", {
-    p_source_type: sourceType,
+    p_source_type: canonicalIdentitySourceType(sourceType),
     p_source_record_id: String(sourceRecordId),
     p_include_revoked: false
   });
@@ -625,7 +652,7 @@ export function renderLinkedIdentityContext(target, options) {
   host.appendChild(card);
 
   supabaseClient.rpc("get_identity_context_summary_for_source_record", {
-    p_source_type: settings.sourceType,
+    p_source_type: canonicalIdentitySourceType(settings.sourceType),
     p_source_record_id: String(settings.sourceRecordId),
     p_include_revoked: false
   }).then(result => {

@@ -7,6 +7,7 @@ import { refreshSectionNavigator, registerModuleSections } from "./sectionNaviga
 import { showAdministrationWorkspace } from "./shell.js";
 import { AppState } from "./state.js";
 import {
+  canonicalIdentitySourceType,
   enrichIdentityLinkRowsForDisplay,
   friendlyIdentitySourceType,
   getIdentityLinkDetailRows
@@ -180,7 +181,7 @@ function titleCase(value) {
 }
 
 function sourceAreaLabel(value) {
-  const key = String(value || "").trim();
+  const key = canonicalIdentitySourceType(value);
   return SOURCE_AREA_LABELS[key] || titleCase(key);
 }
 
@@ -254,12 +255,12 @@ function fieldValue(id) {
 
 function sourceTypeValue(selectId, customId) {
   const selected = fieldValue(selectId);
-  if (selected === "custom") return fieldValue(customId);
-  return selected;
+  if (selected === "custom") return canonicalIdentitySourceType(fieldValue(customId));
+  return canonicalIdentitySourceType(selected);
 }
 
 function normalisedSourceKey(sourceType, recordId) {
-  return (sourceType || "").trim().toLowerCase() + "::" + (recordId || "").trim().toLowerCase();
+  return canonicalIdentitySourceType(sourceType) + "::" + (recordId || "").trim().toLowerCase();
 }
 
 function syncSourceTypeCustomField(selectId, customFieldId, customInputId) {
@@ -300,7 +301,7 @@ function createMetaItem(label, value) {
 
 function candidateSourceRecord(record) {
   return {
-    source_type: record.type,
+    source_type: canonicalIdentitySourceType(record.type),
     source_record_id: record.id,
     source_label: record.label,
     source_summary: record.summary
@@ -1094,25 +1095,42 @@ function renderLinkDetail(link, records, decisions) {
   body.replaceChildren();
   const notice = document.createElement("div");
   notice.className = "assignment-editor-notice";
-  notice.textContent = "This confirmed identity link is metadata only. Source records have not been merged, modified or used to update compliance.";
+  notice.textContent = "This confirmed identity link is reviewed metadata for one active identity group. Source records have not been merged, modified or rewritten.";
+  const activeReferences = Array.from(new Set((records || [])
+    .filter(record => record.link_status === "active")
+    .map(record => record.link_reference)
+    .filter(Boolean)));
+  const linkedRecordCount = uniqueLinkedIdentityRecords(records).length;
   const meta = document.createElement("dl");
   meta.className = "identity-resolution-meta-grid";
   meta.append(
-    createMetaItem("Link reference", link.link_reference),
+    createMetaItem("Active root / group reference", activeReferences[0] || link.link_reference),
     createMetaItem("Canonical label", link.canonical_label),
     createMetaItem("Identity type", titleCase(link.identity_type)),
     createMetaItem("Status", titleCase(link.link_status)),
+    createMetaItem("Linked records in group", linkedRecordCount),
     createMetaItem("Link reason", link.link_reason),
     createMetaItem("Created date", formatDate(link.link_created_at || link.created_at)),
     createMetaItem("Created from candidate", link.created_from_candidate_id)
   );
   const recordWrap = document.createElement("div");
   recordWrap.className = "identity-resolution-source-grid";
-  records.forEach((record, index) => {
+  uniqueLinkedIdentityRecords(records).forEach((record, index) => {
     recordWrap.appendChild(createLinkedIdentityRecordBlock(record, index));
   });
   body.append(notice, meta, recordWrap, createDecisionList(decisions));
   updateDetailActions();
+}
+
+function uniqueLinkedIdentityRecords(records) {
+  const seen = new Set();
+  return (records || []).filter(record => {
+    const sourceType = canonicalIdentitySourceType(record.source_type);
+    const key = sourceType + "::" + String(record.source_record_id || "").trim();
+    if (!record.source_record_id || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 function isUuidLike(value) {
@@ -1130,23 +1148,24 @@ function linkedRecordFriendlyLabel(record) {
   const summary = record.source_summary && typeof record.source_summary === "object" ? record.source_summary : {};
   const storedLabel = String(record.source_label || "").trim();
   if (storedLabel && !isUuidLike(storedLabel)) return storedLabel;
-  const sourceArea = friendlyIdentitySourceType(record.source_type);
+  const sourceType = canonicalIdentitySourceType(record.source_type);
+  const sourceArea = friendlyIdentitySourceType(sourceType);
   const subject = [summary.visitor_name || summary.subject_name, summary.company].filter(Boolean).join(" / ");
 
-  if (record.source_type === "visit_log" || record.source_type === "visitor_history") {
+  if (sourceType === "visit_log") {
     const signedIn = summary.sign_in_time ? "Signed in " + formatDate(summary.sign_in_time) : "";
     return [sourceArea, subject, signedIn].filter(Boolean).join(" - ") ||
       sourceArea + " record - reference " + shortReference(record.source_record_id);
   }
 
-  if (record.source_type === "planned_visits" || record.source_type === "planned_visit") {
+  if (sourceType === "planned_visits") {
     const date = summary.visit_date ? "Visit date " + summary.visit_date : "";
     const host = summary.host || summary.host_name || summary.onsite_contact;
     return [sourceArea, subject, date, host ? "Host " + host : ""].filter(Boolean).join(" - ") ||
       sourceArea + " record - reference " + shortReference(record.source_record_id);
   }
 
-  if (record.source_type === "document_evidence" || record.source_type === "agreement_evidence" || record.source_type === "document_signoff_evidence") {
+  if (sourceType === "document_evidence" || sourceType === "agreement_evidence") {
     const documentTitle = summary.document || summary.agreement_title || summary.agreement_name || summary.evidence_document_title;
     const version = summary.version || summary.agreement_version_number || summary.evidence_document_version;
     const signed = summary.signed_at ? "Signed " + formatDate(summary.signed_at) : "";
@@ -1155,7 +1174,7 @@ function linkedRecordFriendlyLabel(record) {
       sourceArea + " record - reference " + shortReference(record.source_record_id);
   }
 
-  if (record.source_type === "privacy_cases" || record.source_type === "privacy_case") {
+  if (sourceType === "privacy_cases") {
     const caseReference = summary.case_reference || summary.case_id;
     const subjectLabel = summary.search_text || summary.subject_reference || summary.result_label;
     return [sourceArea, caseReference, subjectLabel].filter(Boolean).join(" - ") ||
@@ -1179,12 +1198,11 @@ function copyTechnicalId(value) {
 
 function appendLinkedRecordActions(block, record) {
   if (!record.source_record_id) return;
-  const isVisitLog = record.source_type === "visit_log" || record.source_type === "visitor_history";
-  const isPlannedVisit = record.source_type === "planned_visits" || record.source_type === "planned_visit";
-  const isPrivacyCase = record.source_type === "privacy_cases" || record.source_type === "privacy_case";
-  const isEvidence = record.source_type === "document_evidence" ||
-    record.source_type === "agreement_evidence" ||
-    record.source_type === "document_signoff_evidence";
+  const sourceType = canonicalIdentitySourceType(record.source_type);
+  const isVisitLog = sourceType === "visit_log";
+  const isPlannedVisit = sourceType === "planned_visits";
+  const isPrivacyCase = sourceType === "privacy_cases";
+  const isEvidence = sourceType === "document_evidence" || sourceType === "agreement_evidence";
   const canOpenPrivacyCase = isPrivacyCase && hasAnyCapability([
     "privacy.case.view",
     "privacy.case.manage",
@@ -1217,7 +1235,7 @@ function appendLinkedRecordActions(block, record) {
     }
     window.dispatchEvent(new CustomEvent("oh:linked-source-record-requested", {
       detail: {
-        sourceType: record.source_type,
+        sourceType,
         sourceRecordId: record.source_record_id
       }
     }));
@@ -1233,8 +1251,9 @@ function createLinkedIdentityRecordBlock(record, index) {
   heading.textContent = "Linked record " + (index + 1);
   const meta = document.createElement("dl");
   meta.className = "identity-resolution-meta-grid";
+  const sourceType = canonicalIdentitySourceType(record.source_type);
   meta.append(
-    createMetaItem("Source area", friendlyIdentitySourceType(record.source_type)),
+    createMetaItem("Source area", friendlyIdentitySourceType(sourceType)),
     createMetaItem("Source label", linkedRecordFriendlyLabel(record)),
     createMetaItem("Linked date", formatDate(record.source_record_linked_at))
   );
@@ -1250,7 +1269,7 @@ function createLinkedIdentityRecordBlock(record, index) {
   const technicalMeta = document.createElement("dl");
   technicalMeta.className = "identity-resolution-meta-grid";
   technicalMeta.append(
-    createMetaItem("Source type", record.source_type),
+    createMetaItem("Source type", sourceType),
     createMetaItem("Source record ID", record.source_record_id),
     createMetaItem("Link record ID", record.link_record_id)
   );
@@ -1452,18 +1471,19 @@ function renderCapturedRequestContext(settings) {
 }
 
 function standardSummary(area, reference, label) {
+  const canonicalArea = canonicalIdentitySourceType(area);
   return {
-    source_area: sourceAreaLabel(area),
+    source_area: sourceAreaLabel(canonicalArea),
     display_reference: reference || null,
     display_label: label || null
   };
 }
 
 function syncStandardRequestFieldsToTechnical() {
-  const sourceArea = fieldValue("identityResolutionRequestSourceArea");
+  const sourceArea = canonicalIdentitySourceType(fieldValue("identityResolutionRequestSourceArea"));
   const sourceReference = fieldValue("identityResolutionRequestSourceReference");
   const sourceLabel = fieldValue("identityResolutionRequestSourceDisplayLabel") || sourceReference;
-  const suggestedArea = fieldValue("identityResolutionRequestSuggestedArea");
+  const suggestedArea = canonicalIdentitySourceType(fieldValue("identityResolutionRequestSuggestedArea"));
   const suggestedReference = fieldValue("identityResolutionRequestSuggestedReference");
   const suggestedLabel = fieldValue("identityResolutionRequestSuggestedDisplayLabel") || suggestedReference;
 
@@ -1492,24 +1512,26 @@ function syncStandardRequestFieldsToTechnical() {
 
 function applyRequestContext(context) {
   const settings = context || {};
+  const sourceType = canonicalIdentitySourceType(settings.sourceType || "");
+  const suggestedMatchType = canonicalIdentitySourceType(settings.suggestedMatchType || "");
   if ($("identityResolutionRequestCandidateType")) {
     $("identityResolutionRequestCandidateType").value = settings.candidateType || "person";
   }
   if ($("identityResolutionRequestReason")) $("identityResolutionRequestReason").value = settings.requestReason || "";
   if ($("identityResolutionRequesterNotes")) $("identityResolutionRequesterNotes").value = settings.requesterNotes || "";
-  setSelectValue("identityResolutionRequestSourceArea", settings.sourceType || "");
+  setSelectValue("identityResolutionRequestSourceArea", sourceType);
   if ($("identityResolutionRequestSourceReference")) $("identityResolutionRequestSourceReference").value = settings.sourceRecordId || "";
   if ($("identityResolutionRequestSourceDisplayLabel")) $("identityResolutionRequestSourceDisplayLabel").value = settings.sourceLabel || "";
-  if ($("identityResolutionRequestSourceType")) $("identityResolutionRequestSourceType").value = settings.sourceType || "";
+  if ($("identityResolutionRequestSourceType")) $("identityResolutionRequestSourceType").value = sourceType;
   if ($("identityResolutionRequestSourceId")) $("identityResolutionRequestSourceId").value = settings.sourceRecordId || "";
   if ($("identityResolutionRequestSourceLabel")) $("identityResolutionRequestSourceLabel").value = settings.sourceLabel || "";
   if ($("identityResolutionRequestSourceSummary")) {
     $("identityResolutionRequestSourceSummary").value = JSON.stringify(settings.sourceSummary || {}, null, 2);
   }
-  setSelectValue("identityResolutionRequestSuggestedArea", settings.suggestedMatchType || "");
+  setSelectValue("identityResolutionRequestSuggestedArea", suggestedMatchType);
   if ($("identityResolutionRequestSuggestedReference")) $("identityResolutionRequestSuggestedReference").value = settings.suggestedMatchRecordId || "";
   if ($("identityResolutionRequestSuggestedDisplayLabel")) $("identityResolutionRequestSuggestedDisplayLabel").value = settings.suggestedMatchLabel || "";
-  if ($("identityResolutionRequestSuggestedType")) $("identityResolutionRequestSuggestedType").value = settings.suggestedMatchType || "";
+  if ($("identityResolutionRequestSuggestedType")) $("identityResolutionRequestSuggestedType").value = suggestedMatchType;
   if ($("identityResolutionRequestSuggestedId")) $("identityResolutionRequestSuggestedId").value = settings.suggestedMatchRecordId || "";
   if ($("identityResolutionRequestSuggestedLabel")) $("identityResolutionRequestSuggestedLabel").value = settings.suggestedMatchLabel || "";
   if ($("identityResolutionRequestSuggestedSummary")) {
@@ -1569,11 +1591,11 @@ function requestPayloadFromForm() {
     candidateType: fieldValue("identityResolutionRequestCandidateType") || "person",
     reason: fieldValue("identityResolutionRequestReason"),
     requesterNotes: fieldValue("identityResolutionRequesterNotes"),
-    sourceType: fieldValue("identityResolutionRequestSourceType"),
+    sourceType: canonicalIdentitySourceType(fieldValue("identityResolutionRequestSourceType")),
     sourceId: fieldValue("identityResolutionRequestSourceId"),
     sourceLabel: fieldValue("identityResolutionRequestSourceLabel"),
     sourceSummary: safeJson(fieldValue("identityResolutionRequestSourceSummary"), {}),
-    suggestedType,
+    suggestedType: canonicalIdentitySourceType(suggestedType),
     suggestedId,
     suggestedLabel: fieldValue("identityResolutionRequestSuggestedLabel"),
     suggestedSummary: safeJson(fieldValue("identityResolutionRequestSuggestedSummary"), {}),
