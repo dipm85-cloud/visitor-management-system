@@ -7216,6 +7216,21 @@ button.oh-section-nav-item:focus-visible,
   font-size: 15px;
 }
 
+.identity-resolution-linked-record-row {
+  min-width: 0;
+  padding: 10px 0;
+  border-top: 1px solid #edf1f6;
+}
+
+.identity-resolution-linked-record-row:first-child {
+  border-top: 0;
+}
+
+.identity-resolution-linked-record-row h5 {
+  margin: 0;
+  font-size: 13px;
+}
+
 .identity-resolution-card-actions {
   margin-top: 12px;
 }
