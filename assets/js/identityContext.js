@@ -20,6 +20,8 @@ const IDENTITY_CONTEXT_CAPABILITIES = [
 ];
 
 const SOURCE_TYPE_LABELS = {
+  people: "People",
+  person: "People",
   visit_log: "Visit Log / Visitor History",
   visitor_history: "Visitor History",
   planned_visits: "Planned Visit",
@@ -35,6 +37,9 @@ const SOURCE_TYPE_LABELS = {
 };
 
 const SOURCE_TYPE_ALIASES = {
+  person: "people",
+  people_record: "people",
+  person_record: "people",
   visitor_history: "visit_log",
   current_visitor: "visit_log",
   current_visitors: "visit_log",
@@ -116,6 +121,12 @@ function usefulSummaryFields(summary) {
   const labels = {
     result_label: "Label",
     display_label: "Label",
+    person_display_name: "Person",
+    display_name: "Person",
+    preferred_name: "Preferred name",
+    external_person_number: "Person reference",
+    employee_number: "Employee reference",
+    person_reference: "Person reference",
     case_reference: "Case reference",
     source_area: "Source area",
     visitor_name: "Visitor / subject",
@@ -157,6 +168,15 @@ function friendlySourceLabel(sourceType, sourceRecordId, sourceLabel, sourceSumm
 
   const sourceArea = friendlyIdentitySourceType(type);
   const subject = [summary.visitor_name || summary.subject_name, summary.company].filter(Boolean).join(" / ");
+
+  if (type === "people") {
+    const personName = summary.display_name || summary.person_display_name || summary.preferred_name ||
+      [summary.first_name, summary.last_name].filter(Boolean).join(" ");
+    const reference = summary.external_person_number || summary.employee_number || summary.person_reference;
+    const company = summary.company || summary.organisation || summary.employer;
+    return [sourceArea, [personName, company || reference].filter(Boolean).join(" / ")].filter(Boolean).join(" - ") ||
+      sourceArea + " record - reference " + shortReference(sourceRecordId);
+  }
 
   if (type === "visit_log") {
     const signedIn = summary.sign_in_time ? "Signed in " + formatDate(summary.sign_in_time) : "";
@@ -220,6 +240,25 @@ async function lookupSourceRecordSummary(sourceType, sourceRecordId) {
         sign_out_time: result.data.sign_out_time || null,
         visit_status: result.data.visit_status || null,
         visit_origin: result.data.visit_origin || null
+      };
+    }
+
+    if (type === "people") {
+      const result = await supabaseClient
+        .from("people")
+        .select("id, external_person_number, first_name, last_name, preferred_name, display_name, email, phone, active")
+        .eq("id", id)
+        .maybeSingle();
+      if (result.error || !result.data) return null;
+      return {
+        external_person_number: result.data.external_person_number || null,
+        first_name: result.data.first_name || null,
+        last_name: result.data.last_name || null,
+        preferred_name: result.data.preferred_name || null,
+        display_name: result.data.display_name || null,
+        email: result.data.email || null,
+        phone: result.data.phone || null,
+        status: result.data.active === false ? "Inactive" : "Active"
       };
     }
 

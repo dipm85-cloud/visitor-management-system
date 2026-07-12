@@ -6460,6 +6460,12 @@ button.oh-section-nav-item:focus-visible,
 
 .people-panel-header h2 { margin: 0; font-size: 21px; }
 .people-form { padding: 20px 18px 28px; }
+.people-detail-body {
+  display: grid;
+  gap: 14px;
+  padding: 20px 18px 28px;
+}
+
 .people-form > input,
 .people-form > select,
 .people-form > textarea,
@@ -7229,6 +7235,23 @@ button.oh-section-nav-item:focus-visible,
 .identity-resolution-linked-record-row h5 {
   margin: 0;
   font-size: 13px;
+}
+
+.identity-resolution-group-preview {
+  display: grid;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.identity-resolution-group-preview p {
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid #edf1f6;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #344054;
+  font-size: 13px;
+  overflow-wrap: anywhere;
 }
 
 .identity-resolution-card-actions {

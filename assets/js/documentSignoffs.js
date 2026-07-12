@@ -941,16 +941,87 @@ function directEvidenceIsValid(status) {
   );
 }
 
-function explicitEvidenceVisitLogIdFromStatus(status) {
-  if (!status) return "";
+function normalisedEvidenceSourceType(value) {
+  const type = String(value || "").trim().toLowerCase();
+  if (["visit_log", "visitor_history", "current_visitor", "current_visitors"].includes(type)) return "visit_log";
+  if (["planned_visit", "planned_visits"].includes(type)) return "planned_visits";
+  if (["document_evidence", "document_signoff_evidence"].includes(type)) return "document_evidence";
+  if (["agreement_evidence", "agreement_signature", "agreement_signatures"].includes(type)) return "agreement_evidence";
+  return type;
+}
+
+function objectValue(value) {
+  if (!value) return {};
+  if (typeof value === "object") return value;
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch (error) {
+    return {};
+  }
+}
+
+function collectContextObjects(value, depth, seen) {
+  const source = objectValue(value);
+  if (!source || typeof source !== "object" || seen.has(source) || depth > 2) return [];
+  seen.add(source);
+  const objects = [source];
+  Object.values(source).forEach(child => {
+    if (child && typeof child === "object") {
+      objects.push(...collectContextObjects(child, depth + 1, seen));
+    }
+  });
+  return objects;
+}
+
+function statusContextObjects(status) {
+  if (!status || typeof status !== "object") return [];
+  const seen = new Set();
+  return [
+    status,
+    objectValue(status.metadata),
+    objectValue(status.evidence_metadata),
+    objectValue(status.source_metadata),
+    objectValue(status.source_summary),
+    objectValue(status.evidence_source_summary)
+  ].flatMap(source => collectContextObjects(source, 0, seen))
+    .filter(source => source && typeof source === "object" && Object.keys(source).length);
+}
+
+function visitIdFromContextObject(context) {
   return String(
-    status.evidence_visit_log_id ||
-    status.evidence_visitor_log_id ||
-    status.document_evidence_visit_log_id ||
-    status.agreement_evidence_visit_log_id ||
-    status.signed_visit_log_id ||
+    context.visit_log_id ||
+    context.visitor_log_id ||
+    context.current_visit_log_id ||
+    context.current_visitor_log_id ||
+    context.evidence_visit_log_id ||
+    context.evidence_visitor_log_id ||
+    context.document_evidence_visit_log_id ||
+    context.agreement_evidence_visit_log_id ||
+    context.signed_visit_log_id ||
+    context.linked_visit_log_id ||
     ""
   ).trim();
+}
+
+function sourceRecordReferencesVisit(context, visitId) {
+  const sourceType = normalisedEvidenceSourceType(context.source_type || context.evidence_source_type);
+  const sourceRecordId = String(
+    context.source_record_id ||
+    context.evidence_source_record_id ||
+    context.context_record_id ||
+    ""
+  ).trim();
+  return sourceType === "visit_log" && visitIdsMatch(sourceRecordId, visitId);
+}
+
+function explicitEvidenceVisitLogIdFromStatus(status) {
+  if (!status) return "";
+  for (const context of statusContextObjects(status)) {
+    const visitId = visitIdFromContextObject(context);
+    if (visitId) return visitId;
+  }
+  return "";
 }
 
 function visitIdsMatch(left, right) {
@@ -965,17 +1036,43 @@ async function directEvidenceRecordMatchesVisit(status, visitId) {
   const explicitVisitId = explicitEvidenceVisitLogIdFromStatus(status);
   if (explicitVisitId) return visitIdsMatch(explicitVisitId, visitId);
 
-  const evidenceId = evidenceRecordIdFromStatus(status);
-  if (!evidenceId) return false;
+  if (statusContextObjects(status).some(context => sourceRecordReferencesVisit(context, visitId))) {
+    return true;
+  }
 
+  const evidenceId = evidenceRecordIdFromStatus(status);
   try {
-    const record = await findEvidenceRecordById(evidenceId);
+    if (evidenceId) {
+      const record = await findEvidenceRecordById(evidenceId);
+      const recordVisitId = record && (record.visit_log_id || record.visitor_log_id);
+      if (visitIdsMatch(recordVisitId, visitId)) return true;
+    }
+    const record = await findEvidenceRecordForStatus(status, visitId);
     const recordVisitId = record && (record.visit_log_id || record.visitor_log_id);
     return visitIdsMatch(recordVisitId, visitId);
   } catch (error) {
     console.warn("Could not verify direct document evidence against current visit.", error);
     return false;
   }
+}
+
+function currentVisitDirectEvidenceStatus(status) {
+  const fallbackReason = evidenceRecordIdFromStatus(status)
+    ? "Already signed for this visit."
+    : "Valid evidence found for this visit.";
+  const sameNameMessagePattern = /same-name evidence was not used/i;
+  return {
+    ...status,
+    evidence_source: "direct",
+    evidence_source_label: "Direct evidence",
+    identity_link_lookup_note: null,
+    explanation: !status.explanation || sameNameMessagePattern.test(status.explanation)
+      ? fallbackReason
+      : status.explanation,
+    reason: !status.reason || sameNameMessagePattern.test(status.reason)
+      ? fallbackReason
+      : status.reason
+  };
 }
 
 function demoteUnsafeHistoricalEvidence(status) {
@@ -1004,11 +1101,7 @@ async function restrictDirectEvidenceToCurrentVisit(visitId, statuses) {
 
     const matchesCurrentVisit = await directEvidenceRecordMatchesVisit(status, visitId);
     checked.push(matchesCurrentVisit
-      ? {
-          ...status,
-          evidence_source: status.evidence_source || "direct",
-          evidence_source_label: status.evidence_source_label || "Direct evidence"
-        }
+      ? currentVisitDirectEvidenceStatus(status)
       : demoteUnsafeHistoricalEvidence(status));
   }
   return checked;

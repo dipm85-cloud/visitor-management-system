@@ -84,11 +84,40 @@ function createCell(text) {
   return cell;
 }
 
+function textOrDash(value) {
+  const text = String(value == null ? "" : value).trim();
+  return text || "-";
+}
+
+function formatDateTime(value) {
+  if (!value) return "-";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? textOrDash(value) : date.toLocaleString();
+}
+
+function createDetailMetaItem(label, value) {
+  const item = document.createElement("div");
+  const term = document.createElement("dt");
+  const detail = document.createElement("dd");
+  term.textContent = label;
+  detail.textContent = textOrDash(value);
+  item.append(term, detail);
+  return item;
+}
+
+function appendPersonDetailGrid(parent, fields) {
+  const grid = document.createElement("dl");
+  grid.className = "identity-resolution-meta-grid";
+  fields.forEach(field => grid.appendChild(createDetailMetaItem(field.label, field.value)));
+  parent.appendChild(grid);
+}
+
 export async function openPeopleWorkspace() {
   if (!requirePeopleAccess()) return;
   showPeopleWorkspace();
   setActionAvailable("peopleCreateButton", hasPeopleManageAccess());
   closePeoplePanel();
+  closePeopleDetailPanel();
   await loadPeople();
 }
 
@@ -157,6 +186,16 @@ export function renderPeopleList() {
     const actionCell = document.createElement("td");
     actionCell.className = "people-row-action";
 
+    const viewButton = document.createElement("button");
+    viewButton.className = "ghost";
+    viewButton.type = "button";
+    viewButton.textContent = "View Record";
+    viewButton.setAttribute("aria-label", "View record for " + person.display_name);
+    viewButton.addEventListener("click", () => {
+      openPeopleDetailPanel(person.id);
+    });
+    actionCell.appendChild(viewButton);
+
     const assignmentsButton = document.createElement("button");
     assignmentsButton.className = "ghost";
     assignmentsButton.type = "button";
@@ -197,6 +236,7 @@ export function renderPeopleList() {
 export function openPeoplePanel(personId) {
   if (!requirePeopleManageAccess()) return;
 
+  closePeopleDetailPanel();
   clearPersonForm();
   const person = peopleCache.find(item => item.id === personId);
 
@@ -217,6 +257,61 @@ export function openPeoplePanel(personId) {
   $("peoplePanel").classList.remove("hidden");
   $("peoplePanel").setAttribute("aria-hidden", "false");
   setTimeout(() => $("personFirstName").focus(), 0);
+}
+
+export function openPeopleDetailPanel(personId) {
+  if (!requirePeopleAccess()) return;
+  const person = peopleCache.find(item => item.id === personId);
+  if (!person) {
+    showToast("Person unavailable", "Reload People before viewing this record.", "error");
+    return;
+  }
+
+  closePeoplePanel();
+  const panel = $("peopleDetailPanel");
+  const body = $("peopleDetailPanelBody");
+  $("peopleDetailPanelTitle").textContent = person.display_name || "Person record";
+  body.replaceChildren();
+
+  const notice = document.createElement("div");
+  notice.className = "assignment-editor-notice";
+  notice.textContent = "Read-only People record. Viewing this record does not edit People data or linked operational history.";
+  body.appendChild(notice);
+
+  appendPersonDetailGrid(body, [
+    { label: "Display name", value: person.display_name },
+    { label: "External person number", value: person.external_person_number },
+    { label: "Preferred name", value: person.preferred_name },
+    { label: "First name", value: person.first_name },
+    { label: "Last name", value: person.last_name },
+    { label: "Email", value: person.email },
+    { label: "Phone", value: person.phone },
+    { label: "Status", value: person.active === false ? "Inactive" : "Active" },
+    { label: "Notes", value: person.notes }
+  ]);
+
+  const technical = document.createElement("details");
+  technical.className = "identity-resolution-request-details identity-resolution-request-advanced";
+  const summary = document.createElement("summary");
+  summary.textContent = "Advanced / Technical Details";
+  technical.appendChild(summary);
+  appendPersonDetailGrid(technical, [
+    { label: "People record ID", value: person.id },
+    { label: "Created", value: formatDateTime(person.created_at) },
+    { label: "Updated", value: formatDateTime(person.updated_at) }
+  ]);
+  body.appendChild(technical);
+
+  panel.classList.remove("hidden");
+  panel.setAttribute("aria-hidden", "false");
+  setTimeout(() => $("peopleDetailPanelCloseButton").focus(), 0);
+}
+
+export function closePeopleDetailPanel() {
+  const panel = $("peopleDetailPanel");
+  if (!panel) return;
+  panel.classList.add("hidden");
+  panel.setAttribute("aria-hidden", "true");
 }
 
 export function closePeoplePanel() {

@@ -168,6 +168,7 @@ import {
   renderPeopleList,
   openPeoplePanel,
   closePeoplePanel,
+  closePeopleDetailPanel,
   savePerson,
   clearPersonForm,
   openPeopleWorkspace
@@ -5077,6 +5078,7 @@ window.addEventListener("load", async function () {
     if ($("peopleCreateButton")) $("peopleCreateButton").addEventListener("click", () => openPeoplePanel(null));
     if ($("peopleReloadButton")) $("peopleReloadButton").addEventListener("click", loadPeople);
     if ($("peoplePanelCloseButton")) $("peoplePanelCloseButton").addEventListener("click", closePeoplePanel);
+    if ($("peopleDetailPanelCloseButton")) $("peopleDetailPanelCloseButton").addEventListener("click", closePeopleDetailPanel);
     if ($("peopleClearButton")) $("peopleClearButton").addEventListener("click", clearPersonForm);
     if ($("peopleSearch")) $("peopleSearch").addEventListener("input", renderPeopleList);
     if ($("peopleForm")) $("peopleForm").addEventListener("submit", event => {

@@ -56,6 +56,8 @@ const CANDIDATE_STATUSES = ["pending", "confirmed", "rejected", "deferred", "ign
 const REQUEST_STATUSES = ["pending", "in_review", "candidate_created", "closed", "cancelled"];
 const CANDIDATE_TYPES = ["person", "organisation", "vehicle", "email", "other"];
 const SOURCE_AREA_LABELS = {
+  people: "People",
+  person: "People",
   privacy_cases: "Privacy Case",
   privacy_case: "Privacy Case",
   visitor_history: "Visitor History",
@@ -470,7 +472,8 @@ function candidateReviewMode(context) {
         type: "already_linked",
         confirmLabel: "Already Linked",
         heading: "Already linked through confirmed identity group",
-        targetGroup: context.groupA
+        targetGroup: context.groupA,
+        comparisonRecord: context.sourceB
       };
     }
     return {
@@ -487,7 +490,8 @@ function candidateReviewMode(context) {
       confirmLabel: "Add to Confirmed Identity",
       heading: "Add new record to confirmed identity group",
       newRecord: context.sourceA,
-      targetGroup: context.groupB
+      targetGroup: context.groupB,
+      comparisonRecord: context.sourceB
     };
   }
   return {
@@ -495,7 +499,8 @@ function candidateReviewMode(context) {
     confirmLabel: "Add to Confirmed Identity",
     heading: "Add new record to confirmed identity group",
     newRecord: context.sourceB,
-    targetGroup: context.groupA
+    targetGroup: context.groupA,
+    comparisonRecord: context.sourceA
   };
 }
 
@@ -514,6 +519,39 @@ function linkedRecordCount(group) {
   return uniqueLinkedIdentityRecords(group && group.records || []).length;
 }
 
+function peopleRecordsFirst(records) {
+  return uniqueLinkedIdentityRecords(records || []).slice().sort((left, right) => {
+    const leftPeople = canonicalIdentitySourceType(left.source_type) === "people" ? 0 : 1;
+    const rightPeople = canonicalIdentitySourceType(right.source_type) === "people" ? 0 : 1;
+    if (leftPeople !== rightPeople) return leftPeople - rightPeople;
+    return String(left.source_record_linked_at || "").localeCompare(String(right.source_record_linked_at || ""));
+  });
+}
+
+function peopleRecordForGroup(group) {
+  return peopleRecordsFirst(group && group.records || []).find(record => canonicalIdentitySourceType(record.source_type) === "people") || null;
+}
+
+function groupDisplayLabel(group) {
+  const peopleRecord = peopleRecordForGroup(group);
+  if (peopleRecord) return linkedRecordFriendlyLabel(peopleRecord);
+  const canonical = String(group && group.canonical_label || "").trim();
+  if (canonical && !isUuidLike(canonical)) return canonical;
+  const firstRecord = peopleRecordsFirst(group && group.records || [])[0];
+  if (firstRecord) return linkedRecordFriendlyLabel(firstRecord);
+  return group && group.link_reference || "-";
+}
+
+function createSelectedComparisonBlock(record, group) {
+  const block = createSourceBlock("Selected comparison record", record);
+  const note = document.createElement("p");
+  note.className = "identity-resolution-note";
+  note.textContent = linkedRecordFriendlyLabel(candidateSourceRecord(record || {})) +
+    " is already linked to confirmed identity " + groupDisplayLabel(group) + ".";
+  block.appendChild(note);
+  return block;
+}
+
 function createIdentityGroupBlock(title, group) {
   const block = document.createElement("section");
   block.className = "identity-resolution-source-block identity-resolution-group-block";
@@ -522,8 +560,9 @@ function createIdentityGroupBlock(title, group) {
   const meta = document.createElement("dl");
   meta.className = "identity-resolution-meta-grid";
   meta.append(
+    createMetaItem("Target confirmed identity", groupDisplayLabel(group)),
     createMetaItem("Identity link reference", group && group.link_reference),
-    createMetaItem("Canonical label", group && group.canonical_label),
+    createMetaItem("Identity link canonical label", group && group.canonical_label),
     createMetaItem("Identity type", titleCase(group && group.identity_type)),
     createMetaItem("Linked records", linkedRecordCount(group)),
     createMetaItem("Latest update", formatDate(group && (group.link_updated_at || group.link_created_at))),
@@ -532,14 +571,26 @@ function createIdentityGroupBlock(title, group) {
   );
   block.append(heading, meta);
 
+  const previewRecords = peopleRecordsFirst(group && group.records || []);
+  if (previewRecords.length) {
+    const preview = document.createElement("div");
+    preview.className = "identity-resolution-group-preview";
+    previewRecords.slice(0, 3).forEach(record => {
+      const item = document.createElement("p");
+      item.textContent = linkedRecordFriendlyLabel(record);
+      preview.appendChild(item);
+    });
+    block.appendChild(preview);
+  }
+
   const records = document.createElement("details");
   records.className = "identity-resolution-request-details";
   const recordsSummary = document.createElement("summary");
-  recordsSummary.textContent = "Linked records";
+  recordsSummary.textContent = previewRecords.length > 3 ? "Show all linked records" : "Linked records";
   records.appendChild(recordsSummary);
   const recordWrap = document.createElement("div");
   recordWrap.className = "identity-resolution-source-grid";
-  const uniqueRecords = uniqueLinkedIdentityRecords(group && group.records || []);
+  const uniqueRecords = peopleRecordsFirst(group && group.records || []);
   if (uniqueRecords.length) {
     uniqueRecords.forEach((record, index) => {
       recordWrap.appendChild(createCompactLinkedIdentityRecordRow(record, index));
@@ -1216,10 +1267,14 @@ function renderCandidateDetail(candidate, decisions) {
   if (mode.type === "add_to_group") {
     review.append(
       createSourceBlock("New record", mode.newRecord),
-      createIdentityGroupBlock("Target confirmed identity", mode.targetGroup)
+      createIdentityGroupBlock("Target confirmed identity", mode.targetGroup),
+      createSelectedComparisonBlock(mode.comparisonRecord, mode.targetGroup)
     );
   } else if (mode.type === "already_linked") {
-    review.appendChild(createIdentityGroupBlock("Confirmed identity group", mode.targetGroup));
+    review.append(
+      createIdentityGroupBlock("Confirmed identity group", mode.targetGroup),
+      createSelectedComparisonBlock(mode.comparisonRecord, mode.targetGroup)
+    );
   } else if (mode.type === "merge_groups") {
     review.append(
       createIdentityGroupBlock("Group 1", mode.groupA),
@@ -1412,7 +1467,7 @@ function renderLinkDetail(link, records, decisions) {
   );
   const recordWrap = document.createElement("div");
   recordWrap.className = "identity-resolution-source-grid";
-  uniqueLinkedIdentityRecords(records).forEach((record, index) => {
+  peopleRecordsFirst(records).forEach((record, index) => {
     recordWrap.appendChild(createLinkedIdentityRecordBlock(record, index));
   });
   body.append(notice, meta, recordWrap, createDecisionList(decisions));
@@ -1448,6 +1503,15 @@ function linkedRecordFriendlyLabel(record) {
   const sourceType = canonicalIdentitySourceType(record.source_type);
   const sourceArea = friendlyIdentitySourceType(sourceType);
   const subject = [summary.visitor_name || summary.subject_name, summary.company].filter(Boolean).join(" / ");
+
+  if (sourceType === "people") {
+    const personName = summary.display_name || summary.person_display_name || summary.preferred_name ||
+      [summary.first_name, summary.last_name].filter(Boolean).join(" ");
+    const reference = summary.external_person_number || summary.employee_number || summary.person_reference;
+    const company = summary.company || summary.organisation || summary.employer;
+    return [sourceArea, [personName, company || reference].filter(Boolean).join(" / ")].filter(Boolean).join(" - ") ||
+      sourceArea + " record - reference " + shortReference(record.source_record_id);
+  }
 
   if (sourceType === "visit_log") {
     const signedIn = summary.sign_in_time ? "Signed in " + formatDate(summary.sign_in_time) : "";
@@ -1595,6 +1659,12 @@ function usefulLinkSummaryFields(summary) {
   return [
     ["result_label", "Label"],
     ["display_label", "Label"],
+    ["person_display_name", "Person"],
+    ["display_name", "Person"],
+    ["preferred_name", "Preferred name"],
+    ["external_person_number", "Person reference"],
+    ["employee_number", "Employee reference"],
+    ["person_reference", "Person reference"],
     ["case_reference", "Case reference"],
     ["visitor_name", "Visitor / subject"],
     ["company", "Company"],
