@@ -10,7 +10,8 @@ import {
   canonicalIdentitySourceType,
   enrichIdentityLinkRowsForDisplay,
   friendlyIdentitySourceType,
-  getIdentityLinkDetailRows
+  getIdentityLinkDetailRows,
+  resolveCanonicalIdentityDisplay
 } from "./identityContext.js";
 
 const IDENTITY_VIEW_CAPABILITIES = [
@@ -424,6 +425,25 @@ function buildIdentityContextGroup(source, rows) {
   };
 }
 
+function identityGroupFromResolvedDisplay(source, display) {
+  const link = display && display.link;
+  if (!link || !display.hasConfirmedIdentity) return null;
+  return {
+    identity_link_id: link.identity_link_id,
+    identity_link_ids: [link.identity_link_id].filter(Boolean),
+    link_reference: link.link_reference,
+    identity_type: link.identity_type,
+    link_status: link.link_status,
+    canonical_label: link.canonical_label,
+    link_reason: link.link_reason,
+    created_from_candidate_id: link.created_from_candidate_id,
+    link_created_at: link.link_created_at,
+    link_updated_at: link.link_updated_at,
+    source,
+    records: uniqueContextRecords(link.records || [])
+  };
+}
+
 async function loadIdentityContextGroupForSource(source) {
   const sourceType = canonicalIdentitySourceType(source && source.type);
   const sourceRecordId = String(source && source.id || "").trim();
@@ -435,7 +455,15 @@ async function loadIdentityContextGroupForSource(source) {
   });
   if (result.error) throw result.error;
   const rows = await enrichIdentityLinkRowsForDisplay(Array.isArray(result.data) ? result.data : []);
-  return buildIdentityContextGroup(source, rows);
+  const directGroup = buildIdentityContextGroup(source, rows);
+  if (directGroup) return directGroup;
+  const resolved = await resolveCanonicalIdentityDisplay({
+    sourceType,
+    sourceRecordId,
+    sourceLabel: source && source.label,
+    sourceSummary: source && source.summary
+  });
+  return identityGroupFromResolvedDisplay(source, resolved);
 }
 
 function groupsShareConfirmedContext(groupA, groupB) {

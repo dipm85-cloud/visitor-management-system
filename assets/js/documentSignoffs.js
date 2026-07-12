@@ -7,7 +7,11 @@ import { settingValue } from "./settings.js";
 import { todayDate } from "./utils.js";
 import { createSidePanelController, renderEmptyState } from "./platformUi.js";
 import { openIdentityReviewRequestFromContext } from "./identityResolutionAdmin.js";
-import { openLinkedIdentityContextDetails, renderLinkedIdentityContext } from "./identityContext.js";
+import {
+  openLinkedIdentityContextDetails,
+  renderLinkedIdentityContext,
+  resolveCanonicalIdentityDisplay
+} from "./identityContext.js";
 
 let documentSignoffDependencies = {};
 let documentSignoffInitialised = false;
@@ -417,6 +421,7 @@ function appendTextCell(row, primary, secondary) {
     cell.appendChild(secondaryElement);
   }
   row.appendChild(cell);
+  return cell;
 }
 
 function appendBadgeCell(row, label, className) {
@@ -2726,13 +2731,45 @@ function evidenceType(row) {
   return "Evidence recorded";
 }
 
+function evidenceRecordSourceId(record) {
+  return record && (
+    record.id ||
+    record.agreement_id ||
+    record.agreement_signature_id ||
+    record.document_evidence_id ||
+    record.evidence_id ||
+    ""
+  );
+}
+
+async function updateEvidenceIdentityCell(cell, record) {
+  if (!cell || !record) return;
+  const identity = await resolveCanonicalIdentityDisplay({
+    sourceType: "agreement_evidence",
+    sourceRecordId: evidenceRecordSourceId(record),
+    sourceLabel: record.visitor_name,
+    sourceSummary: record
+  });
+  if (!identity || !identity.hasConfirmedIdentity) return;
+  cell.replaceChildren();
+  const primary = document.createElement("span");
+  primary.className = "visitors-planned-table-primary";
+  primary.textContent = identity.displayPrimary;
+  cell.appendChild(primary);
+  const secondary = document.createElement("span");
+  secondary.className = "visitors-planned-table-secondary";
+  secondary.textContent = identity.displaySecondary || ("Signed as " + textOrDash(record.visitor_name));
+  cell.appendChild(secondary);
+}
+
 function renderEvidence(rows) {
   const body = $("documentSignoffEvidenceBody");
   if (!body) return;
   body.replaceChildren();
   rows.slice(0, 10).forEach(record => {
     const row = document.createElement("tr");
-    appendTextCell(row, record.visitor_name, record.company || "");
+    const identityCell = appendTextCell(row, record.visitor_name, record.company || "");
+    updateEvidenceIdentityCell(identityCell, record);
     appendTextCell(row, record.agreement_name, record.agreement_title || "");
     appendTextCell(row, record.agreement_version_number);
     appendTextCell(row, formatDateTime(record.signed_at), record.signed_by_name || "");

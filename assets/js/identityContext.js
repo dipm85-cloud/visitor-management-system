@@ -248,6 +248,115 @@ function canonicalDisplayLabelForLink(link) {
   return link && (link.link_reference || link.identity_link_id) || "Confirmed identity link metadata";
 }
 
+function capturedLabelForSource(sourceType, sourceRecordId, sourceLabel, sourceSummary) {
+  return friendlySourceLabel(sourceType, sourceRecordId, sourceLabel, sourceSummary);
+}
+
+function evidenceOwnerSourceFromSummary(sourceType, summary) {
+  const type = canonicalIdentitySourceType(sourceType);
+  if (type !== "document_evidence" && type !== "agreement_evidence") return null;
+  const data = summaryObject(summary);
+  const visitLogId = data.visit_log_id || data.visitor_log_id || data.linked_visit_log_id;
+  if (visitLogId) {
+    return {
+      sourceType: "visit_log",
+      sourceRecordId: visitLogId,
+      sourceLabel: data.visitor_name || data.subject_name || "",
+      sourceSummary: data
+    };
+  }
+  const plannedVisitId = data.planned_visit_id || data.planned_visits_id;
+  if (plannedVisitId) {
+    return {
+      sourceType: "planned_visits",
+      sourceRecordId: plannedVisitId,
+      sourceLabel: data.visitor_name || data.subject_name || "",
+      sourceSummary: data
+    };
+  }
+  const personId = data.person_id || data.people_id || data.profile_id;
+  if (personId) {
+    return {
+      sourceType: "people",
+      sourceRecordId: personId,
+      sourceLabel: data.person_display_name || data.display_name || data.visitor_name || "",
+      sourceSummary: data
+    };
+  }
+  return null;
+}
+
+async function contextLinkForSource(sourceType, sourceRecordId) {
+  const type = canonicalIdentitySourceType(sourceType);
+  const id = String(sourceRecordId || "").trim();
+  if (!type || !id || !canViewLinkedIdentityContext()) return null;
+  const rows = await enrichIdentityLinkRowsForDisplay(await loadContextRows(type, id));
+  return groupRowsByLink(rows)[0] || null;
+}
+
+export async function resolveCanonicalIdentityDisplay(sourceContext) {
+  const settings = sourceContext || {};
+  const sourceType = canonicalIdentitySourceType(settings.sourceType || settings.source_type);
+  const sourceRecordId = String(settings.sourceRecordId || settings.source_record_id || "").trim();
+  const sourceSummary = summaryObject(settings.sourceSummary || settings.source_summary);
+  const sourceLabel = settings.sourceLabel || settings.source_label || "";
+  const capturedLabel = capturedLabelForSource(sourceType, sourceRecordId, sourceLabel, sourceSummary);
+
+  const fallback = {
+    canonicalLabel: "",
+    canonicalSourceType: "",
+    identityLinkId: "",
+    identityLinkReference: "",
+    hasConfirmedIdentity: false,
+    capturedLabel,
+    capturedSourceType: sourceType,
+    displayPrimary: capturedLabel,
+    displaySecondary: "",
+    link: null,
+    warning: null
+  };
+
+  try {
+    let link = await contextLinkForSource(sourceType, sourceRecordId);
+    let ownerContext = null;
+    if (!link) {
+      const enrichedSummary = Object.keys(sourceSummary).length
+        ? sourceSummary
+        : summaryObject(await lookupSourceRecordSummary(sourceType, sourceRecordId));
+      ownerContext = evidenceOwnerSourceFromSummary(sourceType, enrichedSummary);
+      if (ownerContext) {
+        link = await contextLinkForSource(ownerContext.sourceType, ownerContext.sourceRecordId);
+      }
+    }
+    if (!link) return fallback;
+
+    const canonicalLabel = canonicalDisplayLabelForLink(link);
+    const peopleRecord = peopleRecordForLink(link);
+    const displaySecondary = capturedLabel && capturedLabel !== canonicalLabel
+      ? (sourceType === "document_evidence" || sourceType === "agreement_evidence"
+        ? "Signed as " + capturedLabel
+        : "Captured as " + capturedLabel)
+      : "";
+    return {
+      canonicalLabel,
+      canonicalSourceType: peopleRecord ? "people" : (link.identity_type || ""),
+      identityLinkId: link.identity_link_id || "",
+      identityLinkReference: link.link_reference || "",
+      hasConfirmedIdentity: true,
+      capturedLabel,
+      capturedSourceType: sourceType,
+      displayPrimary: canonicalLabel || capturedLabel,
+      displaySecondary,
+      link,
+      ownerContext,
+      warning: activeVisitConflictForLink(link)
+    };
+  } catch (error) {
+    console.warn("Canonical identity display resolution failed.", { sourceType, sourceRecordId, error });
+    return fallback;
+  }
+}
+
 function isActiveVisitRecord(record) {
   if (sourceTypeForRow(record) !== "visit_log") return false;
   const summary = summaryObject(record.linked_source_summary || record.source_summary);
