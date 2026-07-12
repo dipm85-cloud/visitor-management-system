@@ -941,6 +941,79 @@ function directEvidenceIsValid(status) {
   );
 }
 
+function explicitEvidenceVisitLogIdFromStatus(status) {
+  if (!status) return "";
+  return String(
+    status.evidence_visit_log_id ||
+    status.evidence_visitor_log_id ||
+    status.document_evidence_visit_log_id ||
+    status.agreement_evidence_visit_log_id ||
+    status.signed_visit_log_id ||
+    ""
+  ).trim();
+}
+
+function visitIdsMatch(left, right) {
+  const leftId = String(left || "").trim();
+  const rightId = String(right || "").trim();
+  return !!leftId && !!rightId && leftId === rightId;
+}
+
+async function directEvidenceRecordMatchesVisit(status, visitId) {
+  if (!directEvidenceIsValid(status) || !visitId) return false;
+
+  const explicitVisitId = explicitEvidenceVisitLogIdFromStatus(status);
+  if (explicitVisitId) return visitIdsMatch(explicitVisitId, visitId);
+
+  const evidenceId = evidenceRecordIdFromStatus(status);
+  if (!evidenceId) return false;
+
+  try {
+    const record = await findEvidenceRecordById(evidenceId);
+    const recordVisitId = record && (record.visit_log_id || record.visitor_log_id);
+    return visitIdsMatch(recordVisitId, visitId);
+  } catch (error) {
+    console.warn("Could not verify direct document evidence against current visit.", error);
+    return false;
+  }
+}
+
+function demoteUnsafeHistoricalEvidence(status) {
+  return {
+    ...status,
+    already_valid: false,
+    status: "missing",
+    compliance_status: "missing",
+    can_select: !!(status && status.active_agreement_version_id),
+    selected_by_default: status && status.default_required === true && !!status.active_agreement_version_id,
+    locked_selected: status && status.default_required === true && !!status.active_agreement_version_id,
+    evidence_source: "historical_context",
+    evidence_source_label: "Historical context only",
+    identity_link_lookup_note: "Previous same-name evidence was not used. This visit needs direct evidence or a confirmed identity link.",
+    reason: "Required sign-off missing for this visit."
+  };
+}
+
+async function restrictDirectEvidenceToCurrentVisit(visitId, statuses) {
+  const checked = [];
+  for (const status of statuses || []) {
+    if (!directEvidenceIsValid(status) || status.evidence_source === "confirmed_identity_link") {
+      checked.push(status);
+      continue;
+    }
+
+    const matchesCurrentVisit = await directEvidenceRecordMatchesVisit(status, visitId);
+    checked.push(matchesCurrentVisit
+      ? {
+          ...status,
+          evidence_source: status.evidence_source || "direct",
+          evidence_source_label: status.evidence_source_label || "Direct evidence"
+        }
+      : demoteUnsafeHistoricalEvidence(status));
+  }
+  return checked;
+}
+
 function sourceSummaryObject(source) {
   const summary = source && source.linked_source_summary;
   if (!summary) return {};
@@ -1077,17 +1150,18 @@ async function loadDocumentComplianceIdentityLinkSources(visitId) {
 }
 
 async function augmentNativeStatusesWithLinkedEvidence(visitId, statuses) {
-  if (!useIdentityLinksForDocumentCompliance() || !visitId || !statuses || !statuses.length) return statuses || [];
+  const directStatuses = await restrictDirectEvidenceToCurrentVisit(visitId, statuses || []);
+  if (!useIdentityLinksForDocumentCompliance() || !visitId || !directStatuses.length) return directStatuses;
 
   let sources = [];
   try {
     sources = await loadDocumentComplianceIdentityLinkSources(visitId);
   } catch (err) {
     console.warn("Could not load linked identity sources for document compliance. Falling back to direct evidence.", err);
-    return statuses;
+    return directStatuses;
   }
 
-  if (!sources.length) return statuses;
+  if (!sources.length) return directStatuses;
 
   const linkedStatusByType = new Map();
   let checkedLinkedVisitCount = 0;
@@ -1101,18 +1175,19 @@ async function augmentNativeStatusesWithLinkedEvidence(visitId, statuses) {
 
     try {
       const linkedStatuses = await getNativeAgreementStatusesForVisitDirect(linkedVisitId);
-      (linkedStatuses || []).forEach(linkedStatus => {
-        if (!directEvidenceIsValid(linkedStatus) || !linkedStatus.agreement_type_id) return;
+      for (const linkedStatus of linkedStatuses || []) {
+        const linkedEvidenceMatchesVisit = await directEvidenceRecordMatchesVisit(linkedStatus, linkedVisitId);
+        if (!linkedEvidenceMatchesVisit || !linkedStatus.agreement_type_id) continue;
         if (!linkedStatusByType.has(linkedStatus.agreement_type_id)) {
           linkedStatusByType.set(linkedStatus.agreement_type_id, linkedEvidenceStatusForSource(source, linkedStatus));
         }
-      });
+      }
     } catch (err) {
       console.warn("Could not check linked visit evidence for document compliance. Continuing with direct evidence.", err);
     }
   }
 
-  return statuses.map(status => {
+  return directStatuses.map(status => {
     if (directEvidenceIsValid(status)) {
       return {
         ...status,
@@ -1899,7 +1974,7 @@ async function loadNativeSignoffCandidates(manual) {
   // TODO: Future notification milestone - notify compliance users/groups when sign-off action is required.
   const box = $("documentSignoffNativeResults");
   if (box) box.textContent = "Loading visitors requiring sign-off...";
-  setNativeStatus("Loading visitors requiring agreement action...", "info");
+  setNativeStatus("", "");
   const result = await supabaseClient.rpc("get_pending_agreement_visitors");
   if (result.error) {
     setNativeStatus(result.error.message, "error");
@@ -1916,17 +1991,7 @@ async function loadNativeSignoffCandidates(manual) {
   const supplementedRows = await supplementNativeSignoffCandidatesFromCurrentVisits(rows);
   const displayRows = await filterNativeSignoffCandidatesForLinkedCompliance(supplementedRows);
   renderNativeSignoffCandidates(displayRows);
-  const statusText = displayRows.length + " agreement action(s) loaded." +
-    (useIdentityLinksForDocumentCompliance() && supplementedRows.length !== displayRows.length
-      ? " " + (supplementedRows.length - displayRows.length) + " action(s) satisfied by direct or confirmed identity-linked evidence were hidden."
-      : "") +
-    (supplementedRows.length > rows.length
-      ? " " + (supplementedRows.length - rows.length) + " current visitor action(s) were added from visit status checks."
-      : "");
-  setNativeStatus(statusText, displayRows.length ? "info" : "success");
-  if (manual) {
-    showToast("Native sign-off loaded", "Current visitor agreement actions were loaded.", "success");
-  }
+  setNativeStatus("", "");
 }
 
 function nativeAgreementStateBadge(status, type) {
@@ -2194,7 +2259,7 @@ async function openNativeSignoffPanel(visit, additionalOnly, trigger) {
     const statuses = await getNativeAgreementStatusesForVisit(visitId);
     renderNativeAgreementSelection(types, statuses, additionalOnly);
     if (nativeSignableAgreementCount() > 0) {
-      setNativePanelStatus("Agreement status loaded.", "success");
+      setNativePanelStatus("", "");
     }
   } catch (err) {
     renderEmptyState("documentSignoffNativeAgreementList", {
@@ -2666,10 +2731,7 @@ function renderOverview(results, manual) {
       );
     }
   } else {
-    setStatus("Document sign-off overview loaded.", "success");
-    if (manual) {
-      showToast("Document sign-offs refreshed", "Existing agreement and evidence data was loaded.", "success");
-    }
+    setStatus("", "");
   }
 }
 
@@ -2678,7 +2740,7 @@ export async function loadDocumentSignoffOverview(options) {
   const settings = options || {};
   const sequence = ++documentSignoffLoadSequence;
   setMetricPlaceholders("...");
-  setStatus("Loading document sign-off overview...", "info");
+  setStatus("", "");
 
   const recentFromDate = dateDaysAgo(30);
   const results = await Promise.allSettled([
