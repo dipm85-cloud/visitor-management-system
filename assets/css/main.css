@@ -2170,6 +2170,12 @@ body.document-signoff-overlay-open {
   white-space: nowrap;
 }
 
+.document-signoff-row-actions-stack {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .document-signoff-row-actions button {
   min-height: 36px;
 }

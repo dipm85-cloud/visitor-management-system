@@ -443,6 +443,24 @@ function appendDetailsCell(row, label, onClick) {
   row.appendChild(cell);
 }
 
+function appendActionButtonsCell(row, actions) {
+  const cell = document.createElement("td");
+  cell.className = "document-signoff-row-actions document-signoff-row-actions-stack";
+  (actions || []).forEach(action => {
+    if (!action) return;
+    const button = document.createElement("button");
+    button.className = action.primary ? "" : "secondary";
+    button.type = "button";
+    button.textContent = action.label || "View Details";
+    button.addEventListener("click", event => {
+      event.stopPropagation();
+      action.handler(button);
+    });
+    cell.appendChild(button);
+  });
+  row.appendChild(cell);
+}
+
 function createBadge(label, className) {
   const badge = document.createElement("span");
   badge.className = "visitors-planned-status " + (className || "");
@@ -1599,6 +1617,118 @@ function groupPendingNativeCandidates(rows) {
   return grouped;
 }
 
+function nativeVisitRowId(row) {
+  return String(row && (row.visit_log_id || row.id) || "").trim();
+}
+
+function nativeAgreementTypeId(row) {
+  return String(row && (row.agreement_type_id || row.id) || "").trim();
+}
+
+function nativeQueueKey(row) {
+  const visitId = nativeVisitRowId(row);
+  const typeId = nativeAgreementTypeId(row);
+  return visitId && typeId ? visitId + "::" + typeId : "";
+}
+
+function activeRequiredNativeTypes() {
+  return nativeActiveTypes().filter(type => type.default_required === true);
+}
+
+function nativeStatusMapByAgreementType(statuses) {
+  const map = new Map();
+  (statuses || []).forEach(status => {
+    const typeId = nativeAgreementTypeId(status);
+    if (typeId) map.set(typeId, status);
+  });
+  return map;
+}
+
+async function loadCurrentVisitRowsForNativeQueue() {
+  const result = await supabaseClient
+    .from("visit_log")
+    .select("id, visitor_name, company, sign_in_time, sign_out_time")
+    .not("sign_in_time", "is", null)
+    .is("sign_out_time", null)
+    .order("sign_in_time", { ascending: true });
+  if (result.error) throw result.error;
+  return result.data || [];
+}
+
+function nativePendingRowFromVisitStatus(visit, type, status) {
+  const activeVersion = status && (status.active_agreement_version_id || status.agreement_version_id)
+    ? null
+    : activeVersionForType(type);
+  return {
+    visit_log_id: nativeVisitRowId(visit),
+    visitor_name: visit.visitor_name,
+    company: visit.company,
+    sign_in_time: visit.sign_in_time,
+    agreement_type_id: nativeAgreementTypeId(type),
+    agreement_name: status && status.agreement_name || type.agreement_name,
+    agreement_title: status && status.agreement_title || type.agreement_title,
+    active_agreement_version_id: status && status.active_agreement_version_id || (activeVersion && activeVersion.id),
+    active_agreement_version_number: status && status.active_agreement_version_number || (activeVersion && activeVersion.version_number),
+    signature_required: status && status.signature_required,
+    reason: status && status.reason || "Required sign-off missing",
+    signoff_queue_source: "active_visit_status"
+  };
+}
+
+async function supplementNativeSignoffCandidatesFromCurrentVisits(rows) {
+  const candidates = Array.isArray(rows) ? rows : [];
+  try {
+    await loadNativeAgreementTypesIfNeeded();
+  } catch (error) {
+    console.warn("Could not load agreement types for sign-off queue supplement.", error);
+    return candidates;
+  }
+  const requiredTypes = activeRequiredNativeTypes();
+  if (!requiredTypes.length) return candidates;
+
+  let currentVisits = [];
+  try {
+    currentVisits = await loadCurrentVisitRowsForNativeQueue();
+  } catch (error) {
+    console.warn("Could not load current visitors for sign-off queue supplement.", error);
+    return candidates;
+  }
+
+  if (!currentVisits.length) return candidates;
+
+  const merged = candidates.slice();
+  const existing = new Set(merged.map(nativeQueueKey).filter(Boolean));
+
+  for (const visit of currentVisits) {
+    const visitId = nativeVisitRowId(visit);
+    if (!visitId) continue;
+
+    let statuses = [];
+    try {
+      statuses = await getNativeAgreementStatusesForVisit(visitId);
+    } catch (error) {
+      console.warn("Could not evaluate current visitor agreement status for sign-off queue.", error);
+      continue;
+    }
+
+    const statusMap = nativeStatusMapByAgreementType(statuses);
+    requiredTypes.forEach(type => {
+      const typeId = nativeAgreementTypeId(type);
+      if (!typeId) return;
+      const status = statusMap.get(typeId);
+      if (directEvidenceIsValid(status)) return;
+
+      const pendingRow = nativePendingRowFromVisitStatus(visit, type, status);
+      const key = nativeQueueKey(pendingRow);
+      if (!key || existing.has(key)) return;
+      existing.add(key);
+      merged.push(pendingRow);
+    });
+  }
+
+  return merged;
+}
+
 function signoffIdentityReviewLabel(visit) {
   const subject = [visit.visitor_name, visit.company].filter(Boolean).join(" / ");
   const pending = (visit.required_requirements || []).map(row => row.agreement_name).filter(Boolean).join(", ");
@@ -1783,11 +1913,15 @@ async function loadNativeSignoffCandidates(manual) {
     return;
   }
   const rows = result.data || [];
-  const displayRows = await filterNativeSignoffCandidatesForLinkedCompliance(rows);
+  const supplementedRows = await supplementNativeSignoffCandidatesFromCurrentVisits(rows);
+  const displayRows = await filterNativeSignoffCandidatesForLinkedCompliance(supplementedRows);
   renderNativeSignoffCandidates(displayRows);
   const statusText = displayRows.length + " agreement action(s) loaded." +
-    (useIdentityLinksForDocumentCompliance() && rows.length !== displayRows.length
-      ? " " + (rows.length - displayRows.length) + " action(s) satisfied by direct or confirmed identity-linked evidence were hidden."
+    (useIdentityLinksForDocumentCompliance() && supplementedRows.length !== displayRows.length
+      ? " " + (supplementedRows.length - displayRows.length) + " action(s) satisfied by direct or confirmed identity-linked evidence were hidden."
+      : "") +
+    (supplementedRows.length > rows.length
+      ? " " + (supplementedRows.length - rows.length) + " current visitor action(s) were added from visit status checks."
       : "");
   setNativeStatus(statusText, displayRows.length ? "info" : "success");
   if (manual) {
@@ -2445,7 +2579,16 @@ function renderEvidence(rows) {
     appendTextCell(row, record.agreement_version_number);
     appendTextCell(row, formatDateTime(record.signed_at), record.signed_by_name || "");
     appendTextCell(row, evidenceType(record), record.inductor_name ? "Inductor: " + record.inductor_name : "");
-    appendDetailsCell(row, "View / Print Evidence", () => openFullEvidencePreview(record));
+    appendActionButtonsCell(row, [
+      {
+        label: "View Details",
+        handler: button => openEvidenceDetails(record, button)
+      },
+      {
+        label: "View / Print Evidence",
+        handler: () => openFullEvidencePreview(record)
+      }
+    ]);
     body.appendChild(row);
   });
   setVisible("documentSignoffEvidenceEmpty", rows.length === 0);
