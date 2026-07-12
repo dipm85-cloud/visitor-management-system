@@ -7254,6 +7254,22 @@ button.oh-section-nav-item:focus-visible,
   overflow-wrap: anywhere;
 }
 
+.identity-resolution-active-visit-warning {
+  display: grid;
+  gap: 4px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid #fedf89;
+  border-radius: 8px;
+  background: #fffaeb;
+  color: #93370d;
+}
+
+.identity-resolution-active-visit-warning strong,
+.identity-resolution-active-visit-warning p {
+  margin: 0;
+}
+
 .identity-resolution-card-actions {
   margin-top: 12px;
 }

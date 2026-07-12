@@ -44,7 +44,10 @@ import {
   syncDocumentSignoffVisibility
 } from "./documentSignoffs.js";
 import { openIdentityReviewRequestFromContext } from "./identityResolutionAdmin.js";
-import { renderLinkedIdentityContext } from "./identityContext.js";
+import {
+  getLinkedIdentityActiveVisitConflict,
+  renderLinkedIdentityContext
+} from "./identityContext.js";
 
 let visitorsDependencies = {};
 let nativePlannedVisits = [];
@@ -564,7 +567,16 @@ function renderNativeActiveVisitors() {
 
   filtered.forEach(visit => {
     const row = document.createElement("tr");
-    appendTextCell(row, visit.visitor_name, visit.company || "");
+    const activeConflict = visit.linked_identity_active_visit_conflict;
+    appendTextCell(
+      row,
+      visit.visitor_name,
+      activeConflict && activeConflict.hasConflict
+        ? [visit.company, "Possible duplicate active visit: this confirmed identity has more than one currently signed-in visit."]
+          .filter(Boolean)
+          .join(" | ")
+        : visit.company || ""
+    );
     appendTextCell(
       row,
       visit.sign_in_time ? new Date(visit.sign_in_time).toLocaleString() : null
@@ -582,6 +594,12 @@ function renderNativeActiveVisitors() {
       (status === "overdue" ? "status-overdue" : "status-in");
     badge.textContent = activeVisitorStatusLabel(status);
     statusCell.appendChild(badge);
+    if (activeConflict && activeConflict.hasConflict) {
+      const warning = document.createElement("span");
+      warning.className = "visitors-planned-status status-overdue";
+      warning.textContent = activeConflict.activeVisitCount + " active visits";
+      statusCell.appendChild(warning);
+    }
     row.appendChild(statusCell);
 
     const actionCell = document.createElement("td");
@@ -603,12 +621,36 @@ function renderNativeActiveVisitors() {
       appendResultCardField(result.fields, "Host / contact", visit.onsite_contact);
       appendResultCardField(result.fields, "Origin", visitorOrigin(visit) === "walk_in" ? "Walk-in" : "Planned");
       appendResultCardField(result.fields, "Pass ID", visit.security_pass_id);
+      if (activeConflict && activeConflict.hasConflict) {
+        appendResultCardField(
+          result.fields,
+          "Identity warning",
+          "Another active visit exists for this confirmed identity. Review linked records before proceeding."
+        );
+      }
       appendActiveVisitorActions(result.actions, visit, status);
       cards.appendChild(result.card);
     }
   });
 
   setActiveListState("ready");
+}
+
+async function addActiveVisitIdentityConflictContext(visits) {
+  const rows = Array.isArray(visits) ? visits : [];
+  return Promise.all(rows.map(async visit => {
+    if (!visit || !visit.id) return visit;
+    try {
+      const conflict = await getLinkedIdentityActiveVisitConflict("visit_log", visit.id);
+      return {
+        ...visit,
+        linked_identity_active_visit_conflict: conflict
+      };
+    } catch (error) {
+      console.warn("Could not check linked identity active visit conflict.", error);
+      return visit;
+    }
+  }));
 }
 
 async function loadNativeActiveVisitors() {
@@ -628,7 +670,8 @@ async function loadNativeActiveVisitors() {
     console.error("[OH-029 active visitors load failed]", result.error);
     return;
   }
-  nativeActiveVisitors = result.data || [];
+  nativeActiveVisitors = await addActiveVisitIdentityConflictContext(result.data || []);
+  if (loadSequence !== nativeActiveLoadSequence) return;
   renderNativeActiveVisitors();
 }
 

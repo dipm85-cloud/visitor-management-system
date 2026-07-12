@@ -552,6 +552,54 @@ function createSelectedComparisonBlock(record, group) {
   return block;
 }
 
+function isActiveVisitIdentityRecord(record) {
+  const sourceRecord = record.source_type ? record : candidateSourceRecord(record || {});
+  if (canonicalIdentitySourceType(sourceRecord.source_type) !== "visit_log") return false;
+  const summary = sourceRecord.source_summary && typeof sourceRecord.source_summary === "object"
+    ? sourceRecord.source_summary
+    : {};
+  const status = String(summary.visit_status || summary.status || "").trim().toLowerCase();
+  const signedIn = summary.sign_in_time || status === "signed_in" || status === "current";
+  const signedOut = summary.sign_out_time || summary.signed_out_at || status === "signed_out";
+  return !!signedIn && !signedOut;
+}
+
+function candidateWouldCreateActiveVisitConflict(candidate) {
+  const context = candidate && candidate.candidateReviewContext;
+  if (!context) return { hasConflict: false, activeVisitCount: 0 };
+  const records = [
+    candidateSourceRecord(context.sourceA || {}),
+    candidateSourceRecord(context.sourceB || {}),
+    ...(context.groupA && context.groupA.records || []),
+    ...(context.groupB && context.groupB.records || [])
+  ];
+  const seen = new Set();
+  const activeRecords = records.filter(record => {
+    const key = sourceRecordKey(record.source_type, record.source_record_id);
+    if (!record.source_record_id || seen.has(key) || !isActiveVisitIdentityRecord(record)) return false;
+    seen.add(key);
+    return true;
+  });
+  return {
+    hasConflict: activeRecords.length > 1,
+    activeVisitCount: activeRecords.length,
+    activeRecords
+  };
+}
+
+function createCandidateActiveVisitWarning(conflict) {
+  if (!conflict || !conflict.hasConflict) return null;
+  const warning = document.createElement("div");
+  warning.className = "identity-resolution-active-visit-warning";
+  const strong = document.createElement("strong");
+  strong.textContent = "Possible duplicate active visit";
+  const text = document.createElement("p");
+  text.textContent = conflict.activeVisitCount +
+    " active visits found for this confirmed identity. Source visits will remain active until reviewed or signed out.";
+  warning.append(strong, text);
+  return warning;
+}
+
 function createIdentityGroupBlock(title, group) {
   const block = document.createElement("section");
   block.className = "identity-resolution-source-block identity-resolution-group-block";
@@ -570,6 +618,11 @@ function createIdentityGroupBlock(title, group) {
     createMetaItem("Reason", group && group.link_reason)
   );
   block.append(heading, meta);
+  const activeConflict = candidateWouldCreateActiveVisitConflict({
+    candidateReviewContext: { groupA: group, groupB: null, sourceA: {}, sourceB: {} }
+  });
+  const warning = createCandidateActiveVisitWarning(activeConflict);
+  if (warning) block.appendChild(warning);
 
   const previewRecords = peopleRecordsFirst(group && group.records || []);
   if (previewRecords.length) {
@@ -1261,6 +1314,8 @@ function renderCandidateDetail(candidate, decisions) {
   const modeText = document.createElement("p");
   modeText.textContent = candidateModeDescription(mode);
   modeSummary.append(modeHeading, modeText);
+  const activeVisitWarning = createCandidateActiveVisitWarning(candidateWouldCreateActiveVisitConflict(candidate));
+  if (activeVisitWarning) modeSummary.appendChild(activeVisitWarning);
 
   const review = document.createElement("div");
   review.className = "identity-resolution-source-grid";
@@ -1457,7 +1512,11 @@ function renderLinkDetail(link, records, decisions) {
   meta.className = "identity-resolution-meta-grid";
   meta.append(
     createMetaItem("Active root / group reference", activeReferences[0] || link.link_reference),
-    createMetaItem("Canonical label", link.canonical_label),
+    createMetaItem("Canonical display identity", groupDisplayLabel({
+      ...link,
+      records
+    })),
+    createMetaItem("Identity link canonical label", link.canonical_label),
     createMetaItem("Identity type", titleCase(link.identity_type)),
     createMetaItem("Status", titleCase(link.link_status)),
     createMetaItem("Linked records in group", linkedRecordCount),
@@ -2182,8 +2241,12 @@ async function openDecisionPanel(candidate, decisionType, trigger) {
 
 function defaultCanonicalLabelForDecision(candidate) {
   const mode = candidate && candidate.candidateReviewMode;
-  if (mode && mode.targetGroup && mode.targetGroup.canonical_label) return mode.targetGroup.canonical_label;
-  if (mode && mode.groupA && mode.groupA.canonical_label) return mode.groupA.canonical_label;
+  if (mode && mode.targetGroup) return groupDisplayLabel(mode.targetGroup);
+  if (mode && mode.groupA) return groupDisplayLabel(mode.groupA);
+  const context = candidate && candidate.candidateReviewContext;
+  const peopleSource = [context && context.sourceA, context && context.sourceB]
+    .find(source => canonicalIdentitySourceType(source && source.type) === "people");
+  if (peopleSource) return linkedRecordFriendlyLabel(candidateSourceRecord(peopleSource));
   return candidate && (candidate.source_a_label || candidate.source_b_label) || "";
 }
 
@@ -2196,14 +2259,19 @@ function decisionContextText(candidate, decisionType) {
   const mode = candidate && candidate.candidateReviewMode;
   if (mode && mode.type === "add_to_group") {
     return "Add to Confirmed Identity for " + reference +
-      ". Confirming will add the new record to the existing confirmed identity group. Source records will not be renamed, merged or modified.";
+      ". Confirming will add the new record to the existing confirmed identity group. Source records will not be renamed, merged or modified." +
+      activeVisitConfirmationSuffix(candidate);
   }
   if (mode && mode.type === "merge_groups") {
     return "Merge Confirmed Identity Groups for " + reference +
       ". Confirming will consolidate these identity groups as reviewed metadata. Source records will not be modified. Enter a reason before saving.";
   }
+  const conflict = candidateWouldCreateActiveVisitConflict(candidate);
+  const activeWarning = conflict.hasConflict
+    ? " Both records appear to be currently signed in. Confirming will group them as the same reviewed identity, but source visits will remain active until reviewed or signed out."
+    : "";
   return "Confirm Link for " + reference +
-    ". Confirming creates a new confirmed identity group containing both sources. Source records will not be modified.";
+    ". Confirming creates a new confirmed identity group containing both sources. Source records will not be modified." + activeWarning;
 }
 
 async function saveDecision(event) {
@@ -2267,12 +2335,22 @@ function decisionConfirmationMessage(decisionType, candidate) {
   }
   const mode = candidate && candidate.candidateReviewMode;
   if (mode && mode.type === "add_to_group") {
-    return "Confirming will add the new record to the existing confirmed identity group. Source records will not be renamed, merged or modified.";
+    return "Confirming will add the new record to the existing confirmed identity group. Source records will not be renamed, merged or modified." +
+      activeVisitConfirmationSuffix(candidate);
   }
   if (mode && mode.type === "merge_groups") {
-    return "Confirming will consolidate these identity groups as reviewed metadata. Source records will not be modified.";
+    return "Confirming will consolidate these identity groups as reviewed metadata. Source records will not be modified." +
+      activeVisitConfirmationSuffix(candidate);
   }
-  return "Confirming creates identity-link metadata only. Source records will not be modified, merged or rewritten.";
+  return "Confirming creates identity-link metadata only. Source records will not be modified, merged or rewritten." +
+    activeVisitConfirmationSuffix(candidate);
+}
+
+function activeVisitConfirmationSuffix(candidate) {
+  const conflict = candidateWouldCreateActiveVisitConflict(candidate);
+  return conflict.hasConflict
+    ? " Both records appear to be currently signed in. Confirming will group them as the same reviewed identity, but source visits will remain active until reviewed or signed out."
+    : "";
 }
 
 export async function loadIdentityResolutionAdministration(options) {

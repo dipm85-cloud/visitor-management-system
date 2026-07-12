@@ -97,7 +97,7 @@ function useIdentityLinksForDocumentCompliance() {
 }
 
 export function friendlyIdentitySourceType(value) {
-  const key = String(value || "").trim();
+  const key = canonicalIdentitySourceType(value);
   return SOURCE_TYPE_LABELS[key] || textOrDash(key).replace(/_/g, " ").replace(/\b\w/g, character => character.toUpperCase());
 }
 
@@ -209,6 +209,74 @@ function friendlySourceLabel(sourceType, sourceRecordId, sourceLabel, sourceSumm
   }
 
   return storedLabel || sourceArea + " record - reference " + shortReference(sourceRecordId);
+}
+
+function recordFriendlyLabel(record) {
+  const sourceType = sourceTypeForRow(record);
+  const sourceRecordId = sourceRecordIdForRow(record);
+  const sourceSummary = summaryObject(record && (record.linked_source_summary || record.source_summary));
+  return friendlySourceLabel(
+    sourceType,
+    sourceRecordId,
+    record && (record.linked_source_label || record.source_label),
+    sourceSummary
+  );
+}
+
+function recordsWithPeopleFirst(records) {
+  return (records || []).slice().sort((left, right) => {
+    const leftPeople = sourceTypeForRow(left) === "people" ? 0 : 1;
+    const rightPeople = sourceTypeForRow(right) === "people" ? 0 : 1;
+    if (leftPeople !== rightPeople) return leftPeople - rightPeople;
+    return String(left.linked_record_created_at || left.source_record_linked_at || "")
+      .localeCompare(String(right.linked_record_created_at || right.source_record_linked_at || ""));
+  });
+}
+
+function peopleRecordForLink(link) {
+  return recordsWithPeopleFirst(link && link.records || [])
+    .find(record => sourceTypeForRow(record) === "people") || null;
+}
+
+function canonicalDisplayLabelForLink(link) {
+  const peopleRecord = peopleRecordForLink(link);
+  if (peopleRecord) return recordFriendlyLabel(peopleRecord);
+  const canonical = String(link && link.canonical_label || "").trim();
+  if (canonical && !isUuidLike(canonical)) return canonical;
+  const firstRecord = recordsWithPeopleFirst(link && link.records || [])[0];
+  if (firstRecord) return recordFriendlyLabel(firstRecord);
+  return link && (link.link_reference || link.identity_link_id) || "Confirmed identity link metadata";
+}
+
+function isActiveVisitRecord(record) {
+  if (sourceTypeForRow(record) !== "visit_log") return false;
+  const summary = summaryObject(record.linked_source_summary || record.source_summary);
+  const signedOut = summary.sign_out_time || summary.signed_out_at;
+  const status = String(summary.visit_status || summary.status || "").trim().toLowerCase();
+  const signedIn = summary.sign_in_time || status === "signed_in" || status === "current";
+  return !!signedIn && !signedOut && status !== "signed_out";
+}
+
+function activeVisitConflictForLink(link) {
+  const activeVisits = recordsWithPeopleFirst(link && link.records || []).filter(isActiveVisitRecord);
+  return {
+    hasConflict: activeVisits.length > 1,
+    activeVisitCount: activeVisits.length,
+    activeVisits
+  };
+}
+
+function createActiveVisitConflictWarning(conflict) {
+  if (!conflict || !conflict.hasConflict) return null;
+  const warning = document.createElement("div");
+  warning.className = "identity-resolution-active-visit-warning";
+  const strong = document.createElement("strong");
+  strong.textContent = "Possible duplicate active visit";
+  const text = document.createElement("p");
+  text.textContent = conflict.activeVisitCount +
+    " active visits found for this confirmed identity. Review linked records before proceeding; no visits are signed out automatically.";
+  warning.append(strong, text);
+  return warning;
 }
 
 function sourceTypeForRow(row) {
@@ -502,7 +570,7 @@ function createLinkCard(link, requestedSource) {
   const heading = document.createElement("h4");
   heading.textContent = link.link_reference || "Reviewed link";
   const subtitle = document.createElement("p");
-  subtitle.textContent = textOrDash(link.canonical_label || "Confirmed identity link metadata");
+  subtitle.textContent = textOrDash(canonicalDisplayLabelForLink(link));
   title.append(heading, subtitle);
   const badge = document.createElement("span");
   badge.className = "identity-resolution-badge " + (link.link_status === "active" ? "confirmed" : "deferred");
@@ -520,18 +588,13 @@ function createLinkCard(link, requestedSource) {
 
   const records = document.createElement("div");
   records.className = "identity-resolution-source-grid";
-  (link.records || []).forEach((record, index) => {
+  recordsWithPeopleFirst(link.records || []).forEach((record, index) => {
     const block = document.createElement("section");
     block.className = "identity-resolution-source-block";
     const sourceType = sourceTypeForRow(record);
     const sourceRecordId = record.linked_source_record_id || record.source_record_id;
     const sourceSummary = summaryObject(record.linked_source_summary || record.source_summary);
-    const sourceLabel = friendlySourceLabel(
-      sourceType,
-      sourceRecordId,
-      record.linked_source_label || record.source_label,
-      sourceSummary
-    );
+    const sourceLabel = recordFriendlyLabel(record);
     const recordHeading = document.createElement("h4");
     recordHeading.textContent = (record.is_requested_source ? "Current source" : "Linked record") + " " + (index + 1);
     const recordMeta = document.createElement("dl");
@@ -554,7 +617,10 @@ function createLinkCard(link, requestedSource) {
     records.appendChild(block);
   });
 
-  card.append(header, meta, records);
+  const conflictWarning = createActiveVisitConflictWarning(activeVisitConflictForLink(link));
+  card.append(header, meta);
+  if (conflictWarning) card.appendChild(conflictWarning);
+  card.appendChild(records);
   if (requestedSource) {
     const note = document.createElement("p");
     note.className = "linked-identity-readiness-note";
@@ -592,7 +658,7 @@ function groupRowsByLink(rows) {
     created_from_candidate_id: root.created_from_candidate_id,
     link_created_at: root.link_created_at,
     link_updated_at: root.link_updated_at,
-    records: uniqueRecords
+    records: recordsWithPeopleFirst(uniqueRecords)
   }];
 }
 
@@ -632,6 +698,19 @@ async function loadContextRows(sourceType, sourceRecordId) {
   });
   if (result.error) throw result.error;
   return Array.isArray(result.data) ? result.data : [];
+}
+
+export async function getLinkedIdentityActiveVisitConflict(sourceType, sourceRecordId) {
+  if (!canViewLinkedIdentityContext() || !sourceType || !sourceRecordId) {
+    return { hasConflict: false, activeVisitCount: 0, activeVisits: [] };
+  }
+  const rows = await enrichIdentityLinkRowsForDisplay(
+    await loadContextRows(sourceType, sourceRecordId)
+  );
+  const conflicts = groupRowsByLink(rows)
+    .map(activeVisitConflictForLink)
+    .filter(conflict => conflict.hasConflict);
+  return conflicts[0] || { hasConflict: false, activeVisitCount: 0, activeVisits: [] };
 }
 
 export async function openLinkedIdentityContextDetails(options, trigger) {
@@ -794,6 +873,23 @@ export function renderLinkedIdentityContext(target, options) {
       }
     });
     card.append(heading, actions, compactDetails);
+
+    loadContextRows(settings.sourceType, settings.sourceRecordId)
+      .then(rows => enrichIdentityLinkRowsForDisplay(rows))
+      .then(rows => {
+        const links = groupRowsByLink(rows);
+        const link = links[0];
+        if (!link) return;
+        sourceSummary.textContent = [
+          canonicalDisplayLabelForLink(link),
+          link.link_reference ? "Link " + link.link_reference : ""
+        ].filter(Boolean).join(" - ");
+        const warning = createActiveVisitConflictWarning(activeVisitConflictForLink(link));
+        if (warning) {
+          card.insertBefore(warning, actions);
+        }
+      })
+      .catch(() => {});
   }).catch(() => {
     if (settings.showEmpty) {
       card.classList.remove("hidden");
