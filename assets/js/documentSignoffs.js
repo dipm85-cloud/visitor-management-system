@@ -476,6 +476,7 @@ function setNativePanelStatus(message, type) {
   const text = message || "";
   const statusType = type || "info";
   const shouldKeepInline =
+    nativeSignoffSaving ||
     statusType === "error" ||
     /no active|no signable|unavailable|could not|failed|required|warning|attention/i.test(text);
   const displayText = text && shouldKeepInline ? text : "";
@@ -704,6 +705,7 @@ function clearNativeSignoffPanel() {
   nativeSignoffQueue = [];
   nativeSignoffQueueTotal = 0;
   nativeSignoffAdditionalOnly = false;
+  nativeSignoffSaving = false;
   nativeDocumentReviewReachedEnd = true;
   setText("documentSignoffNativePanelEyebrow", "Visitor Document Sign-off");
   setText("documentSignoffNativePanelTitle", "Visitor Sign-off");
@@ -732,6 +734,41 @@ function clearNativeSignoffPanel() {
   clearNativeInductorSignature();
 }
 
+function setNativeSignoffSaving(value) {
+  nativeSignoffSaving = !!value;
+  syncNativeWizardActions();
+}
+
+function syncNativeSaveLockState() {
+  const panel = $("documentSignoffNativePanel");
+  if (panel) {
+    panel.classList.toggle("is-saving", nativeSignoffSaving);
+    panel.setAttribute("aria-busy", nativeSignoffSaving ? "true" : "false");
+  }
+  [
+    "documentSignoffNativePanelClose",
+    "documentSignoffNativeCancelButton",
+    "documentSignoffNativePanelLegacyButton",
+    "documentSignoffNativeReviewCompleteButton",
+    "documentSignoffNativeClearSignatureButton",
+    "documentSignoffNativeClearInductorSignatureButton"
+  ].forEach(id => {
+    const element = $(id);
+    if (element) element.disabled = nativeSignoffSaving;
+  });
+  [
+    "documentSignoffNativeAcceptedCheck",
+    "documentSignoffNativeInductorName"
+  ].forEach(id => {
+    const element = $(id);
+    if (element) element.disabled = nativeSignoffSaving;
+  });
+  document.querySelectorAll("#documentSignoffNativeAgreementList input, #documentSignoffNativeAgreementList button")
+    .forEach(element => {
+      element.disabled = nativeSignoffSaving || element.dataset.nativeDisabled === "true";
+    });
+}
+
 function setNativeWorkflowStep(step) {
   const panel = $("documentSignoffNativePanel");
   documentSignoffNativeCurrentStep = ["review", "signature"].includes(step) ? step : "selection";
@@ -756,6 +793,8 @@ function syncNativeWizardActions() {
       ? "Next: Sign"
       : "Next: Review Document";
     startButton.classList.toggle("hidden", documentSignoffNativeCurrentStep === "signature");
+    startButton.disabled = nativeSignoffSaving ||
+      (documentSignoffNativeCurrentStep === "selection" && nativeSignableAgreementCount() === 0);
   }
   if (saveButton) {
     saveButton.classList.toggle("hidden", documentSignoffNativeCurrentStep !== "signature");
@@ -767,12 +806,14 @@ function syncNativeWizardActions() {
       ? "Back to Document"
       : "Back to Selection";
     backButton.classList.toggle("hidden", documentSignoffNativeCurrentStep === "selection");
+    backButton.disabled = nativeSignoffSaving;
   }
   setText("documentSignoffNativeWizardStep", {
     selection: "Step 1 of 3 - Select documents",
     review: "Step 2 of 3 - Review document",
     signature: "Step 3 of 3 - Sign and save"
   }[documentSignoffNativeCurrentStep] || "Step 1 of 3 - Select documents");
+  syncNativeSaveLockState();
 }
 
 function setFocusedSignoffChrome(active) {
@@ -794,6 +835,7 @@ function handleNativeSignoffKeydown(event) {
   if (!documentSignoffNativeDialogOpen) return;
   if (event.key === "Escape") {
     event.preventDefault();
+    if (nativeSignoffSaving) return;
     closeNativeSignoffWorkflow({ reason: "escape" });
     return;
   }
@@ -826,6 +868,7 @@ function openNativeSignoffWorkflow(options) {
 function closeNativeSignoffWorkflow(options) {
   if (!documentSignoffNativeDialogOpen) return;
   const settings = options || {};
+  if (nativeSignoffSaving && settings.force !== true) return;
   const backdrop = $("documentSignoffNativePanelBackdrop");
   const panel = $("documentSignoffNativePanel");
   documentSignoffNativeDialogOpen = false;
@@ -1026,6 +1069,7 @@ function signaturePointFor(event, canvasId) {
 }
 
 function beginSignature(event, canvasId, state) {
+  if (nativeSignoffSaving) return;
   if (event.cancelable) event.preventDefault();
   const point = signaturePointFor(event, canvasId);
   state.isDrawing = true;
@@ -1036,6 +1080,7 @@ function beginSignature(event, canvasId, state) {
 }
 
 function drawSignature(event, canvasId, state) {
+  if (nativeSignoffSaving) return;
   if (!state.isDrawing) return;
   if (event.cancelable) event.preventDefault();
   const point = signaturePointFor(event, canvasId);
@@ -1056,10 +1101,12 @@ function endSignature(state) {
 }
 
 function clearNativeVisitorSignature() {
+  if (nativeSignoffSaving) return;
   clearSignatureCanvas("documentSignoffNativeSignatureCanvas", nativeVisitorSignatureState);
 }
 
 function clearNativeInductorSignature() {
+  if (nativeSignoffSaving) return;
   clearSignatureCanvas("documentSignoffNativeInductorSignatureCanvas", nativeInductorSignatureState);
 }
 
@@ -2684,7 +2731,7 @@ function updateNativeSelectionSummary() {
   setText("documentSignoffNativeSelectionSummary", parts.join(" | "));
   const startButton = $("documentSignoffNativeStartButton");
   if (startButton) {
-    startButton.disabled = signable === 0;
+    startButton.disabled = nativeSignoffSaving || signable === 0;
   }
   updateDocumentSignoffDebug({
     selectedAgreementCount: selectedSignable,
@@ -2753,6 +2800,7 @@ function renderNativeAgreementSelection(types, statuses, additionalOnly) {
     checkbox.dataset.agreementTypeId = type.agreement_type_id;
     checkbox.checked = selected || locked;
     checkbox.disabled = disabled;
+    checkbox.dataset.nativeDisabled = disabled ? "true" : "false";
     checkbox.dataset.lockedSelected = locked ? "true" : "false";
     checkbox.addEventListener("change", updateNativeSelectionSummary);
     label.appendChild(checkbox);
@@ -3023,6 +3071,7 @@ function backToNativeDocumentReview() {
 }
 
 function handleNativeWizardPrimaryAction() {
+  if (nativeSignoffSaving) return;
   if (documentSignoffNativeCurrentStep === "review") {
     continueToNativeSignatureStep();
     return;
@@ -3031,11 +3080,22 @@ function handleNativeWizardPrimaryAction() {
 }
 
 function handleNativeWizardBackAction() {
+  if (nativeSignoffSaving) return;
   if (documentSignoffNativeCurrentStep === "signature") {
     backToNativeDocumentReview();
     return;
   }
   backToNativeAgreementSelection();
+}
+
+function refreshDocumentSignoffAfterNativeSave() {
+  Promise.all([
+    loadDocumentSignoffOverview({ manual: false }),
+    loadNativeSignoffCandidates(false)
+  ]).catch(error => {
+    console.warn("Document sign-off refresh after save failed.", error);
+    showToast("Refresh needed", "Agreement evidence was saved, but the sign-off lists could not refresh automatically.", "error");
+  });
 }
 
 async function saveNativeVisitorAgreement() {
@@ -3088,9 +3148,8 @@ async function saveNativeVisitorAgreement() {
 
   const visitId = visit.visit_log_id || visit.id;
   try {
-    nativeSignoffSaving = true;
-    syncNativeWizardActions();
-    setNativePanelStatus("Saving agreement evidence...", "info");
+    setNativeSignoffSaving(true);
+    setNativePanelStatus("Saving evidence...", "info");
     const latestStatuses = await getNativeAgreementStatusesForVisit(visitId);
     const latest = latestStatuses.find(status => status.agreement_type_id === requirement.agreement_type_id);
     if (!latest || latest.already_valid === true || latest.can_select !== true) {
@@ -3118,43 +3177,44 @@ async function saveNativeVisitorAgreement() {
         p_inductor_signature_data: inductorSignature
       });
       if (applyResult.error) {
-        setNativePanelStatus("Agreement saved, but inductor sign-off could not be applied to all selected agreements: " + applyResult.error.message, "error");
-        showToast("Agreement saved with warning", applyResult.error.message, "error");
-        await loadDocumentSignoffOverview({ manual: false });
-        await loadNativeSignoffCandidates(false);
         if (nativeSignoffQueue.length) {
-          showToast("Next agreement", "Opening the next selected agreement.", "info");
           await openNextNativeQueuedAgreement();
+          setNativePanelStatus("Agreement saved, but inductor sign-off could not be applied to all selected agreements: " + applyResult.error.message, "error");
+          showToast("Agreement saved with warning", applyResult.error.message, "error");
+          refreshDocumentSignoffAfterNativeSave();
           return;
         }
         nativeSignoffCurrentRequirement = null;
         closeNativeSignoffWorkflow({
           reason: "agreement_saved_with_warning",
+          force: true,
           returnFocus: $("documentSignoffLoadPendingButton") || $("documentSignoffNativeRefreshButton")
         });
+        showToast("Agreement saved with warning", applyResult.error.message, "error");
+        refreshDocumentSignoffAfterNativeSave();
         return;
       }
     }
-    showToast("Agreement saved", response.message || "Agreement evidence saved.", "success");
-    await loadDocumentSignoffOverview({ manual: false });
-    await loadNativeSignoffCandidates(false);
     if (nativeSignoffQueue.length) {
-      showToast("Next agreement", "Opening the next selected agreement.", "info");
       await openNextNativeQueuedAgreement();
+      showToast("Agreement saved", response.message || "Agreement evidence saved. Opening the next selected agreement.", "success");
+      refreshDocumentSignoffAfterNativeSave();
       return;
     }
     nativeSignoffCurrentRequirement = null;
     setNativePanelStatus("", "");
     closeNativeSignoffWorkflow({
       reason: "agreement_saved",
+      force: true,
       returnFocus: $("documentSignoffLoadPendingButton") || $("documentSignoffNativeRefreshButton")
     });
+    showToast("Agreement saved", response.message || "Agreement evidence saved.", "success");
+    refreshDocumentSignoffAfterNativeSave();
   } catch (err) {
     setNativePanelStatus("Could not save agreement: " + (err.message || String(err)), "error");
     showToast("Agreement save failed", err.message || "Agreement evidence could not be saved.", "error");
   } finally {
-    nativeSignoffSaving = false;
-    syncNativeWizardActions();
+    setNativeSignoffSaving(false);
   }
 }
 

@@ -1873,6 +1873,18 @@ body.document-signoff-overlay-open {
   box-shadow: 0 30px 80px rgba(15, 23, 42, .32);
 }
 
+.document-signoff-focus-workspace.is-saving {
+  cursor: wait;
+}
+
+.document-signoff-focus-workspace.is-saving .document-signoff-native-panel-body {
+  opacity: .72;
+}
+
+.document-signoff-focus-workspace.is-saving .signature-pad {
+  pointer-events: none;
+}
+
 .document-signoff-focus-header {
   display: flex;
   align-items: flex-start;
