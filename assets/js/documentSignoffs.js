@@ -35,6 +35,7 @@ let nativeSignoffQueue = [];
 let nativeSignoffQueueTotal = 0;
 let nativeSignoffAdditionalOnly = false;
 let nativeSignoffSaving = false;
+let nativeQueueEvaluationContext = null;
 const nativeDirectEvidenceOverrides = new Map();
 let nativeQueueDiagnostics = [];
 let nativeDocumentReviewReachedEnd = true;
@@ -259,6 +260,56 @@ function traceNativeQueueEvaluation(entry) {
   console.debug("Document sign-off queue visit evaluation", entry);
 }
 
+function createNativeQueueEvaluationContext() {
+  return {
+    startedAt: performance.now(),
+    timings: {},
+    activeVisitCount: 0,
+    legacyRowCount: 0,
+    directStatusesByVisit: new Map(),
+    augmentedStatusesByVisit: new Map(),
+    identitySourcesByVisit: new Map(),
+    evidenceRowsBySearch: new Map(),
+    evidenceById: new Map(),
+    evidenceByStatus: new Map()
+  };
+}
+
+function queueTimingStart(label) {
+  return {
+    label,
+    startedAt: performance.now(),
+    context: nativeQueueEvaluationContext
+  };
+}
+
+function queueTimingEnd(timer) {
+  if (!timer || !timer.context || timer.context !== nativeQueueEvaluationContext) return;
+  timer.context.timings[timer.label] = Math.round(performance.now() - timer.startedAt);
+}
+
+async function queueCachedValue(map, key, loader) {
+  if (!map || !key) return loader();
+  if (!map.has(key)) {
+    const promise = Promise.resolve()
+      .then(loader)
+      .catch(error => {
+        map.delete(key);
+        throw error;
+      });
+    map.set(key, promise);
+  }
+  return map.get(key);
+}
+
+function traceNativeQueuePerformance(stage, details) {
+  if (!documentSignoffQueueTraceEnabled()) return;
+  console.debug("Document sign-off queue performance", {
+    stage,
+    ...(details || {})
+  });
+}
+
 function resetNativeQueueDiagnostics() {
   nativeQueueDiagnostics = [];
   renderNativeQueueDiagnostics();
@@ -329,6 +380,15 @@ function renderNativeQueueDiagnostics() {
       : "No queue trace captured yet.";
   }
   body.replaceChildren();
+  if (!section.open) {
+    const placeholder = document.createElement("p");
+    placeholder.className = "row-meta";
+    placeholder.textContent = nativeQueueDiagnostics.length
+      ? "Open Queue Diagnostics to view the captured decision trace."
+      : "Run Load Visitors Requiring Sign-off to capture a visit-level queue decision trace.";
+    body.appendChild(placeholder);
+    return;
+  }
   if (!nativeQueueDiagnostics.length) {
     const empty = document.createElement("p");
     empty.className = "row-meta";
@@ -1635,20 +1695,34 @@ function linkedEvidenceStatusForSource(source, status) {
 }
 
 async function getNativeAgreementStatusesForVisitDirect(visitId) {
-  const result = await supabaseClient.rpc("get_visit_agreement_status_all", {
-    p_visit_log_id: visitId
-  });
-  if (result.error) throw result.error;
-  return result.data || [];
+  const key = String(visitId || "").trim();
+  return queueCachedValue(
+    nativeQueueEvaluationContext && nativeQueueEvaluationContext.directStatusesByVisit,
+    key,
+    async () => {
+      const result = await supabaseClient.rpc("get_visit_agreement_status_all", {
+        p_visit_log_id: visitId
+      });
+      if (result.error) throw result.error;
+      return result.data || [];
+    }
+  );
 }
 
 async function loadDocumentComplianceIdentityLinkSources(visitId) {
-  const result = await supabaseClient.rpc("list_document_compliance_identity_link_sources", {
-    p_source_type: "visit_log",
-    p_source_record_id: String(visitId)
-  });
-  if (result.error) throw result.error;
-  return result.data || [];
+  const key = String(visitId || "").trim();
+  return queueCachedValue(
+    nativeQueueEvaluationContext && nativeQueueEvaluationContext.identitySourcesByVisit,
+    key,
+    async () => {
+      const result = await supabaseClient.rpc("list_document_compliance_identity_link_sources", {
+        p_source_type: "visit_log",
+        p_source_record_id: String(visitId)
+      });
+      if (result.error) throw result.error;
+      return result.data || [];
+    }
+  );
 }
 
 async function augmentNativeStatusesWithLinkedEvidence(visitId, statuses) {
@@ -1745,8 +1819,15 @@ async function loadNativeAgreementTypesIfNeeded() {
 }
 
 async function getNativeAgreementStatusesForVisit(visitId) {
-  const statuses = await getNativeAgreementStatusesForVisitDirect(visitId);
-  return augmentNativeStatusesWithLinkedEvidence(visitId, statuses);
+  const key = String(visitId || "").trim();
+  return queueCachedValue(
+    nativeQueueEvaluationContext && nativeQueueEvaluationContext.augmentedStatusesByVisit,
+    key,
+    async () => {
+      const statuses = await getNativeAgreementStatusesForVisitDirect(visitId);
+      return augmentNativeStatusesWithLinkedEvidence(visitId, statuses);
+    }
+  );
 }
 
 async function getNativeAgreementVersion(versionId) {
@@ -2032,19 +2113,38 @@ async function openFullEvidencePreview(record) {
 
 async function searchEvidenceRowsForWindow(days, filters) {
   const settings = filters || {};
-  const result = await supabaseClient.rpc("search_visitor_agreements", {
-    p_date_from: dateDaysAgo(days),
-    p_date_to: todayDate(),
-    p_visitor_name: null,
-    p_company: null,
-    p_agreement_version_id: settings.agreementVersionId || null,
-    p_agreement_type_id: settings.agreementTypeId || null
-  });
-  if (result.error) throw result.error;
-  return result.data || [];
+  const key = [
+    days,
+    settings.agreementVersionId || "",
+    settings.agreementTypeId || ""
+  ].join("::");
+  return queueCachedValue(
+    nativeQueueEvaluationContext && nativeQueueEvaluationContext.evidenceRowsBySearch,
+    key,
+    async () => {
+      const result = await supabaseClient.rpc("search_visitor_agreements", {
+        p_date_from: dateDaysAgo(days),
+        p_date_to: todayDate(),
+        p_visitor_name: null,
+        p_company: null,
+        p_agreement_version_id: settings.agreementVersionId || null,
+        p_agreement_type_id: settings.agreementTypeId || null
+      });
+      if (result.error) throw result.error;
+      return result.data || [];
+    }
+  );
 }
 
 async function findEvidenceRecordById(sourceRecordId) {
+  const id = String(sourceRecordId || "").trim();
+  if (nativeQueueEvaluationContext && id) {
+    return queueCachedValue(nativeQueueEvaluationContext.evidenceById, id, () => findEvidenceRecordByIdWithoutQueueCache(id));
+  }
+  return findEvidenceRecordByIdWithoutQueueCache(sourceRecordId);
+}
+
+async function findEvidenceRecordByIdWithoutQueueCache(sourceRecordId) {
   const cached = (documentSignoffOverviewState.recentEvidence || [])
     .find(record => evidenceRecordMatches(record, sourceRecordId));
   if (cached) return cached;
@@ -2087,6 +2187,22 @@ function evidenceRecordMatchesStatus(record, status, fallbackVisitId) {
 }
 
 async function findEvidenceRecordForStatus(status, fallbackVisitId) {
+  const cacheKey = [
+    evidenceRecordIdFromStatus(status),
+    fallbackVisitId || "",
+    status && (status.agreement_version_id || status.active_agreement_version_id) || "",
+    status && status.agreement_type_id || "",
+    evidenceSignedAtFromStatus(status)
+  ].join("::");
+  if (nativeQueueEvaluationContext && cacheKey.replace(/:/g, "")) {
+    return queueCachedValue(nativeQueueEvaluationContext.evidenceByStatus, cacheKey, () =>
+      findEvidenceRecordForStatusWithoutQueueCache(status, fallbackVisitId)
+    );
+  }
+  return findEvidenceRecordForStatusWithoutQueueCache(status, fallbackVisitId);
+}
+
+async function findEvidenceRecordForStatusWithoutQueueCache(status, fallbackVisitId) {
   const evidenceId = evidenceRecordIdFromStatus(status);
   if (evidenceId) {
     const byId = await findEvidenceRecordById(evidenceId);
@@ -2303,6 +2419,17 @@ async function supplementNativeSignoffCandidatesFromCurrentVisits(rows) {
   }
 
   if (!currentVisits.length) return candidates;
+  if (nativeQueueEvaluationContext) nativeQueueEvaluationContext.activeVisitCount = currentVisits.length;
+
+  const statusResultsByVisit = new Map(await Promise.all(currentVisits.map(async visit => {
+    const visitId = nativeVisitRowId(visit);
+    if (!visitId) return ["", { statuses: [], error: null }];
+    try {
+      return [visitId, { statuses: await getNativeAgreementStatusesForVisit(visitId), error: null }];
+    } catch (error) {
+      return [visitId, { statuses: [], error }];
+    }
+  })));
 
   const visitLevelRows = [];
   const existing = new Set();
@@ -2313,10 +2440,9 @@ async function supplementNativeSignoffCandidatesFromCurrentVisits(rows) {
     if (!visitId) continue;
     evaluatedVisitIds.add(visitId);
 
-    let statuses = [];
-    try {
-      statuses = await getNativeAgreementStatusesForVisit(visitId);
-    } catch (error) {
+    const statusResult = statusResultsByVisit.get(visitId) || {};
+    if (statusResult.error) {
+      const error = statusResult.error;
       console.warn("Could not evaluate current visitor agreement status for sign-off queue.", error);
       const missingReasons = [];
       for (const type of requiredTypes) {
@@ -2366,6 +2492,7 @@ async function supplementNativeSignoffCandidatesFromCurrentVisits(rows) {
       });
       continue;
     }
+    const statuses = statusResult.statuses || [];
 
     const statusMap = nativeStatusMapByAgreementType(statuses);
     let directEvidenceCount = 0;
@@ -2574,6 +2701,21 @@ async function filterNativeSignoffCandidatesForLinkedCompliance(rows) {
   if (!useIdentityLinksForDocumentCompliance() || !candidates.length) return candidates;
 
   const statusesByVisit = new Map();
+  const visitIds = Array.from(new Set(candidates.map(row => row.visit_log_id || row.id).filter(Boolean)));
+  await Promise.all(visitIds.map(async visitId => {
+    try {
+      const statuses = await getNativeAgreementStatusesForVisit(visitId);
+      const statusMap = new Map();
+      (statuses || []).forEach(status => {
+        if (status.agreement_type_id) statusMap.set(status.agreement_type_id, status);
+      });
+      statusesByVisit.set(visitId, statusMap);
+    } catch (error) {
+      console.warn("Could not apply linked identity compliance filtering to sign-off queue.", error);
+      statusesByVisit.set(visitId, null);
+    }
+  }));
+
   const filtered = [];
   for (const row of candidates) {
     const visitId = row.visit_log_id || row.id;
@@ -2581,20 +2723,6 @@ async function filterNativeSignoffCandidatesForLinkedCompliance(rows) {
     if (!visitId || !agreementTypeId) {
       filtered.push(row);
       continue;
-    }
-
-    if (!statusesByVisit.has(visitId)) {
-      try {
-        const statuses = await getNativeAgreementStatusesForVisit(visitId);
-        const statusMap = new Map();
-        (statuses || []).forEach(status => {
-          if (status.agreement_type_id) statusMap.set(status.agreement_type_id, status);
-        });
-        statusesByVisit.set(visitId, statusMap);
-      } catch (error) {
-        console.warn("Could not apply linked identity compliance filtering to sign-off queue.", error);
-        statusesByVisit.set(visitId, null);
-      }
     }
 
     const statusMap = statusesByVisit.get(visitId);
@@ -2615,6 +2743,9 @@ async function loadNativeSignoffCandidates(manual) {
     return;
   }
   // TODO: Future notification milestone - notify compliance users/groups when sign-off action is required.
+  const context = createNativeQueueEvaluationContext();
+  nativeQueueEvaluationContext = context;
+  const totalTimer = queueTimingStart("total");
   const box = $("documentSignoffNativeResults");
   if (box) box.textContent = "Loading visitors requiring sign-off...";
   setNativeStatus("", "");
@@ -2622,18 +2753,55 @@ async function loadNativeSignoffCandidates(manual) {
   let rows = [];
   let legacyError = null;
   try {
+    let timer = queueTimingStart("legacy_pending_rpc");
     const result = await supabaseClient.rpc("get_pending_agreement_visitors");
+    queueTimingEnd(timer);
     if (result.error) throw result.error;
     rows = result.data || [];
+    context.legacyRowCount = rows.length;
   } catch (error) {
     legacyError = error;
     console.warn("Legacy pending agreement visitor RPC was unavailable; using visit-level queue evaluation.", error);
   }
-  const supplementedRows = await supplementNativeSignoffCandidatesFromCurrentVisits(rows);
-  const displayRows = await filterNativeSignoffCandidatesForLinkedCompliance(supplementedRows);
-  renderNativeSignoffCandidates(displayRows);
-  renderNativeQueueDiagnostics();
-  setNativeStatus(legacyError && !displayRows.length ? "Visit-level queue evaluation completed; legacy pending source was unavailable." : "", "");
+  try {
+    let timer = queueTimingStart("visit_level_evaluation");
+    const supplementedRows = await supplementNativeSignoffCandidatesFromCurrentVisits(rows);
+    queueTimingEnd(timer);
+    timer = queueTimingStart("linked_compliance_filter");
+    const displayRows = await filterNativeSignoffCandidatesForLinkedCompliance(supplementedRows);
+    queueTimingEnd(timer);
+    timer = queueTimingStart("render");
+    renderNativeSignoffCandidates(displayRows);
+    renderNativeQueueDiagnostics();
+    queueTimingEnd(timer);
+    queueTimingEnd(totalTimer);
+    const visitorCount = groupPendingNativeCandidates(displayRows).length;
+    const resultText = (visitorCount === 1 ? "1 visitor requires sign-off" : visitorCount + " visitors require sign-off") +
+      (context.activeVisitCount ? " · " + context.activeVisitCount + " active visitors evaluated" : "");
+    setNativeStatus(
+      legacyError && !displayRows.length
+        ? resultText + " · legacy pending source unavailable; visit-level queue evaluation completed."
+        : resultText,
+      "info"
+    );
+    traceNativeQueuePerformance("complete", {
+      timings: context.timings,
+      legacyRows: context.legacyRowCount,
+      activeVisits: context.activeVisitCount,
+      outputRows: displayRows.length,
+      outputVisitors: visitorCount,
+      cacheSizes: {
+        directStatusesByVisit: context.directStatusesByVisit.size,
+        augmentedStatusesByVisit: context.augmentedStatusesByVisit.size,
+        identitySourcesByVisit: context.identitySourcesByVisit.size,
+        evidenceRowsBySearch: context.evidenceRowsBySearch.size,
+        evidenceById: context.evidenceById.size,
+        evidenceByStatus: context.evidenceByStatus.size
+      }
+    });
+  } finally {
+    nativeQueueEvaluationContext = null;
+  }
 }
 
 function nativeAgreementStateBadge(status, type) {
@@ -3560,6 +3728,9 @@ export function initialiseDocumentSignoffs(dependencies) {
     $("documentSignoffLoadPendingButton").addEventListener("click", () => {
       loadNativeSignoffCandidates(true);
     });
+  }
+  if ($("documentSignoffQueueDiagnosticsSection")) {
+    $("documentSignoffQueueDiagnosticsSection").addEventListener("toggle", renderNativeQueueDiagnostics);
   }
   if ($("documentSignoffNativeLegacyButton")) {
     $("documentSignoffNativeLegacyButton").addEventListener("click", () => {
