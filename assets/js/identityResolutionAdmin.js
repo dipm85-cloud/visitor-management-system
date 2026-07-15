@@ -634,17 +634,71 @@ function peoplePreferredDisplayText(mode) {
     : "";
 }
 
-function groupDisplayLabel(group) {
+function labelComparisonValue(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function selectedComparisonSourceRecord(record) {
+  if (!record) return null;
+  return record.source_type || record.source_record_id
+    ? record
+    : candidateSourceRecord(record);
+}
+
+function recordMatchesSelectedComparison(record, selectedComparison) {
+  const selected = selectedComparisonSourceRecord(selectedComparison);
+  if (!record || !selected) return false;
+  return sourceRecordKey(record.source_type, record.source_record_id) ===
+    sourceRecordKey(selected.source_type, selected.source_record_id);
+}
+
+function selectedComparisonDisplayLabel(selectedComparison) {
+  const selected = selectedComparisonSourceRecord(selectedComparison);
+  return selected ? linkedRecordFriendlyLabel(selected) : "";
+}
+
+function candidateSourceDisplayLabel(source) {
+  return linkedRecordFriendlyLabel(candidateSourceRecord(source || {}));
+}
+
+function bestIdentityGroupRecord(group, selectedComparison) {
+  const records = peopleRecordsFirst(group && group.records || []);
+  const peopleRecord = records.find(record => canonicalIdentitySourceType(record.source_type) === "people");
+  if (peopleRecord) return peopleRecord;
+  const withoutSelected = records.filter(record => !recordMatchesSelectedComparison(record, selectedComparison));
+  return withoutSelected[0] || records[0] || null;
+}
+
+function identityGroupDisplayRecords(group, selectedComparison) {
+  const records = peopleRecordsFirst(group && group.records || []);
+  const people = records.filter(record => canonicalIdentitySourceType(record.source_type) === "people");
+  const selected = records.filter(record =>
+    canonicalIdentitySourceType(record.source_type) !== "people" &&
+    recordMatchesSelectedComparison(record, selectedComparison)
+  );
+  const other = records.filter(record =>
+    canonicalIdentitySourceType(record.source_type) !== "people" &&
+    !recordMatchesSelectedComparison(record, selectedComparison)
+  );
+  return [...people, ...other, ...selected];
+}
+
+function groupDisplayLabel(group, selectedComparison) {
   const peopleRecord = peopleRecordForGroup(group);
   if (peopleRecord) return linkedRecordFriendlyLabel(peopleRecord);
   const canonical = String(group && group.canonical_label || "").trim();
-  if (canonical && !isUuidLike(canonical)) return canonical;
-  const firstRecord = peopleRecordsFirst(group && group.records || [])[0];
-  if (firstRecord) return linkedRecordFriendlyLabel(firstRecord);
+  const selectedLabel = selectedComparisonDisplayLabel(selectedComparison);
+  const bestRecord = bestIdentityGroupRecord(group, selectedComparison);
+  const bestRecordLabel = bestRecord ? linkedRecordFriendlyLabel(bestRecord) : "";
+  const canonicalMatchesSelected = canonical &&
+    selectedLabel &&
+    labelComparisonValue(canonical) === labelComparisonValue(selectedLabel);
+  if (canonical && !isUuidLike(canonical) && (!canonicalMatchesSelected || !bestRecordLabel)) return canonical;
+  if (bestRecordLabel) return bestRecordLabel;
   return group && group.link_reference || "-";
 }
 
-function createCompactIdentityGroupBlock(title, group) {
+function createCompactIdentityGroupBlock(title, group, selectedComparison) {
   const block = document.createElement("section");
   block.className = "identity-resolution-source-block identity-resolution-group-block";
   const heading = document.createElement("h4");
@@ -652,7 +706,7 @@ function createCompactIdentityGroupBlock(title, group) {
   const meta = document.createElement("dl");
   meta.className = "identity-resolution-meta-grid";
   meta.append(
-    createMetaItem("Target confirmed identity", groupDisplayLabel(group)),
+    createMetaItem("Target confirmed identity", groupDisplayLabel(group, selectedComparison)),
     createMetaItem("Identity link reference", group && group.link_reference),
     createMetaItem("Identity type", titleCase(group && group.identity_type)),
     createMetaItem("Linked records", linkedRecordCount(group))
@@ -668,11 +722,11 @@ function createCompactIdentityGroupBlock(title, group) {
 }
 
 function createSelectedComparisonBlock(record, group) {
-  const block = createSourceBlock("Selected comparison", record);
+  const block = createSourceBlock("Selected comparison record", record);
   const note = document.createElement("p");
   note.className = "identity-resolution-note";
   note.textContent = linkedRecordFriendlyLabel(candidateSourceRecord(record || {})) +
-    " is already linked to confirmed identity " + groupDisplayLabel(group) + ".";
+    " is already linked to confirmed identity " + groupDisplayLabel(group, record) + ".";
   block.appendChild(note);
   return block;
 }
@@ -683,13 +737,13 @@ function createCandidateQueueReviewBlocks(candidate) {
   if (mode && mode.type === "add_to_group") {
     return [
       createSourceBlock("New record", mode.newRecord),
-      createCompactIdentityGroupBlock("Target confirmed identity", mode.targetGroup),
+      createCompactIdentityGroupBlock("Target confirmed identity", mode.targetGroup, mode.comparisonRecord),
       createSelectedComparisonBlock(mode.comparisonRecord, mode.targetGroup)
     ];
   }
   if (mode && mode.type === "already_linked") {
     return [
-      createCompactIdentityGroupBlock("Confirmed identity group", mode.targetGroup),
+      createCompactIdentityGroupBlock("Confirmed identity group", mode.targetGroup, mode.comparisonRecord),
       createSelectedComparisonBlock(mode.comparisonRecord, mode.targetGroup)
     ];
   }
@@ -703,6 +757,26 @@ function createCandidateQueueReviewBlocks(candidate) {
     createSourceBlock("Source A", context.sourceA || candidateSourceFromCandidate(candidate, "a")),
     createSourceBlock("Source B", context.sourceB || candidateSourceFromCandidate(candidate, "b"))
   ];
+}
+
+function candidateQueueDisplaySummary(candidate) {
+  const mode = candidate && candidate.candidateQueueReviewMode;
+  const context = candidate && candidate.candidateQueueReviewContext || {};
+  if (mode && mode.type === "add_to_group") {
+    return candidateSourceDisplayLabel(mode.newRecord) + " -> " +
+      groupDisplayLabel(mode.targetGroup, mode.comparisonRecord) +
+      " via selected comparison: " + selectedComparisonDisplayLabel(mode.comparisonRecord);
+  }
+  if (mode && mode.type === "already_linked") {
+    return "Already linked: " + groupDisplayLabel(mode.targetGroup, mode.comparisonRecord) +
+      " via selected comparison: " + selectedComparisonDisplayLabel(mode.comparisonRecord);
+  }
+  if (mode && mode.type === "merge_groups") {
+    return groupDisplayLabel(mode.groupA) + " -> " + groupDisplayLabel(mode.groupB);
+  }
+  const sourceA = context.sourceA || candidateSourceFromCandidate(candidate, "a");
+  const sourceB = context.sourceB || candidateSourceFromCandidate(candidate, "b");
+  return candidateSourceDisplayLabel(sourceA) + " -> " + candidateSourceDisplayLabel(sourceB);
 }
 
 function isActiveVisitIdentityRecord(record) {
@@ -753,7 +827,7 @@ function createCandidateActiveVisitWarning(conflict) {
   return warning;
 }
 
-function createIdentityGroupBlock(title, group) {
+function createIdentityGroupBlock(title, group, selectedComparison) {
   const block = document.createElement("section");
   block.className = "identity-resolution-source-block identity-resolution-group-block";
   const heading = document.createElement("h4");
@@ -761,7 +835,7 @@ function createIdentityGroupBlock(title, group) {
   const meta = document.createElement("dl");
   meta.className = "identity-resolution-meta-grid";
   meta.append(
-    createMetaItem("Target confirmed identity", groupDisplayLabel(group)),
+    createMetaItem("Target confirmed identity", groupDisplayLabel(group, selectedComparison)),
     createMetaItem("Identity link reference", group && group.link_reference),
     createMetaItem("Identity link canonical label", group && group.canonical_label),
     createMetaItem("Identity type", titleCase(group && group.identity_type)),
@@ -777,7 +851,7 @@ function createIdentityGroupBlock(title, group) {
   const warning = createCandidateActiveVisitWarning(activeConflict);
   if (warning) block.appendChild(warning);
 
-  const previewRecords = peopleRecordsFirst(group && group.records || []);
+  const previewRecords = identityGroupDisplayRecords(group, selectedComparison);
   if (previewRecords.length) {
     const preview = document.createElement("div");
     preview.className = "identity-resolution-group-preview";
@@ -796,7 +870,7 @@ function createIdentityGroupBlock(title, group) {
   records.appendChild(recordsSummary);
   const recordWrap = document.createElement("div");
   recordWrap.className = "identity-resolution-source-grid";
-  const uniqueRecords = peopleRecordsFirst(group && group.records || []);
+  const uniqueRecords = identityGroupDisplayRecords(group, selectedComparison);
   if (uniqueRecords.length) {
     uniqueRecords.forEach((record, index) => {
       recordWrap.appendChild(createCompactLinkedIdentityRecordRow(record, index));
@@ -1242,6 +1316,10 @@ function renderCandidateQueue() {
     reason.className = "identity-resolution-reason";
     reason.textContent = candidate.match_reason || "No match reason recorded.";
 
+    const displaySummary = document.createElement("p");
+    displaySummary.className = "identity-resolution-note";
+    displaySummary.textContent = candidateQueueDisplaySummary(candidate);
+
     const sources = document.createElement("div");
     sources.className = "identity-resolution-source-grid";
     sources.append(...createCandidateQueueReviewBlocks(candidate));
@@ -1266,7 +1344,7 @@ function renderCandidateQueue() {
       });
     }
 
-    card.append(header, meta, reason, sources, actions);
+    card.append(header, meta, reason, displaySummary, sources, actions);
     container.appendChild(card);
   });
 }
@@ -1480,12 +1558,12 @@ function renderCandidateDetail(candidate, decisions) {
   if (mode.type === "add_to_group") {
     review.append(
       createSourceBlock("New record", mode.newRecord),
-      createIdentityGroupBlock("Target confirmed identity", mode.targetGroup),
+      createIdentityGroupBlock("Target confirmed identity", mode.targetGroup, mode.comparisonRecord),
       createSelectedComparisonBlock(mode.comparisonRecord, mode.targetGroup)
     );
   } else if (mode.type === "already_linked") {
     review.append(
-      createIdentityGroupBlock("Confirmed identity group", mode.targetGroup),
+      createIdentityGroupBlock("Confirmed identity group", mode.targetGroup, mode.comparisonRecord),
       createSelectedComparisonBlock(mode.comparisonRecord, mode.targetGroup)
     );
   } else if (mode.type === "merge_groups") {
@@ -2401,7 +2479,7 @@ async function openDecisionPanel(candidate, decisionType, trigger) {
 
 function defaultCanonicalLabelForDecision(candidate) {
   const mode = candidate && candidate.candidateReviewMode;
-  if (mode && mode.targetGroup) return groupDisplayLabel(mode.targetGroup);
+  if (mode && mode.targetGroup) return groupDisplayLabel(mode.targetGroup, mode.comparisonRecord);
   if (mode && mode.groupA) return groupDisplayLabel(mode.groupA);
   const context = candidate && candidate.candidateReviewContext;
   const peopleSource = [context && context.sourceA, context && context.sourceB]
