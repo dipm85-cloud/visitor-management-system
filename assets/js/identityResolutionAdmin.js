@@ -456,14 +456,30 @@ async function loadIdentityContextGroupForSource(source) {
   if (result.error) throw result.error;
   const rows = await enrichIdentityLinkRowsForDisplay(Array.isArray(result.data) ? result.data : []);
   const directGroup = buildIdentityContextGroup(source, rows);
-  if (directGroup) return directGroup;
+  if (directGroup) {
+    try {
+      const detailRows = await getIdentityLinkDetailRows(directGroup.identity_link_id);
+      return buildIdentityContextGroup(source, detailRows) || directGroup;
+    } catch (error) {
+      console.warn("Could not hydrate confirmed identity group for candidate review.", error);
+      return directGroup;
+    }
+  }
   const resolved = await resolveCanonicalIdentityDisplay({
     sourceType,
     sourceRecordId,
     sourceLabel: source && source.label,
     sourceSummary: source && source.summary
   });
-  return identityGroupFromResolvedDisplay(source, resolved);
+  const resolvedGroup = identityGroupFromResolvedDisplay(source, resolved);
+  if (!resolvedGroup) return null;
+  try {
+    const detailRows = await getIdentityLinkDetailRows(resolvedGroup.identity_link_id);
+    return buildIdentityContextGroup(source, detailRows) || resolvedGroup;
+  } catch (error) {
+    console.warn("Could not hydrate resolved confirmed identity group for candidate review.", error);
+    return resolvedGroup;
+  }
 }
 
 function groupsShareConfirmedContext(groupA, groupB) {

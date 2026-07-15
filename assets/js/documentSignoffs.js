@@ -34,6 +34,7 @@ let nativeSignoffCurrentRequirement = null;
 let nativeSignoffQueue = [];
 let nativeSignoffQueueTotal = 0;
 let nativeSignoffAdditionalOnly = false;
+const nativeDirectEvidenceOverrides = new Map();
 let nativeDocumentReviewReachedEnd = true;
 const nativeVisitorSignatureState = { isDrawing: false, hasInk: false, lastX: 0, lastY: 0, pixelRatio: 1 };
 const nativeInductorSignatureState = { isDrawing: false, hasInk: false, lastX: 0, lastY: 0, pixelRatio: 1 };
@@ -1035,6 +1036,47 @@ function visitIdsMatch(left, right) {
   return !!leftId && !!rightId && leftId === rightId;
 }
 
+function directEvidenceOverrideKey(visitId, agreementTypeId) {
+  const visit = String(visitId || "").trim();
+  const type = String(agreementTypeId || "").trim();
+  return visit && type ? visit + "::" + type : "";
+}
+
+function rememberNativeDirectEvidence(visitId, requirement, response) {
+  const key = directEvidenceOverrideKey(visitId, requirement && requirement.agreement_type_id);
+  if (!key) return;
+  nativeDirectEvidenceOverrides.set(key, {
+    agreement_type_id: requirement.agreement_type_id,
+    agreement_name: requirement.agreement_name,
+    agreement_title: requirement.agreement_title,
+    active_agreement_version_id: requirement.active_agreement_version_id,
+    active_agreement_version_number: requirement.active_agreement_version_number,
+    agreement_version_id: requirement.active_agreement_version_id,
+    agreement_version_number: requirement.active_agreement_version_number,
+    evidence_record_id: response && (response.agreement_id || response.agreement_signature_id || response.evidence_id || response.id || ""),
+    evidence_signed_at: response && (response.signed_at || response.created_at || response.saved_at || ""),
+    last_signed_at: response && (response.signed_at || response.created_at || response.saved_at || new Date().toISOString())
+  });
+}
+
+function currentVisitDirectEvidenceOverrideStatus(visitId, status) {
+  const key = directEvidenceOverrideKey(visitId, status && status.agreement_type_id);
+  const override = key && nativeDirectEvidenceOverrides.get(key);
+  if (!override) return null;
+  return currentVisitDirectEvidenceStatus({
+    ...status,
+    ...override,
+    status: "valid",
+    compliance_status: "valid",
+    already_valid: true,
+    can_select: false,
+    selected_by_default: false,
+    locked_selected: false,
+    reason: "Already signed for this visit.",
+    explanation: "Already signed for this visit."
+  });
+}
+
 async function directEvidenceRecordMatchesVisit(status, visitId) {
   if (!directEvidenceIsValid(status) || !visitId) return false;
 
@@ -1099,6 +1141,12 @@ function demoteUnsafeHistoricalEvidence(status) {
 async function restrictDirectEvidenceToCurrentVisit(visitId, statuses) {
   const checked = [];
   for (const status of statuses || []) {
+    const override = currentVisitDirectEvidenceOverrideStatus(visitId, status);
+    if (override) {
+      checked.push(override);
+      continue;
+    }
+
     if (!directEvidenceIsValid(status) || status.evidence_source === "confirmed_identity_link") {
       checked.push(status);
       continue;
@@ -1632,7 +1680,7 @@ function evidenceRecordMatchesStatus(record, status, fallbackVisitId) {
 
   if (visitId) {
     const recordVisitId = String(record.visit_log_id || record.visitor_log_id || "").trim();
-    if (recordVisitId && recordVisitId !== visitId) return false;
+    if (recordVisitId !== visitId) return false;
   }
 
   if (versionId) {
@@ -1843,7 +1891,7 @@ function nativePendingRowFromVisitStatus(visit, type, status) {
     active_agreement_version_id: status && status.active_agreement_version_id || (activeVersion && activeVersion.id),
     active_agreement_version_number: status && status.active_agreement_version_number || (activeVersion && activeVersion.version_number),
     signature_required: status && status.signature_required,
-    reason: status && status.reason || "Required sign-off missing",
+    reason: status && (status.identity_link_lookup_note || status.reason) || "Required sign-off missing",
     signoff_queue_source: "active_visit_status"
   };
 }
@@ -1888,7 +1936,13 @@ async function supplementNativeSignoffCandidatesFromCurrentVisits(rows) {
     requiredTypes.forEach(type => {
       const typeId = nativeAgreementTypeId(type);
       if (!typeId) return;
-      const status = statusMap.get(typeId);
+      const baseStatus = statusMap.get(typeId) || {
+        agreement_type_id: typeId,
+        agreement_name: type.agreement_name,
+        agreement_title: type.agreement_title,
+        default_required: type.default_required
+      };
+      const status = currentVisitDirectEvidenceOverrideStatus(visitId, baseStatus) || baseStatus;
       if (directEvidenceIsValid(status)) return;
 
       const pendingRow = nativePendingRowFromVisitStatus(visit, type, status);
@@ -2256,7 +2310,7 @@ function renderNativeAgreementSelection(types, statuses, additionalOnly) {
   }
 
   activeTypes.forEach(type => {
-    const status = statusMap[type.agreement_type_id] || {
+    const baseStatus = statusMap[type.agreement_type_id] || {
       agreement_type_id: type.agreement_type_id,
       agreement_name: type.agreement_name,
       agreement_title: type.agreement_title,
@@ -2267,6 +2321,8 @@ function renderNativeAgreementSelection(types, statuses, additionalOnly) {
       already_valid: false,
       reason: "Status could not be calculated"
     };
+    const visitId = nativeSignoffCurrentVisit && (nativeSignoffCurrentVisit.visit_log_id || nativeSignoffCurrentVisit.id);
+    const status = currentVisitDirectEvidenceOverrideStatus(visitId, baseStatus) || baseStatus;
     const alreadyValid = status.already_valid === true;
     const hasActiveVersion = !!status.active_agreement_version_id;
     const canSelect = status.can_select === true && hasActiveVersion && !alreadyValid;
@@ -2639,6 +2695,7 @@ async function saveNativeVisitorAgreement() {
     if (!response || response.success !== true) {
       throw new Error(response && response.message ? response.message : "Agreement save failed.");
     }
+    rememberNativeDirectEvidence(visitId, requirement, response);
     if (inductorEnabled) {
       const applyResult = await supabaseClient.rpc("apply_inductor_signoff_to_visit_agreements", {
         p_visit_log_id: visitId,

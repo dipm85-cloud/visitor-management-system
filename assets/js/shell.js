@@ -1,4 +1,5 @@
 import { hasAnyCapability, hasCapability } from "./capabilities.js";
+import { APP_BUILD_LABEL } from "./config.js";
 import { AppState } from "./state.js";
 
 const shell = document.getElementById("operationsHubShell");
@@ -397,7 +398,7 @@ function syncPlatformVersion() {
   const source = document.getElementById("appVersionText");
   platformVersion.textContent = source && source.textContent.trim()
     ? source.textContent.trim()
-    : "VMS_035A.1";
+    : APP_BUILD_LABEL;
 }
 
 function setEnvironmentLabel() {

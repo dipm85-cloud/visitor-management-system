@@ -1,4 +1,4 @@
-import { getDefaultAppSettings } from "./config.js";
+import { APP_BUILD_LABEL, getDefaultAppSettings } from "./config.js";
 import { AppState } from "./state.js";
 import { hasCapability } from "./capabilities.js";
 import { supabaseClient } from "./api.js";
@@ -197,7 +197,7 @@ export async function loadSystemSettings() {
     appSettings.companyName = String(settings.company_name);
     const brandText = document.querySelector(".brand div:last-child");
     if (brandText) {
-      brandText.innerHTML = appSettings.companyName + "<br><span style='font-size:12px;color:var(--muted);font-weight:700;'>Prototype VMS_035A.1</span>";
+      brandText.innerHTML = appSettings.companyName + "<br><span style='font-size:12px;color:var(--muted);font-weight:700;'>Operations Hub nextgen-ui - " + APP_BUILD_LABEL + "</span>";
     }
   }
 
@@ -426,7 +426,7 @@ export async function saveSettingsForm() {
       }
     }
 
-    if ($("appVersionText")) $("appVersionText").textContent = appVersion;
+    if ($("appVersionText")) $("appVersionText").textContent = appVersion || APP_BUILD_LABEL;
     dependencies.bindKioskIdleActivityReset();
     dependencies.simplifyPlannedQueueFilters();
     await loadSystemSettings();
