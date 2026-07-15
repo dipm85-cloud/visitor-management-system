@@ -1902,7 +1902,37 @@ function evidenceIdentityReviewContext(record) {
   };
 }
 
-function openEvidenceDetails(record, trigger) {
+async function canonicalIdentityForEvidenceRecord(record) {
+  if (!record) return null;
+  if (record.__canonicalIdentityDisplay !== undefined) return record.__canonicalIdentityDisplay;
+  const identity = await resolveCanonicalIdentityDisplay({
+    sourceType: "agreement_evidence",
+    sourceRecordId: evidenceRecordSourceId(record),
+    sourceLabel: record.visitor_name,
+    sourceSummary: record
+  });
+  record.__canonicalIdentityDisplay = identity && identity.hasConfirmedIdentity ? identity : null;
+  return record.__canonicalIdentityDisplay;
+}
+
+function evidenceIdentityPrintRecord(record, identity) {
+  if (!record) return record;
+  return {
+    ...record,
+    __canonicalIdentityDisplay: identity || record.__canonicalIdentityDisplay || null
+  };
+}
+
+async function openEvidenceDetails(record, trigger) {
+  const identity = await canonicalIdentityForEvidenceRecord(record);
+  const identityFields = identity && identity.hasConfirmedIdentity
+    ? [
+      { label: "Canonical identity", value: identity.displayPrimary || identity.canonicalLabel, always: true },
+      { label: "Evidence signed as", value: identity.capturedLabel || record.visitor_name, always: true }
+    ]
+    : [
+      { label: "Visitor / subject as stored", value: record.visitor_name, always: true }
+    ];
   renderDetailPanel({
     type: "sign-off-evidence",
     eyebrow: "Signature Evidence",
@@ -1913,7 +1943,7 @@ function openEvidenceDetails(record, trigger) {
       { label: evidenceType(record), className: "status-in" }
     ],
     fields: [
-      { label: "Visitor / subject as stored", value: record.visitor_name, always: true },
+      ...identityFields,
       { label: "Company as stored", value: record.company },
       { label: "Document", value: record.agreement_name, always: true },
       { label: "Title", value: record.agreement_title },
@@ -1948,7 +1978,7 @@ function openEvidenceDetails(record, trigger) {
             documentSignoffDetailsPanelController.close({ restoreFocus: false });
           }
           window.dispatchEvent(new CustomEvent("oh:agreement-evidence-printout-requested", {
-            detail: { record }
+            detail: { record: evidenceIdentityPrintRecord(record, identity) }
           }));
         }
       },
@@ -1992,10 +2022,11 @@ function evidenceRecordMatches(record, sourceRecordId) {
   ].some(value => String(value || "").trim() === id);
 }
 
-function openFullEvidencePreview(record) {
+async function openFullEvidencePreview(record) {
   if (!record) return;
+  const identity = await canonicalIdentityForEvidenceRecord(record);
   window.dispatchEvent(new CustomEvent("oh:agreement-evidence-printout-requested", {
-    detail: { record }
+    detail: { record: evidenceIdentityPrintRecord(record, identity) }
   }));
 }
 
@@ -3293,12 +3324,7 @@ function evidenceRecordSourceId(record) {
 
 async function updateEvidenceIdentityCell(cell, record) {
   if (!cell || !record) return;
-  const identity = await resolveCanonicalIdentityDisplay({
-    sourceType: "agreement_evidence",
-    sourceRecordId: evidenceRecordSourceId(record),
-    sourceLabel: record.visitor_name,
-    sourceSummary: record
-  });
+  const identity = await canonicalIdentityForEvidenceRecord(record);
   if (!identity || !identity.hasConfirmedIdentity) return;
   cell.replaceChildren();
   const primary = document.createElement("span");

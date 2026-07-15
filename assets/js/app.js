@@ -239,6 +239,9 @@ import {
   openDocumentSignoffEvidenceById
 } from "./documentSignoffs.js";
 import {
+  resolveCanonicalIdentityDisplay
+} from "./identityContext.js";
+import {
   initialiseIdentityResolutionAdministration,
   openIdentityResolutionAdministration,
   syncIdentityResolutionVisibility
@@ -1893,6 +1896,39 @@ window.addEventListener("load", async function () {
 
     function agreementExportRows(rows) { return (rows || []).map(row => ({ "Signed At": row.signed_at ? new Date(row.signed_at).toLocaleString() : "", "Visitor": row.visitor_name || "", "Company": row.company || "", "Agreement Type": row.agreement_name || "", "Agreement Title": row.agreement_title || "", "Version": row.agreement_version_number || "", "Signed By": row.signed_by_name || "", "Evidence": row.has_signature ? "Signature" : (row.accepted_without_signature ? "Tick acceptance" : "Unknown"), "Inductor": row.inductor_signoff_required ? (row.inductor_name || (row.inductor_signature_data ? "Signature captured" : "")) : "Not required", "Visit Log ID": row.visit_log_id || "", "Agreement ID": row.agreement_id || "" })); }
 
+    function agreementEvidenceRecordId(record) {
+      return record && (
+        record.id ||
+        record.agreement_id ||
+        record.agreement_signature_id ||
+        record.document_evidence_id ||
+        record.evidence_id ||
+        ""
+      );
+    }
+
+    async function canonicalIdentityForAgreementEvidence(record) {
+      if (!record) return null;
+      if (record.__canonicalIdentityDisplay !== undefined) return record.__canonicalIdentityDisplay;
+      const identity = await resolveCanonicalIdentityDisplay({
+        sourceType: "agreement_evidence",
+        sourceRecordId: agreementEvidenceRecordId(record),
+        sourceLabel: record.visitor_name,
+        sourceSummary: record
+      });
+      record.__canonicalIdentityDisplay = identity && identity.hasConfirmedIdentity ? identity : null;
+      return record.__canonicalIdentityDisplay;
+    }
+
+    function evidenceIdentityHtml(record) {
+      const identity = record && record.__canonicalIdentityDisplay;
+      if (!identity || !identity.hasConfirmedIdentity) {
+        return "<div><strong>Visitor</strong><br>" + safe(record.visitor_name) + "</div>";
+      }
+      return "<div><strong>Evidence signed as</strong><br>" + safe(identity.capturedLabel || record.visitor_name) + "</div>" +
+        "<div><strong>Confirmed canonical identity</strong><br>" + safe(identity.displayPrimary || identity.canonicalLabel) + "</div>";
+    }
+
     function evidenceHtml(record) {
       const logoUrl = appSettings.logoUrl || "";
       const showLogo = !!settingValue("agreement_print_show_logo", true) && logoUrl;
@@ -1901,13 +1937,14 @@ window.addEventListener("load", async function () {
       return "<div class='agreement-evidence-print'>" +
         "<div class='agreement-evidence-header'><div><h1 style='margin:0;'>" + header + "</h1><div style='font-weight:900;margin-top:6px;'>" + companyName + "</div></div>" + (showLogo ? "<img class='agreement-evidence-logo' src='" + safe(logoUrl) + "' alt='Logo'>" : "") + "</div>" +
         "<h2>" + safe(record.agreement_title || record.agreement_name) + "</h2>" +
-        "<div class='grid-2 agreement-evidence-grid'><div><strong>Visitor</strong><br>" + safe(record.visitor_name) + "</div><div><strong>Company</strong><br>" + safe(record.company) + "</div><div><strong>Agreement type</strong><br>" + safe(record.agreement_name) + "</div><div><strong>Version</strong><br>" + safe(record.agreement_version_number) + "</div><div><strong>Signed at</strong><br>" + safe(record.signed_at ? new Date(record.signed_at).toLocaleString() : "-") + "</div><div><strong>Recorded by</strong><br>" + safe(record.signed_by_name) + "</div></div>" +
+        "<div class='grid-2 agreement-evidence-grid'>" + evidenceIdentityHtml(record) + "<div><strong>Company</strong><br>" + safe(record.company) + "</div><div><strong>Agreement type</strong><br>" + safe(record.agreement_name) + "</div><div><strong>Version</strong><br>" + safe(record.agreement_version_number) + "</div><div><strong>Signed at</strong><br>" + safe(record.signed_at ? new Date(record.signed_at).toLocaleString() : "-") + "</div><div><strong>Recorded by</strong><br>" + safe(record.signed_by_name) + "</div></div>" +
         "<div class='signature-preview-box'><strong>Visitor acceptance</strong><br><div style='margin-top:6px;'>" + safe(record.visitor_acceptance_text || settingValue("agreement_acceptance_text", "Visitor accepted the agreement.")) + "</div>" + (record.signature_data ? "<img class='signature-image' src='" + record.signature_data + "' alt='Visitor signature'>" : "<div style='margin-top:6px;'>Tick acceptance recorded.</div>") + "</div>" +
         (record.inductor_signoff_required ? "<div class='signature-preview-box'><strong>Inductor sign-off</strong><br>Mode: " + safe(record.inductor_signoff_mode) + "<br>Inductor: " + safe(record.inductor_name) + "<br>Signed at: " + safe(record.inductor_signed_at ? new Date(record.inductor_signed_at).toLocaleString() : "-") + (record.inductor_signature_data ? "<br><img class='signature-image' src='" + record.inductor_signature_data + "' alt='Inductor signature'>" : "") + "</div>" : "") +
         "<div class='agreement-evidence-footer'><strong>Agreement Reference</strong><br>" + safe(record.agreement_id) + "<br><strong>Visit Reference</strong><br>" + safe(record.visit_log_id) + "</div>" +
       "</div>";
     }
-    function openAgreementEvidenceModal(record) {
+    async function openAgreementEvidenceModal(record) {
+      await canonicalIdentityForAgreementEvidence(record);
       currentEvidenceRecord = record;
       $("agreementEvidenceContent").innerHTML = evidenceHtml(record);
       $("agreementEvidenceModalBackdrop").classList.add("active");
