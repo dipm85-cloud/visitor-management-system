@@ -34,6 +34,7 @@ let nativeSignoffCurrentRequirement = null;
 let nativeSignoffQueue = [];
 let nativeSignoffQueueTotal = 0;
 let nativeSignoffAdditionalOnly = false;
+let nativeSignoffSaving = false;
 const nativeDirectEvidenceOverrides = new Map();
 let nativeQueueDiagnostics = [];
 let nativeDocumentReviewReachedEnd = true;
@@ -756,7 +757,11 @@ function syncNativeWizardActions() {
       : "Next: Review Document";
     startButton.classList.toggle("hidden", documentSignoffNativeCurrentStep === "signature");
   }
-  if (saveButton) saveButton.classList.toggle("hidden", documentSignoffNativeCurrentStep !== "signature");
+  if (saveButton) {
+    saveButton.classList.toggle("hidden", documentSignoffNativeCurrentStep !== "signature");
+    saveButton.disabled = nativeSignoffSaving || documentSignoffNativeCurrentStep !== "signature";
+    saveButton.textContent = nativeSignoffSaving ? "Saving..." : "Save Sign-off";
+  }
   if (backButton) {
     backButton.textContent = documentSignoffNativeCurrentStep === "signature"
       ? "Back to Document"
@@ -3035,6 +3040,7 @@ function handleNativeWizardBackAction() {
 
 async function saveNativeVisitorAgreement() {
   updateDocumentSignoffDebug({ lastActionClicked: "save_agreement", lastError: "" });
+  if (nativeSignoffSaving) return;
   clearNativeValidationHighlights();
   const visit = nativeSignoffCurrentVisit;
   const requirement = nativeSignoffCurrentRequirement;
@@ -3082,6 +3088,8 @@ async function saveNativeVisitorAgreement() {
 
   const visitId = visit.visit_log_id || visit.id;
   try {
+    nativeSignoffSaving = true;
+    syncNativeWizardActions();
     setNativePanelStatus("Saving agreement evidence...", "info");
     const latestStatuses = await getNativeAgreementStatusesForVisit(visitId);
     const latest = latestStatuses.find(status => status.agreement_type_id === requirement.agreement_type_id);
@@ -3114,6 +3122,16 @@ async function saveNativeVisitorAgreement() {
         showToast("Agreement saved with warning", applyResult.error.message, "error");
         await loadDocumentSignoffOverview({ manual: false });
         await loadNativeSignoffCandidates(false);
+        if (nativeSignoffQueue.length) {
+          showToast("Next agreement", "Opening the next selected agreement.", "info");
+          await openNextNativeQueuedAgreement();
+          return;
+        }
+        nativeSignoffCurrentRequirement = null;
+        closeNativeSignoffWorkflow({
+          reason: "agreement_saved_with_warning",
+          returnFocus: $("documentSignoffLoadPendingButton") || $("documentSignoffNativeRefreshButton")
+        });
         return;
       }
     }
@@ -3125,11 +3143,18 @@ async function saveNativeVisitorAgreement() {
       await openNextNativeQueuedAgreement();
       return;
     }
-    setNativePanelStatus("Agreement saved. Current status has been refreshed.", "success");
-    await openNativeSignoffPanel(visit, nativeSignoffAdditionalOnly, $("documentSignoffNativeSaveButton"));
+    nativeSignoffCurrentRequirement = null;
+    setNativePanelStatus("", "");
+    closeNativeSignoffWorkflow({
+      reason: "agreement_saved",
+      returnFocus: $("documentSignoffLoadPendingButton") || $("documentSignoffNativeRefreshButton")
+    });
   } catch (err) {
     setNativePanelStatus("Could not save agreement: " + (err.message || String(err)), "error");
     showToast("Agreement save failed", err.message || "Agreement evidence could not be saved.", "error");
+  } finally {
+    nativeSignoffSaving = false;
+    syncNativeWizardActions();
   }
 }
 
