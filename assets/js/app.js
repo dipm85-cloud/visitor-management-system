@@ -201,11 +201,13 @@ import {
 import {
   openReferenceDataWorkspace,
   loadReferenceData,
-  renderReferenceDataList,
+  handleReferenceSearchInput,
   openReferenceDataPanel,
   closeReferenceDataPanel,
   saveReferenceRecord,
-  clearReferenceForm
+  clearReferenceForm,
+  exportReferenceDataCsv,
+  exportReferenceDataXlsx
 } from "./referenceData.js";
 import {
   openAssignmentEditor,
@@ -5184,7 +5186,10 @@ window.addEventListener("load", async function () {
     if ($("administrationReferenceNav")) {
       $("administrationReferenceNav").addEventListener("click", openReferenceDataWorkspace);
     }
-    if ($("referenceSearch")) $("referenceSearch").addEventListener("input", renderReferenceDataList);
+    if ($("referenceSearch")) $("referenceSearch").addEventListener("input", handleReferenceSearchInput);
+    if ($("referenceIncludeInactive")) $("referenceIncludeInactive").addEventListener("change", loadReferenceData);
+    if ($("referenceExportCsvButton")) $("referenceExportCsvButton").addEventListener("click", exportReferenceDataCsv);
+    if ($("referenceExportXlsxButton")) $("referenceExportXlsxButton").addEventListener("click", exportReferenceDataXlsx);
     if ($("referenceReloadButton")) $("referenceReloadButton").addEventListener("click", loadReferenceData);
     if ($("referenceCreateButton")) $("referenceCreateButton").addEventListener("click", () => openReferenceDataPanel(null));
     if ($("referencePanelCloseButton")) $("referencePanelCloseButton").addEventListener("click", closeReferenceDataPanel);

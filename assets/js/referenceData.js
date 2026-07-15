@@ -4,8 +4,9 @@ import { showToast } from "./messages.js";
 import { renderEmptyState } from "./platformUi.js";
 import { showAdministrationWorkspace } from "./shell.js";
 import { auditDiffSummary, buildFieldDiff, writeAuditEvent } from "./audit.js";
+import { downloadCsv, downloadXlsx } from "./exports.js";
 import { showReferenceDataAdministrationSection } from "./accessControl.js";
-import { hasAnyCapability, hasCapability } from "./capabilities.js";
+import { hasAnyCapability } from "./capabilities.js";
 import {
   refreshSectionNavigator,
   registerModuleSections,
@@ -13,7 +14,8 @@ import {
 } from "./sectionNavigation.js";
 import {
   normaliseBusinessCode,
-  titleCaseText
+  titleCaseText,
+  exportDateStamp
 } from "./utils.js";
 
 const commonRecordColumns = ["id", "active", "notes", "created_at", "updated_at"];
@@ -186,6 +188,64 @@ const entityDefinitions = {
       { key: "break_minutes", label: "Minutes" },
       { key: "paid_break", label: "Paid", format: "boolean" }
     ]
+  },
+  workTimeProfiles: {
+    table: "work_time_profiles",
+    customType: "workTimeProfiles",
+    singular: "Work Time Profile",
+    plural: "Work Time Profiles",
+    orderBy: "profile_name",
+    viewCapabilities: [
+      "work_time_profiles.view",
+      "work_time_profiles.manage",
+      "reference_data.view",
+      "reference_data.manage",
+      "people.view",
+      "people.manage",
+      "module_configuration.manage",
+      "settings.view"
+    ],
+    editCapabilities: [
+      "work_time_profiles.manage",
+      "reference_data.manage",
+      "people.manage",
+      "module_configuration.manage",
+      "settings.edit"
+    ],
+    fields: [
+      { key: "profile_name", label: "Profile Name", required: true, normalise: "title" },
+      { key: "profile_code", label: "Profile Code", normalise: "code", placeholder: "DAY-0600-1430", help: "Auto-suggested from the name; saved in uppercase." },
+      { key: "start_time", label: "Start Time", type: "time", required: true },
+      { key: "end_time", label: "End Time", type: "time", required: true },
+      {
+        key: "crosses_midnight",
+        label: "Crosses Midnight",
+        type: "select",
+        defaultValue: "false",
+        boolean: true,
+        options: [
+          { value: "false", label: "No" },
+          { value: "true", label: "Yes - overnight" }
+        ]
+      },
+      { key: "break_minutes", label: "Break Minutes", type: "number", min: 0, max: 1440, defaultValue: 0 },
+      { key: "paid_hours", label: "Paid Working Hours", type: "number", min: 0, max: 24, step: "0.25", required: true },
+      { key: "unsociable_hours", label: "Unsociable Hours", type: "number", min: 0, max: 24, step: "0.25", defaultValue: 0 },
+      { key: "display_order", label: "Display Order", type: "number", min: 0, defaultValue: 0 },
+      { key: "notes", label: "Notes", type: "textarea" }
+    ],
+    columns: [
+      { key: "profile_name", label: "Profile" },
+      { key: "profile_code", label: "Code" },
+      { key: "start_time", label: "Start", format: "time" },
+      { key: "end_time", label: "End", format: "time" },
+      { key: "crosses_midnight", label: "Overnight", format: "boolean" },
+      { key: "break_minutes", label: "Break" },
+      { key: "paid_hours", label: "Paid", format: "hours" },
+      { key: "unsociable_hours", label: "Unsociable", format: "hours" },
+      { key: "display_order", label: "Order" },
+      { key: "notes", label: "Notes" }
+    ]
   }
 };
 
@@ -215,7 +275,7 @@ function registerReferenceDataSections() {
 
   registerModuleSections(
     "reference-data",
-    Object.entries(entityDefinitions).map(([key, definition], index) => ({
+    Object.entries(entityDefinitions).filter(([, definition]) => canViewDefinition(definition)).map(([key, definition], index) => ({
       id: key,
       title: definition.plural,
       icon: referenceEntityIcon(key, definition),
@@ -268,23 +328,45 @@ function referenceRecordCode(record, definition) {
   return codeField && record ? record[codeField.key] || null : null;
 }
 
+function definitionViewCapabilities(definition) {
+  return definition.viewCapabilities || ["settings.view", "settings.edit"];
+}
+
+function definitionEditCapabilities(definition) {
+  return definition.editCapabilities || ["settings.edit"];
+}
+
+function canViewDefinition(definition) {
+  return hasAnyCapability(definitionViewCapabilities(definition));
+}
+
+function canEditDefinition(definition) {
+  return hasAnyCapability(definitionEditCapabilities(definition));
+}
+
 function hasReferenceDataAccess() {
-  return hasAnyCapability(["settings.view", "settings.edit"]);
+  return Object.values(entityDefinitions).some(canViewDefinition);
 }
 
 function hasReferenceDataEditAccess() {
-  return hasCapability("settings.edit");
+  return canEditDefinition(currentDefinition());
 }
 
 function requireReferenceDataAccess() {
   if (hasReferenceDataAccess()) return true;
-  showToast("You do not have permission", "Reference Data requires settings.view.", "error");
+  showToast("You do not have permission", "Reference Data requires an authorised reference capability.", "error");
+  return false;
+}
+
+function requireReferenceEntityAccess(definition) {
+  if (canViewDefinition(definition)) return true;
+  showToast("You do not have permission", definition.plural + " cannot be viewed by your current access.", "error");
   return false;
 }
 
 function requireReferenceDataEditAccess() {
   if (hasReferenceDataEditAccess()) return true;
-  showToast("You do not have permission", "This action requires settings.edit.", "error");
+  showToast("You do not have permission", "This action requires a manage capability for this reference data.", "error");
   return false;
 }
 
@@ -310,6 +392,8 @@ function lookupLabel(lookupName, id) {
 function formatValue(record, column) {
   if (column.lookup) return lookupLabel(column.lookup, record[column.key]);
   if (column.format === "boolean") return record[column.key] ? "Yes" : "No";
+  if (column.format === "time") return formatReferenceTime(record[column.key]);
+  if (column.format === "hours") return formatReferenceHours(record[column.key]);
   if (column.format === "title") {
     return String(record[column.key] || "")
       .replace(/_/g, " ")
@@ -317,6 +401,27 @@ function formatValue(record, column) {
   }
   const value = record[column.key];
   return value === null || value === undefined || value === "" ? "—" : String(value);
+}
+
+function formatReferenceTime(value) {
+  return value ? String(value).slice(0, 5) : "-";
+}
+
+function formatReferenceHours(value) {
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) ? numberValue.toFixed(2) : "-";
+}
+
+function normaliseWorkTimeProfileCode(value) {
+  return normaliseBusinessCode(
+    String(value || "")
+      .replace(/[^a-z0-9]+/gi, "-")
+      .replace(/^-+|-+$/g, "")
+  );
+}
+
+function isWorkTimeProfilesDefinition(definition = currentDefinition()) {
+  return definition.customType === "workTimeProfiles";
 }
 
 function createTextCell(text) {
@@ -400,8 +505,14 @@ function createFieldControl(field) {
     }
   } else {
     control = document.createElement("input");
-    control.type = field.type === "number" ? "number" : "text";
+    control.type = field.type === "number"
+      ? "number"
+      : field.type === "time"
+        ? "time"
+        : "text";
     if (field.min !== undefined) control.min = String(field.min);
+    if (field.max !== undefined) control.max = String(field.max);
+    if (field.step !== undefined) control.step = String(field.step);
   }
 
   control.id = "referenceField_" + field.key;
@@ -470,6 +581,24 @@ function renderReferenceFormFields() {
 
     container.appendChild(wrapper);
   });
+
+  if (isWorkTimeProfilesDefinition(definition)) {
+    setupWorkTimeProfileFormBehaviour();
+  }
+}
+
+function setupWorkTimeProfileFormBehaviour() {
+  const nameControl = $("referenceField_profile_name");
+  const codeControl = $("referenceField_profile_code");
+  if (!nameControl || !codeControl) return;
+
+  codeControl.addEventListener("input", () => {
+    codeControl.dataset.userEdited = "true";
+  });
+  nameControl.addEventListener("input", () => {
+    if (codeControl.dataset.userEdited === "true" || codeControl.value.trim()) return;
+    codeControl.value = normaliseWorkTimeProfileCode(nameControl.value) || "";
+  });
 }
 
 function updateReferencePageLabels() {
@@ -478,6 +607,12 @@ function updateReferencePageLabels() {
   $("referenceSearchEntityLabel").textContent = definition.plural.toLowerCase();
   $("referenceSearch").placeholder = "Search " + definition.plural.toLowerCase();
   $("referenceCreateButton").textContent = "Create " + definition.singular;
+  $("referenceCreateButton").classList.toggle("hidden", !hasReferenceDataEditAccess());
+  const isWorkTimeProfiles = isWorkTimeProfilesDefinition(definition);
+  ["referenceIncludeInactiveWrapper", "referenceExportCsvButton", "referenceExportXlsxButton"].forEach(id => {
+    const element = $(id);
+    if (element) element.classList.toggle("hidden", !isWorkTimeProfiles);
+  });
   syncReferenceEntityNavigation();
 }
 
@@ -494,11 +629,183 @@ function recordSearchText(record, definition) {
   return fieldText + (record.active ? " active" : " inactive");
 }
 
+function includeInactiveWorkTimeProfiles() {
+  const control = $("referenceIncludeInactive");
+  return Boolean(control && control.checked);
+}
+
+async function loadWorkTimeProfiles(requestedEntityKey, definition) {
+  setListStatus("Loading " + definition.plural.toLowerCase() + "...");
+  $("referenceResults").replaceChildren();
+  $("referenceEmptyState").classList.add("hidden");
+
+  try {
+    const result = await supabaseClient.rpc("list_work_time_profiles", {
+      p_include_inactive: includeInactiveWorkTimeProfiles(),
+      p_search_text: $("referenceSearch").value.trim() || null
+    });
+
+    if (result.error) throw result.error;
+    if (requestedEntityKey !== currentEntityKey) return;
+
+    referenceCache[requestedEntityKey] = result.data || [];
+    renderReferenceDataList();
+  } catch (err) {
+    if (requestedEntityKey !== currentEntityKey) return;
+    referenceCache[requestedEntityKey] = [];
+    renderReferenceDataList();
+    setListStatus(definition.plural + " could not be loaded.");
+    showToast("Work Time Profiles load failed", err.message || "Could not load work time profiles.", "error");
+  }
+}
+
+function workTimeProfileSearchText(record) {
+  return [
+    record.profile_name,
+    record.profile_code,
+    formatReferenceTime(record.start_time),
+    formatReferenceTime(record.end_time),
+    record.crosses_midnight ? "overnight crosses midnight night" : "day",
+    record.break_minutes,
+    record.paid_hours,
+    record.unsociable_hours,
+    record.active ? "active" : "inactive",
+    record.notes
+  ].join(" ").toLowerCase();
+}
+
+function filteredWorkTimeProfiles() {
+  const records = referenceCache[currentEntityKey] || [];
+  const query = $("referenceSearch").value.trim().toLowerCase();
+  return records.filter(record => !query || workTimeProfileSearchText(record).includes(query));
+}
+
+function renderWorkTimeProfileList() {
+  const definition = currentDefinition();
+  const filtered = filteredWorkTimeProfiles();
+  const tableHead = $("referenceTableHead");
+  tableHead.replaceChildren();
+
+  definition.columns.forEach(column => {
+    const heading = document.createElement("th");
+    heading.scope = "col";
+    heading.textContent = column.label;
+    tableHead.appendChild(heading);
+  });
+
+  const statusHeading = document.createElement("th");
+  statusHeading.scope = "col";
+  statusHeading.textContent = "Status";
+  tableHead.appendChild(statusHeading);
+
+  const actionHeading = document.createElement("th");
+  actionHeading.scope = "col";
+  const hiddenLabel = document.createElement("span");
+  hiddenLabel.className = "sr-only";
+  hiddenLabel.textContent = "Actions";
+  actionHeading.appendChild(hiddenLabel);
+  tableHead.appendChild(actionHeading);
+
+  const body = $("referenceResults");
+  body.replaceChildren();
+
+  filtered.forEach(record => {
+    const row = document.createElement("tr");
+    definition.columns.forEach(column => {
+      row.appendChild(createTextCell(formatValue(record, column)));
+    });
+
+    const statusCell = document.createElement("td");
+    const status = document.createElement("span");
+    status.className = "people-status " + (record.active ? "active" : "inactive");
+    status.textContent = record.active ? "Active" : "Inactive";
+    statusCell.appendChild(status);
+    row.appendChild(statusCell);
+
+    const actionCell = document.createElement("td");
+    actionCell.className = "reference-row-actions";
+    if (hasReferenceDataEditAccess()) {
+      const editButton = document.createElement("button");
+      editButton.className = "ghost";
+      editButton.type = "button";
+      editButton.textContent = "Edit";
+      editButton.setAttribute("aria-label", "Edit " + (record.profile_name || "work time profile"));
+      editButton.addEventListener("click", () => openReferenceDataPanel(record.id));
+      actionCell.appendChild(editButton);
+    } else {
+      actionCell.textContent = "Read only";
+    }
+    row.appendChild(actionCell);
+    body.appendChild(row);
+  });
+
+  $("referenceEmptyState").classList.toggle("hidden", filtered.length > 0);
+  if (!filtered.length) {
+    renderEmptyState("referenceEmptyState", {
+      title: "No work time profiles found",
+      description: $("referenceSearch").value.trim()
+        ? "Try a different profile name, code or time."
+        : hasReferenceDataEditAccess()
+          ? "Create a work time profile to reuse daily working-time settings on assignments."
+          : "No work time profiles are available."
+    });
+  }
+
+  setListStatus(filtered.length + " work time profile" + (filtered.length === 1 ? "" : "s") + " shown.");
+}
+
+function workTimeProfileExportRows() {
+  return filteredWorkTimeProfiles().map(record => ({
+    "Profile Name": record.profile_name || "",
+    "Profile Code": record.profile_code || "",
+    "Start Time": formatReferenceTime(record.start_time),
+    "End Time": formatReferenceTime(record.end_time),
+    "Crosses Midnight": record.crosses_midnight ? "Yes" : "No",
+    "Break Minutes": record.break_minutes ?? "",
+    "Paid Hours": formatReferenceHours(record.paid_hours),
+    "Unsociable Hours": formatReferenceHours(record.unsociable_hours),
+    "Active": record.active ? "Yes" : "No",
+    "Display Order": record.display_order ?? "",
+    "Notes": record.notes || ""
+  }));
+}
+
+export function exportReferenceDataCsv() {
+  if (!isWorkTimeProfilesDefinition()) return;
+  const rows = workTimeProfileExportRows();
+  if (!rows.length) {
+    showToast("Nothing to export", "No Work Time Profiles match the current filters.", "error");
+    return;
+  }
+  downloadCsv("work-time-profiles-" + exportDateStamp() + ".csv", rows);
+  showToast("Export started", "Work Time Profiles CSV export is being downloaded.", "success");
+}
+
+export function exportReferenceDataXlsx() {
+  if (!isWorkTimeProfilesDefinition()) return;
+  const rows = workTimeProfileExportRows();
+  if (!rows.length) {
+    showToast("Nothing to export", "No Work Time Profiles match the current filters.", "error");
+    return;
+  }
+  downloadXlsx("work-time-profiles-" + exportDateStamp() + ".xlsx", rows, "Work Time Profiles");
+  showToast("Export started", "Work Time Profiles Excel export is being downloaded.", "success");
+}
+
+export function handleReferenceSearchInput() {
+  if (isWorkTimeProfilesDefinition()) void loadReferenceData();
+  else renderReferenceDataList();
+}
+
 export async function openReferenceDataWorkspace() {
   if (!requireReferenceDataAccess()) return;
   registerReferenceDataSections();
   showAdministrationWorkspace();
   showReferenceDataAdministrationSection();
+  if (!canViewDefinition(currentDefinition())) {
+    currentEntityKey = Object.keys(entityDefinitions)
+      .find(key => canViewDefinition(entityDefinitions[key])) || currentEntityKey;
+  }
   $("referenceCreateButton").classList.toggle("hidden", !hasReferenceDataEditAccess());
   closeReferenceDataPanel();
   await selectReferenceEntity(currentEntityKey);
@@ -506,6 +813,7 @@ export async function openReferenceDataWorkspace() {
 
 export async function selectReferenceEntity(entityKey) {
   if (!entityDefinitions[entityKey] || !requireReferenceDataAccess()) return;
+  if (!requireReferenceEntityAccess(entityDefinitions[entityKey])) return;
   currentEntityKey = entityKey;
   $("referenceSearch").value = "";
   closeReferenceDataPanel();
@@ -519,6 +827,11 @@ export async function loadReferenceData() {
 
   const requestedEntityKey = currentEntityKey;
   const definition = entityDefinitions[requestedEntityKey];
+  if (!requireReferenceEntityAccess(definition)) return;
+  if (isWorkTimeProfilesDefinition(definition)) {
+    await loadWorkTimeProfiles(requestedEntityKey, definition);
+    return;
+  }
   setListStatus("Loading " + definition.plural.toLowerCase() + "…");
   $("referenceResults").replaceChildren();
   $("referenceEmptyState").classList.add("hidden");
@@ -546,6 +859,10 @@ export async function loadReferenceData() {
 
 export function renderReferenceDataList() {
   const definition = currentDefinition();
+  if (isWorkTimeProfilesDefinition(definition)) {
+    renderWorkTimeProfileList();
+    return;
+  }
   const records = referenceCache[currentEntityKey] || [];
   const query = $("referenceSearch").value.trim().toLowerCase();
   const filtered = records.filter(record => !query || recordSearchText(record, definition).includes(query));
@@ -697,6 +1014,9 @@ function fieldValue(field) {
     if (field.min !== undefined && numberValue < field.min) {
       throw new Error(field.label + " must be at least " + field.min + ".");
     }
+    if (field.max !== undefined && numberValue > field.max) {
+      throw new Error(field.label + " must be no more than " + field.max + ".");
+    }
     return numberValue;
   }
 
@@ -722,8 +1042,125 @@ function fieldValue(field) {
   return rawValue;
 }
 
+function buildWorkTimeProfilePayload() {
+  const payload = {};
+  currentDefinition().fields.forEach(field => {
+    payload[field.key] = fieldValue(field);
+  });
+  payload.active = $("referenceRecordActive").value === "true";
+
+  if (payload.unsociable_hours === null) payload.unsociable_hours = 0;
+  if (payload.break_minutes === null) payload.break_minutes = 0;
+  if (payload.display_order === null) payload.display_order = 0;
+  if (payload.profile_code) payload.profile_code = normaliseWorkTimeProfileCode(payload.profile_code);
+  if (!payload.profile_code) payload.profile_code = normaliseWorkTimeProfileCode(payload.profile_name);
+
+  if (payload.unsociable_hours > payload.paid_hours) {
+    throw new Error("Unsociable hours cannot exceed paid working hours.");
+  }
+  if (
+    payload.start_time &&
+    payload.end_time &&
+    payload.end_time < payload.start_time &&
+    !payload.crosses_midnight
+  ) {
+    payload.crosses_midnight = true;
+    $("referenceField_crosses_midnight").value = "true";
+    showToast(
+      "Profile marked overnight",
+      "End time is earlier than start time, so Crosses Midnight was set to Yes.",
+      "warning"
+    );
+  }
+
+  return payload;
+}
+
+async function saveWorkTimeProfile() {
+  if (!requireReferenceDataEditAccess()) return;
+
+  const recordId = $("referenceRecordId").value;
+  const previousRecord = recordId
+    ? (referenceCache[currentEntityKey] || []).find(record => record.id === recordId) || null
+    : null;
+  let payload;
+
+  try {
+    payload = buildWorkTimeProfilePayload();
+  } catch (err) {
+    showToast("Work Time Profile not saved", err.message, "error");
+    return;
+  }
+
+  const saveButton = $("referenceSaveButton");
+  saveButton.disabled = true;
+  saveButton.textContent = "Saving...";
+
+  const rpcName = recordId ? "update_work_time_profile" : "create_work_time_profile";
+  const rpcPayload = {
+    p_profile_code: payload.profile_code,
+    p_profile_name: payload.profile_name,
+    p_start_time: payload.start_time,
+    p_end_time: payload.end_time,
+    p_crosses_midnight: payload.crosses_midnight,
+    p_break_minutes: payload.break_minutes,
+    p_paid_hours: payload.paid_hours,
+    p_unsociable_hours: payload.unsociable_hours,
+    p_active: payload.active,
+    p_display_order: payload.display_order,
+    p_notes: payload.notes,
+    p_metadata: {}
+  };
+  if (recordId) rpcPayload.p_work_time_profile_id = recordId;
+
+  try {
+    const result = await supabaseClient.rpc(rpcName, rpcPayload);
+    if (result.error) throw result.error;
+    const savedRecord = Array.isArray(result.data) ? result.data[0] : result.data;
+
+    const auditFields = referenceAuditFields(currentDefinition());
+    const changes = buildFieldDiff(
+      referenceAuditRecord(previousRecord, auditFields),
+      referenceAuditRecord(savedRecord, auditFields),
+      auditFields
+    );
+    void writeAuditEvent(
+      recordId ? "work_time_profile.updated" : "work_time_profile.created",
+      "work_time_profiles",
+      savedRecord.id,
+      {
+        entity_type: "workTimeProfiles",
+        entity_id: savedRecord.id,
+        display_name: savedRecord.profile_name,
+        code: savedRecord.profile_code || null,
+        old_active: previousRecord ? previousRecord.active : null,
+        new_active: savedRecord.active,
+        changes,
+        summary: auditDiffSummary(changes)
+      }
+    );
+
+    showToast(
+      recordId ? "Work Time Profile updated" : "Work Time Profile created",
+      "The profile was saved successfully.",
+      "success"
+    );
+    closeReferenceDataPanel();
+    await loadReferenceData();
+  } catch (err) {
+    showToast("Work Time Profile not saved", err.message || "Could not save this profile.", "error");
+  } finally {
+    saveButton.disabled = false;
+    saveButton.textContent = "Save Record";
+  }
+}
+
 export async function saveReferenceRecord() {
   if (!requireReferenceDataEditAccess()) return;
+  if (isWorkTimeProfilesDefinition()) {
+    await saveWorkTimeProfile();
+    return;
+  }
 
   const entityKey = currentEntityKey;
   const definition = currentDefinition();

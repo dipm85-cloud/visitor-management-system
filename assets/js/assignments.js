@@ -18,6 +18,7 @@ const ASSIGNMENT_COLUMNS = [
   "assignment_type",
   "shift_pattern_id",
   "break_rule_id",
+  "work_time_profile_id",
   "shift_start_time",
   "shift_end_time",
   "cycle_anchor_date",
@@ -39,6 +40,7 @@ const ASSIGNMENT_AUDIT_FIELDS = [
   "assignment_type",
   "shift_pattern_id",
   "break_rule_id",
+  "work_time_profile_id",
   "shift_start_time",
   "shift_end_time",
   "cycle_anchor_date",
@@ -169,6 +171,43 @@ function lookupLabel(lookupName, id) {
   return item ? item.label : "Unknown";
 }
 
+function formatAssignmentTime(value) {
+  return value ? String(value).slice(0, 5) : "-";
+}
+
+function formatAssignmentHours(value) {
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) ? numberValue.toFixed(2) : "-";
+}
+
+function findWorkTimeProfile(profileId) {
+  if (!profileId) return null;
+  return (assignmentLookups.workTimeProfiles || []).find(profile => profile.id === profileId) || null;
+}
+
+function workTimeProfileOptionLabel(profile) {
+  const name = profile.profile_name || profile.profile_code || "Work Time Profile";
+  return name + " " + formatAssignmentTime(profile.start_time) + "-" +
+    formatAssignmentTime(profile.end_time) + " - " +
+    formatAssignmentHours(profile.paid_hours) + " paid - " +
+    formatAssignmentHours(profile.unsociable_hours) + " unsociable" +
+    (profile.active === false ? " - inactive" : "");
+}
+
+function workTimeProfileSummaryText(profile) {
+  if (!profile) return "No Work Time Profile selected";
+  return formatAssignmentTime(profile.start_time) + "-" + formatAssignmentTime(profile.end_time) +
+    (profile.crosses_midnight ? " overnight" : "") + " - " +
+    formatAssignmentHours(profile.paid_hours) + " paid - " +
+    formatAssignmentHours(profile.unsociable_hours) + " unsociable";
+}
+
+function legacyShiftText(assignment) {
+  if (!assignment || (!assignment.shift_start_time && !assignment.shift_end_time)) return "";
+  return "Legacy start/end: " + formatAssignmentTime(assignment.shift_start_time) +
+    "-" + formatAssignmentTime(assignment.shift_end_time);
+}
+
 function populateLookup(lookupName) {
   const control = $(lookupControlMap[lookupName]);
   const currentValue = control.value;
@@ -187,6 +226,62 @@ function populateLookup(lookupName) {
   });
 
   if (currentValue) control.value = currentValue;
+}
+
+function populateWorkTimeProfileLookup(selectedProfileId) {
+  const control = $("assignmentWorkTimeProfile");
+  if (!control) return;
+  const currentValue = selectedProfileId !== undefined ? selectedProfileId : control.value;
+  control.replaceChildren();
+
+  const emptyOption = document.createElement("option");
+  emptyOption.value = "";
+  emptyOption.textContent = "No Work Time Profile selected";
+  control.appendChild(emptyOption);
+
+  (assignmentLookups.workTimeProfiles || [])
+    .filter(profile => profile.active !== false || profile.id === currentValue)
+    .forEach(profile => {
+      const option = document.createElement("option");
+      option.value = profile.id;
+      option.textContent = workTimeProfileOptionLabel(profile);
+      control.appendChild(option);
+    });
+
+  control.value = currentValue || "";
+  control.onchange = renderSelectedAssignmentWorkTimeProfileSummary;
+}
+
+export function renderSelectedAssignmentWorkTimeProfileSummary() {
+  const summary = $("assignmentWorkTimeProfileSummary");
+  if (!summary) return;
+  const profile = findWorkTimeProfile($("assignmentWorkTimeProfile").value);
+  const legacyStart = $("assignmentShiftStart").value;
+  const legacyEnd = $("assignmentShiftEnd").value;
+  const legacyText = legacyStart || legacyEnd
+    ? "Legacy start/end: " + formatAssignmentTime(legacyStart) + "-" + formatAssignmentTime(legacyEnd)
+    : "";
+
+  summary.replaceChildren();
+  const title = document.createElement("strong");
+  title.textContent = workTimeProfileSummaryText(profile);
+  summary.appendChild(title);
+
+  if (profile) {
+    const details = document.createElement("span");
+    details.textContent =
+      "Start " + formatAssignmentTime(profile.start_time) +
+      " - End " + formatAssignmentTime(profile.end_time) +
+      " - Crosses midnight " + (profile.crosses_midnight ? "Yes" : "No") +
+      " - Break " + (profile.break_minutes ?? 0) + " mins" +
+      " - Paid " + formatAssignmentHours(profile.paid_hours) +
+      " - Unsociable " + formatAssignmentHours(profile.unsociable_hours);
+    summary.appendChild(details);
+  } else if (legacyText) {
+    const details = document.createElement("span");
+    details.textContent = legacyText;
+    summary.appendChild(details);
+  }
 }
 
 export async function loadAssignmentLookups() {
@@ -214,6 +309,17 @@ export async function loadAssignmentLookups() {
     assignmentLookups[lookupName] = records;
     populateLookup(lookupName);
   });
+}
+
+export async function loadAssignmentWorkTimeProfiles() {
+  const result = await supabaseClient.rpc("list_work_time_profiles", {
+    p_include_inactive: true,
+    p_search_text: null
+  });
+
+  if (result.error) throw result.error;
+  assignmentLookups.workTimeProfiles = result.data || [];
+  populateWorkTimeProfileLookup();
 }
 
 export function getSelectedAssignmentPersonId() {
@@ -293,7 +399,10 @@ export async function loadAssignments() {
   $("assignmentEmptyState").classList.add("hidden");
 
   try {
-    await loadAssignmentLookups();
+    await Promise.all([
+      loadAssignmentLookups(),
+      loadAssignmentWorkTimeProfiles()
+    ]);
     const result = await supabaseClient
       .from("work_assignments")
       .select(ASSIGNMENT_COLUMNS)
@@ -320,6 +429,33 @@ function createCell(text) {
   return cell;
 }
 
+function createWorkTimeProfileCell(assignment) {
+  const cell = document.createElement("td");
+  cell.className = "assignment-work-time-cell";
+  const profile = findWorkTimeProfile(assignment.work_time_profile_id);
+
+  const primary = document.createElement("strong");
+  primary.textContent = workTimeProfileSummaryText(profile);
+  cell.appendChild(primary);
+
+  if (profile) {
+    const detail = document.createElement("span");
+    detail.textContent =
+      "Break " + (profile.break_minutes ?? 0) + " mins" +
+      " - Crosses midnight " + (profile.crosses_midnight ? "Yes" : "No");
+    cell.appendChild(detail);
+  } else {
+    const legacyText = legacyShiftText(assignment);
+    if (legacyText) {
+      const detail = document.createElement("span");
+      detail.textContent = legacyText;
+      cell.appendChild(detail);
+    }
+  }
+
+  return cell;
+}
+
 export function renderAssignmentList() {
   const body = $("assignmentResults");
   body.replaceChildren();
@@ -333,6 +469,7 @@ export function renderAssignmentList() {
     row.appendChild(createCell(lookupLabel("departments", assignment.department_id)));
     row.appendChild(createCell(lookupLabel("jobRoles", assignment.job_role_id)));
     row.appendChild(createCell(lookupLabel("shiftPatterns", assignment.shift_pattern_id)));
+    row.appendChild(createWorkTimeProfileCell(assignment));
     row.appendChild(createCell(assignment.assignment_start_date));
     row.appendChild(createCell(assignment.assignment_end_date));
 
@@ -424,6 +561,7 @@ function setLookupValues(assignment) {
   $("assignmentJobRole").value = assignment.job_role_id || "";
   $("assignmentShiftPattern").value = assignment.shift_pattern_id || "";
   $("assignmentBreakRule").value = assignment.break_rule_id || "";
+  populateWorkTimeProfileLookup(assignment.work_time_profile_id || "");
 }
 
 export function openAssignmentEditor(sourceAssignmentId) {
@@ -446,6 +584,7 @@ export function openAssignmentEditor(sourceAssignmentId) {
     $("assignmentEnd").value = source.assignment_end_date || "";
     $("assignmentShiftStart").value = source.shift_start_time || "";
     $("assignmentShiftEnd").value = source.shift_end_time || "";
+    renderSelectedAssignmentWorkTimeProfileSummary();
     $("assignmentCycleAnchor").value = source.cycle_anchor_date || "";
     $("assignmentNotes").value = source.notes || "";
     $("assignmentActive").value = source.active ? "true" : "false";
@@ -481,6 +620,8 @@ export function clearAssignmentForm() {
   $("assignmentType").value = "direct_employee";
   $("assignmentStart").value = todayDate();
   $("assignmentActive").value = "true";
+  populateWorkTimeProfileLookup("");
+  renderSelectedAssignmentWorkTimeProfileSummary();
   $("assignmentPanelTitle").textContent = "Create Assignment";
   $("assignmentPanelPerson").textContent = selectedPersonName || "No person selected";
   $("assignmentEditorNotice").textContent = "Saving creates a new assignment record.";
@@ -564,6 +705,7 @@ export async function saveAssignment() {
     assignment_type: $("assignmentType").value,
     shift_pattern_id: optionalValue("assignmentShiftPattern"),
     break_rule_id: optionalValue("assignmentBreakRule"),
+    work_time_profile_id: optionalValue("assignmentWorkTimeProfile"),
     shift_start_time: optionalValue("assignmentShiftStart"),
     shift_end_time: optionalValue("assignmentShiftEnd"),
     cycle_anchor_date: optionalValue("assignmentCycleAnchor"),

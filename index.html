@@ -1349,7 +1349,7 @@
       <div class="brand-mark"><img id="brandLogoImg" alt="Logo" style="display:none;width:100%;height:100%;object-fit:contain;border-radius:12px;"><span id="brandLogoFallback">V</span></div>
       <div>
         Visitor Management<br>
-        <span style="font-size:12px;color:var(--muted);font-weight:700;">Operations Hub nextgen-ui - OHP-011A</span>
+        <span style="font-size:12px;color:var(--muted);font-weight:700;">Operations Hub nextgen-ui - OHP-012</span>
       </div>
     </div>
     <div class="button-row no-print" style="margin:0;">
@@ -1398,7 +1398,7 @@
       </div>
       <button id="terminalReturnHomeButton" class="secondary hidden" type="button">Return to Terminal Home</button>
     </section>
-  <div id="appVersionFooter" class="version-footer">Version <span id="appVersionText">OHP-011A</span></div>
+  <div id="appVersionFooter" class="version-footer">Version <span id="appVersionText">OHP-012</span></div>
 </main>
 
   <section id="signInScreen" class="screen">
@@ -3170,6 +3170,7 @@
                     <th scope="col">Department</th>
                     <th scope="col">Job Role</th>
                     <th scope="col">Shift Pattern</th>
+                    <th scope="col">Work Time Profile</th>
                     <th scope="col">Assignment Start</th>
                     <th scope="col">Assignment End</th>
                     <th scope="col">State</th>
@@ -3331,13 +3332,14 @@
                   <label for="assignmentCycleAnchor">Cycle Anchor Date</label>
                   <input id="assignmentCycleAnchor" type="date" />
                 </div>
-                <div>
-                  <label for="assignmentShiftStart">Shift Start Time</label>
-                  <input id="assignmentShiftStart" type="time" />
-                </div>
-                <div>
-                  <label for="assignmentShiftEnd">Shift End Time</label>
-                  <input id="assignmentShiftEnd" type="time" />
+                <div class="assignment-work-time-field">
+                  <label for="assignmentWorkTimeProfile">Work Time Profile</label>
+                  <select id="assignmentWorkTimeProfile"></select>
+                  <div id="assignmentWorkTimeProfileSummary" class="assignment-work-time-summary" aria-live="polite">
+                    <strong>No Work Time Profile selected</strong>
+                  </div>
+                  <input id="assignmentShiftStart" type="hidden" />
+                  <input id="assignmentShiftEnd" type="hidden" />
                 </div>
               </div>
 
@@ -4923,6 +4925,12 @@
                   <input id="referenceSearch" type="search" placeholder="Search sites" autocomplete="off" />
                 </div>
                 <div class="reference-toolbar-actions">
+                  <label id="referenceIncludeInactiveWrapper" class="reference-inline-check hidden" for="referenceIncludeInactive">
+                    <input id="referenceIncludeInactive" type="checkbox" />
+                    <span>Include inactive</span>
+                  </label>
+                  <button id="referenceExportCsvButton" class="secondary hidden" type="button">Export CSV</button>
+                  <button id="referenceExportXlsxButton" class="secondary hidden" type="button">Export XLSX</button>
                   <button id="referenceReloadButton" class="secondary" type="button">Refresh</button>
                   <button id="referenceCreateButton" type="button">Create Site</button>
                 </div>
@@ -5199,7 +5207,7 @@
 
   <footer class="oh-footer">
     <strong>Operations Hub</strong>
-    <span>Version <span id="ohPlatformVersion">OHP-011A</span></span>
+    <span>Version <span id="ohPlatformVersion">OHP-012</span></span>
     <span>Environment <span id="ohEnvironment">Local</span></span>
   </footer>
 </div>

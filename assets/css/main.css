@@ -7031,6 +7031,22 @@ button.oh-section-nav-item:focus-visible,
   gap: 10px;
 }
 
+.reference-inline-check {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  color: var(--oh-shell-muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.reference-inline-check input {
+  width: auto;
+  margin: 0;
+}
+
 .reference-results-card {
   margin: 0;
   padding: 0;
@@ -8648,6 +8664,25 @@ input[data-reference-field="cycle_length_days"][readonly] {
 .assignment-row-action { width: 1%; }
 .assignment-row-action button { min-height: 40px; padding: 8px 12px; }
 
+.assignment-work-time-cell {
+  min-width: 210px;
+}
+
+.assignment-work-time-cell strong,
+.assignment-work-time-cell span,
+.assignment-work-time-summary strong,
+.assignment-work-time-summary span {
+  display: block;
+}
+
+.assignment-work-time-cell span,
+.assignment-work-time-summary span {
+  margin-top: 4px;
+  color: var(--oh-shell-muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
 .assignment-row-actions {
   display: flex;
   align-items: center;
@@ -8709,6 +8744,20 @@ input[data-reference-field="cycle_length_days"][readonly] {
   grid-template-columns: 1fr 1fr;
   gap: 14px;
   margin-bottom: 16px;
+}
+
+.assignment-work-time-field {
+  grid-column: 1 / -1;
+}
+
+.assignment-work-time-summary {
+  margin-top: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--oh-shell-border);
+  border-radius: 8px;
+  background: #f8fafc;
+  color: var(--oh-shell-text);
+  font-size: 13px;
 }
 
 .assignment-form-grid > div > label,
