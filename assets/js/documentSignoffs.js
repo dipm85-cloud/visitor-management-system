@@ -237,6 +237,15 @@ function updateDocumentSignoffDebug(patch) {
   }
 }
 
+function documentSignoffQueueTraceEnabled() {
+  return localStorage.getItem("oh_debug_document_signoff_queue") === "true";
+}
+
+function traceNativeQueueEvaluation(entry) {
+  if (!documentSignoffQueueTraceEnabled()) return;
+  console.debug("Document sign-off queue visit evaluation", entry);
+}
+
 function focusNativeElement(element) {
   if (!element || typeof element.focus !== "function") return false;
   try {
@@ -1091,6 +1100,54 @@ async function nativeStatusSatisfiesVisitRequirement(visitId, status) {
   return directEvidenceRecordMatchesVisit(status, visitId);
 }
 
+async function nativeVisitRequirementClassification(visitId, status) {
+  if (!directEvidenceIsValid(status)) {
+    return {
+      satisfied: false,
+      directEvidenceCount: 0,
+      linkedEvidenceCount: 0,
+      sameNameHistoricalEvidenceCount: 0,
+      reason: status && (status.identity_link_lookup_note || status.reason) || "Required sign-off missing."
+    };
+  }
+
+  if (currentVisitDirectEvidenceOverrideStatus(visitId, status)) {
+    return {
+      satisfied: true,
+      directEvidenceCount: 1,
+      linkedEvidenceCount: 0,
+      sameNameHistoricalEvidenceCount: 0,
+      reason: "Current-visit evidence override."
+    };
+  }
+
+  if (status.evidence_source === "confirmed_identity_link") {
+    const satisfied = useIdentityLinksForDocumentCompliance() &&
+      !!status.identity_link_id &&
+      directEvidenceIsValid(status);
+    return {
+      satisfied,
+      directEvidenceCount: 0,
+      linkedEvidenceCount: satisfied ? 1 : 0,
+      sameNameHistoricalEvidenceCount: satisfied ? 0 : 1,
+      reason: satisfied
+        ? "Valid confirmed identity-linked evidence."
+        : "Confirmed identity-linked evidence is unavailable or disabled."
+    };
+  }
+
+  const direct = await directEvidenceRecordMatchesVisit(status, visitId);
+  return {
+    satisfied: direct,
+    directEvidenceCount: direct ? 1 : 0,
+    linkedEvidenceCount: 0,
+    sameNameHistoricalEvidenceCount: direct ? 0 : 1,
+    reason: direct
+      ? "Direct evidence tied to current visit."
+      : "Historical same-name evidence did not match this visit."
+  };
+}
+
 async function directEvidenceRecordMatchesVisit(status, visitId) {
   if (!directEvidenceIsValid(status) || !visitId) return false;
 
@@ -1931,12 +1988,14 @@ async function supplementNativeSignoffCandidatesFromCurrentVisits(rows) {
 
   if (!currentVisits.length) return candidates;
 
-  const merged = candidates.slice();
-  const existing = new Set(merged.map(nativeQueueKey).filter(Boolean));
+  const visitLevelRows = [];
+  const existing = new Set();
+  const evaluatedVisitIds = new Set();
 
   for (const visit of currentVisits) {
     const visitId = nativeVisitRowId(visit);
     if (!visitId) continue;
+    evaluatedVisitIds.add(visitId);
 
     let statuses = [];
     try {
@@ -1947,6 +2006,12 @@ async function supplementNativeSignoffCandidatesFromCurrentVisits(rows) {
     }
 
     const statusMap = nativeStatusMapByAgreementType(statuses);
+    let directEvidenceCount = 0;
+    let linkedEvidenceCount = 0;
+    let sameNameHistoricalEvidenceCount = 0;
+    let missingRequiredCount = 0;
+    const missingReasons = [];
+
     for (const type of requiredTypes) {
       const typeId = nativeAgreementTypeId(type);
       if (!typeId) continue;
@@ -1957,17 +2022,52 @@ async function supplementNativeSignoffCandidatesFromCurrentVisits(rows) {
         default_required: type.default_required
       };
       const status = currentVisitDirectEvidenceOverrideStatus(visitId, baseStatus) || baseStatus;
-      if (await nativeStatusSatisfiesVisitRequirement(visitId, status)) continue;
+      const classification = await nativeVisitRequirementClassification(visitId, status);
+      directEvidenceCount += classification.directEvidenceCount;
+      linkedEvidenceCount += classification.linkedEvidenceCount;
+      sameNameHistoricalEvidenceCount += classification.sameNameHistoricalEvidenceCount;
+      if (classification.satisfied) continue;
 
       const pendingRow = nativePendingRowFromVisitStatus(visit, type, status);
       const key = nativeQueueKey(pendingRow);
       if (!key || existing.has(key)) continue;
       existing.add(key);
-      merged.push(pendingRow);
+      visitLevelRows.push(pendingRow);
+      missingRequiredCount += 1;
+      missingReasons.push(textOrDash(type.agreement_name) + ": " + classification.reason);
     }
+
+    traceNativeQueueEvaluation({
+      visitLogId: visitId,
+      visitorName: visit.visitor_name || "",
+      company: visit.company || "",
+      signInTime: visit.sign_in_time || "",
+      signOutTime: visit.sign_out_time || "",
+      isActive: !!visit.sign_in_time && !visit.sign_out_time,
+      requiredAgreementsCount: requiredTypes.length,
+      directEvidenceCount,
+      linkedEvidenceCount,
+      sameNameHistoricalEvidenceCount,
+      finalMissingRequiredCount: missingRequiredCount,
+      includedInQueue: missingRequiredCount > 0,
+      exclusionReason: missingRequiredCount > 0 ? "" : "All required agreements satisfied for this visit.",
+      missingReasons
+    });
   }
 
-  return merged;
+  const fallbackRows = candidates.filter(row => {
+    const visitId = nativeVisitRowId(row);
+    return visitId && !evaluatedVisitIds.has(visitId);
+  });
+  const fallbackExisting = new Set(visitLevelRows.map(nativeQueueKey).filter(Boolean));
+  fallbackRows.forEach(row => {
+    const key = nativeQueueKey(row);
+    if (!key || fallbackExisting.has(key)) return;
+    fallbackExisting.add(key);
+    visitLevelRows.push(row);
+  });
+
+  return visitLevelRows;
 }
 
 function signoffIdentityReviewLabel(visit) {
@@ -2038,7 +2138,7 @@ function renderNativeSignoffCandidates(rows) {
   if (!visits.length) {
     renderEmptyState("documentSignoffNativeResults", {
       title: "No visitors currently require sign-off",
-      description: "The existing agreement requirement checks did not return any current visitors needing action."
+      description: "No visitors require sign-off after visit-level evaluation."
     });
     return;
   }
@@ -2141,23 +2241,20 @@ async function loadNativeSignoffCandidates(manual) {
   const box = $("documentSignoffNativeResults");
   if (box) box.textContent = "Loading visitors requiring sign-off...";
   setNativeStatus("", "");
-  const result = await supabaseClient.rpc("get_pending_agreement_visitors");
-  if (result.error) {
-    setNativeStatus(result.error.message, "error");
-    if (box) {
-      renderEmptyState("documentSignoffNativeResults", {
-        title: "Native sign-off could not load",
-        description: "This workflow is still completed in Legacy VMS for this scenario."
-      });
-    }
-    showToast("Native sign-off failed", result.error.message, "error");
-    return;
+  let rows = [];
+  let legacyError = null;
+  try {
+    const result = await supabaseClient.rpc("get_pending_agreement_visitors");
+    if (result.error) throw result.error;
+    rows = result.data || [];
+  } catch (error) {
+    legacyError = error;
+    console.warn("Legacy pending agreement visitor RPC was unavailable; using visit-level queue evaluation.", error);
   }
-  const rows = result.data || [];
   const supplementedRows = await supplementNativeSignoffCandidatesFromCurrentVisits(rows);
   const displayRows = await filterNativeSignoffCandidatesForLinkedCompliance(supplementedRows);
   renderNativeSignoffCandidates(displayRows);
-  setNativeStatus("", "");
+  setNativeStatus(legacyError && !displayRows.length ? "Visit-level queue evaluation completed; legacy pending source was unavailable." : "", "");
 }
 
 function nativeAgreementStateBadge(status, type) {
