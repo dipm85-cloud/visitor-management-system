@@ -1077,6 +1077,20 @@ function currentVisitDirectEvidenceOverrideStatus(visitId, status) {
   });
 }
 
+async function nativeStatusSatisfiesVisitRequirement(visitId, status) {
+  if (!directEvidenceIsValid(status)) return false;
+
+  if (currentVisitDirectEvidenceOverrideStatus(visitId, status)) return true;
+
+  if (status.evidence_source === "confirmed_identity_link") {
+    return useIdentityLinksForDocumentCompliance() &&
+      !!status.identity_link_id &&
+      directEvidenceIsValid(status);
+  }
+
+  return directEvidenceRecordMatchesVisit(status, visitId);
+}
+
 async function directEvidenceRecordMatchesVisit(status, visitId) {
   if (!directEvidenceIsValid(status) || !visitId) return false;
 
@@ -1933,9 +1947,9 @@ async function supplementNativeSignoffCandidatesFromCurrentVisits(rows) {
     }
 
     const statusMap = nativeStatusMapByAgreementType(statuses);
-    requiredTypes.forEach(type => {
+    for (const type of requiredTypes) {
       const typeId = nativeAgreementTypeId(type);
-      if (!typeId) return;
+      if (!typeId) continue;
       const baseStatus = statusMap.get(typeId) || {
         agreement_type_id: typeId,
         agreement_name: type.agreement_name,
@@ -1943,14 +1957,14 @@ async function supplementNativeSignoffCandidatesFromCurrentVisits(rows) {
         default_required: type.default_required
       };
       const status = currentVisitDirectEvidenceOverrideStatus(visitId, baseStatus) || baseStatus;
-      if (directEvidenceIsValid(status)) return;
+      if (await nativeStatusSatisfiesVisitRequirement(visitId, status)) continue;
 
       const pendingRow = nativePendingRowFromVisitStatus(visit, type, status);
       const key = nativeQueueKey(pendingRow);
-      if (!key || existing.has(key)) return;
+      if (!key || existing.has(key)) continue;
       existing.add(key);
       merged.push(pendingRow);
-    });
+    }
   }
 
   return merged;
@@ -2112,7 +2126,7 @@ async function filterNativeSignoffCandidatesForLinkedCompliance(rows) {
       continue;
     }
     const status = statusMap.get(agreementTypeId);
-    if (!directEvidenceIsValid(status)) filtered.push(row);
+    if (!(await nativeStatusSatisfiesVisitRequirement(visitId, status))) filtered.push(row);
   }
 
   return filtered;
