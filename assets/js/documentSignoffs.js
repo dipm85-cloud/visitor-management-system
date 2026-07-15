@@ -35,6 +35,7 @@ let nativeSignoffQueue = [];
 let nativeSignoffQueueTotal = 0;
 let nativeSignoffAdditionalOnly = false;
 const nativeDirectEvidenceOverrides = new Map();
+let nativeQueueDiagnostics = [];
 let nativeDocumentReviewReachedEnd = true;
 const nativeVisitorSignatureState = { isDrawing: false, hasInk: false, lastX: 0, lastY: 0, pixelRatio: 1 };
 const nativeInductorSignatureState = { isDrawing: false, hasInk: false, lastX: 0, lastY: 0, pixelRatio: 1 };
@@ -122,6 +123,17 @@ function canUseNativeVisitorSignoff() {
     "agreements.view",
     "module_configuration.manage"
   ]);
+}
+
+function canViewSignoffQueueDiagnostics() {
+  return canViewDocumentSignoffs() && (
+    AppState.currentProfile && AppState.currentProfile.role === "super_user" ||
+    hasAnyCapability([
+      "module_configuration.manage",
+      "settings.edit",
+      "identity_resolution.manage"
+    ])
+  );
 }
 
 function setText(id, value) {
@@ -244,6 +256,128 @@ function documentSignoffQueueTraceEnabled() {
 function traceNativeQueueEvaluation(entry) {
   if (!documentSignoffQueueTraceEnabled()) return;
   console.debug("Document sign-off queue visit evaluation", entry);
+}
+
+function resetNativeQueueDiagnostics() {
+  nativeQueueDiagnostics = [];
+  renderNativeQueueDiagnostics();
+}
+
+function recordNativeQueueDiagnostic(entry) {
+  nativeQueueDiagnostics.push(entry);
+  traceNativeQueueEvaluation(entry);
+}
+
+function diagnosticEvidenceRecord(status, source) {
+  if (!status) return null;
+  const id = source === "linked"
+    ? (status.identity_link_id || status.identity_link_reference || status.linked_source_record_id || evidenceRecordIdFromStatus(status))
+    : evidenceRecordIdFromStatus(status);
+  const label = [
+    status.evidence_document_title || status.agreement_name || status.agreement_title,
+    status.evidence_document_version || status.agreement_version_number || status.active_agreement_version_number,
+    status.evidence_signed_at || status.last_signed_at || status.signed_at
+  ].filter(Boolean).join(" | ");
+  if (!id && !label) return null;
+  return {
+    id: String(id || "").trim(),
+    label: label || source + " evidence"
+  };
+}
+
+function diagnosticEvidenceText(records) {
+  const values = (records || [])
+    .map(record => [record.id, record.label].filter(Boolean).join(" - "))
+    .filter(Boolean);
+  return values.length ? values.join("\n") : "-";
+}
+
+function diagnosticDecisionText(entry) {
+  if (!entry) return "-";
+  if (entry.skippedBeforeAgreementEvaluation && entry.includedInQueue) {
+    return [entry.finalReason, entry.skipReason].filter(Boolean).join("\n");
+  }
+  if (entry.skippedBeforeAgreementEvaluation) return entry.skipReason || "Skipped before agreement evaluation.";
+  if (entry.includedInQueue) return entry.finalReason || "Missing required sign-off.";
+  return entry.exclusionReason || entry.finalReason || "All required agreements satisfied for this visit.";
+}
+
+function renderNativeQueueDiagnostics() {
+  const section = $("documentSignoffQueueDiagnosticsSection");
+  const body = $("documentSignoffQueueDiagnosticsBody");
+  const summary = $("documentSignoffQueueDiagnosticsSummary");
+  if (!section || !body) return;
+  const allowed = canViewSignoffQueueDiagnostics();
+  section.classList.toggle("hidden", !allowed);
+  if (!allowed) {
+    body.replaceChildren();
+    return;
+  }
+  if (summary) {
+    summary.textContent = nativeQueueDiagnostics.length
+      ? nativeQueueDiagnostics.length + " active/current visit(s) traced."
+      : "No queue trace captured yet.";
+  }
+  body.replaceChildren();
+  if (!nativeQueueDiagnostics.length) {
+    const empty = document.createElement("p");
+    empty.className = "row-meta";
+    empty.textContent = "Run Load Visitors Requiring Sign-off to capture a visit-level queue decision trace.";
+    body.appendChild(empty);
+    return;
+  }
+
+  const tableWrap = document.createElement("div");
+  tableWrap.className = "document-signoff-diagnostics-table-wrap";
+  const table = document.createElement("table");
+  table.className = "document-signoff-diagnostics-table";
+  table.innerHTML =
+    "<thead><tr>" +
+      "<th scope=\"col\">Visitor</th>" +
+      "<th scope=\"col\">Visit ID</th>" +
+      "<th scope=\"col\">Current / Source</th>" +
+      "<th scope=\"col\">Required</th>" +
+      "<th scope=\"col\">Direct Evidence</th>" +
+      "<th scope=\"col\">Linked Evidence</th>" +
+      "<th scope=\"col\">Same-name Evidence</th>" +
+      "<th scope=\"col\">Missing</th>" +
+      "<th scope=\"col\">Included</th>" +
+      "<th scope=\"col\">Reason</th>" +
+    "</tr></thead>";
+  const tbody = document.createElement("tbody");
+  nativeQueueDiagnostics.forEach(entry => {
+    const row = document.createElement("tr");
+    const included = entry.includedInQueue === true;
+    row.innerHTML =
+      "<td><strong></strong><span class=\"document-signoff-diagnostics-visitor-meta\"></span></td>" +
+      "<td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>";
+    row.children[0].querySelector("strong").textContent = textOrDash(entry.visitorName);
+    row.children[0].querySelector("span").textContent = [
+      entry.company ? "Company: " + entry.company : "",
+      entry.signInTime ? "Signed in: " + formatDateTime(entry.signInTime) : ""
+    ].filter(Boolean).join(" | ");
+    row.children[1].textContent = textOrDash(entry.visitLogId);
+    row.children[2].textContent = [
+      entry.isActive ? "Active/current" : "Not active",
+      entry.cameFromCurrentVisitorsSource ? "Current visitors source: yes" : "Current visitors source: no",
+      entry.skippedBeforeAgreementEvaluation ? "Skipped before evaluation: yes" : "Skipped before evaluation: no"
+    ].join("\n");
+    row.children[3].textContent = [
+      "Required: " + String(entry.requiredAgreementsCount || 0),
+      "Optional: " + String(entry.optionalAgreementsCount || 0)
+    ].join("\n");
+    row.children[4].textContent = (entry.directEvidenceCount || 0) + "\n" + diagnosticEvidenceText(entry.directEvidenceRecords);
+    row.children[5].textContent = (entry.linkedEvidenceCount || 0) + "\n" + diagnosticEvidenceText(entry.linkedEvidenceRecords);
+    row.children[6].textContent = (entry.sameNameHistoricalEvidenceCount || 0) + "\n" + diagnosticEvidenceText(entry.sameNameHistoricalEvidenceRecords);
+    row.children[7].textContent = String(entry.finalMissingRequiredCount || 0);
+    row.children[8].innerHTML = "<span class=\"visitors-planned-status " + (included ? "status-overdue" : "status-in") + "\"></span>";
+    row.children[8].querySelector("span").textContent = included ? "Yes" : "No";
+    row.children[9].textContent = diagnosticDecisionText(entry);
+    tbody.appendChild(row);
+  });
+  table.appendChild(tbody);
+  tableWrap.appendChild(table);
+  body.appendChild(tableWrap);
 }
 
 function focusNativeElement(element) {
@@ -1102,21 +1236,34 @@ async function nativeStatusSatisfiesVisitRequirement(visitId, status) {
 
 async function nativeVisitRequirementClassification(visitId, status) {
   if (!directEvidenceIsValid(status)) {
+    const historical = diagnosticEvidenceRecord(status, "same-name");
+    const hasHistorical = status && (
+      status.evidence_source === "historical_context" ||
+      !!status.identity_link_lookup_note ||
+      !!historical
+    );
     return {
       satisfied: false,
       directEvidenceCount: 0,
       linkedEvidenceCount: 0,
-      sameNameHistoricalEvidenceCount: 0,
+      sameNameHistoricalEvidenceCount: hasHistorical ? 1 : 0,
+      directEvidenceRecords: [],
+      linkedEvidenceRecords: [],
+      sameNameHistoricalEvidenceRecords: historical ? [historical] : [],
       reason: status && (status.identity_link_lookup_note || status.reason) || "Required sign-off missing."
     };
   }
 
+  const directRecord = diagnosticEvidenceRecord(status, "direct");
   if (currentVisitDirectEvidenceOverrideStatus(visitId, status)) {
     return {
       satisfied: true,
       directEvidenceCount: 1,
       linkedEvidenceCount: 0,
       sameNameHistoricalEvidenceCount: 0,
+      directEvidenceRecords: directRecord ? [directRecord] : [],
+      linkedEvidenceRecords: [],
+      sameNameHistoricalEvidenceRecords: [],
       reason: "Current-visit evidence override."
     };
   }
@@ -1125,11 +1272,15 @@ async function nativeVisitRequirementClassification(visitId, status) {
     const satisfied = useIdentityLinksForDocumentCompliance() &&
       !!status.identity_link_id &&
       directEvidenceIsValid(status);
+    const linkedRecord = diagnosticEvidenceRecord(status, "linked");
     return {
       satisfied,
       directEvidenceCount: 0,
       linkedEvidenceCount: satisfied ? 1 : 0,
       sameNameHistoricalEvidenceCount: satisfied ? 0 : 1,
+      directEvidenceRecords: [],
+      linkedEvidenceRecords: satisfied && linkedRecord ? [linkedRecord] : [],
+      sameNameHistoricalEvidenceRecords: !satisfied && linkedRecord ? [linkedRecord] : [],
       reason: satisfied
         ? "Valid confirmed identity-linked evidence."
         : "Confirmed identity-linked evidence is unavailable or disabled."
@@ -1142,6 +1293,9 @@ async function nativeVisitRequirementClassification(visitId, status) {
     directEvidenceCount: direct ? 1 : 0,
     linkedEvidenceCount: 0,
     sameNameHistoricalEvidenceCount: direct ? 0 : 1,
+    directEvidenceRecords: direct && directRecord ? [directRecord] : [],
+    linkedEvidenceRecords: [],
+    sameNameHistoricalEvidenceRecords: !direct && directRecord ? [directRecord] : [],
     reason: direct
       ? "Direct evidence tied to current visit."
       : "Historical same-name evidence did not match this visit."
@@ -2002,6 +2156,52 @@ async function supplementNativeSignoffCandidatesFromCurrentVisits(rows) {
       statuses = await getNativeAgreementStatusesForVisit(visitId);
     } catch (error) {
       console.warn("Could not evaluate current visitor agreement status for sign-off queue.", error);
+      const missingReasons = [];
+      for (const type of requiredTypes) {
+        const typeId = nativeAgreementTypeId(type);
+        if (!typeId) continue;
+        const pendingRow = nativePendingRowFromVisitStatus(visit, type, {
+          agreement_type_id: typeId,
+          agreement_name: type.agreement_name,
+          agreement_title: type.agreement_title,
+          default_required: type.default_required,
+          can_select: !!activeVersionForType(type),
+          selected_by_default: type.default_required === true && !!activeVersionForType(type),
+          locked_selected: type.default_required === true && !!activeVersionForType(type),
+          already_valid: false,
+          reason: "Agreement status evaluation failed; visit included for review."
+        });
+        const key = nativeQueueKey(pendingRow);
+        if (!key || existing.has(key)) continue;
+        existing.add(key);
+        visitLevelRows.push(pendingRow);
+        missingReasons.push(textOrDash(type.agreement_name) + ": status evaluation failed");
+      }
+      recordNativeQueueDiagnostic({
+        visitLogId: visitId,
+        visitorName: visit.visitor_name || "",
+        company: visit.company || "",
+        signInTime: visit.sign_in_time || "",
+        signOutTime: visit.sign_out_time || "",
+        isActive: !!visit.sign_in_time && !visit.sign_out_time,
+        cameFromCurrentVisitorsSource: true,
+        skippedBeforeAgreementEvaluation: true,
+        skipReason: error && error.message ? error.message : "Agreement status evaluation failed.",
+        requiredAgreementsCount: requiredTypes.length,
+        optionalAgreementsCount: nativeActiveTypes().filter(type => type.default_required !== true).length,
+        directEvidenceCount: 0,
+        directEvidenceRecords: [],
+        linkedEvidenceCount: 0,
+        linkedEvidenceRecords: [],
+        sameNameHistoricalEvidenceCount: 0,
+        sameNameHistoricalEvidenceRecords: [],
+        finalMissingRequiredCount: missingReasons.length,
+        includedInQueue: missingReasons.length > 0,
+        finalReason: missingReasons.length
+          ? missingReasons.join("; ")
+          : "Agreement status evaluation failed before any required row could be built.",
+        exclusionReason: missingReasons.length ? "" : "Skipped before agreement evaluation."
+      });
       continue;
     }
 
@@ -2011,6 +2211,9 @@ async function supplementNativeSignoffCandidatesFromCurrentVisits(rows) {
     let sameNameHistoricalEvidenceCount = 0;
     let missingRequiredCount = 0;
     const missingReasons = [];
+    const directEvidenceRecords = [];
+    const linkedEvidenceRecords = [];
+    const sameNameHistoricalEvidenceRecords = [];
 
     for (const type of requiredTypes) {
       const typeId = nativeAgreementTypeId(type);
@@ -2026,6 +2229,9 @@ async function supplementNativeSignoffCandidatesFromCurrentVisits(rows) {
       directEvidenceCount += classification.directEvidenceCount;
       linkedEvidenceCount += classification.linkedEvidenceCount;
       sameNameHistoricalEvidenceCount += classification.sameNameHistoricalEvidenceCount;
+      directEvidenceRecords.push(...(classification.directEvidenceRecords || []));
+      linkedEvidenceRecords.push(...(classification.linkedEvidenceRecords || []));
+      sameNameHistoricalEvidenceRecords.push(...(classification.sameNameHistoricalEvidenceRecords || []));
       if (classification.satisfied) continue;
 
       const pendingRow = nativePendingRowFromVisitStatus(visit, type, status);
@@ -2037,19 +2243,28 @@ async function supplementNativeSignoffCandidatesFromCurrentVisits(rows) {
       missingReasons.push(textOrDash(type.agreement_name) + ": " + classification.reason);
     }
 
-    traceNativeQueueEvaluation({
+    recordNativeQueueDiagnostic({
       visitLogId: visitId,
       visitorName: visit.visitor_name || "",
       company: visit.company || "",
       signInTime: visit.sign_in_time || "",
       signOutTime: visit.sign_out_time || "",
       isActive: !!visit.sign_in_time && !visit.sign_out_time,
+      cameFromCurrentVisitorsSource: true,
+      skippedBeforeAgreementEvaluation: false,
       requiredAgreementsCount: requiredTypes.length,
+      optionalAgreementsCount: nativeActiveTypes().filter(type => type.default_required !== true).length,
       directEvidenceCount,
+      directEvidenceRecords,
       linkedEvidenceCount,
+      linkedEvidenceRecords,
       sameNameHistoricalEvidenceCount,
+      sameNameHistoricalEvidenceRecords,
       finalMissingRequiredCount: missingRequiredCount,
       includedInQueue: missingRequiredCount > 0,
+      finalReason: missingRequiredCount > 0
+        ? missingReasons.join("; ")
+        : "All required agreements satisfied for this visit.",
       exclusionReason: missingRequiredCount > 0 ? "" : "All required agreements satisfied for this visit.",
       missingReasons
     });
@@ -2241,6 +2456,7 @@ async function loadNativeSignoffCandidates(manual) {
   const box = $("documentSignoffNativeResults");
   if (box) box.textContent = "Loading visitors requiring sign-off...";
   setNativeStatus("", "");
+  resetNativeQueueDiagnostics();
   let rows = [];
   let legacyError = null;
   try {
@@ -2254,6 +2470,7 @@ async function loadNativeSignoffCandidates(manual) {
   const supplementedRows = await supplementNativeSignoffCandidatesFromCurrentVisits(rows);
   const displayRows = await filterNativeSignoffCandidatesForLinkedCompliance(supplementedRows);
   renderNativeSignoffCandidates(displayRows);
+  renderNativeQueueDiagnostics();
   setNativeStatus(legacyError && !displayRows.length ? "Visit-level queue evaluation completed; legacy pending source was unavailable." : "", "");
 }
 
@@ -3083,12 +3300,14 @@ export function syncDocumentSignoffVisibility() {
   setVisible("visitorsDocumentSignoffsSection", canView);
   setVisible("documentSignoffNativeCard", canUseNative);
   setVisible("documentSignoffLoadPendingButton", canUseNative);
+  setVisible("documentSignoffQueueDiagnosticsSection", canViewSignoffQueueDiagnostics());
   setVisible("documentSignoffNativeLegacyButton", canOpenLegacySignoff());
   setVisible("documentSignoffNativePanelLegacyButton", canUseNative);
   setVisible("documentSignoffLegacyManagementButton", canOpenLegacyManagement());
   setVisible("documentSignoffLegacySignoffButton", canOpenLegacySignoff());
   setVisible("documentSignoffLegacyComplianceButton", canOpenLegacyCompliance());
   setVisible("documentSignoffLegacyEvidenceButton", canOpenLegacyEvidence());
+  renderNativeQueueDiagnostics();
 }
 
 export function configureDocumentSignoffs(dependencies) {

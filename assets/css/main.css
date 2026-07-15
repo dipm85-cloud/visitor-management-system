@@ -1756,6 +1756,73 @@ body.kiosk-mode .results-scroll {
   font-size: 17px;
 }
 
+.document-signoff-diagnostics-card {
+  min-width: 0;
+  border: 1px solid var(--oh-shell-border);
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.document-signoff-diagnostics-card summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 14px;
+  cursor: pointer;
+  color: var(--oh-shell-strong);
+  font-weight: 800;
+}
+
+.document-signoff-diagnostics-card summary small {
+  color: var(--oh-shell-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.document-signoff-diagnostics-body {
+  padding: 0 14px 14px;
+}
+
+.document-signoff-diagnostics-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--oh-shell-border);
+  border-radius: 10px;
+  background: var(--oh-shell-surface);
+}
+
+.document-signoff-diagnostics-table {
+  min-width: 1180px;
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.document-signoff-diagnostics-table th,
+.document-signoff-diagnostics-table td {
+  padding: 10px;
+  border-bottom: 1px solid var(--oh-shell-border);
+  text-align: left;
+  vertical-align: top;
+  white-space: pre-line;
+}
+
+.document-signoff-diagnostics-table th {
+  color: var(--oh-shell-muted);
+  background: #eef2f6;
+  font-weight: 800;
+}
+
+.document-signoff-diagnostics-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.document-signoff-diagnostics-visitor-meta {
+  display: block;
+  margin-top: 3px;
+  color: var(--oh-shell-muted);
+}
+
 .document-signoff-focused .oh-section-nav-layout {
   display: block;
 }
