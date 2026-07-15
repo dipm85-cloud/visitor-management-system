@@ -438,7 +438,9 @@ async function loadCompactIdentityContextGroupForSource(source) {
       p_include_revoked: false
     }).then(result => {
       if (result.error) throw result.error;
-      return buildIdentityContextGroup(source, Array.isArray(result.data) ? result.data : []);
+      return enrichIdentityLinkRowsForDisplay(Array.isArray(result.data) ? result.data : []);
+    }).then(rows => {
+      return buildIdentityContextGroup(source, rows);
     }).catch(error => {
       candidateQueueContextCache.delete(cacheKey);
       throw error;
@@ -1793,11 +1795,23 @@ function shortReference(value) {
   return text.length > 8 ? text.slice(0, 8) + "..." : text;
 }
 
+function isGenericSourceLabel(sourceType, label) {
+  const sourceArea = friendlyIdentitySourceType(sourceType);
+  const sourceAreaFallback = sourceAreaLabel(sourceType);
+  const value = String(label || "").trim().toLowerCase();
+  return !!value && [
+    sourceArea,
+    sourceAreaFallback,
+    titleCase(sourceType),
+    canonicalIdentitySourceType(sourceType)
+  ].some(option => String(option || "").trim().toLowerCase() === value);
+}
+
 function linkedRecordFriendlyLabel(record) {
   const summary = record.source_summary && typeof record.source_summary === "object" ? record.source_summary : {};
   const storedLabel = String(record.source_label || "").trim();
-  if (storedLabel && !isUuidLike(storedLabel)) return storedLabel;
   const sourceType = canonicalIdentitySourceType(record.source_type);
+  if (storedLabel && !isUuidLike(storedLabel) && !isGenericSourceLabel(sourceType, storedLabel)) return storedLabel;
   const sourceArea = friendlyIdentitySourceType(sourceType);
   const subject = [summary.visitor_name || summary.subject_name, summary.company].filter(Boolean).join(" / ");
 
