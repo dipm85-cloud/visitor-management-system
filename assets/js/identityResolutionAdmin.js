@@ -88,6 +88,7 @@ let detailPanelController = null;
 let candidatePanelController = null;
 let requestPanelController = null;
 let decisionPanelController = null;
+const candidateQueueContextCache = new Map();
 
 function hasActiveStaffUser() {
   return !!(
@@ -425,6 +426,42 @@ function buildIdentityContextGroup(source, rows) {
   };
 }
 
+async function loadCompactIdentityContextGroupForSource(source) {
+  const sourceType = canonicalIdentitySourceType(source && source.type);
+  const sourceRecordId = String(source && source.id || "").trim();
+  if (!sourceType || !sourceRecordId) return null;
+  const cacheKey = sourceRecordKey(sourceType, sourceRecordId);
+  if (!candidateQueueContextCache.has(cacheKey)) {
+    const request = supabaseClient.rpc("list_identity_context_for_source_record", {
+      p_source_type: sourceType,
+      p_source_record_id: sourceRecordId,
+      p_include_revoked: false
+    }).then(result => {
+      if (result.error) throw result.error;
+      return buildIdentityContextGroup(source, Array.isArray(result.data) ? result.data : []);
+    }).catch(error => {
+      candidateQueueContextCache.delete(cacheKey);
+      throw error;
+    });
+    candidateQueueContextCache.set(cacheKey, request);
+  }
+  return candidateQueueContextCache.get(cacheKey);
+}
+
+async function resolveCompactCandidateReviewMode(candidate) {
+  const sourceA = candidateSourceFromCandidate(candidate, "a");
+  const sourceB = candidateSourceFromCandidate(candidate, "b");
+  const [groupA, groupB] = await Promise.all([
+    loadCompactIdentityContextGroupForSource(sourceA),
+    loadCompactIdentityContextGroupForSource(sourceB)
+  ]);
+  const context = { sourceA, sourceB, groupA, groupB };
+  return {
+    context,
+    mode: candidateReviewMode(context)
+  };
+}
+
 function identityGroupFromResolvedDisplay(source, display) {
   const link = display && display.link;
   if (!link || !display.hasConfirmedIdentity) return null;
@@ -576,6 +613,27 @@ function peopleRecordForGroup(group) {
   return peopleRecordsFirst(group && group.records || []).find(record => canonicalIdentitySourceType(record.source_type) === "people") || null;
 }
 
+function sourceIsPeopleRecord(source) {
+  const sourceType = canonicalIdentitySourceType(source && (source.type || source.source_type));
+  return sourceType === "people";
+}
+
+function modeUsesPeoplePreferredDisplay(mode) {
+  if (!mode) return false;
+  return !!(
+    peopleRecordForGroup(mode.targetGroup) ||
+    peopleRecordForGroup(mode.groupA) ||
+    peopleRecordForGroup(mode.groupB) ||
+    sourceIsPeopleRecord(mode.newRecord)
+  );
+}
+
+function peoplePreferredDisplayText(mode) {
+  return modeUsesPeoplePreferredDisplay(mode)
+    ? " People records are used as the preferred canonical identity display when present."
+    : "";
+}
+
 function groupDisplayLabel(group) {
   const peopleRecord = peopleRecordForGroup(group);
   if (peopleRecord) return linkedRecordFriendlyLabel(peopleRecord);
@@ -586,14 +644,65 @@ function groupDisplayLabel(group) {
   return group && group.link_reference || "-";
 }
 
+function createCompactIdentityGroupBlock(title, group) {
+  const block = document.createElement("section");
+  block.className = "identity-resolution-source-block identity-resolution-group-block";
+  const heading = document.createElement("h4");
+  heading.textContent = title;
+  const meta = document.createElement("dl");
+  meta.className = "identity-resolution-meta-grid";
+  meta.append(
+    createMetaItem("Target confirmed identity", groupDisplayLabel(group)),
+    createMetaItem("Identity link reference", group && group.link_reference),
+    createMetaItem("Identity type", titleCase(group && group.identity_type)),
+    createMetaItem("Linked records", linkedRecordCount(group))
+  );
+  block.append(heading, meta);
+  if (peopleRecordForGroup(group)) {
+    const note = document.createElement("p");
+    note.className = "identity-resolution-note";
+    note.textContent = "People record details are used as the preferred canonical identity display for this group.";
+    block.appendChild(note);
+  }
+  return block;
+}
+
 function createSelectedComparisonBlock(record, group) {
-  const block = createSourceBlock("Selected comparison record", record);
+  const block = createSourceBlock("Selected comparison", record);
   const note = document.createElement("p");
   note.className = "identity-resolution-note";
   note.textContent = linkedRecordFriendlyLabel(candidateSourceRecord(record || {})) +
     " is already linked to confirmed identity " + groupDisplayLabel(group) + ".";
   block.appendChild(note);
   return block;
+}
+
+function createCandidateQueueReviewBlocks(candidate) {
+  const mode = candidate && candidate.candidateQueueReviewMode;
+  const context = candidate && candidate.candidateQueueReviewContext || {};
+  if (mode && mode.type === "add_to_group") {
+    return [
+      createSourceBlock("New record", mode.newRecord),
+      createCompactIdentityGroupBlock("Target confirmed identity", mode.targetGroup),
+      createSelectedComparisonBlock(mode.comparisonRecord, mode.targetGroup)
+    ];
+  }
+  if (mode && mode.type === "already_linked") {
+    return [
+      createCompactIdentityGroupBlock("Confirmed identity group", mode.targetGroup),
+      createSelectedComparisonBlock(mode.comparisonRecord, mode.targetGroup)
+    ];
+  }
+  if (mode && mode.type === "merge_groups") {
+    return [
+      createCompactIdentityGroupBlock("Group 1", mode.groupA),
+      createCompactIdentityGroupBlock("Group 2", mode.groupB)
+    ];
+  }
+  return [
+    createSourceBlock("Source A", context.sourceA || candidateSourceFromCandidate(candidate, "a")),
+    createSourceBlock("Source B", context.sourceB || candidateSourceFromCandidate(candidate, "b"))
+  ];
 }
 
 function isActiveVisitIdentityRecord(record) {
@@ -877,9 +986,10 @@ function linkFilterPayload(options) {
 }
 
 async function loadCandidateQueue() {
+  candidateQueueContextCache.clear();
   const result = await supabaseClient.rpc("list_identity_resolution_candidates", candidateFilterPayload());
   if (result.error) throw result.error;
-  identityCandidates = await enrichCandidatesForDisplay(Array.isArray(result.data) ? result.data : []);
+  identityCandidates = await enrichCandidateQueueForDisplay(Array.isArray(result.data) ? result.data : []);
   renderCandidateQueue();
 }
 
@@ -972,6 +1082,23 @@ async function enrichCandidateForDisplay(candidate) {
 async function enrichCandidatesForDisplay(candidates) {
   const rows = Array.isArray(candidates) ? candidates : [];
   return Promise.all(rows.map(candidate => enrichCandidateForDisplay(candidate)));
+}
+
+async function enrichCandidateQueueForDisplay(candidates) {
+  const rows = await enrichCandidatesForDisplay(candidates);
+  return Promise.all(rows.map(async candidate => {
+    try {
+      const review = await resolveCompactCandidateReviewMode(candidate);
+      return {
+        ...candidate,
+        candidateQueueReviewContext: review.context,
+        candidateQueueReviewMode: review.mode
+      };
+    } catch (error) {
+      console.warn("Could not resolve compact identity target for candidate queue.", error);
+      return candidate;
+    }
+  }));
 }
 
 function renderOverview() {
@@ -1117,20 +1244,7 @@ function renderCandidateQueue() {
 
     const sources = document.createElement("div");
     sources.className = "identity-resolution-source-grid";
-    sources.append(
-      createSourceBlock("Source A", {
-        type: candidate.source_a_type,
-        id: candidate.source_a_record_id,
-        label: candidate.source_a_label,
-        summary: candidate.source_a_summary
-      }),
-      createSourceBlock("Source B", {
-        type: candidate.source_b_type,
-        id: candidate.source_b_record_id,
-        label: candidate.source_b_label,
-        summary: candidate.source_b_summary
-      })
-    );
+    sources.append(...createCandidateQueueReviewBlocks(candidate));
 
     const actions = document.createElement("div");
     actions.className = "identity-resolution-card-actions";
@@ -1242,7 +1356,7 @@ function renderDecisionHistory() {
 }
 
 function confirmedDecisionLabel(candidate) {
-  const mode = candidate && candidate.candidateReviewMode;
+  const mode = candidate && (candidate.candidateReviewMode || candidate.candidateQueueReviewMode);
   return mode && mode.confirmLabel ? mode.confirmLabel : "Confirm Link";
 }
 
@@ -1392,15 +1506,16 @@ function renderCandidateDetail(candidate, decisions) {
 
 function candidateNoticeText(mode) {
   if (mode && mode.type === "already_linked") {
-    return "This candidate is already satisfied by an active confirmed identity group. Source records are not renamed, merged or modified.";
+    return "This candidate is already satisfied by an active confirmed identity group. Source records are not renamed, merged, or modified.";
   }
   if (mode && mode.type === "merge_groups") {
     return "This candidate connects two active confirmed identity groups. Confirming will consolidate reviewed metadata only; source records will not be modified.";
   }
   if (mode && mode.type === "add_to_group") {
-    return "This source is already part of a confirmed identity group. Confirming this candidate will add the new record to the existing confirmed identity group.";
+    return "Confirming will add the new record to this confirmed identity group. Source records will not be renamed, merged, or modified." +
+      peoplePreferredDisplayText(mode);
   }
-  return "This is a review candidate. Source records are not renamed, merged or modified. Confirmation creates confirmed identity-link metadata only.";
+  return "This is a review candidate. Source records are not renamed, merged, or modified. Confirmation creates confirmed identity-link metadata only.";
 }
 
 function candidateModeDescription(mode) {
@@ -1411,7 +1526,8 @@ function candidateModeDescription(mode) {
     return "Confirming will consolidate these identity groups as reviewed metadata. Source records will not be modified. A confirmation reason is required.";
   }
   if (mode && mode.type === "add_to_group") {
-    return "The reviewer is validating the new record against the confirmed identity group, not just the intermediate source record. Document/sign-off compliance may use confirmed identity links only when enabled and when evidence is valid.";
+    return "Confirming will add the new record to this confirmed identity group. Source records will not be renamed, merged, or modified." +
+      peoplePreferredDisplayText(mode);
   }
   return "Neither source is currently in an active confirmed identity group. Confirming creates a new confirmed identity group containing Source A and Source B.";
 }
@@ -2303,7 +2419,8 @@ function decisionContextText(candidate, decisionType) {
   const mode = candidate && candidate.candidateReviewMode;
   if (mode && mode.type === "add_to_group") {
     return "Add to Confirmed Identity for " + reference +
-      ". Confirming will add the new record to the existing confirmed identity group. Source records will not be renamed, merged or modified." +
+      ". Confirming will add the new record to this confirmed identity group. Source records will not be renamed, merged, or modified." +
+      peoplePreferredDisplayText(mode) +
       activeVisitConfirmationSuffix(candidate);
   }
   if (mode && mode.type === "merge_groups") {
@@ -2379,7 +2496,8 @@ function decisionConfirmationMessage(decisionType, candidate) {
   }
   const mode = candidate && candidate.candidateReviewMode;
   if (mode && mode.type === "add_to_group") {
-    return "Confirming will add the new record to the existing confirmed identity group. Source records will not be renamed, merged or modified." +
+    return "Confirming will add the new record to this confirmed identity group. Source records will not be renamed, merged, or modified." +
+      peoplePreferredDisplayText(mode) +
       activeVisitConfirmationSuffix(candidate);
   }
   if (mode && mode.type === "merge_groups") {
