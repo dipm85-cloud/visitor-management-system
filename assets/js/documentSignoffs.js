@@ -268,8 +268,9 @@ function recordNativeQueueDiagnostic(entry) {
   traceNativeQueueEvaluation(entry);
 }
 
-function diagnosticEvidenceRecord(status, source) {
+function diagnosticEvidenceRecord(status, source, details) {
   if (!status) return null;
+  const settings = details || {};
   const id = source === "linked"
     ? (status.identity_link_id || status.identity_link_reference || status.linked_source_record_id || evidenceRecordIdFromStatus(status))
     : evidenceRecordIdFromStatus(status);
@@ -281,13 +282,21 @@ function diagnosticEvidenceRecord(status, source) {
   if (!id && !label) return null;
   return {
     id: String(id || "").trim(),
-    label: label || source + " evidence"
+    label: label || source + " evidence",
+    classification: settings.classification || source,
+    reason: settings.reason || "",
+    matchedStableKey: settings.matchedStableKey || ""
   };
 }
 
 function diagnosticEvidenceText(records) {
   const values = (records || [])
-    .map(record => [record.id, record.label].filter(Boolean).join(" - "))
+    .map(record => [
+      [record.id, record.label].filter(Boolean).join(" - "),
+      record.classification ? "Classification: " + record.classification : "",
+      record.reason ? "Reason: " + record.reason : "",
+      record.matchedStableKey ? "Matched key: " + record.matchedStableKey : ""
+    ].filter(Boolean).join("\n"))
     .filter(Boolean);
   return values.length ? values.join("\n") : "-";
 }
@@ -1137,40 +1146,49 @@ function statusContextObjects(status) {
     .filter(source => source && typeof source === "object" && Object.keys(source).length);
 }
 
-function visitIdFromContextObject(context) {
+function stableEvidenceVisitIdFromContextObject(context) {
   return String(
-    context.visit_log_id ||
-    context.visitor_log_id ||
-    context.current_visit_log_id ||
-    context.current_visitor_log_id ||
     context.evidence_visit_log_id ||
     context.evidence_visitor_log_id ||
     context.document_evidence_visit_log_id ||
     context.agreement_evidence_visit_log_id ||
     context.signed_visit_log_id ||
-    context.linked_visit_log_id ||
     ""
   ).trim();
 }
 
 function sourceRecordReferencesVisit(context, visitId) {
-  const sourceType = normalisedEvidenceSourceType(context.source_type || context.evidence_source_type);
+  const sourceType = normalisedEvidenceSourceType(context.evidence_source_type || context.evidence_context_source_type);
   const sourceRecordId = String(
-    context.source_record_id ||
     context.evidence_source_record_id ||
-    context.context_record_id ||
+    context.evidence_context_record_id ||
     ""
   ).trim();
   return sourceType === "visit_log" && visitIdsMatch(sourceRecordId, visitId);
 }
 
-function explicitEvidenceVisitLogIdFromStatus(status) {
-  if (!status) return "";
+function explicitEvidenceVisitMatchFromStatus(status, visitId) {
+  if (!status || !visitId) return null;
   for (const context of statusContextObjects(status)) {
-    const visitId = visitIdFromContextObject(context);
-    if (visitId) return visitId;
+    const evidenceVisitId = stableEvidenceVisitIdFromContextObject(context);
+    if (evidenceVisitId) {
+      return {
+        matches: visitIdsMatch(evidenceVisitId, visitId),
+        matchedStableKey: "evidence_visit_log_id=" + evidenceVisitId,
+        reason: visitIdsMatch(evidenceVisitId, visitId)
+          ? "Evidence visit id matches current visit_log.id."
+          : "Evidence visit id does not match current visit_log.id."
+      };
+    }
+    if (sourceRecordReferencesVisit(context, visitId)) {
+      return {
+        matches: true,
+        matchedStableKey: "source_record_id=" + visitId,
+        reason: "Evidence source_record_id with visit_log source type matches current visit_log.id."
+      };
+    }
   }
-  return "";
+  return null;
 }
 
 function visitIdsMatch(left, right) {
@@ -1236,7 +1254,11 @@ async function nativeStatusSatisfiesVisitRequirement(visitId, status) {
 
 async function nativeVisitRequirementClassification(visitId, status) {
   if (!directEvidenceIsValid(status)) {
-    const historical = diagnosticEvidenceRecord(status, "same-name");
+    const historical = diagnosticEvidenceRecord(status, "same-name", {
+      classification: "same_name_historical",
+      reason: status && (status.identity_link_lookup_note || status.reason) || "Evidence is not tied to the current visit.",
+      matchedStableKey: ""
+    });
     const hasHistorical = status && (
       status.evidence_source === "historical_context" ||
       !!status.identity_link_lookup_note ||
@@ -1254,7 +1276,11 @@ async function nativeVisitRequirementClassification(visitId, status) {
     };
   }
 
-  const directRecord = diagnosticEvidenceRecord(status, "direct");
+  const directRecord = diagnosticEvidenceRecord(status, "direct", {
+    classification: "direct",
+    reason: "Evidence was just created in the current sign-off flow.",
+    matchedStableKey: "current_signoff_flow"
+  });
   if (currentVisitDirectEvidenceOverrideStatus(visitId, status)) {
     return {
       satisfied: true,
@@ -1272,7 +1298,13 @@ async function nativeVisitRequirementClassification(visitId, status) {
     const satisfied = useIdentityLinksForDocumentCompliance() &&
       !!status.identity_link_id &&
       directEvidenceIsValid(status);
-    const linkedRecord = diagnosticEvidenceRecord(status, "linked");
+    const linkedRecord = diagnosticEvidenceRecord(status, "linked", {
+      classification: satisfied ? "linked_identity" : "ignored",
+      reason: satisfied
+        ? "Confirmed identity-linked evidence is enabled and valid."
+        : "Linked evidence did not meet setting/link requirements.",
+      matchedStableKey: status.identity_link_id ? "identity_link_id=" + status.identity_link_id : ""
+    });
     return {
       satisfied,
       directEvidenceCount: 0,
@@ -1287,45 +1319,92 @@ async function nativeVisitRequirementClassification(visitId, status) {
     };
   }
 
-  const direct = await directEvidenceRecordMatchesVisit(status, visitId);
+  const directMatch = await directEvidenceMatchForVisit(status, visitId);
+  const direct = directMatch.matches === true;
+  const classifiedRecord = diagnosticEvidenceRecord(status, direct ? "direct" : "same-name", {
+    classification: direct ? "direct" : "same_name_historical",
+    reason: direct
+      ? directMatch.reason
+      : "Name/company or agreement validity may match, but no stable current-context ID matched visit " + visitId + ".",
+    matchedStableKey: directMatch.matchedStableKey
+  });
   return {
     satisfied: direct,
     directEvidenceCount: direct ? 1 : 0,
     linkedEvidenceCount: 0,
     sameNameHistoricalEvidenceCount: direct ? 0 : 1,
-    directEvidenceRecords: direct && directRecord ? [directRecord] : [],
+    directEvidenceRecords: direct && classifiedRecord ? [classifiedRecord] : [],
     linkedEvidenceRecords: [],
-    sameNameHistoricalEvidenceRecords: !direct && directRecord ? [directRecord] : [],
+    sameNameHistoricalEvidenceRecords: !direct && classifiedRecord ? [classifiedRecord] : [],
     reason: direct
-      ? "Direct evidence tied to current visit."
-      : "Historical same-name evidence did not match this visit."
+      ? directMatch.reason
+      : "Required agreement missing for this visit. Previous same-name evidence was not used."
   };
 }
 
-async function directEvidenceRecordMatchesVisit(status, visitId) {
-  if (!directEvidenceIsValid(status) || !visitId) return false;
-
-  const explicitVisitId = explicitEvidenceVisitLogIdFromStatus(status);
-  if (explicitVisitId) return visitIdsMatch(explicitVisitId, visitId);
-
-  if (statusContextObjects(status).some(context => sourceRecordReferencesVisit(context, visitId))) {
-    return true;
+async function directEvidenceMatchForVisit(status, visitId) {
+  if (!directEvidenceIsValid(status) || !visitId) {
+    return {
+      matches: false,
+      reason: "No valid evidence status or current visit id was available.",
+      matchedStableKey: "",
+      record: null
+    };
   }
+
+  const explicitMatch = explicitEvidenceVisitMatchFromStatus(status, visitId);
+  if (explicitMatch) return { ...explicitMatch, record: null };
 
   const evidenceId = evidenceRecordIdFromStatus(status);
   try {
     if (evidenceId) {
       const record = await findEvidenceRecordById(evidenceId);
       const recordVisitId = record && (record.visit_log_id || record.visitor_log_id);
-      if (visitIdsMatch(recordVisitId, visitId)) return true;
+      if (recordVisitId) {
+        const matches = visitIdsMatch(recordVisitId, visitId);
+        return {
+          matches,
+          reason: matches
+            ? "Evidence record visit_log_id matches current visit_log.id."
+            : "Evidence record visit_log_id does not match current visit_log.id.",
+          matchedStableKey: "evidence.visit_log_id=" + recordVisitId,
+          record
+        };
+      }
     }
     const record = await findEvidenceRecordForStatus(status, visitId);
     const recordVisitId = record && (record.visit_log_id || record.visitor_log_id);
-    return visitIdsMatch(recordVisitId, visitId);
+    if (recordVisitId) {
+      const matches = visitIdsMatch(recordVisitId, visitId);
+      return {
+        matches,
+        reason: matches
+          ? "Evidence search found a record tied to current visit_log.id."
+          : "Evidence search found a record tied to another visit.",
+        matchedStableKey: "evidence.visit_log_id=" + recordVisitId,
+        record
+      };
+    }
+    return {
+      matches: false,
+      reason: "Evidence was valid by agreement rules, but no stable current visit/planned visit key matched.",
+      matchedStableKey: "",
+      record: record || null
+    };
   } catch (error) {
     console.warn("Could not verify direct document evidence against current visit.", error);
-    return false;
+    return {
+      matches: false,
+      reason: "Evidence lookup failed before a stable current-context key could be matched.",
+      matchedStableKey: "",
+      record: null
+    };
   }
+}
+
+async function directEvidenceRecordMatchesVisit(status, visitId) {
+  const result = await directEvidenceMatchForVisit(status, visitId);
+  return result.matches === true;
 }
 
 function currentVisitDirectEvidenceStatus(status) {
