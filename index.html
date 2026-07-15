@@ -557,8 +557,11 @@
                 </label>
               </div>
               <div class="visitors-planned-filter-actions oh-responsive-filter-actions oh-filter-actions-row">
+                <span id="visitorsPlannedResultCount" class="oh-result-count">0 records</span>
                 <button id="visitorsPlannedApplyFilters" class="secondary" type="button">Apply Filters</button>
                 <button id="visitorsPlannedClearFilters" class="ghost" type="button">Clear</button>
+                <button id="visitorsPlannedExportCsv" class="secondary" type="button">Export CSV</button>
+                <button id="visitorsPlannedExportXlsx" class="secondary" type="button">Export XLSX</button>
               </div>
             </div>
 
@@ -608,8 +611,11 @@
                 </label>
               </div>
               <div class="visitors-planned-filter-actions oh-responsive-filter-actions oh-filter-actions-row">
+                <span id="visitorsOnSiteResultCount" class="oh-result-count">0 currently signed in</span>
                 <button id="visitorsOnSiteApplyFilters" class="secondary" type="button">Apply Filters</button>
                 <button id="visitorsOnSiteClearFilters" class="ghost" type="button">Clear</button>
+                <button id="visitorsOnSiteExportCsv" class="secondary" type="button">Export CSV</button>
+                <button id="visitorsOnSiteExportXlsx" class="secondary" type="button">Export XLSX</button>
               </div>
             </div>
             <div id="visitorsOnSiteLoading" class="visitors-planned-state hidden" role="status">Loading active visitors…</div>
@@ -680,8 +686,11 @@
                 </label>
               </div>
               <div class="visitors-planned-filter-actions oh-responsive-filter-actions oh-filter-actions-row">
+                <span id="visitorsHistoryResultCount" class="oh-result-count">0 records</span>
                 <button id="visitorsHistoryApplyFilters" class="secondary" type="button">Apply Filters</button>
                 <button id="visitorsHistoryClearFilters" class="ghost" type="button">Reset</button>
+                <button id="visitorsHistoryExportCsv" class="secondary" type="button">Export CSV</button>
+                <button id="visitorsHistoryExportXlsx" class="secondary" type="button">Export XLSX</button>
               </div>
             </div>
 
@@ -835,7 +844,10 @@
                   <p>Complete supported visitor agreement and induction sign-offs using the existing agreement versions, requirement checks and evidence RPC.</p>
                 </div>
                 <div class="document-signoff-native-actions">
+                  <input id="documentSignoffNativeSearch" type="search" autocomplete="off" placeholder="Search visitor, company or reference" aria-label="Search visitors requiring sign-off" />
+                  <span id="documentSignoffNativeCount" class="oh-result-count">0 visitors require sign-off</span>
                   <button id="documentSignoffLoadPendingButton" type="button">Load Visitors Requiring Sign-off</button>
+                  <button id="documentSignoffNativeExportCsv" class="secondary" type="button">Export CSV</button>
                   <button id="documentSignoffNativeLegacyButton" class="secondary" type="button">Open Legacy Visitor Sign-off</button>
                 </div>
               </div>
@@ -946,7 +958,16 @@
               <div class="document-signoff-card-heading">
                 <div>
                   <h3 id="documentSignoffEvidenceTitle">Recent Signature Evidence</h3>
-                  <p>Read-only metadata from existing visitor agreement evidence. Signature images are not shown here. Evidence search/filter will be handled by a future Document Evidence workspace.</p>
+                  <p>Read-only metadata from existing visitor agreement evidence. Signature images are not shown here.</p>
+                </div>
+              </div>
+              <div class="oh-result-toolbar" role="search" aria-label="Filter recent signature evidence">
+                <div class="oh-result-toolbar-label">
+                  <span id="documentSignoffEvidenceCount" class="oh-result-count">0 evidence records</span>
+                </div>
+                <div class="oh-result-toolbar-actions">
+                  <input id="documentSignoffEvidenceSearch" type="search" autocomplete="off" placeholder="Search visitor, document, company or reference" aria-label="Search recent signature evidence" />
+                  <button id="documentSignoffEvidenceExportCsv" class="secondary" type="button">Export CSV</button>
                 </div>
               </div>
               <div class="document-signoff-table-wrap" data-oh-scroll-region="history" aria-label="Recent document sign-off evidence">
@@ -1330,7 +1351,7 @@
       <div class="brand-mark"><img id="brandLogoImg" alt="Logo" style="display:none;width:100%;height:100%;object-fit:contain;border-radius:12px;"><span id="brandLogoFallback">V</span></div>
       <div>
         Visitor Management<br>
-        <span style="font-size:12px;color:var(--muted);font-weight:700;">Operations Hub nextgen-ui - OHP-010C</span>
+        <span style="font-size:12px;color:var(--muted);font-weight:700;">Operations Hub nextgen-ui - OHP-011</span>
       </div>
     </div>
     <div class="button-row no-print" style="margin:0;">
@@ -1379,7 +1400,7 @@
       </div>
       <button id="terminalReturnHomeButton" class="secondary hidden" type="button">Return to Terminal Home</button>
     </section>
-  <div id="appVersionFooter" class="version-footer">Version <span id="appVersionText">OHP-010C</span></div>
+  <div id="appVersionFooter" class="version-footer">Version <span id="appVersionText">OHP-011</span></div>
 </main>
 
   <section id="signInScreen" class="screen">
@@ -3851,6 +3872,8 @@
                   <div class="oh-responsive-filter-actions identity-resolution-actions">
                     <button id="identityResolutionApplyRequestFiltersButton" type="button">Apply Filters</button>
                     <button id="identityResolutionResetRequestFiltersButton" class="secondary" type="button">Reset</button>
+                    <button id="identityResolutionExportRequestsCsv" class="secondary" type="button">Export CSV</button>
+                    <button id="identityResolutionExportRequestsXlsx" class="secondary" type="button">Export XLSX</button>
                   </div>
                 </div>
               </div>
@@ -3905,6 +3928,8 @@
                   <div class="oh-responsive-filter-actions identity-resolution-actions">
                     <button id="identityResolutionApplyFiltersButton" type="button">Apply Filters</button>
                     <button id="identityResolutionResetFiltersButton" class="secondary" type="button">Reset</button>
+                    <button id="identityResolutionExportCandidatesCsv" class="secondary" type="button">Export CSV</button>
+                    <button id="identityResolutionExportCandidatesXlsx" class="secondary" type="button">Export XLSX</button>
                   </div>
                 </div>
               </div>
@@ -3956,6 +3981,8 @@
                   <div class="oh-responsive-filter-actions identity-resolution-actions">
                     <button id="identityResolutionApplyLinkFiltersButton" type="button">Apply Filters</button>
                     <button id="identityResolutionResetLinkFiltersButton" class="secondary" type="button">Reset</button>
+                    <button id="identityResolutionExportLinksCsv" class="secondary" type="button">Export CSV</button>
+                    <button id="identityResolutionExportLinksXlsx" class="secondary" type="button">Export XLSX</button>
                   </div>
                 </div>
               </div>
@@ -3970,6 +3997,13 @@
                   <p>Recent candidate decisions are shown without exposing unnecessary staff details.</p>
                 </div>
                 <span id="identityResolutionDecisionCount" class="privacy-gdpr-result-count">-</span>
+              </div>
+              <div class="oh-result-toolbar">
+                <div class="oh-result-toolbar-label"></div>
+                <div class="oh-result-toolbar-actions">
+                  <button id="identityResolutionExportDecisionsCsv" class="secondary" type="button">Export CSV</button>
+                  <button id="identityResolutionExportDecisionsXlsx" class="secondary" type="button">Export XLSX</button>
+                </div>
               </div>
               <div id="identityResolutionDecisionResults" class="identity-resolution-decision-list" aria-live="polite"></div>
               <div id="identityResolutionDecisionsEmpty" class="people-empty-state hidden" data-oh-empty-state>No identity resolution decisions are available.</div>
@@ -5153,7 +5187,7 @@
 
   <footer class="oh-footer">
     <strong>Operations Hub</strong>
-    <span>Version <span id="ohPlatformVersion">OHP-010C</span></span>
+    <span>Version <span id="ohPlatformVersion">OHP-011</span></span>
     <span>Environment <span id="ohEnvironment">Local</span></span>
   </footer>
 </div>

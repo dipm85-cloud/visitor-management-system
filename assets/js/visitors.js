@@ -19,6 +19,7 @@ import {
 } from "./utils.js";
 import {
   downloadCsv,
+  downloadXlsx,
   exportToExcel,
   normaliseExportRows
 } from "./exports.js";
@@ -51,11 +52,14 @@ import {
 
 let visitorsDependencies = {};
 let nativePlannedVisits = [];
+let nativePlannedFilteredRows = [];
 let nativePlannedLoadSequence = 0;
 let nativePlannedVisitsLoaded = false;
 let nativeActiveVisitors = [];
+let nativeActiveFilteredRows = [];
 let nativeActiveLoadSequence = 0;
 let nativeHistoryRecords = [];
+let nativeHistoryFilteredRows = [];
 let nativeHistoryLoadSequence = 0;
 let activeHistoryQuickFilter = null;
 let selectedNativeReportType = "history";
@@ -104,6 +108,18 @@ function setText(id, value) {
 function setVisible(id, visible) {
   const element = $(id);
   if (element) element.classList.toggle("hidden", !visible);
+}
+
+function setResultCount(id, count, label, total) {
+  const suffix = count === 1 ? label : label + "s";
+  const text = total != null && total !== count
+    ? count + " of " + total + " " + suffix
+    : count + " " + suffix;
+  setText(id, text);
+}
+
+function searchTextFromRecord(record, fields) {
+  return fields.map(field => record && record[field]).filter(Boolean).join(" ").toLowerCase();
 }
 
 function canViewVisitorsWorkspace() {
@@ -441,13 +457,19 @@ function renderNativePlannedVisits() {
   const date = $("visitorsPlannedDateFilter").value;
   const status = $("visitorsPlannedStatusFilter").value;
   const filtered = nativePlannedVisits.filter(visit => {
-    const searchable = [
-      visit.visitor_name,
-      visit.company,
-      visit.onsite_contact,
-      visit.visit_reason,
-      visit.vehicle_plate
-    ].join(" ").toLowerCase();
+    const searchable = searchTextFromRecord(visit, [
+      "id",
+      "planned_visit_id",
+      "visitor_name",
+      "company",
+      "onsite_contact",
+      "visit_reason",
+      "vehicle_plate",
+      "security_pass_id",
+      "host_id",
+      "created_by",
+      "modified_by"
+    ]);
     const visitStatus = plannedStatusFor(visit);
     const statusMatches =
       status === "all" ||
@@ -458,6 +480,8 @@ function renderNativePlannedVisits() {
       (!date || visit.visit_date === date) &&
       statusMatches;
   });
+  nativePlannedFilteredRows = filtered;
+  setResultCount("visitorsPlannedResultCount", filtered.length, "record", nativePlannedVisits.length);
 
   if (!filtered.length) {
     setPlannedListState("empty");
@@ -549,16 +573,26 @@ function renderNativeActiveVisitors() {
   const statusFilter = $("visitorsOnSiteStatusFilter").value;
   const filtered = nativeActiveVisitors.filter(visit => {
     const status = activeVisitorStatus(visit);
-    const searchable = [
-      visit.visitor_name,
-      visit.company,
-      visit.onsite_contact,
-      visit.security_pass_id,
-      visit.vehicle_plate
-    ].join(" ").toLowerCase();
+    const searchable = searchTextFromRecord(visit, [
+      "id",
+      "planned_visit_id",
+      "visitor_name",
+      "company",
+      "onsite_contact",
+      "security_pass_id",
+      "vehicle_plate",
+      "visit_reason"
+    ]);
     return (!search || searchable.includes(search)) &&
       (statusFilter === "all" || statusFilter === status);
   });
+  nativeActiveFilteredRows = filtered;
+  setText(
+    "visitorsOnSiteResultCount",
+    (nativeActiveVisitors.length !== filtered.length
+      ? filtered.length + " of " + nativeActiveVisitors.length
+      : String(filtered.length)) + " currently signed in"
+  );
 
   if (!filtered.length) {
     setActiveListState("empty");
@@ -797,13 +831,18 @@ function renderNativeHistory() {
     const status = historyRecordStatus(record);
     const origin = visitorOrigin(record);
     const date = historyRecordDate(record);
-    const searchable = [
-      record.id,
-      record.planned_visit_id,
-      record.visitor_name,
-      record.company,
-      record.onsite_contact
-    ].join(" ").toLowerCase();
+    const searchable = searchTextFromRecord(record, [
+      "id",
+      "planned_visit_id",
+      "visitor_name",
+      "company",
+      "onsite_contact",
+      "security_pass_id",
+      "vehicle_plate",
+      "visit_reason",
+      "created_by",
+      "modified_by"
+    ]);
     const statusMatches =
       statusFilter === "all" ||
       status === statusFilter ||
@@ -815,6 +854,8 @@ function renderNativeHistory() {
       (originFilter === "all" || origin === originFilter) &&
       historyMatchesQuickFilter(record, status);
   });
+  nativeHistoryFilteredRows = filtered;
+  setResultCount("visitorsHistoryResultCount", filtered.length, "record", nativeHistoryRecords.length);
 
   updateHistoryQuickFilterButtons();
   if (!filtered.length) {
@@ -1057,11 +1098,18 @@ function nativeReportingFilteredRows() {
     const status = historyRecordStatus(record);
     const date = historyRecordDate(record);
     const origin = visitorOrigin(record);
-    const searchable = [
-      record.visitor_name,
-      record.company,
-      record.onsite_contact
-    ].join(" ").toLowerCase();
+    const searchable = searchTextFromRecord(record, [
+      "id",
+      "planned_visit_id",
+      "visitor_name",
+      "company",
+      "onsite_contact",
+      "security_pass_id",
+      "vehicle_plate",
+      "visit_reason",
+      "created_by",
+      "modified_by"
+    ]);
     const statusMatches =
       statusFilter === "all" ||
       status === statusFilter ||
@@ -1153,6 +1201,37 @@ function exportNativeReport(format) {
 
   downloadCsv(filename + ".csv", normaliseExportRows(rows, "history"));
   showToast("CSV export ready", rows.length + " visitor records were exported.", "success");
+}
+
+function visitorOperationalExportRows(source, type) {
+  return (source || []).map(record => ({
+    ...record,
+    visit_date: record.visit_date || historyRecordDate(record),
+    visit_status: type === "planned"
+      ? plannedStatusLabel(plannedStatusFor(record))
+      : historyStatusLabel(historyRecordStatus(record)),
+    visit_origin: visitorOrigin(record)
+  }));
+}
+
+function exportVisitorOperationalRows(source, type, filenameBase, format) {
+  if (!hasCapability("visitor.export")) {
+    showToast("You do not have permission", "Visitor exports require visitor.export.", "error");
+    return;
+  }
+  const rows = visitorOperationalExportRows(source, type);
+  if (!rows.length) {
+    showToast("Nothing to export", "No visitor records match the current filters.", "error");
+    return;
+  }
+  const filename = filenameBase + "-" + exportDateStamp();
+  const formattedRows = normaliseExportRows(rows, type);
+  if (format === "xlsx") {
+    downloadXlsx(filename + ".xlsx", formattedRows, type === "planned" ? "Planned Visits" : "Visitor Records");
+  } else {
+    downloadCsv(filename + ".csv", formattedRows);
+  }
+  showToast("Export created", rows.length + " visitor records were exported.", "success");
 }
 
 function openNativeReporting(event) {
@@ -2142,6 +2221,12 @@ export function syncVisitorsWorkspaceCapabilities() {
   setVisible("visitorsStaffSignOutButton", canStaffSignOut);
   setVisible("visitorsReportsShortcut", canView && hasCapability("visitor.history.view"));
   setVisible("visitorsReportingShortcut", canViewReporting);
+  setVisible("visitorsPlannedExportCsv", canView && hasCapability("visitor.export"));
+  setVisible("visitorsPlannedExportXlsx", canView && hasCapability("visitor.export"));
+  setVisible("visitorsOnSiteExportCsv", canView && hasCapability("visitor.export"));
+  setVisible("visitorsOnSiteExportXlsx", canView && hasCapability("visitor.export"));
+  setVisible("visitorsHistoryExportCsv", canViewHistory && hasCapability("visitor.export"));
+  setVisible("visitorsHistoryExportXlsx", canViewHistory && hasCapability("visitor.export"));
   setVisible("visitorsReportingCsv", canExportVisitors);
   setVisible("visitorsReportingExcel", canExportVisitors);
   setVisible("visitorsConfigurationShortcut", canOpenVisitorConfiguration());
@@ -2426,6 +2511,18 @@ export function initialiseVisitorsWorkspace() {
       }
     });
   }
+  if ($("visitorsPlannedExportCsv")) {
+    $("visitorsPlannedExportCsv").addEventListener("click", () => {
+      renderNativePlannedVisits();
+      exportVisitorOperationalRows(nativePlannedFilteredRows, "planned", "planned-visits", "csv");
+    });
+  }
+  if ($("visitorsPlannedExportXlsx")) {
+    $("visitorsPlannedExportXlsx").addEventListener("click", () => {
+      renderNativePlannedVisits();
+      exportVisitorOperationalRows(nativePlannedFilteredRows, "planned", "planned-visits", "xlsx");
+    });
+  }
   if ($("visitorsOnSiteRefresh")) {
     $("visitorsOnSiteRefresh").addEventListener("click", loadNativeActiveVisitors);
   }
@@ -2445,6 +2542,18 @@ export function initialiseVisitorsWorkspace() {
         event.preventDefault();
         renderNativeActiveVisitors();
       }
+    });
+  }
+  if ($("visitorsOnSiteExportCsv")) {
+    $("visitorsOnSiteExportCsv").addEventListener("click", () => {
+      renderNativeActiveVisitors();
+      exportVisitorOperationalRows(nativeActiveFilteredRows, "history", "current-visitors", "csv");
+    });
+  }
+  if ($("visitorsOnSiteExportXlsx")) {
+    $("visitorsOnSiteExportXlsx").addEventListener("click", () => {
+      renderNativeActiveVisitors();
+      exportVisitorOperationalRows(nativeActiveFilteredRows, "history", "current-visitors", "xlsx");
     });
   }
   if ($("visitorsHistoryRefresh")) {
@@ -2472,6 +2581,18 @@ export function initialiseVisitorsWorkspace() {
       applyNativeHistoryQuickFilter(button.dataset.historyQuickFilter);
     });
   });
+  if ($("visitorsHistoryExportCsv")) {
+    $("visitorsHistoryExportCsv").addEventListener("click", () => {
+      renderNativeHistory();
+      exportVisitorOperationalRows(nativeHistoryFilteredRows, "history", "visitor-history", "csv");
+    });
+  }
+  if ($("visitorsHistoryExportXlsx")) {
+    $("visitorsHistoryExportXlsx").addEventListener("click", () => {
+      renderNativeHistory();
+      exportVisitorOperationalRows(nativeHistoryFilteredRows, "history", "visitor-history", "xlsx");
+    });
+  }
   if ($("visitorsReportingRefresh")) {
     $("visitorsReportingRefresh").addEventListener("click", loadNativeHistory);
   }

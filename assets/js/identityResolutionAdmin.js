@@ -1,6 +1,7 @@
 import { supabaseClient } from "./api.js";
 import { hasAnyCapability, hasCapability } from "./capabilities.js";
 import { $ } from "./dom.js";
+import { downloadCsv, downloadXlsx } from "./exports.js";
 import { showToast } from "./messages.js";
 import { createSidePanelController, renderEmptyState, requestPlatformConfirmation } from "./platformUi.js";
 import { refreshSectionNavigator, registerModuleSections } from "./sectionNavigation.js";
@@ -13,6 +14,7 @@ import {
   getIdentityLinkDetailRows,
   resolveCanonicalIdentityDisplay
 } from "./identityContext.js";
+import { exportDateStamp } from "./utils.js";
 
 const IDENTITY_VIEW_CAPABILITIES = [
   "identity_resolution.view",
@@ -285,6 +287,11 @@ function syncSourceTypeCustomField(selectId, customFieldId, customInputId) {
 function setText(id, value) {
   const element = $(id);
   if (element) element.textContent = value;
+}
+
+function setVisible(id, visible) {
+  const element = $(id);
+  if (element) element.classList.toggle("hidden", !visible);
 }
 
 function statusClass(status) {
@@ -1195,7 +1202,7 @@ function renderReviewRequests() {
   const container = $("identityResolutionRequestResults");
   if (!container) return;
   container.replaceChildren();
-  setText("identityResolutionRequestCount", identityReviewRequests.length + " shown");
+  setText("identityResolutionRequestCount", identityReviewRequests.length + " review request" + (identityReviewRequests.length === 1 ? "" : "s"));
 
   if (!identityReviewRequests.length) {
     renderEmpty("identityResolutionRequestsEmpty", {
@@ -1280,7 +1287,7 @@ function renderCandidateQueue() {
   const container = $("identityResolutionCandidateResults");
   if (!container) return;
   container.replaceChildren();
-  setText("identityResolutionCandidateCount", identityCandidates.length + " shown");
+  setText("identityResolutionCandidateCount", identityCandidates.length + " candidate" + (identityCandidates.length === 1 ? "" : "s"));
 
   if (!identityCandidates.length) {
     renderEmpty("identityResolutionCandidateEmpty", {
@@ -1355,7 +1362,7 @@ function renderConfirmedLinks() {
   const container = $("identityResolutionLinkResults");
   if (!container) return;
   container.replaceChildren();
-  setText("identityResolutionLinksCount", identityLinks.length + " shown");
+  setText("identityResolutionLinksCount", identityLinks.length + " confirmed link" + (identityLinks.length === 1 ? "" : "s"));
 
   if (!identityLinks.length) {
     renderEmpty("identityResolutionLinksEmpty", {
@@ -1406,7 +1413,7 @@ function renderDecisionHistory() {
   const container = $("identityResolutionDecisionResults");
   if (!container) return;
   container.replaceChildren();
-  setText("identityResolutionDecisionCount", identityDecisions.length + " shown");
+  setText("identityResolutionDecisionCount", identityDecisions.length + " decision" + (identityDecisions.length === 1 ? "" : "s"));
 
   if (!identityDecisions.length) {
     renderEmpty("identityResolutionDecisionsEmpty", {
@@ -1433,6 +1440,118 @@ function renderDecisionHistory() {
     item.append(heading, reason, meta);
     container.appendChild(item);
   });
+}
+
+function requestExportRows() {
+  return (identityReviewRequests || []).map(request => ({
+    "Request ID": request.id || "",
+    "Request Reference": request.request_reference || "",
+    "Status": titleCase(request.status),
+    "Candidate Type": titleCase(request.candidate_type),
+    "Source Area": sourceAreaLabel(request.source_type),
+    "Source Record ID": request.source_record_id || "",
+    "Source Label": requestSourceLabel(request),
+    "Suggested Match Area": request.suggested_match_type ? sourceAreaLabel(request.suggested_match_type) : "",
+    "Suggested Match Record ID": request.suggested_match_record_id || "",
+    "Suggested Match Label": requestSuggestedLabel(request),
+    "Context": requestContextLabel(request),
+    "Reason": request.request_reason || "",
+    "Requester Notes": request.requester_notes || "",
+    "Created": formatDate(request.created_at),
+    "Candidate ID": request.candidate_id || ""
+  }));
+}
+
+function candidateExportRows() {
+  return (identityCandidates || []).map(candidate => ({
+    "Candidate ID": candidate.id || "",
+    "Candidate Reference": candidate.candidate_reference || "",
+    "Status": titleCase(candidate.status),
+    "Candidate Type": titleCase(candidate.candidate_type),
+    "Confidence": formatScore(candidate.confidence_score),
+    "Suggested By": candidate.suggested_by || "",
+    "Suggested Date": formatDate(candidate.suggested_at),
+    "Source A Type": sourceAreaLabel(candidate.source_a_type),
+    "Source A Record ID": candidate.source_a_record_id || "",
+    "Source A Label": candidate.source_a_label || "",
+    "Source B Type": sourceAreaLabel(candidate.source_b_type),
+    "Source B Record ID": candidate.source_b_record_id || "",
+    "Source B Label": candidate.source_b_label || "",
+    "Match Reason": candidate.match_reason || "",
+    "Decision": candidate.decision_type ? titleCase(candidate.decision_type) : ""
+  }));
+}
+
+function linkExportRows() {
+  return (identityLinks || []).map(link => ({
+    "Link ID": link.id || "",
+    "Link Reference": link.link_reference || "",
+    "Status": titleCase(link.link_status),
+    "Identity Type": titleCase(link.identity_type),
+    "Canonical Label": link.canonical_label || "",
+    "Link Reason": link.link_reason || "",
+    "Created": formatDate(link.created_at),
+    "Created From Candidate ID": link.created_from_candidate_id || ""
+  }));
+}
+
+function decisionExportRows() {
+  return (identityDecisions || []).map(decision => ({
+    "Decision ID": decision.id || "",
+    "Candidate ID": decision.candidate_id || "",
+    "Identity Link ID": decision.identity_link_id || "",
+    "Decision": titleCase(decision.decision_type),
+    "Reason": decision.decision_reason || "",
+    "Created": formatDate(decision.created_at)
+  }));
+}
+
+function exportIdentityRows(kind, format) {
+  if (kind === "requests") {
+    if (!canViewIdentityResolution()) {
+      showToast("You do not have permission", "Identity Resolution export requires identity review access.", "error");
+      return;
+    }
+  } else if (!canViewIdentityResolutionRecords()) {
+    showToast("You do not have permission", "Identity Resolution record export requires record-level access.", "error");
+    return;
+  }
+  const map = {
+    requests: {
+      rows: requestExportRows,
+      filename: "identity-review-requests",
+      sheet: "Review Requests"
+    },
+    candidates: {
+      rows: candidateExportRows,
+      filename: "identity-candidate-queue",
+      sheet: "Candidate Queue"
+    },
+    links: {
+      rows: linkExportRows,
+      filename: "identity-confirmed-links",
+      sheet: "Confirmed Links"
+    },
+    decisions: {
+      rows: decisionExportRows,
+      filename: "identity-decision-history",
+      sheet: "Decision History"
+    }
+  };
+  const config = map[kind];
+  if (!config) return;
+  const rows = config.rows();
+  if (!rows.length) {
+    showToast("Nothing to export", "No identity resolution records match the current filters.", "error");
+    return;
+  }
+  const filename = config.filename + "-" + exportDateStamp();
+  if (format === "xlsx") {
+    downloadXlsx(filename + ".xlsx", rows, config.sheet);
+  } else {
+    downloadCsv(filename + ".csv", rows);
+  }
+  showToast("Export created", rows.length + " identity resolution records were exported.", "success");
 }
 
 function confirmedDecisionLabel(candidate) {
@@ -2653,6 +2772,7 @@ export async function openIdentityResolutionAdministration() {
 
 export function syncIdentityResolutionVisibility() {
   const visible = canViewIdentityResolution();
+  const recordVisible = canViewIdentityResolutionRecords();
   const nav = $("administrationIdentityResolutionNav");
   if (nav) nav.classList.toggle("hidden", !visible);
   if (!visible && $("identityResolutionSection") && !$("identityResolutionSection").classList.contains("hidden")) {
@@ -2661,6 +2781,18 @@ export function syncIdentityResolutionVisibility() {
     else if (hasAnyCapability(["module_configuration.view", "module_configuration.manage"])) setAdministrationSection("modules");
     else if (hasAnyCapability(["access_control.view", "access_control.manage"])) setAdministrationSection("access");
   }
+  [
+    "identityResolutionExportRequestsCsv",
+    "identityResolutionExportRequestsXlsx"
+  ].forEach(id => setVisible(id, visible));
+  [
+    "identityResolutionExportCandidatesCsv",
+    "identityResolutionExportCandidatesXlsx",
+    "identityResolutionExportLinksCsv",
+    "identityResolutionExportLinksXlsx",
+    "identityResolutionExportDecisionsCsv",
+    "identityResolutionExportDecisionsXlsx"
+  ].forEach(id => setVisible(id, recordVisible));
   setManageControls();
   refreshSectionNavigator("identity-resolution");
 }
@@ -2754,6 +2886,18 @@ export function initialiseIdentityResolutionAdministration() {
       loadIdentityResolutionAdministration({ manual: true });
     });
   }
+  [
+    ["identityResolutionExportRequestsCsv", "requests", "csv"],
+    ["identityResolutionExportRequestsXlsx", "requests", "xlsx"],
+    ["identityResolutionExportCandidatesCsv", "candidates", "csv"],
+    ["identityResolutionExportCandidatesXlsx", "candidates", "xlsx"],
+    ["identityResolutionExportLinksCsv", "links", "csv"],
+    ["identityResolutionExportLinksXlsx", "links", "xlsx"],
+    ["identityResolutionExportDecisionsCsv", "decisions", "csv"],
+    ["identityResolutionExportDecisionsXlsx", "decisions", "xlsx"]
+  ].forEach(([id, kind, format]) => {
+    if ($(id)) $(id).addEventListener("click", () => exportIdentityRows(kind, format));
+  });
   if ($("identityResolutionCandidateForm")) {
     $("identityResolutionCandidateForm").addEventListener("submit", saveCandidate);
   }

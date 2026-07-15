@@ -39,6 +39,8 @@ export function normaliseExportRows(rows, type) {
 
   if (type === "planned") {
     return rows.map(row => ({
+      "Record ID": row.id || "",
+      "Planned Visit ID": row.planned_visit_id || row.id || "",
       "Visitor": row.visitor_name || "",
       "Company": row.company || "",
       "Visit Date": row.visit_date || "",
@@ -54,6 +56,8 @@ export function normaliseExportRows(rows, type) {
   }
 
   return rows.map(row => ({
+    "Record ID": row.id || "",
+    "Planned Visit ID": row.planned_visit_id || "",
     "Visitor": row.visitor_name || "",
     "Company": row.company || "",
     "Origin": (row.visit_origin || (row.planned_visit_id ? "planned" : "walk_in")).replace("_", " "),
@@ -104,6 +108,25 @@ export function exportToExcel(rows, filename, type) {
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, type === "planned" ? "Planned Visits" : type === "audit" ? "Audit Events" : "Visit History");
 
+  XLSX.writeFile(wb, filename);
+}
+
+export function downloadXlsx(filename, rows, sheetName) {
+  if (!rows || rows.length === 0) {
+    showMessage("Nothing to export.", "error");
+    return;
+  }
+
+  if (!window.XLSX) {
+    showMessage("Excel export library could not be loaded.", "error");
+    return;
+  }
+
+  const ws = XLSX.utils.json_to_sheet(rows);
+  autoSizeWorksheetColumns(ws, rows);
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, sheetName || "Export");
   XLSX.writeFile(wb, filename);
 }
 

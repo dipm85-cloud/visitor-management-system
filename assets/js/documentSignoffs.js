@@ -1,10 +1,11 @@
 import { supabaseClient } from "./api.js";
 import { hasAnyCapability, hasCapability } from "./capabilities.js";
 import { $ } from "./dom.js";
+import { downloadCsv } from "./exports.js";
 import { showToast } from "./messages.js";
 import { AppState } from "./state.js";
 import { settingValue } from "./settings.js";
-import { todayDate } from "./utils.js";
+import { exportDateStamp, todayDate } from "./utils.js";
 import { createSidePanelController, renderEmptyState } from "./platformUi.js";
 import { openIdentityReviewRequestFromContext } from "./identityResolutionAdmin.js";
 import {
@@ -29,15 +30,18 @@ let documentSignoffOverviewState = {
   recentEvidence: []
 };
 let nativeSignoffCandidates = [];
+let nativeSignoffFilteredCandidates = [];
 let nativeSignoffCurrentVisit = null;
 let nativeSignoffCurrentRequirement = null;
 let nativeSignoffQueue = [];
 let nativeSignoffQueueTotal = 0;
 let nativeSignoffAdditionalOnly = false;
 let nativeSignoffSaving = false;
+let nativeSignoffActiveEvaluatedCount = 0;
 let nativeQueueEvaluationContext = null;
 const nativeDirectEvidenceOverrides = new Map();
 let nativeQueueDiagnostics = [];
+let documentSignoffFilteredEvidence = [];
 let nativeDocumentReviewReachedEnd = true;
 const nativeVisitorSignatureState = { isDrawing: false, hasInk: false, lastX: 0, lastY: 0, pixelRatio: 1 };
 const nativeInductorSignatureState = { isDrawing: false, hasInk: false, lastX: 0, lastY: 0, pixelRatio: 1 };
@@ -136,6 +140,15 @@ function canViewSignoffQueueDiagnostics() {
       "identity_resolution.manage"
     ])
   );
+}
+
+function canExportDocumentSignoffRecords() {
+  return canViewDocumentSignoffs() && hasAnyCapability([
+    "visitor.export",
+    "audit.export",
+    "reports.view",
+    "module_configuration.manage"
+  ]);
 }
 
 function setText(id, value) {
@@ -491,6 +504,39 @@ function trapNativeSignoffFocus(event) {
 function textOrDash(value) {
   const text = String(value == null ? "" : value).trim();
   return text || "-";
+}
+
+function compactCountText(count, singular, plural) {
+  return count + " " + (count === 1 ? singular : (plural || singular + "s"));
+}
+
+function recordSearchText(record, fields) {
+  return fields.map(field => record && record[field]).filter(Boolean).join(" ").toLowerCase();
+}
+
+function signoffCandidateSearchText(visit) {
+  const requirements = (visit.required_requirements || [])
+    .map(requirement => [
+      requirement.agreement_type_id,
+      requirement.agreement_version_id,
+      requirement.active_agreement_version_id,
+      requirement.agreement_name,
+      requirement.agreement_title
+    ].filter(Boolean).join(" "))
+    .join(" ");
+  return [
+    recordSearchText(visit, [
+      "id",
+      "visit_log_id",
+      "planned_visit_id",
+      "visitor_name",
+      "company",
+      "onsite_contact",
+      "security_pass_id",
+      "vehicle_plate"
+    ]),
+    requirements
+  ].filter(Boolean).join(" ").toLowerCase();
 }
 
 function hasValue(value) {
@@ -2636,9 +2682,27 @@ function renderNativeSignoffCandidates(rows) {
   if (!box) return;
   box.classList.remove("oh-empty-state");
   box.replaceChildren();
-  const visits = groupPendingNativeCandidates(rows);
-  nativeSignoffCandidates = visits;
+  nativeSignoffCandidates = groupPendingNativeCandidates(rows);
+  renderNativeSignoffCandidateCards();
+}
 
+function renderNativeSignoffCandidateCards() {
+  const box = $("documentSignoffNativeResults");
+  if (!box) return;
+  box.classList.remove("oh-empty-state");
+  box.replaceChildren();
+  const query = String($("documentSignoffNativeSearch")?.value || "").trim().toLowerCase();
+  const visits = nativeSignoffCandidates.filter(visit =>
+    !query || signoffCandidateSearchText(visit).includes(query)
+  );
+  nativeSignoffFilteredCandidates = visits;
+  const activeEvaluated = nativeSignoffActiveEvaluatedCount
+    ? " · " + nativeSignoffActiveEvaluatedCount + " active visitors evaluated"
+    : "";
+  setText(
+    "documentSignoffNativeCount",
+    compactCountText(visits.length, "visitor requires sign-off", "visitors require sign-off") + activeEvaluated
+  );
   if (!visits.length) {
     renderEmptyState("documentSignoffNativeResults", {
       title: "No visitors currently require sign-off",
@@ -2696,6 +2760,37 @@ function renderNativeSignoffCandidates(rows) {
   });
 }
 
+function nativeSignoffExportRows() {
+  return (nativeSignoffFilteredCandidates || []).map(visit => ({
+    "Visit Log ID": visit.visit_log_id || visit.id || "",
+    "Planned Visit ID": visit.planned_visit_id || "",
+    "Visitor": visit.visitor_name || "",
+    "Company": visit.company || "",
+    "Signed In": visit.sign_in_time ? formatDateTime(visit.sign_in_time) : "",
+    "Host / Contact": visit.onsite_contact || "",
+    "Security Pass": visit.security_pass_id || "",
+    "Required Agreements": (visit.required_requirements || [])
+      .map(requirement => requirement.agreement_name || requirement.agreement_title)
+      .filter(Boolean)
+      .join("; ")
+  }));
+}
+
+function exportNativeSignoffCandidates() {
+  if (!canExportDocumentSignoffRecords()) {
+    showToast("You do not have permission", "Document sign-off exports require export or reporting access.", "error");
+    return;
+  }
+  renderNativeSignoffCandidateCards();
+  const rows = nativeSignoffExportRows();
+  if (!rows.length) {
+    showToast("Nothing to export", "No visitors requiring sign-off match the current filters.", "error");
+    return;
+  }
+  downloadCsv("visitors-requiring-sign-off-" + exportDateStamp() + ".csv", rows);
+  showToast("Export created", rows.length + " sign-off queue records were exported.", "success");
+}
+
 async function filterNativeSignoffCandidatesForLinkedCompliance(rows) {
   const candidates = Array.isArray(rows) ? rows : [];
   if (!useIdentityLinksForDocumentCompliance() || !candidates.length) return candidates;
@@ -2749,6 +2844,8 @@ async function loadNativeSignoffCandidates(manual) {
   const box = $("documentSignoffNativeResults");
   if (box) box.textContent = "Loading visitors requiring sign-off...";
   setNativeStatus("", "");
+  nativeSignoffActiveEvaluatedCount = 0;
+  setText("documentSignoffNativeCount", "Loading visitors requiring sign-off...");
   resetNativeQueueDiagnostics();
   let rows = [];
   let legacyError = null;
@@ -2771,6 +2868,7 @@ async function loadNativeSignoffCandidates(manual) {
     const displayRows = await filterNativeSignoffCandidatesForLinkedCompliance(supplementedRows);
     queueTimingEnd(timer);
     timer = queueTimingStart("render");
+    nativeSignoffActiveEvaluatedCount = context.activeVisitCount || 0;
     renderNativeSignoffCandidates(displayRows);
     renderNativeQueueDiagnostics();
     queueTimingEnd(timer);
@@ -3490,6 +3588,25 @@ function evidenceRecordSourceId(record) {
   );
 }
 
+function evidenceSearchText(record) {
+  return recordSearchText(record, [
+    "id",
+    "agreement_id",
+    "agreement_signature_id",
+    "document_evidence_id",
+    "evidence_id",
+    "visit_log_id",
+    "planned_visit_id",
+    "visitor_name",
+    "company",
+    "agreement_name",
+    "agreement_title",
+    "agreement_version_number",
+    "signed_by_name",
+    "inductor_name"
+  ]);
+}
+
 async function updateEvidenceIdentityCell(cell, record) {
   if (!cell || !record) return;
   const identity = await canonicalIdentityForEvidenceRecord(record);
@@ -3509,7 +3626,16 @@ function renderEvidence(rows) {
   const body = $("documentSignoffEvidenceBody");
   if (!body) return;
   body.replaceChildren();
-  rows.slice(0, 10).forEach(record => {
+  const query = String($("documentSignoffEvidenceSearch")?.value || "").trim().toLowerCase();
+  const filtered = (rows || []).filter(record => !query || evidenceSearchText(record).includes(query));
+  documentSignoffFilteredEvidence = filtered;
+  setText(
+    "documentSignoffEvidenceCount",
+    rows && rows.length !== filtered.length
+      ? filtered.length + " of " + rows.length + " evidence records"
+      : compactCountText(filtered.length, "evidence record")
+  );
+  filtered.slice(0, 10).forEach(record => {
     const row = document.createElement("tr");
     const identityCell = appendTextCell(row, record.visitor_name, record.company || "");
     updateEvidenceIdentityCell(identityCell, record);
@@ -3529,13 +3655,47 @@ function renderEvidence(rows) {
     ]);
     body.appendChild(row);
   });
-  setVisible("documentSignoffEvidenceEmpty", rows.length === 0);
-  if (!rows.length) {
+  setVisible("documentSignoffEvidenceEmpty", filtered.length === 0);
+  if (!filtered.length) {
     renderEmptyState("documentSignoffEvidenceEmpty", {
-      title: "No recent evidence available",
-      description: "No agreement evidence was returned for the recent lookback window."
+      title: query ? "No matching evidence" : "No recent evidence available",
+      description: query
+        ? "No loaded evidence records match the current search."
+        : "No agreement evidence was returned for the recent lookback window."
     });
   }
+}
+
+function evidenceExportRows() {
+  return (documentSignoffFilteredEvidence || []).map(record => ({
+    "Evidence ID": evidenceRecordSourceId(record) || "",
+    "Visit Log ID": record.visit_log_id || "",
+    "Planned Visit ID": record.planned_visit_id || "",
+    "Visitor": record.visitor_name || "",
+    "Company": record.company || "",
+    "Document": record.agreement_name || "",
+    "Document Title": record.agreement_title || "",
+    "Version": record.agreement_version_number || "",
+    "Signed At": record.signed_at ? formatDateTime(record.signed_at) : "",
+    "Signed By": record.signed_by_name || "",
+    "Evidence Type": evidenceType(record),
+    "Inductor": record.inductor_name || ""
+  }));
+}
+
+function exportEvidenceRows() {
+  if (!canExportDocumentSignoffRecords()) {
+    showToast("You do not have permission", "Document evidence exports require export or reporting access.", "error");
+    return;
+  }
+  renderEvidence(documentSignoffOverviewState.recentEvidence || []);
+  const rows = evidenceExportRows();
+  if (!rows.length) {
+    showToast("Nothing to export", "No recent signature evidence matches the current filters.", "error");
+    return;
+  }
+  downloadCsv("document-evidence-" + exportDateStamp() + ".csv", rows);
+  showToast("Export created", rows.length + " evidence records were exported.", "success");
 }
 
 function renderOverview(results, manual) {
@@ -3658,7 +3818,11 @@ export function syncDocumentSignoffVisibility() {
   setVisible("visitorsDocumentSignoffsSection", canView);
   setVisible("documentSignoffNativeCard", canUseNative);
   setVisible("documentSignoffLoadPendingButton", canUseNative);
+  setVisible("documentSignoffNativeSearch", canUseNative);
+  setVisible("documentSignoffNativeCount", canUseNative);
+  setVisible("documentSignoffNativeExportCsv", canUseNative && canExportDocumentSignoffRecords());
   setVisible("documentSignoffQueueDiagnosticsSection", canViewSignoffQueueDiagnostics());
+  setVisible("documentSignoffEvidenceExportCsv", canExportDocumentSignoffRecords());
   setVisible("documentSignoffNativeLegacyButton", canOpenLegacySignoff());
   setVisible("documentSignoffNativePanelLegacyButton", canUseNative);
   setVisible("documentSignoffLegacyManagementButton", canOpenLegacyManagement());
@@ -3728,6 +3892,20 @@ export function initialiseDocumentSignoffs(dependencies) {
     $("documentSignoffLoadPendingButton").addEventListener("click", () => {
       loadNativeSignoffCandidates(true);
     });
+  }
+  if ($("documentSignoffNativeSearch")) {
+    $("documentSignoffNativeSearch").addEventListener("input", renderNativeSignoffCandidateCards);
+  }
+  if ($("documentSignoffNativeExportCsv")) {
+    $("documentSignoffNativeExportCsv").addEventListener("click", exportNativeSignoffCandidates);
+  }
+  if ($("documentSignoffEvidenceSearch")) {
+    $("documentSignoffEvidenceSearch").addEventListener("input", () => {
+      renderEvidence(documentSignoffOverviewState.recentEvidence || []);
+    });
+  }
+  if ($("documentSignoffEvidenceExportCsv")) {
+    $("documentSignoffEvidenceExportCsv").addEventListener("click", exportEvidenceRows);
   }
   if ($("documentSignoffQueueDiagnosticsSection")) {
     $("documentSignoffQueueDiagnosticsSection").addEventListener("toggle", renderNativeQueueDiagnostics);
