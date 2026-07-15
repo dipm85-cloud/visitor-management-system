@@ -291,6 +291,7 @@ function setPlannedListState(state) {
   setVisible("visitorsPlannedLoading", state === "loading");
   setVisible("visitorsPlannedError", state === "error");
   setVisible("visitorsPlannedEmpty", state === "empty");
+  setVisible("visitorsPlannedResultCount", state === "ready" || state === "empty");
   setVisible("visitorsPlannedTableWrap", state === "ready");
   setVisible("visitorsPlannedCards", state === "ready");
 }
@@ -559,6 +560,7 @@ function setActiveListState(state) {
   setVisible("visitorsOnSiteLoading", state === "loading");
   setVisible("visitorsOnSiteError", state === "error");
   setVisible("visitorsOnSiteEmpty", state === "empty");
+  setVisible("visitorsOnSiteResultCount", state === "ready" || state === "empty");
   setVisible("visitorsOnSiteTableWrap", state === "ready");
   setVisible("visitorsOnSiteCards", state === "ready");
 }
@@ -786,7 +788,7 @@ function setHistoryListState(state) {
   setVisible("visitorsHistoryLoading", state === "loading");
   setVisible("visitorsHistoryError", state === "error");
   setVisible("visitorsHistoryEmpty", state === "empty");
-  setVisible("visitorsHistoryResultSummary", state === "ready");
+  setVisible("visitorsHistoryResultSummary", state === "ready" || state === "empty");
   setVisible("visitorsHistoryTableWrap", state === "ready");
   setVisible("visitorsHistoryCards", state === "ready");
 }
@@ -855,8 +857,10 @@ function renderNativeHistory() {
       historyMatchesQuickFilter(record, status);
   });
   nativeHistoryFilteredRows = filtered;
-  setResultCount("visitorsHistoryResultCount", filtered.length, "record", nativeHistoryRecords.length);
-
+  setText(
+    "visitorsHistoryResultSummary",
+    filtered.length + " of " + nativeHistoryRecords.length + " available records shown"
+  );
   updateHistoryQuickFilterButtons();
   if (!filtered.length) {
     setHistoryListState("empty");
@@ -929,10 +933,6 @@ function renderNativeHistory() {
     }
   });
 
-  setText(
-    "visitorsHistoryResultSummary",
-    filtered.length + " of " + nativeHistoryRecords.length + " available records shown"
-  );
   setHistoryListState("ready");
 }
 

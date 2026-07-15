@@ -1,7 +1,7 @@
 import { supabaseClient } from "./api.js";
 import { hasAnyCapability } from "./capabilities.js";
 import { $ } from "./dom.js";
-import { downloadTextFile } from "./exports.js";
+import { downloadCsv, downloadTextFile, downloadXlsx } from "./exports.js";
 import { showToast } from "./messages.js";
 import { buildOperationsPrintDocument, createSidePanelController, renderEmptyState } from "./platformUi.js";
 import { refreshSectionNavigator, registerModuleSections, selectModuleSection } from "./sectionNavigation.js";
@@ -366,6 +366,20 @@ function canViewSarEvidencePack() {
       "gdpr.manage",
       "audit.view",
       "module_configuration.manage"
+    ])
+  );
+}
+
+function canExportPrivacyGdprRecords() {
+  return hasActiveStaffUser() && (
+    isSuperUserProfile() ||
+    hasAnyCapability([
+      "privacy.manage",
+      "privacy.case.manage",
+      "gdpr.manage",
+      "module_configuration.manage",
+      "settings.edit",
+      "audit.view"
     ])
   );
 }
@@ -912,7 +926,11 @@ function renderCaseWorkspace() {
   list.replaceChildren();
   list.classList.remove("oh-empty-state");
   const rows = privacyGdprCasesLoaded ? filteredPrivacyCases() : [];
-  if (count) count.textContent = privacyGdprCasesLoaded ? String(rows.length) : "-";
+  if (count) {
+    count.textContent = privacyGdprCasesLoaded
+      ? rows.length + " of " + privacyGdprCases.length + " privacy cases shown"
+      : "-";
+  }
   renderCaseWorkspaceSummary(rows);
 
   if (!privacyGdprCasesLoaded) {
@@ -941,10 +959,7 @@ function renderCaseWorkspace() {
   const description = document.createElement("p");
   description.textContent = "Open a case to review details and timeline evidence supported by existing case data.";
   titleBlock.append(title, description);
-  const badge = document.createElement("span");
-  badge.className = "privacy-gdpr-result-count";
-  badge.textContent = String(rows.length);
-  header.append(titleBlock, badge);
+  header.appendChild(titleBlock);
 
   const rowsContainer = document.createElement("div");
   rowsContainer.className = "privacy-gdpr-result-list";
@@ -1018,6 +1033,28 @@ function syncPrivacyCaseActionVisibility() {
   });
 }
 
+function syncPrivacyExportVisibility() {
+  const canExport = canExportPrivacyGdprRecords();
+  [
+    "privacyGdprCaseExportCsv",
+    "privacyGdprCaseExportXlsx",
+    "privacyGdprSearchExportCsv",
+    "privacyGdprSearchExportXlsx",
+    "privacyGdprEvidencePackExportCsv",
+    "privacyGdprEvidencePackExportXlsx",
+    "privacyGdprPlannedExportCsv",
+    "privacyGdprPlannedExportXlsx",
+    "privacyGdprVisitLogExportCsv",
+    "privacyGdprVisitLogExportXlsx",
+    "privacyGdprDocumentExportCsv",
+    "privacyGdprDocumentExportXlsx",
+    "privacyGdprAuditExportCsv",
+    "privacyGdprAuditExportXlsx"
+  ].forEach(id => {
+    if ($(id)) $(id).classList.toggle("hidden", !canExport);
+  });
+}
+
 function syncEvidencePackSourceVisibility() {
   EVIDENCE_PACK_SOURCE_INPUTS.forEach(([sourceId, inputId]) => {
     const input = $(inputId);
@@ -1057,6 +1094,7 @@ function renderAll() {
   syncAnonymisationPreviewVisibility();
   syncAnonymisationRulesVisibility();
   syncPrivacyCaseActionVisibility();
+  syncPrivacyExportVisibility();
   renderEvidencePackPreview();
   renderAnonymisationPreview();
   renderAnonymisationRules();
@@ -1209,6 +1247,112 @@ function createSearchRecord(groupId, row, settings) {
     fields: options.fields || [],
     raw: row || {}
   };
+}
+
+function privacyExportDate() {
+  const date = new Date();
+  const offset = date.getTimezoneOffset() * 60000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 10);
+}
+
+function privacySourceFilename(sourceId) {
+  if (sourceId === "planned_visits") return "privacy-planned-visits";
+  if (sourceId === "visit_log") return "privacy-visit-log";
+  if (sourceId === "document_evidence") return "privacy-document-evidence";
+  if (sourceId === "audit_events") return "privacy-audit-events";
+  if (sourceId === "evidence_pack") return "privacy-evidence-pack-preview";
+  return "privacy-search-results";
+}
+
+function searchRecordExportRow(record, group) {
+  const fields = {};
+  (record.fields || []).forEach(field => {
+    if (!field || !field.label) return;
+    fields[field.label] = field.value == null ? "" : field.value;
+  });
+  const settings = SEARCH_GROUPS[record.groupId] || SEARCH_GROUPS[group && group.id] || {};
+  return Object.assign({
+    "Source": settings.title || group && group.title || record.groupId || "",
+    "Record ID": record.sourceId || "",
+    "Title": record.title || "",
+    "Subtitle": record.subtitle || "",
+    "Module": record.module || "",
+    "Status": record.status || "",
+    "Date": formatDate(record.date)
+  }, fields);
+}
+
+function searchGroupsExportRows(groups) {
+  return (groups || [])
+    .filter(group => group && !group.unavailable)
+    .flatMap(group => (group.records || []).map(record => searchRecordExportRow(record, group)));
+}
+
+function privacyCaseExportRows() {
+  return (privacyGdprCasesLoaded ? filteredPrivacyCases() : []).map(row => ({
+    "Case ID": row.id || "",
+    "Case Reference": row.case_reference || "",
+    "Case Type": caseType(row),
+    "Status": caseStatus(row),
+    "Priority": row.priority || "",
+    "Subject Name": caseSubjectName(row),
+    "Subject Company": caseSubjectCompany(row),
+    "Subject Email": caseSubjectEmail(row),
+    "Subject Reference": caseSubjectReference(row),
+    "Search Text": caseSearchText(row),
+    "Received": caseReceivedDate(row) || "",
+    "Due": caseDueDate(row) || "",
+    "Completed": caseCompletedDate(row) || "",
+    "Reason": caseReason(row),
+    "Outcome": caseOutcome(row),
+    "Decision": row.decision || "",
+    "Decision Reason": row.decision_reason || "",
+    "Legacy Reference": caseLegacyReference(row),
+    "Identity Verified": row.identity_verified ? "Yes" : "No",
+    "Created": formatDate(row.created_at),
+    "Updated": formatDate(row.updated_at)
+  }));
+}
+
+function exportPrivacyRows(rows, filenameBase, format, sheetName) {
+  if (!canExportPrivacyGdprRecords()) {
+    showToast("You do not have permission", "Privacy exports require privacy, GDPR, audit or administration export access.", "error");
+    return;
+  }
+  if (!rows || !rows.length) {
+    showToast("Nothing to export", "No loaded privacy records match the current filters.", "error");
+    return;
+  }
+  const filename = filenameBase + "-" + privacyExportDate();
+  if (format === "xlsx") {
+    downloadXlsx(filename + ".xlsx", rows, sheetName || "Privacy Export");
+  } else {
+    downloadCsv(filename + ".csv", rows);
+  }
+  showToast("Export created", rows.length + " privacy records were exported.", "success");
+}
+
+function exportPrivacyCases(format) {
+  exportPrivacyRows(privacyCaseExportRows(), "privacy-cases", format, "Privacy Cases");
+}
+
+function exportPrivacySearchResults(format) {
+  exportPrivacyRows(searchGroupsExportRows(privacyGdprSearchGroups), "privacy-search-results", format, "Privacy Search");
+}
+
+function exportPrivacySourceResults(sourceId, format) {
+  const group = searchGroupById(sourceId);
+  const rows = searchGroupsExportRows(group ? [group] : []);
+  exportPrivacyRows(rows, privacySourceFilename(sourceId), format, sourceLabel(sourceId));
+}
+
+function exportEvidencePackPreview(format) {
+  exportPrivacyRows(
+    searchGroupsExportRows(privacyGdprEvidencePackGroups),
+    privacySourceFilename("evidence_pack"),
+    format,
+    "Evidence Preview"
+  );
 }
 
 async function searchPlannedVisits(payload) {
@@ -3564,6 +3708,7 @@ export function syncPrivacyGdprVisibility() {
   syncAnonymisationPreviewVisibility();
   syncAnonymisationRulesVisibility();
   syncPrivacyCaseActionVisibility();
+  syncPrivacyExportVisibility();
   syncEvidencePackSourceVisibility();
   syncLegacyBridgeVisibility();
   refreshSectionNavigator("privacy-gdpr");
@@ -3665,6 +3810,30 @@ export function initialisePrivacyGdprAdministration(dependencies) {
   if ($("privacyGdprCaseRefreshButton")) {
     $("privacyGdprCaseRefreshButton").addEventListener("click", () => loadPrivacyGdprAdministration({ manual: true }));
   }
+  [
+    ["privacyGdprCaseExportCsv", "cases", "csv"],
+    ["privacyGdprCaseExportXlsx", "cases", "xlsx"],
+    ["privacyGdprSearchExportCsv", "search", "csv"],
+    ["privacyGdprSearchExportXlsx", "search", "xlsx"],
+    ["privacyGdprEvidencePackExportCsv", "evidence_pack", "csv"],
+    ["privacyGdprEvidencePackExportXlsx", "evidence_pack", "xlsx"],
+    ["privacyGdprPlannedExportCsv", "planned_visits", "csv"],
+    ["privacyGdprPlannedExportXlsx", "planned_visits", "xlsx"],
+    ["privacyGdprVisitLogExportCsv", "visit_log", "csv"],
+    ["privacyGdprVisitLogExportXlsx", "visit_log", "xlsx"],
+    ["privacyGdprDocumentExportCsv", "document_evidence", "csv"],
+    ["privacyGdprDocumentExportXlsx", "document_evidence", "xlsx"],
+    ["privacyGdprAuditExportCsv", "audit_events", "csv"],
+    ["privacyGdprAuditExportXlsx", "audit_events", "xlsx"]
+  ].forEach(([id, sourceId, format]) => {
+    if (!$(id)) return;
+    $(id).addEventListener("click", () => {
+      if (sourceId === "cases") exportPrivacyCases(format);
+      else if (sourceId === "search") exportPrivacySearchResults(format);
+      else if (sourceId === "evidence_pack") exportEvidencePackPreview(format);
+      else exportPrivacySourceResults(sourceId, format);
+    });
+  });
   if ($("privacyGdprCaseForm")) {
     $("privacyGdprCaseForm").addEventListener("submit", savePrivacyCase);
   }

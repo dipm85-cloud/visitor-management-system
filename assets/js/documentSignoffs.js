@@ -3635,6 +3635,7 @@ function renderEvidence(rows) {
       ? filtered.length + " of " + rows.length + " evidence records"
       : compactCountText(filtered.length, "evidence record")
   );
+  setVisible("documentSignoffEvidenceCount", true);
   filtered.slice(0, 10).forEach(record => {
     const row = document.createElement("tr");
     const identityCell = appendTextCell(row, record.visitor_name, record.company || "");

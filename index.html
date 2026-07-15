@@ -557,7 +557,6 @@
                 </label>
               </div>
               <div class="visitors-planned-filter-actions oh-responsive-filter-actions oh-filter-actions-row">
-                <span id="visitorsPlannedResultCount" class="oh-result-count">0 records</span>
                 <button id="visitorsPlannedApplyFilters" class="secondary" type="button">Apply Filters</button>
                 <button id="visitorsPlannedClearFilters" class="ghost" type="button">Clear</button>
                 <button id="visitorsPlannedExportCsv" class="secondary" type="button">Export CSV</button>
@@ -571,6 +570,7 @@
               <strong>No planned visits found</strong>
               <span>Adjust the filters or create a planned visit.</span>
             </div>
+            <div id="visitorsPlannedResultCount" class="visitors-history-result-summary hidden" aria-live="polite"></div>
             <div id="visitorsPlannedTableWrap" class="visitors-planned-table-wrap oh-responsive-table-wrap oh-mobile-card-table hidden" data-oh-scroll-region="operational" aria-label="Planned visits">
               <table class="visitors-planned-table oh-responsive-table">
                 <thead>
@@ -611,7 +611,6 @@
                 </label>
               </div>
               <div class="visitors-planned-filter-actions oh-responsive-filter-actions oh-filter-actions-row">
-                <span id="visitorsOnSiteResultCount" class="oh-result-count">0 currently signed in</span>
                 <button id="visitorsOnSiteApplyFilters" class="secondary" type="button">Apply Filters</button>
                 <button id="visitorsOnSiteClearFilters" class="ghost" type="button">Clear</button>
                 <button id="visitorsOnSiteExportCsv" class="secondary" type="button">Export CSV</button>
@@ -624,6 +623,7 @@
               <strong>No visitors currently on site</strong>
               <span>Active signed-in visitors will appear here.</span>
             </div>
+            <div id="visitorsOnSiteResultCount" class="visitors-history-result-summary hidden" aria-live="polite"></div>
             <div id="visitorsOnSiteTableWrap" class="visitors-planned-table-wrap oh-responsive-table-wrap oh-mobile-card-table hidden" data-oh-scroll-region="operational" aria-label="Visitors currently on site">
               <table class="visitors-planned-table oh-responsive-table">
                 <thead>
@@ -686,7 +686,6 @@
                 </label>
               </div>
               <div class="visitors-planned-filter-actions oh-responsive-filter-actions oh-filter-actions-row">
-                <span id="visitorsHistoryResultCount" class="oh-result-count">0 records</span>
                 <button id="visitorsHistoryApplyFilters" class="secondary" type="button">Apply Filters</button>
                 <button id="visitorsHistoryClearFilters" class="ghost" type="button">Reset</button>
                 <button id="visitorsHistoryExportCsv" class="secondary" type="button">Export CSV</button>
@@ -845,13 +844,13 @@
                 </div>
                 <div class="document-signoff-native-actions">
                   <input id="documentSignoffNativeSearch" type="search" autocomplete="off" placeholder="Search visitor, company or reference" aria-label="Search visitors requiring sign-off" />
-                  <span id="documentSignoffNativeCount" class="oh-result-count">0 visitors require sign-off</span>
                   <button id="documentSignoffLoadPendingButton" type="button">Load Visitors Requiring Sign-off</button>
                   <button id="documentSignoffNativeExportCsv" class="secondary" type="button">Export CSV</button>
                   <button id="documentSignoffNativeLegacyButton" class="secondary" type="button">Open Legacy Visitor Sign-off</button>
                 </div>
               </div>
               <div id="documentSignoffNativeStatus" class="local-action-status" aria-live="polite"></div>
+              <div id="documentSignoffNativeCount" class="visitors-history-result-summary hidden" aria-live="polite"></div>
               <div id="documentSignoffNativeResults" class="document-signoff-native-results" data-oh-scroll-region="operational">
                 <div class="people-empty-state" data-oh-empty-state>
                   <strong>No native sign-off candidates loaded</strong>
@@ -962,14 +961,13 @@
                 </div>
               </div>
               <div class="oh-result-toolbar" role="search" aria-label="Filter recent signature evidence">
-                <div class="oh-result-toolbar-label">
-                  <span id="documentSignoffEvidenceCount" class="oh-result-count">0 evidence records</span>
-                </div>
+                <div class="oh-result-toolbar-label"></div>
                 <div class="oh-result-toolbar-actions">
                   <input id="documentSignoffEvidenceSearch" type="search" autocomplete="off" placeholder="Search visitor, document, company or reference" aria-label="Search recent signature evidence" />
                   <button id="documentSignoffEvidenceExportCsv" class="secondary" type="button">Export CSV</button>
                 </div>
               </div>
+              <div id="documentSignoffEvidenceCount" class="visitors-history-result-summary hidden" aria-live="polite"></div>
               <div class="document-signoff-table-wrap" data-oh-scroll-region="history" aria-label="Recent document sign-off evidence">
                 <table class="document-signoff-table document-signoff-evidence-table">
                   <thead>
@@ -1351,7 +1349,7 @@
       <div class="brand-mark"><img id="brandLogoImg" alt="Logo" style="display:none;width:100%;height:100%;object-fit:contain;border-radius:12px;"><span id="brandLogoFallback">V</span></div>
       <div>
         Visitor Management<br>
-        <span style="font-size:12px;color:var(--muted);font-weight:700;">Operations Hub nextgen-ui - OHP-011</span>
+        <span style="font-size:12px;color:var(--muted);font-weight:700;">Operations Hub nextgen-ui - OHP-011A</span>
       </div>
     </div>
     <div class="button-row no-print" style="margin:0;">
@@ -1400,7 +1398,7 @@
       </div>
       <button id="terminalReturnHomeButton" class="secondary hidden" type="button">Return to Terminal Home</button>
     </section>
-  <div id="appVersionFooter" class="version-footer">Version <span id="appVersionText">OHP-011</span></div>
+  <div id="appVersionFooter" class="version-footer">Version <span id="appVersionText">OHP-011A</span></div>
 </main>
 
   <section id="signInScreen" class="screen">
@@ -3831,7 +3829,6 @@
                   <h3 id="identityResolutionRequestsTitle">Review Requests</h3>
                   <p>Review requests ask authorised reviewers to investigate possible identity matches. They do not modify source records.</p>
                 </div>
-                <span id="identityResolutionRequestCount" class="privacy-gdpr-result-count">-</span>
               </div>
               <div class="oh-filter-panel">
                 <div class="oh-responsive-filter-grid identity-resolution-filter-grid">
@@ -3877,6 +3874,7 @@
                   </div>
                 </div>
               </div>
+              <div id="identityResolutionRequestCount" class="visitors-history-result-summary" aria-live="polite">-</div>
               <div id="identityResolutionRequestResults" class="identity-resolution-result-list" aria-live="polite"></div>
               <div id="identityResolutionRequestsEmpty" class="people-empty-state hidden" data-oh-empty-state>No identity review requests are available.</div>
             </section>
@@ -3887,7 +3885,6 @@
                   <h3 id="identityResolutionQueueTitle">Candidate Queue</h3>
                   <p>An identity candidate is a review item comparing two existing source records. Pending candidates are possible matches, not confirmed identities.</p>
                 </div>
-                <span id="identityResolutionCandidateCount" class="privacy-gdpr-result-count">-</span>
               </div>
               <div class="oh-filter-panel">
                 <div class="oh-responsive-filter-grid identity-resolution-filter-grid">
@@ -3933,6 +3930,7 @@
                   </div>
                 </div>
               </div>
+              <div id="identityResolutionCandidateCount" class="visitors-history-result-summary" aria-live="polite">-</div>
               <div id="identityResolutionCandidateResults" class="identity-resolution-result-list" aria-live="polite"></div>
               <div id="identityResolutionCandidateEmpty" class="people-empty-state hidden" data-oh-empty-state>No identity resolution candidates are available.</div>
             </section>
@@ -3943,7 +3941,6 @@
                   <h3 id="identityResolutionLinksTitle">Confirmed Links</h3>
                   <p>Confirmed links are metadata only. Source records remain unchanged.</p>
                 </div>
-                <span id="identityResolutionLinksCount" class="privacy-gdpr-result-count">-</span>
               </div>
               <div class="oh-filter-panel">
                 <div class="oh-responsive-filter-grid identity-resolution-filter-grid">
@@ -3986,6 +3983,7 @@
                   </div>
                 </div>
               </div>
+              <div id="identityResolutionLinksCount" class="visitors-history-result-summary" aria-live="polite">-</div>
               <div id="identityResolutionLinkResults" class="identity-resolution-result-list" aria-live="polite"></div>
               <div id="identityResolutionLinksEmpty" class="people-empty-state hidden" data-oh-empty-state>No confirmed identity links are available.</div>
             </section>
@@ -3996,7 +3994,6 @@
                   <h3 id="identityResolutionDecisionsTitle">Decision History</h3>
                   <p>Recent candidate decisions are shown without exposing unnecessary staff details.</p>
                 </div>
-                <span id="identityResolutionDecisionCount" class="privacy-gdpr-result-count">-</span>
               </div>
               <div class="oh-result-toolbar">
                 <div class="oh-result-toolbar-label"></div>
@@ -4005,6 +4002,7 @@
                   <button id="identityResolutionExportDecisionsXlsx" class="secondary" type="button">Export XLSX</button>
                 </div>
               </div>
+              <div id="identityResolutionDecisionCount" class="visitors-history-result-summary" aria-live="polite">-</div>
               <div id="identityResolutionDecisionResults" class="identity-resolution-decision-list" aria-live="polite"></div>
               <div id="identityResolutionDecisionsEmpty" class="people-empty-state hidden" data-oh-empty-state>No identity resolution decisions are available.</div>
             </section>
@@ -4201,7 +4199,6 @@
                   <h3 id="privacyGdprCasesWorkspaceTitle">Privacy Cases</h3>
                   <p>Review read-only GDPR case details and supported evidence timeline entries.</p>
                 </div>
-                <span id="privacyGdprCasesWorkspaceCount" class="privacy-gdpr-result-count">-</span>
               </div>
 
               <div class="oh-filter-panel" role="search" aria-label="Filter privacy cases">
@@ -4247,10 +4244,13 @@
                   <button id="privacyGdprCaseFilterButton" type="button">Apply Filters</button>
                   <button id="privacyGdprCaseResetButton" class="secondary" type="button">Reset</button>
                   <button id="privacyGdprCaseRefreshButton" class="secondary" type="button">Refresh</button>
+                  <button id="privacyGdprCaseExportCsv" class="secondary" type="button">Export CSV</button>
+                  <button id="privacyGdprCaseExportXlsx" class="secondary" type="button">Export XLSX</button>
                   <button id="privacyGdprCaseLegacyButton" class="secondary" type="button">Open Legacy GDPR Case Tools</button>
                 </div>
               </div>
               <div id="privacyGdprCaseStatus" class="local-action-status" aria-live="polite"></div>
+              <div id="privacyGdprCasesWorkspaceCount" class="visitors-history-result-summary" aria-live="polite">-</div>
               <div id="privacyGdprCaseWorkspaceSummary" class="privacy-gdpr-case-workspace-summary" aria-label="Privacy case workspace summary"></div>
               <div id="privacyGdprCasesWorkspaceList" class="privacy-gdpr-search-results privacy-gdpr-case-results" aria-live="polite"></div>
             </section>
@@ -4289,6 +4289,8 @@
                 <div class="oh-responsive-filter-actions oh-filter-actions-row">
                   <button id="privacyGdprEvidencePackPreviewButton" type="button">Preview Evidence Pack</button>
                   <button id="privacyGdprEvidencePackResetButton" class="secondary" type="button">Reset</button>
+                  <button id="privacyGdprEvidencePackExportCsv" class="secondary" type="button">Export CSV</button>
+                  <button id="privacyGdprEvidencePackExportXlsx" class="secondary" type="button">Export XLSX</button>
                   <button id="privacyGdprEvidencePackDownloadJsonButton" class="secondary" type="button">Download JSON Metadata</button>
                   <button id="privacyGdprEvidencePackPrintButton" class="secondary" type="button">Print Preview</button>
                   <button id="privacyGdprEvidencePackCreateCaseButton" class="secondary hidden" type="button">Create Case from Criteria</button>
@@ -4479,6 +4481,8 @@
                 <div class="oh-responsive-filter-actions oh-filter-actions-row">
                   <button id="privacyGdprSearchButton" type="button">Search</button>
                   <button id="privacyGdprSearchResetButton" class="secondary" type="button">Reset</button>
+                  <button id="privacyGdprSearchExportCsv" class="secondary" type="button">Export CSV</button>
+                  <button id="privacyGdprSearchExportXlsx" class="secondary" type="button">Export XLSX</button>
                   <button id="privacyGdprSearchCreateCaseButton" class="secondary hidden" type="button">Create Case from Search Criteria</button>
                   <button id="privacyGdprSearchLegacyButton" class="secondary" type="button">Open Legacy GDPR Search</button>
                 </div>
@@ -4530,6 +4534,8 @@
                 <div class="oh-responsive-filter-actions oh-filter-actions-row">
                   <button id="privacyGdprPlannedSearchButton" type="button">Search</button>
                   <button id="privacyGdprPlannedResetButton" class="secondary" type="button">Reset</button>
+                  <button id="privacyGdprPlannedExportCsv" class="secondary" type="button">Export CSV</button>
+                  <button id="privacyGdprPlannedExportXlsx" class="secondary" type="button">Export XLSX</button>
                 </div>
               </div>
               <div id="privacyGdprPlannedSearchStatus" class="local-action-status" aria-live="polite"></div>
@@ -4575,6 +4581,8 @@
                 <div class="oh-responsive-filter-actions oh-filter-actions-row">
                   <button id="privacyGdprVisitLogSearchButton" type="button">Search</button>
                   <button id="privacyGdprVisitLogResetButton" class="secondary" type="button">Reset</button>
+                  <button id="privacyGdprVisitLogExportCsv" class="secondary" type="button">Export CSV</button>
+                  <button id="privacyGdprVisitLogExportXlsx" class="secondary" type="button">Export XLSX</button>
                 </div>
               </div>
               <div id="privacyGdprVisitLogSearchStatus" class="local-action-status" aria-live="polite"></div>
@@ -4620,6 +4628,8 @@
                 <div class="oh-responsive-filter-actions oh-filter-actions-row">
                   <button id="privacyGdprDocumentSearchButton" type="button">Search</button>
                   <button id="privacyGdprDocumentResetButton" class="secondary" type="button">Reset</button>
+                  <button id="privacyGdprDocumentExportCsv" class="secondary" type="button">Export CSV</button>
+                  <button id="privacyGdprDocumentExportXlsx" class="secondary" type="button">Export XLSX</button>
                 </div>
               </div>
               <div id="privacyGdprDocumentSearchStatus" class="local-action-status" aria-live="polite"></div>
@@ -4660,6 +4670,8 @@
                 <div class="oh-responsive-filter-actions oh-filter-actions-row">
                   <button id="privacyGdprAuditSearchButton" type="button">Search</button>
                   <button id="privacyGdprAuditResetButton" class="secondary" type="button">Reset</button>
+                  <button id="privacyGdprAuditExportCsv" class="secondary" type="button">Export CSV</button>
+                  <button id="privacyGdprAuditExportXlsx" class="secondary" type="button">Export XLSX</button>
                 </div>
               </div>
               <div id="privacyGdprAuditSearchStatus" class="local-action-status" aria-live="polite"></div>
@@ -5187,7 +5199,7 @@
 
   <footer class="oh-footer">
     <strong>Operations Hub</strong>
-    <span>Version <span id="ohPlatformVersion">OHP-011</span></span>
+    <span>Version <span id="ohPlatformVersion">OHP-011A</span></span>
     <span>Environment <span id="ohEnvironment">Local</span></span>
   </footer>
 </div>
