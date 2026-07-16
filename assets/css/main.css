@@ -8935,6 +8935,46 @@ input[data-reference-field="cycle_length_days"][readonly] {
   overflow: auto;
 }
 
+.workforce-calendar-legend {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  min-width: max-content;
+  padding: 8px 10px;
+  border-bottom: 1px solid #e9edf2;
+  background: #ffffff;
+  color: var(--oh-shell-muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.workforce-calendar-legend.hidden {
+  display: none !important;
+}
+
+.workforce-calendar-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.workforce-calendar-legend i {
+  width: 12px;
+  height: 12px;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+}
+
+.workforce-calendar-legend i.is-working { background: #28715e; border-color: #28715e; }
+.workforce-calendar-legend i.is-off { background: #eef2f6; }
+.workforce-calendar-legend i.is-no-assignment { background: #ffffff; }
+.workforce-calendar-legend i.is-no-profile { background: #fbbf24; border-color: #d97706; }
+.workforce-calendar-legend i.is-pattern-not-configured { background: #8b5cf6; border-color: #7c3aed; }
+.workforce-calendar-legend i.is-assignment-inactive { background: #e11d48; border-color: #be123c; }
+.workforce-calendar-legend i.is-unsociable { background: #334155; border-color: #1e293b; }
+
 .workforce-calendar-grid {
   width: max-content;
   min-width: 100%;
@@ -9053,6 +9093,143 @@ input[data-reference-field="cycle_length_days"][readonly] {
 .workforce-calendar-cell.is-working .workforce-calendar-visual-block {
   background: #28715e;
   color: #ffffff;
+}
+
+.workforce-calendar-grid.is-compact th,
+.workforce-calendar-grid.is-compact td {
+  min-width: 72px;
+  max-width: 86px;
+  height: 30px;
+  padding: 3px 4px;
+  font-size: 11px;
+  line-height: 1.15;
+  text-align: center;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.workforce-calendar-grid.is-compact thead th {
+  height: 36px;
+  padding: 4px 5px;
+  font-size: 11px;
+  line-height: 1.05;
+}
+
+.workforce-calendar-compact-date-day,
+.workforce-calendar-compact-date-month {
+  display: block;
+  overflow: hidden;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workforce-calendar-compact-date-day {
+  color: #344054;
+  font-weight: 900;
+}
+
+.workforce-calendar-compact-date-month {
+  margin-top: 2px;
+  color: var(--oh-shell-muted);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.workforce-calendar-grid.is-compact .workforce-calendar-person-column {
+  min-width: 160px !important;
+  max-width: 190px !important;
+  padding: 4px 8px;
+  text-align: left;
+}
+
+.workforce-calendar-grid.is-compact .workforce-calendar-person-column strong {
+  overflow: hidden;
+  color: var(--oh-shell-text);
+  font-size: 12px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workforce-calendar-grid.is-compact .workforce-calendar-cell {
+  border-left: 0;
+}
+
+.workforce-calendar-grid.is-compact .workforce-calendar-cell-content {
+  display: flex;
+  min-height: 22px;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.workforce-calendar-compact-marker {
+  display: inline-flex;
+  width: 100%;
+  max-width: 54px;
+  height: 20px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 5px;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.workforce-calendar-grid.is-compact .workforce-calendar-cell.is-working {
+  background: #e4f7ee;
+}
+
+.workforce-calendar-grid.is-compact .workforce-calendar-cell.is-working .workforce-calendar-compact-marker {
+  background: #28715e;
+}
+
+.workforce-calendar-grid.is-compact .workforce-calendar-cell.is-unsociable .workforce-calendar-compact-marker {
+  background: #334155;
+}
+
+.workforce-calendar-grid.is-compact .workforce-calendar-cell.is-off {
+  background: #f1f5f9;
+}
+
+.workforce-calendar-grid.is-compact .workforce-calendar-cell.is-off .workforce-calendar-compact-marker {
+  background: #cbd5e1;
+}
+
+.workforce-calendar-grid.is-compact .workforce-calendar-cell.is-no-assignment {
+  background: #ffffff;
+}
+
+.workforce-calendar-grid.is-compact .workforce-calendar-cell.is-no-assignment .workforce-calendar-compact-marker {
+  max-width: 20px;
+  background: #ffffff;
+  box-shadow: inset 0 0 0 1px #d0d5dd;
+}
+
+.workforce-calendar-grid.is-compact .workforce-calendar-cell.is-no-profile {
+  background: #fff7df;
+}
+
+.workforce-calendar-grid.is-compact .workforce-calendar-cell.is-no-profile .workforce-calendar-compact-marker {
+  background: #d97706;
+}
+
+.workforce-calendar-grid.is-compact .workforce-calendar-cell.is-pattern-not-configured {
+  background: #f3e8ff;
+}
+
+.workforce-calendar-grid.is-compact .workforce-calendar-cell.is-pattern-not-configured .workforce-calendar-compact-marker {
+  background: #7c3aed;
+}
+
+.workforce-calendar-grid.is-compact .workforce-calendar-cell.is-assignment-inactive {
+  background: #ffe4e6;
+}
+
+.workforce-calendar-grid.is-compact .workforce-calendar-cell.is-assignment-inactive .workforce-calendar-compact-marker {
+  background: #be123c;
 }
 
 body.workforce-calendar-fullscreen-active,
@@ -9214,6 +9391,15 @@ body.workforce-calendar-fullscreen-active .oh-workspace {
   .workforce-calendar-person-column {
     min-width: 170px !important;
     max-width: 190px !important;
+  }
+  .workforce-calendar-grid.is-compact .workforce-calendar-person-column {
+    min-width: 140px !important;
+    max-width: 170px !important;
+  }
+  .workforce-calendar-grid.is-compact th,
+  .workforce-calendar-grid.is-compact td {
+    min-width: 68px;
+    max-width: 82px;
   }
   .workforce-calendar-overlay {
     padding: 10px;

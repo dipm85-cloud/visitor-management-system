@@ -125,6 +125,19 @@ function formatDisplayDate(value) {
     String(date.getMonth() + 1).padStart(2, "0");
 }
 
+function formatCompactDate(value) {
+  const date = parseDateKey(value);
+  if (!date) return value || "-";
+  return DAY_NAMES[date.getDay()].slice(0, 3) + " " +
+    String(date.getDate()).padStart(2, "0");
+}
+
+function formatCompactMonth(value) {
+  const date = parseDateKey(value);
+  if (!date) return "";
+  return date.toLocaleString("en-GB", { month: "short" });
+}
+
 function formatTime(value) {
   return value ? String(value).slice(0, 5) : "-";
 }
@@ -508,11 +521,59 @@ function stateLabel(status) {
   }[status] || "Unknown";
 }
 
+function cellTitle(cell) {
+  const person = cell.person || {};
+  const profile = cell.profile || {};
+  const parts = [
+    person.display_name || "Person",
+    formatDisplayDate(cell.date),
+    stateLabel(cell.status)
+  ];
+  if (profile.profile_name || profile.profile_code) {
+    parts.push("Profile: " + (profile.profile_name || profile.profile_code));
+  }
+  if (cell.status === "working") {
+    parts.push("Time: " + formatTime(cell.start_time) + "-" + formatTime(cell.end_time));
+    parts.push("Paid: " + formatHours(cell.paid_hours) + "h");
+    if (cell.unsociable_hours > 0) parts.push("Unsociable: " + formatHours(cell.unsociable_hours) + "h");
+    if (cell.tags && cell.tags.length) parts.push("Tags: " + cell.tags.join(", "));
+  }
+  return parts.join("\n");
+}
+
+function compactWorkingLabel(cell) {
+  if (cell.unsociable_hours > 0) return "N";
+  const startText = String(cell.start_time || "").slice(0, 2);
+  const start = /^\d{2}$/.test(startText) ? Number(startText) : null;
+  if (start !== null) return start < 12 ? "AM" : "PM";
+  return "W";
+}
+
+function createCompactCellContent(cell) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "workforce-calendar-cell-content workforce-calendar-compact-content";
+  const marker = document.createElement("span");
+  marker.className = "workforce-calendar-compact-marker";
+  marker.title = cellTitle(cell);
+  if (cell.status === "working") {
+    marker.textContent = compactWorkingLabel(cell);
+  } else if (cell.status === "no_profile") {
+    marker.textContent = "!";
+  } else if (cell.status === "pattern_not_configured") {
+    marker.textContent = "?";
+  } else if (cell.status === "assignment_inactive") {
+    marker.textContent = "X";
+  }
+  wrapper.appendChild(marker);
+  return wrapper;
+}
+
 function createCellContent(cell) {
   const wrapper = document.createElement("div");
   wrapper.className = "workforce-calendar-cell-content";
 
   const mode = currentDisplayMode();
+  if (mode === "compact") return createCompactCellContent(cell);
   if (mode === "visual") {
     const status = document.createElement("span");
     status.className = "workforce-calendar-visual-block";
@@ -545,12 +606,23 @@ function createCellContent(cell) {
 }
 
 function currentDisplayMode() {
-  return $("workforceCalendarDisplayMode") ? $("workforceCalendarDisplayMode").value : "detailed";
+  const mode = $("workforceCalendarDisplayMode") ? $("workforceCalendarDisplayMode").value : "detailed";
+  return ["detailed", "visual", "compact"].includes(mode) ? mode : "detailed";
+}
+
+function updateDisplayModeChrome(mode) {
+  const compact = mode === "compact";
+  ["workforceCalendarCompactLegend", "workforceCalendarFullscreenCompactLegend"].forEach(id => {
+    const legend = $(id);
+    if (legend) legend.classList.toggle("hidden", !compact);
+  });
 }
 
 function renderCalendar() {
   const filters = currentFilters();
   const rows = calendarState.grid.filter(row => filterMatches(row, filters));
+  const mode = currentDisplayMode();
+  updateDisplayModeChrome(mode);
   updateFilterSummaries();
   renderCalendarTable($("workforceCalendarGrid"), $("workforceCalendarEmptyState"), "workforceCalendarEmptyState", rows);
   renderCalendarTable(
@@ -565,6 +637,8 @@ function renderCalendar() {
 function renderCalendarTable(table, empty, emptyStateId, rows) {
   if (!table || !empty) return;
   table.replaceChildren();
+  const compact = currentDisplayMode() === "compact";
+  table.classList.toggle("is-compact", compact);
 
   if (!rows.length) {
     empty.classList.remove("hidden");
@@ -588,7 +662,18 @@ function renderCalendarTable(table, empty, emptyStateId, rows) {
   calendarState.dateRange.forEach(dateValue => {
     const th = document.createElement("th");
     th.scope = "col";
-    th.textContent = formatDisplayDate(dateValue);
+    th.title = formatDisplayDate(dateValue);
+    if (compact) {
+      const day = document.createElement("span");
+      day.className = "workforce-calendar-compact-date-day";
+      day.textContent = formatCompactDate(dateValue);
+      const month = document.createElement("span");
+      month.className = "workforce-calendar-compact-date-month";
+      month.textContent = formatCompactMonth(dateValue);
+      th.append(day, month);
+    } else {
+      th.textContent = formatDisplayDate(dateValue);
+    }
     headRow.appendChild(th);
   });
   thead.appendChild(headRow);
@@ -599,16 +684,25 @@ function renderCalendarTable(table, empty, emptyStateId, rows) {
     const personCell = document.createElement("th");
     personCell.scope = "row";
     personCell.className = "workforce-calendar-person-column";
+    personCell.title = rowMeta(row)
+      ? (row.person.display_name || "Person") + "\n" + rowMeta(row)
+      : (row.person.display_name || "Person");
     const name = document.createElement("strong");
     name.textContent = row.person.display_name || "Person";
-    const meta = document.createElement("span");
-    meta.textContent = rowMeta(row) || "No assignment context";
-    personCell.append(name, meta);
+    if (compact) {
+      personCell.appendChild(name);
+    } else {
+      const meta = document.createElement("span");
+      meta.textContent = rowMeta(row) || "No assignment context";
+      personCell.append(name, meta);
+    }
     tr.appendChild(personCell);
 
     row.cells.forEach(cell => {
       const td = document.createElement("td");
       td.className = "workforce-calendar-cell is-" + cell.status.replace(/_/g, "-");
+      if (cell.unsociable_hours > 0) td.classList.add("is-unsociable");
+      td.title = cellTitle(cell);
       td.appendChild(createCellContent(cell));
       tr.appendChild(td);
     });
