@@ -185,6 +185,17 @@ function findWorkTimeProfile(profileId) {
   return (assignmentLookups.workTimeProfiles || []).find(profile => profile.id === profileId) || null;
 }
 
+function workTimeProfileTags(profile) {
+  return ["custom_tag_1", "custom_tag_2", "custom_tag_3"]
+    .map(key => String(profile && profile[key] ? profile[key] : "").trim())
+    .filter(Boolean);
+}
+
+function workTimeProfileTagsText(profile) {
+  const tags = workTimeProfileTags(profile);
+  return tags.length ? "Tags: " + tags.join(" - ") : "";
+}
+
 function workTimeProfileOptionLabel(profile) {
   const name = profile.profile_name || profile.profile_code || "Work Time Profile";
   return name + " " + formatAssignmentTime(profile.start_time) + "-" +
@@ -277,6 +288,14 @@ export function renderSelectedAssignmentWorkTimeProfileSummary() {
       " - Paid " + formatAssignmentHours(profile.paid_hours) +
       " - Unsociable " + formatAssignmentHours(profile.unsociable_hours);
     summary.appendChild(details);
+
+    const tagsText = workTimeProfileTagsText(profile);
+    if (tagsText) {
+      const tags = document.createElement("span");
+      tags.className = "assignment-work-time-tags";
+      tags.textContent = tagsText;
+      summary.appendChild(tags);
+    }
   } else if (legacyText) {
     const details = document.createElement("span");
     details.textContent = legacyText;
@@ -444,6 +463,14 @@ function createWorkTimeProfileCell(assignment) {
       "Break " + (profile.break_minutes ?? 0) + " mins" +
       " - Crosses midnight " + (profile.crosses_midnight ? "Yes" : "No");
     cell.appendChild(detail);
+
+    const tagsText = workTimeProfileTagsText(profile);
+    if (tagsText) {
+      const tags = document.createElement("span");
+      tags.className = "assignment-work-time-tags";
+      tags.textContent = tagsText;
+      cell.appendChild(tags);
+    }
   } else {
     const legacyText = legacyShiftText(assignment);
     if (legacyText) {

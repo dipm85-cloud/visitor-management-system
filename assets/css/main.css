@@ -7006,8 +7006,8 @@ button.oh-section-nav-item:focus-visible,
 .reference-data-heading p { margin: 6px 0 0; color: var(--oh-shell-muted); }
 
 .reference-toolbar {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  display: flex;
+  flex-wrap: wrap;
   align-items: end;
   gap: 14px;
   margin-bottom: 18px;
@@ -7017,18 +7017,31 @@ button.oh-section-nav-item:focus-visible,
   background: var(--oh-shell-surface);
 }
 
+.reference-search {
+  flex: 1 1 300px;
+  min-width: min(100%, 280px);
+}
+
 .reference-search label {
   display: block;
   margin-bottom: 7px;
   font-size: 13px;
   font-weight: 800;
+  white-space: nowrap;
+}
+
+.reference-search input {
+  width: 100%;
+  min-width: 0;
 }
 
 .reference-toolbar-actions {
   display: flex;
+  flex: 1 1 auto;
   min-width: 0;
   flex-wrap: wrap;
   gap: 10px;
+  justify-content: flex-end;
 }
 
 .reference-inline-check {
@@ -7040,11 +7053,17 @@ button.oh-section-nav-item:focus-visible,
   color: var(--oh-shell-muted);
   font-size: 13px;
   font-weight: 800;
+  white-space: nowrap;
 }
 
 .reference-inline-check input {
+  flex: 0 0 auto;
   width: auto;
   margin: 0;
+}
+
+.reference-toolbar-actions button {
+  white-space: nowrap;
 }
 
 .reference-results-card {
@@ -8346,6 +8365,48 @@ button.oh-section-nav-item:focus-visible,
   line-height: 1.4;
 }
 
+.reference-form-section {
+  margin: 18px 0 12px;
+  padding-top: 14px;
+  border-top: 1px solid var(--oh-shell-border);
+}
+
+.reference-form-section h3 {
+  margin: 0;
+  color: var(--oh-shell-text);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.reference-form-section p {
+  margin: 6px 0 0;
+  color: var(--oh-shell-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.work-time-profile-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  min-width: 120px;
+}
+
+.work-time-profile-tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 3px 8px;
+  border: 1px solid #d0d5dd;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #475467;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
 input[data-business-code="true"] {
   font-family: Consolas, "Courier New", monospace;
   font-weight: 700;
@@ -8422,13 +8483,14 @@ input[data-reference-field="cycle_length_days"][readonly] {
   .access-control-role-group li code { text-align: left; }
 
   .reference-toolbar {
-    grid-template-columns: 1fr;
     padding: 14px;
   }
 
   .reference-toolbar-actions {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    flex-basis: 100%;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr));
+    justify-content: stretch;
   }
 
   .reference-toolbar-actions button { width: 100%; }
@@ -8681,6 +8743,12 @@ input[data-reference-field="cycle_length_days"][readonly] {
   color: var(--oh-shell-muted);
   font-size: 12px;
   line-height: 1.35;
+}
+
+.assignment-work-time-cell .assignment-work-time-tags,
+.assignment-work-time-summary .assignment-work-time-tags {
+  color: #475467;
+  font-weight: 700;
 }
 
 .assignment-row-actions {

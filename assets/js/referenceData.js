@@ -231,6 +231,15 @@ const entityDefinitions = {
       { key: "break_minutes", label: "Break Minutes", type: "number", min: 0, max: 1440, defaultValue: 0 },
       { key: "paid_hours", label: "Paid Working Hours", type: "number", min: 0, max: 24, step: "0.25", required: true },
       { key: "unsociable_hours", label: "Unsociable Hours", type: "number", min: 0, max: 24, step: "0.25", defaultValue: 0 },
+      {
+        key: "custom_tag_1",
+        label: "Tag 1",
+        allowEmptyString: true,
+        sectionTitle: "Calendar / filter tags",
+        sectionHelp: "Optional labels for calendar filters, such as AM/PM, Blue/Red shift, Night, Weekend, or local team names."
+      },
+      { key: "custom_tag_2", label: "Tag 2", allowEmptyString: true },
+      { key: "custom_tag_3", label: "Tag 3", allowEmptyString: true },
       { key: "display_order", label: "Display Order", type: "number", min: 0, defaultValue: 0 },
       { key: "notes", label: "Notes", type: "textarea" }
     ],
@@ -239,6 +248,7 @@ const entityDefinitions = {
       { key: "profile_code", label: "Code" },
       { key: "start_time", label: "Start", format: "time" },
       { key: "end_time", label: "End", format: "time" },
+      { key: "custom_tags", label: "Tags", format: "workTimeTags" },
       { key: "crosses_midnight", label: "Overnight", format: "boolean" },
       { key: "break_minutes", label: "Break" },
       { key: "paid_hours", label: "Paid", format: "hours" },
@@ -412,6 +422,12 @@ function formatReferenceHours(value) {
   return Number.isFinite(numberValue) ? numberValue.toFixed(2) : "-";
 }
 
+function workTimeProfileTags(record) {
+  return ["custom_tag_1", "custom_tag_2", "custom_tag_3"]
+    .map(key => String(record && record[key] ? record[key] : "").trim())
+    .filter(Boolean);
+}
+
 function normaliseWorkTimeProfileCode(value) {
   return normaliseBusinessCode(
     String(value || "")
@@ -427,6 +443,26 @@ function isWorkTimeProfilesDefinition(definition = currentDefinition()) {
 function createTextCell(text) {
   const cell = document.createElement("td");
   cell.textContent = text;
+  return cell;
+}
+
+function createWorkTimeProfileTagsCell(record) {
+  const cell = document.createElement("td");
+  const tags = workTimeProfileTags(record);
+  if (!tags.length) {
+    cell.textContent = "-";
+    return cell;
+  }
+
+  const list = document.createElement("div");
+  list.className = "work-time-profile-tags";
+  tags.forEach(tag => {
+    const chip = document.createElement("span");
+    chip.className = "work-time-profile-tag";
+    chip.textContent = tag;
+    list.appendChild(chip);
+  });
+  cell.appendChild(list);
   return cell;
 }
 
@@ -563,6 +599,20 @@ function renderReferenceFormFields() {
   container.replaceChildren();
 
   definition.fields.forEach(field => {
+    if (field.sectionTitle) {
+      const section = document.createElement("div");
+      section.className = "reference-form-section";
+      const title = document.createElement("h3");
+      title.textContent = field.sectionTitle;
+      section.appendChild(title);
+      if (field.sectionHelp) {
+        const help = document.createElement("p");
+        help.textContent = field.sectionHelp;
+        section.appendChild(help);
+      }
+      container.appendChild(section);
+    }
+
     const wrapper = document.createElement("div");
     wrapper.className = "reference-form-field";
 
@@ -642,7 +692,7 @@ async function loadWorkTimeProfiles(requestedEntityKey, definition) {
   try {
     const result = await supabaseClient.rpc("list_work_time_profiles", {
       p_include_inactive: includeInactiveWorkTimeProfiles(),
-      p_search_text: $("referenceSearch").value.trim() || null
+      p_search_text: null
     });
 
     if (result.error) throw result.error;
@@ -669,6 +719,9 @@ function workTimeProfileSearchText(record) {
     record.break_minutes,
     record.paid_hours,
     record.unsociable_hours,
+    record.custom_tag_1,
+    record.custom_tag_2,
+    record.custom_tag_3,
     record.active ? "active" : "inactive",
     record.notes
   ].join(" ").toLowerCase();
@@ -712,7 +765,9 @@ function renderWorkTimeProfileList() {
   filtered.forEach(record => {
     const row = document.createElement("tr");
     definition.columns.forEach(column => {
-      row.appendChild(createTextCell(formatValue(record, column)));
+      row.appendChild(column.format === "workTimeTags"
+        ? createWorkTimeProfileTagsCell(record)
+        : createTextCell(formatValue(record, column)));
     });
 
     const statusCell = document.createElement("td");
@@ -744,7 +799,7 @@ function renderWorkTimeProfileList() {
     renderEmptyState("referenceEmptyState", {
       title: "No work time profiles found",
       description: $("referenceSearch").value.trim()
-        ? "Try a different profile name, code or time."
+        ? "Try a different profile name, code, time, note or tag."
         : hasReferenceDataEditAccess()
           ? "Create a work time profile to reuse daily working-time settings on assignments."
           : "No work time profiles are available."
@@ -764,6 +819,9 @@ function workTimeProfileExportRows() {
     "Break Minutes": record.break_minutes ?? "",
     "Paid Hours": formatReferenceHours(record.paid_hours),
     "Unsociable Hours": formatReferenceHours(record.unsociable_hours),
+    "Tag 1": record.custom_tag_1 || "",
+    "Tag 2": record.custom_tag_2 || "",
+    "Tag 3": record.custom_tag_3 || "",
     "Active": record.active ? "Yes" : "No",
     "Display Order": record.display_order ?? "",
     "Notes": record.notes || ""
@@ -793,8 +851,7 @@ export function exportReferenceDataXlsx() {
 }
 
 export function handleReferenceSearchInput() {
-  if (isWorkTimeProfilesDefinition()) void loadReferenceData();
-  else renderReferenceDataList();
+  renderReferenceDataList();
 }
 
 export async function openReferenceDataWorkspace() {
@@ -1006,7 +1063,7 @@ function fieldValue(field) {
     throw new Error(field.label + " is required.");
   }
 
-  if (rawValue === "") return null;
+  if (rawValue === "") return field.allowEmptyString ? "" : null;
 
   if (field.type === "number") {
     const numberValue = Number(rawValue);
@@ -1109,6 +1166,9 @@ async function saveWorkTimeProfile() {
     p_active: payload.active,
     p_display_order: payload.display_order,
     p_notes: payload.notes,
+    p_custom_tag_1: payload.custom_tag_1,
+    p_custom_tag_2: payload.custom_tag_2,
+    p_custom_tag_3: payload.custom_tag_3,
     p_metadata: {}
   };
   if (recordId) rpcPayload.p_work_time_profile_id = recordId;
