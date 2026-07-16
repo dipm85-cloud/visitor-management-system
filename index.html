@@ -95,10 +95,9 @@
           <span class="oh-nav-icon" aria-hidden="true">O</span>
           <span class="oh-nav-label">Organisations</span>
         </button>
-        <button class="oh-nav-item hidden" type="button" disabled title="Labour is coming soon">
-          <span class="oh-nav-icon" aria-hidden="true">L</span>
-          <span class="oh-nav-label">Labour</span>
-          <span class="oh-nav-status">Soon</span>
+        <button id="ohWorkforceCalendarNav" class="oh-nav-item hidden" type="button" title="Workforce Calendar">
+          <span class="oh-nav-icon" aria-hidden="true">W</span>
+          <span class="oh-nav-label">Workforce Calendar</span>
         </button>
         <button class="oh-nav-item hidden" type="button" disabled title="Planning is coming soon">
           <span class="oh-nav-icon" aria-hidden="true">P</span>
@@ -1349,7 +1348,7 @@
       <div class="brand-mark"><img id="brandLogoImg" alt="Logo" style="display:none;width:100%;height:100%;object-fit:contain;border-radius:12px;"><span id="brandLogoFallback">V</span></div>
       <div>
         Visitor Management<br>
-        <span style="font-size:12px;color:var(--muted);font-weight:700;">Operations Hub nextgen-ui - OHP-012A</span>
+        <span style="font-size:12px;color:var(--muted);font-weight:700;">Operations Hub nextgen-ui - OHP-013A</span>
       </div>
     </div>
     <div class="button-row no-print" style="margin:0;">
@@ -1398,7 +1397,7 @@
       </div>
       <button id="terminalReturnHomeButton" class="secondary hidden" type="button">Return to Terminal Home</button>
     </section>
-  <div id="appVersionFooter" class="version-footer">Version <span id="appVersionText">OHP-012A</span></div>
+  <div id="appVersionFooter" class="version-footer">Version <span id="appVersionText">OHP-013A</span></div>
 </main>
 
   <section id="signInScreen" class="screen">
@@ -3362,6 +3361,110 @@
         </div>
       </section>
 
+      <section id="workforceCalendarWorkspace" class="oh-app-page hidden" aria-labelledby="workforceCalendarTitle">
+        <header class="oh-app-page-header workforce-calendar-heading">
+          <div>
+            <p class="oh-app-eyebrow">Operations Hub</p>
+            <h1 id="workforceCalendarTitle">Workforce Calendar</h1>
+            <p>Read-only rota foundation based on People assignments, shift patterns and Work Time Profiles.</p>
+          </div>
+        </header>
+
+        <section class="workforce-calendar-toolbar" aria-label="Workforce calendar controls">
+          <div class="workforce-calendar-toolbar-section workforce-calendar-date-section">
+            <h2>Date range</h2>
+            <div class="workforce-calendar-date-controls">
+              <button id="workforceCalendarPreviousWeek" class="secondary" type="button">Previous week</button>
+              <button id="workforceCalendarToday" class="secondary" type="button">Today</button>
+              <button id="workforceCalendarNextWeek" class="secondary" type="button">Next week</button>
+              <label for="workforceCalendarDateFrom">Date from
+                <input id="workforceCalendarDateFrom" type="date" />
+              </label>
+              <label for="workforceCalendarDateTo">Date to
+                <input id="workforceCalendarDateTo" type="date" />
+              </label>
+              <button id="workforceCalendarApplyFilters" type="button">Apply filters</button>
+              <button id="workforceCalendarResetFilters" class="secondary" type="button">Reset</button>
+            </div>
+          </div>
+          <div class="workforce-calendar-toolbar-section workforce-calendar-display-section" aria-label="Display mode">
+            <h2>Display</h2>
+            <label for="workforceCalendarDisplayMode">Display
+              <select id="workforceCalendarDisplayMode">
+                <option value="detailed">Detailed</option>
+                <option value="visual">Visual</option>
+              </select>
+            </label>
+          </div>
+          <div class="workforce-calendar-toolbar-section workforce-calendar-filter-section">
+            <h2>People filters</h2>
+            <div id="workforceCalendarPeopleFilters" class="workforce-calendar-filter-controls" aria-label="People filters"></div>
+          </div>
+          <div class="workforce-calendar-toolbar-section workforce-calendar-filter-section">
+            <h2>Work filters</h2>
+            <div id="workforceCalendarWorkFilters" class="workforce-calendar-filter-controls" aria-label="Work filters"></div>
+          </div>
+          <div class="workforce-calendar-toolbar-section workforce-calendar-action-section">
+            <h2>Actions</h2>
+            <div class="workforce-calendar-action-controls">
+              <button id="workforceCalendarRefreshButton" class="secondary" type="button">Refresh</button>
+              <button id="workforceCalendarExportCsv" class="secondary" type="button">Export CSV</button>
+              <button id="workforceCalendarExportXlsx" class="secondary" type="button">Export XLSX</button>
+            </div>
+          </div>
+          <div class="workforce-calendar-filter-summary-row">
+            <span id="workforceCalendarFilterSummary">No filters active</span>
+            <button id="workforceCalendarClearFilters" class="ghost" type="button">Clear all filters</button>
+          </div>
+        </section>
+
+        <section class="card workforce-calendar-card" aria-labelledby="workforceCalendarGridTitle">
+          <div class="workforce-calendar-summary-bar">
+            <div>
+              <h2 id="workforceCalendarGridTitle">Rota Calendar</h2>
+              <p id="workforceCalendarSummary" aria-live="polite">Open Workforce Calendar to load the current week.</p>
+            </div>
+            <button id="workforceCalendarFullscreenButton" class="oh-icon-button workforce-calendar-maximise" type="button" title="Full screen" aria-label="Expand calendar"></button>
+          </div>
+          <div id="workforceCalendarGridWrap" class="workforce-calendar-grid-wrap" data-oh-scroll-region="operational" aria-label="Workforce rota calendar grid">
+            <table id="workforceCalendarGrid" class="workforce-calendar-grid"></table>
+            <div id="workforceCalendarEmptyState" class="people-empty-state hidden" data-oh-empty-state>No calendar rows are available.</div>
+          </div>
+        </section>
+
+        <section id="workforceCalendarFullscreenOverlay" class="workforce-calendar-overlay hidden" aria-labelledby="workforceCalendarFullscreenTitle" aria-modal="true" role="dialog" tabindex="-1">
+          <div class="workforce-calendar-overlay-shell">
+            <header class="workforce-calendar-overlay-header">
+              <div>
+                <p class="oh-app-eyebrow">Workforce Calendar</p>
+                <h2 id="workforceCalendarFullscreenTitle">Rota Calendar</h2>
+                <p id="workforceCalendarFullscreenMeta">Current range</p>
+              </div>
+              <div class="workforce-calendar-overlay-actions">
+                <label for="workforceCalendarFullscreenDisplayMode">Display
+                  <select id="workforceCalendarFullscreenDisplayMode">
+                    <option value="detailed">Detailed</option>
+                    <option value="visual">Visual</option>
+                  </select>
+                </label>
+                <button id="workforceCalendarFullscreenEditFilters" class="secondary" type="button">Edit filters</button>
+                <button id="workforceCalendarFullscreenExportCsv" class="secondary" type="button">Export CSV</button>
+                <button id="workforceCalendarFullscreenExportXlsx" class="secondary" type="button">Export XLSX</button>
+                <button id="workforceCalendarExitFullscreen" type="button">Exit full screen</button>
+              </div>
+            </header>
+            <div class="workforce-calendar-overlay-summary">
+              <span id="workforceCalendarFullscreenSummary">No rows loaded.</span>
+              <span id="workforceCalendarFullscreenFilters">No filters active</span>
+            </div>
+            <div class="workforce-calendar-overlay-grid-wrap" data-oh-scroll-region="operational" aria-label="Full-screen workforce rota calendar grid">
+              <table id="workforceCalendarFullscreenGrid" class="workforce-calendar-grid"></table>
+              <div id="workforceCalendarFullscreenEmptyState" class="people-empty-state hidden" data-oh-empty-state>No calendar rows are available.</div>
+            </div>
+          </div>
+        </section>
+      </section>
+
       <section id="organisationsWorkspace" class="oh-app-page hidden" aria-labelledby="organisationsPageTitle">
         <header class="oh-app-page-header">
           <div>
@@ -5207,7 +5310,7 @@
 
   <footer class="oh-footer">
     <strong>Operations Hub</strong>
-    <span>Version <span id="ohPlatformVersion">OHP-012A</span></span>
+    <span>Version <span id="ohPlatformVersion">OHP-013A</span></span>
     <span>Environment <span id="ohEnvironment">Local</span></span>
   </footer>
 </div>

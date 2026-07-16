@@ -11,6 +11,7 @@ const dashboardNav = document.getElementById("ohDashboardNav");
 const visitorsNav = document.getElementById("ohVisitorsNav");
 const legacyVmsNav = document.getElementById("ohLegacyVmsNav");
 const peopleNav = document.getElementById("ohPeopleNav");
+const workforceCalendarNav = document.getElementById("ohWorkforceCalendarNav");
 const organisationsNav = document.getElementById("ohOrganisationsNav");
 const reportingNav = document.getElementById("ohReportingNav");
 const administrationGroup = document.getElementById("ohAdministrationGroup");
@@ -129,6 +130,7 @@ function setActiveApp(appName) {
     visitors: "Visitors",
     legacyVms: "Legacy VMS",
     people: "People",
+    workforceCalendar: "Workforce Calendar",
     organisations: "Organisations",
     reporting: "Reporting Centre",
     administration: "Administration",
@@ -142,6 +144,7 @@ function setActiveApp(appName) {
     ["visitors", visitorsNav],
     ["legacyVms", legacyVmsNav],
     ["people", peopleNav],
+    ["workforceCalendar", workforceCalendarNav],
     ["organisations", organisationsNav],
     ["reporting", reportingNav],
     ["administration", administrationNav]
@@ -171,6 +174,15 @@ function setNavItemCapabilityVisibility(item, visible) {
 
 export function shouldShowPeopleNavigation() {
   return hasAnyCapability(["people.view", "people.manage"]);
+}
+
+export function shouldShowWorkforceCalendarNavigation() {
+  return hasAnyCapability([
+    "workforce_calendar.view",
+    "workforce_calendar.manage",
+    "people.view",
+    "people.manage"
+  ]);
 }
 
 export function shouldShowOrganisationNavigation() {
@@ -206,6 +218,7 @@ function ensureVisibleWorkspace() {
     visitorsNav,
     legacyVmsNav,
     peopleNav,
+    workforceCalendarNav,
     organisationsNav,
     reportingNav,
     administrationNav
@@ -221,6 +234,8 @@ function ensureVisibleWorkspace() {
     showLegacyVmsWorkspace();
   } else if (peopleNav && !peopleNav.classList.contains("hidden")) {
     showPeopleWorkspace();
+  } else if (workforceCalendarNav && !workforceCalendarNav.classList.contains("hidden")) {
+    showWorkforceCalendarWorkspace();
   } else if (organisationsNav && !organisationsNav.classList.contains("hidden")) {
     showOrganisationsWorkspace();
   } else if (reportingNav && !reportingNav.classList.contains("hidden")) {
@@ -244,6 +259,10 @@ export function syncNavigationCapabilityVisibility() {
       shouldShowPeopleNavigation()
     );
     setNavItemCapabilityVisibility(
+      workforceCalendarNav,
+      shouldShowWorkforceCalendarNavigation()
+    );
+    setNavItemCapabilityVisibility(
       organisationsNav,
       shouldShowOrganisationNavigation()
     );
@@ -257,6 +276,7 @@ export function syncNavigationCapabilityVisibility() {
   setNavItemCapabilityVisibility(visitorsNav, hasCapability("visitor.view"));
   setNavItemCapabilityVisibility(legacyVmsNav, hasCapability("visitor.view"));
   setNavItemCapabilityVisibility(peopleNav, shouldShowPeopleNavigation());
+  setNavItemCapabilityVisibility(workforceCalendarNav, shouldShowWorkforceCalendarNavigation());
   setNavItemCapabilityVisibility(
     organisationsNav,
     shouldShowOrganisationNavigation()
@@ -272,6 +292,7 @@ function showOnlyWorkspace(workspaceId, appName) {
     "visitorsWorkspace",
     "legacyVmsWorkspace",
     "peopleWorkspace",
+    "workforceCalendarWorkspace",
     "organisationsWorkspace",
     "reportingWorkspace",
     "administrationWorkspace",
@@ -321,6 +342,12 @@ export function showLegacyVmsWorkspace() {
 export function showPeopleWorkspace() {
   showOnlyWorkspace("peopleWorkspace", "people");
   document.getElementById("operationsHubWorkspace").focus({ preventScroll: true });
+}
+
+export function showWorkforceCalendarWorkspace() {
+  showOnlyWorkspace("workforceCalendarWorkspace", "workforceCalendar");
+  document.getElementById("operationsHubWorkspace").focus({ preventScroll: true });
+  window.dispatchEvent(new CustomEvent("oh:workforce-calendar-opened"));
 }
 
 export function showOrganisationsWorkspace() {

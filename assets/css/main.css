@@ -8655,6 +8655,583 @@ input[data-reference-field="cycle_length_days"][readonly] {
   }
 }
 
+/* Workforce calendar foundation */
+.workforce-calendar-toolbar {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.workforce-calendar-toolbar-section {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--oh-shell-border);
+  border-radius: 12px;
+  background: var(--oh-shell-surface);
+}
+
+.workforce-calendar-toolbar-section h2 {
+  margin: 0 0 10px;
+  color: var(--oh-shell-text);
+  font-size: 13px;
+}
+
+.workforce-calendar-date-section,
+.workforce-calendar-filter-section {
+  grid-column: span 6;
+}
+
+.workforce-calendar-display-section,
+.workforce-calendar-action-section {
+  grid-column: span 3;
+}
+
+.workforce-calendar-filter-summary-row {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--oh-shell-border);
+  border-radius: 10px;
+  background: #f8fafc;
+  color: var(--oh-shell-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.workforce-calendar-date-controls,
+.workforce-calendar-action-controls,
+.workforce-calendar-filter-controls {
+  display: flex;
+  min-width: 0;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.workforce-calendar-date-controls label,
+.workforce-calendar-display-section label {
+  display: grid;
+  gap: 6px;
+  min-width: min(100%, 150px);
+  color: var(--oh-shell-text);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.workforce-calendar-date-controls button,
+.workforce-calendar-action-controls button {
+  min-height: 40px;
+  white-space: nowrap;
+}
+
+.workforce-calendar-display-section label {
+  width: 100%;
+}
+
+.workforce-calendar-action-controls button {
+  flex: 1 1 130px;
+}
+
+.workforce-calendar-filter-controls {
+  align-items: flex-start;
+}
+
+.workforce-calendar-check {
+  display: inline-flex !important;
+  min-width: min(100%, 170px) !important;
+  align-items: center;
+  align-self: flex-start;
+  grid-template-columns: auto 1fr;
+  min-height: 40px;
+  padding: 0 10px;
+  border: 1px solid var(--oh-shell-border);
+  border-radius: 8px;
+  background: #f8fafc;
+  color: var(--oh-shell-muted);
+  white-space: nowrap;
+}
+
+.workforce-calendar-check input {
+  width: auto;
+  margin: 0;
+}
+
+.workforce-calendar-multi-filter {
+  position: relative;
+  flex: 1 1 180px;
+  min-width: min(100%, 180px);
+  max-width: 260px;
+}
+
+.workforce-calendar-multi-filter summary {
+  display: grid;
+  min-height: 42px;
+  gap: 2px;
+  padding: 7px 32px 7px 10px;
+  border: 1px solid var(--oh-shell-border);
+  border-radius: 8px;
+  background: #ffffff;
+  cursor: pointer;
+  list-style: none;
+}
+
+.workforce-calendar-multi-filter summary::-webkit-details-marker {
+  display: none;
+}
+
+.workforce-calendar-multi-filter summary::after {
+  content: "v";
+  position: absolute;
+  top: 12px;
+  right: 11px;
+  color: var(--oh-shell-muted);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.workforce-calendar-multi-filter[open] summary {
+  border-color: #7da2c8;
+  box-shadow: 0 0 0 3px rgba(82, 122, 163, .16);
+}
+
+.workforce-calendar-multi-filter.has-selection summary {
+  border-color: #9bb7d3;
+  background: #f6f9fc;
+}
+
+.workforce-calendar-filter-label,
+.workforce-calendar-filter-value {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workforce-calendar-filter-label {
+  color: var(--oh-shell-text);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.workforce-calendar-filter-value {
+  color: var(--oh-shell-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.workforce-calendar-filter-menu {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 6px);
+  left: 0;
+  width: min(280px, calc(100vw - 32px));
+  max-height: 260px;
+  overflow: auto;
+  padding: 8px;
+  border: 1px solid var(--oh-shell-border);
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 16px 36px rgba(16, 24, 40, .18);
+}
+
+.workforce-calendar-filter-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 8px;
+  color: var(--oh-shell-text);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.workforce-calendar-filter-option:hover {
+  background: #f8fafc;
+}
+
+.workforce-calendar-filter-option input {
+  flex: 0 0 auto;
+  width: auto;
+  margin: 2px 0 0;
+}
+
+.workforce-calendar-filter-clear {
+  width: 100%;
+  min-height: 34px;
+  margin-top: 4px;
+}
+
+.workforce-calendar-card {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.workforce-calendar-summary-bar {
+  display: flex;
+  min-height: 72px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--oh-shell-border);
+}
+
+.workforce-calendar-summary-bar h2 {
+  margin: 0;
+  font-size: 19px;
+}
+
+.workforce-calendar-summary-bar p {
+  margin: 4px 0 0;
+  color: var(--oh-shell-muted);
+  font-size: 13px;
+}
+
+.workforce-calendar-maximise {
+  position: relative;
+  flex: 0 0 auto;
+  min-width: 38px;
+  min-height: 38px;
+  padding: 0;
+}
+
+.workforce-calendar-maximise::before,
+.workforce-calendar-maximise::after {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  content: "";
+}
+
+.workforce-calendar-maximise::before {
+  top: 10px;
+  right: 10px;
+  border-top: 2px solid currentColor;
+  border-right: 2px solid currentColor;
+}
+
+.workforce-calendar-maximise::after {
+  bottom: 10px;
+  left: 10px;
+  border-bottom: 2px solid currentColor;
+  border-left: 2px solid currentColor;
+}
+
+.workforce-calendar-grid-wrap {
+  position: relative;
+  max-width: 100%;
+  max-height: min(68vh, calc(100dvh - var(--oh-header-height, 64px) - var(--oh-footer-height, 34px) - 280px));
+  overflow: auto;
+}
+
+.workforce-calendar-grid {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: #fff;
+}
+
+.workforce-calendar-grid th,
+.workforce-calendar-grid td {
+  min-width: 142px;
+  max-width: 180px;
+  padding: 10px;
+  border-right: 1px solid #e9edf2;
+  border-bottom: 1px solid #e9edf2;
+  text-align: left;
+  vertical-align: top;
+}
+
+.workforce-calendar-grid thead th {
+  position: sticky;
+  z-index: 3;
+  top: 0;
+  background: #f8fafc;
+  color: #475467;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.workforce-calendar-person-column {
+  position: sticky;
+  z-index: 4;
+  left: 0;
+  min-width: 220px !important;
+  max-width: 260px !important;
+  background: #ffffff;
+  box-shadow: 1px 0 0 #e9edf2;
+}
+
+.workforce-calendar-grid thead .workforce-calendar-person-column {
+  z-index: 5;
+  background: #f8fafc;
+}
+
+.workforce-calendar-person-column strong,
+.workforce-calendar-person-column span,
+.workforce-calendar-cell-content strong,
+.workforce-calendar-cell-content span {
+  display: block;
+}
+
+.workforce-calendar-person-column strong {
+  color: var(--oh-shell-text);
+  font-size: 13px;
+}
+
+.workforce-calendar-person-column span {
+  margin-top: 4px;
+  color: var(--oh-shell-muted);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.workforce-calendar-cell {
+  background: #ffffff;
+}
+
+.workforce-calendar-cell.is-working {
+  border-left: 4px solid #28715e;
+  background: #f0fdf4;
+}
+
+.workforce-calendar-cell.is-off,
+.workforce-calendar-cell.is-no-assignment {
+  background: #f8fafc;
+  color: #667085;
+}
+
+.workforce-calendar-cell.is-no-profile,
+.workforce-calendar-cell.is-pattern-not-configured,
+.workforce-calendar-cell.is-assignment-inactive {
+  background: #fff8e6;
+  color: #7a4f01;
+}
+
+.workforce-calendar-cell-content {
+  min-height: 76px;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.workforce-calendar-cell-content strong {
+  margin-bottom: 4px;
+  color: var(--oh-shell-text);
+  font-size: 13px;
+}
+
+.workforce-calendar-cell-content span + span {
+  margin-top: 4px;
+}
+
+.workforce-calendar-visual-block {
+  display: flex !important;
+  min-height: 58px;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  border-radius: 8px;
+  background: rgba(71, 84, 103, .1);
+  color: #344054;
+  font-size: 12px;
+  font-weight: 900;
+  text-align: center;
+}
+
+.workforce-calendar-cell.is-working .workforce-calendar-visual-block {
+  background: #28715e;
+  color: #ffffff;
+}
+
+body.workforce-calendar-fullscreen-active,
+body.workforce-calendar-fullscreen-active .operations-hub,
+body.workforce-calendar-fullscreen-active .oh-workspace {
+  overflow: hidden !important;
+}
+
+.workforce-calendar-overlay {
+  position: fixed;
+  z-index: 2147482000;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  width: 100vw;
+  max-width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  max-height: 100dvh;
+  flex-direction: column;
+  padding: 12px;
+  overflow: hidden;
+  background: rgba(16, 24, 40, .46);
+  overscroll-behavior: contain;
+}
+
+.workforce-calendar-overlay-shell {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  max-height: 100%;
+  overflow: hidden;
+  border: 1px solid var(--oh-shell-border);
+  border-radius: 12px;
+  background: var(--oh-shell-bg, #eef3f8);
+  box-shadow: 0 24px 60px rgba(16, 24, 40, .28);
+}
+
+.workforce-calendar-overlay.hidden {
+  display: none !important;
+}
+
+.workforce-calendar-overlay-header {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  min-width: 0;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--oh-shell-border);
+  background: var(--oh-shell-surface);
+}
+
+.workforce-calendar-overlay-header h2 {
+  margin: 0;
+  font-size: 21px;
+}
+
+.workforce-calendar-overlay-header p:not(.oh-app-eyebrow) {
+  margin: 4px 0 0;
+  color: var(--oh-shell-muted);
+  font-size: 13px;
+}
+
+.workforce-calendar-overlay-actions {
+  display: flex;
+  flex: 0 1 auto;
+  align-items: end;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  min-width: 0;
+}
+
+.workforce-calendar-overlay-actions label {
+  display: grid;
+  gap: 6px;
+  min-width: 150px;
+  color: var(--oh-shell-text);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.workforce-calendar-overlay-actions button {
+  min-height: 40px;
+  white-space: nowrap;
+}
+
+.workforce-calendar-overlay-summary {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--oh-shell-border);
+  background: #f8fafc;
+  color: var(--oh-shell-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.workforce-calendar-overlay-summary span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workforce-calendar-overlay-grid-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 100%;
+  overflow: auto;
+  overscroll-behavior: contain;
+  background: #ffffff;
+}
+
+@media (max-width: 1023px) {
+  .workforce-calendar-date-section,
+  .workforce-calendar-filter-section,
+  .workforce-calendar-display-section,
+  .workforce-calendar-action-section {
+    grid-column: 1 / -1;
+  }
+  .workforce-calendar-date-controls button,
+  .workforce-calendar-action-controls button {
+    flex: 1 1 170px;
+  }
+  .workforce-calendar-multi-filter {
+    max-width: none;
+  }
+}
+
+@media (max-width: 599px) {
+  .workforce-calendar-date-controls label,
+  .workforce-calendar-display-section label,
+  .workforce-calendar-filter-controls label,
+  .workforce-calendar-multi-filter,
+  .workforce-calendar-check {
+    width: 100%;
+  }
+  .workforce-calendar-date-controls button,
+  .workforce-calendar-action-controls button,
+  .workforce-calendar-filter-summary-row button {
+    width: 100%;
+  }
+  .workforce-calendar-filter-summary-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .workforce-calendar-person-column {
+    min-width: 170px !important;
+    max-width: 190px !important;
+  }
+  .workforce-calendar-overlay {
+    padding: 10px;
+  }
+  .workforce-calendar-overlay-shell {
+    border-radius: 8px;
+  }
+  .workforce-calendar-overlay-header,
+  .workforce-calendar-overlay-summary {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .workforce-calendar-overlay-actions label,
+  .workforce-calendar-overlay-actions button {
+    width: 100%;
+  }
+}
+
 .person-assignments-section {
   margin: 0;
   padding: 0;

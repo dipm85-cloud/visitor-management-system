@@ -216,6 +216,10 @@ import {
   closeEndAssignmentDialog,
   confirmEndAssignment
 } from "./assignments.js";
+import {
+  initialiseWorkforceCalendar,
+  openWorkforceCalendar
+} from "./workforceCalendar.js";
 import { initialiseVisitorIdentityLookups } from "./visitorIdentity.js";
 import {
   configureDashboard,
@@ -5055,6 +5059,7 @@ window.addEventListener("load", async function () {
     initialiseVisitorsWorkspace();
     initialiseDashboard();
     initialiseReportingCentre();
+    initialiseWorkforceCalendar();
     registerInitialModuleConfigurations();
     initialiseModuleConfigurationFramework();
     initialiseAccessControl();
@@ -5114,6 +5119,7 @@ window.addEventListener("load", async function () {
       openVisitorKiosk();
     });
     if ($("ohPeopleNav")) $("ohPeopleNav").addEventListener("click", openPeopleWorkspace);
+    if ($("ohWorkforceCalendarNav")) $("ohWorkforceCalendarNav").addEventListener("click", openWorkforceCalendar);
     if ($("peopleCreateButton")) $("peopleCreateButton").addEventListener("click", () => openPeoplePanel(null));
     if ($("peopleReloadButton")) $("peopleReloadButton").addEventListener("click", loadPeople);
     if ($("peoplePanelCloseButton")) $("peoplePanelCloseButton").addEventListener("click", closePeoplePanel);
