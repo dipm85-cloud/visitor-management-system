@@ -285,10 +285,7 @@ export function buildExpectedWorkGrid(people, assignments, workTimeProfiles, dat
     const personAssignments = (assignmentsByPerson.get(person.id) || [])
       .filter(assignment => dateRange.some(dateValue => assignmentCoversDate(assignment, dateValue)));
 
-    if (!personAssignments.length) {
-      rows.push({ person, assignment: null, cells: dateRange.map(dateValue => resolveExpectedWorkForDate(person, null, dateValue, { profilesById, shiftPatternsById })) });
-      return;
-    }
+    if (!personAssignments.length) return;
 
     personAssignments.forEach(assignment => {
       rows.push({
@@ -322,12 +319,16 @@ function currentFilters() {
   filters.activePeopleOnly = $("workforceCalendarActivePeopleOnly")
     ? $("workforceCalendarActivePeopleOnly").checked
     : true;
+  filters.includeInactiveAssignments = $("workforceCalendarIncludeInactiveAssignments")
+    ? $("workforceCalendarIncludeInactiveAssignments").checked
+    : false;
   return filters;
 }
 
 function filterMatches(row, filters) {
   if (filters.activePeopleOnly && row.person.active === false) return false;
   const assignment = row.assignment || {};
+  if (!filters.includeInactiveAssignments && assignment.id && assignment.active === false) return false;
   const profile = calendarState.lookups.workTimeProfiles.find(item => item.id === assignment.work_time_profile_id) || null;
   const values = {
     department: assignment.department_id || "",
@@ -386,7 +387,11 @@ function updateFilterSummaries() {
   const activePeopleOnly = $("workforceCalendarActivePeopleOnly")
     ? $("workforceCalendarActivePeopleOnly").checked
     : true;
+  const includeInactiveAssignments = $("workforceCalendarIncludeInactiveAssignments")
+    ? $("workforceCalendarIncludeInactiveAssignments").checked
+    : false;
   if (!activePeopleOnly) parts.push("inactive people included");
+  if (includeInactiveAssignments) parts.push("inactive assignments included");
   FILTER_DEFINITIONS.forEach(definition => {
     const selected = selectedFilterValues(definition.key);
     const control = document.querySelector("[data-workforce-filter-control='" + definition.key + "']");
@@ -489,6 +494,17 @@ function renderFilters() {
   activeLabel.append(activeInput, document.createTextNode(" Active people only"));
   peopleContainer.appendChild(activeLabel);
 
+  const inactiveAssignmentLabel = document.createElement("label");
+  inactiveAssignmentLabel.className = "workforce-calendar-check";
+  inactiveAssignmentLabel.htmlFor = "workforceCalendarIncludeInactiveAssignments";
+  const inactiveAssignmentInput = document.createElement("input");
+  inactiveAssignmentInput.id = "workforceCalendarIncludeInactiveAssignments";
+  inactiveAssignmentInput.type = "checkbox";
+  inactiveAssignmentInput.checked = previous.includeInactiveAssignments;
+  inactiveAssignmentInput.addEventListener("change", renderCalendar);
+  inactiveAssignmentLabel.append(inactiveAssignmentInput, document.createTextNode(" Include inactive assignments"));
+  workContainer.appendChild(inactiveAssignmentLabel);
+
   FILTER_DEFINITIONS.forEach(definition => {
     const options = optionListFor(definition)
       .filter(option => option.value && option.label)
@@ -503,10 +519,13 @@ function renderFilters() {
 
 function rowMeta(row) {
   const assignment = row.assignment || {};
+  const profile = calendarState.lookups.workTimeProfiles.find(item => item.id === assignment.work_time_profile_id) || null;
   return [
     labelFor(calendarState.lookups.departments, assignment.department_id, "department_name"),
     labelFor(calendarState.lookups.roles, assignment.job_role_id, "role_name"),
-    labelFor(calendarState.lookups.contracts, assignment.contract_id, "contract_name")
+    labelFor(calendarState.lookups.contracts, assignment.contract_id, "contract_name"),
+    labelFor(calendarState.lookups.employers, assignment.employer_organisation_id, "organisation_name"),
+    profile && (profile.profile_name || profile.profile_code)
   ].filter(Boolean).join(" | ");
 }
 
@@ -715,12 +734,16 @@ function renderCalendarTable(table, empty, emptyStateId, rows) {
 function updateSummary(rows) {
   const summary = $("workforceCalendarSummary");
   const peopleCount = new Set(rows.map(row => row.person.id)).size;
+  const activeAssignments = rows.filter(row => row.assignment && row.assignment.active !== false).length;
+  const inactiveAssignments = rows.filter(row => row.assignment && row.assignment.active === false).length;
   const cells = rows.flatMap(row => row.cells);
   const working = cells.filter(cell => cell.status === "working");
   const paid = working.reduce((sum, cell) => sum + Number(cell.paid_hours || 0), 0);
   const unsociable = working.reduce((sum, cell) => sum + Number(cell.unsociable_hours || 0), 0);
   const text =
     peopleCount + " people shown | " +
+    activeAssignments + " active assignments" +
+    (inactiveAssignments ? " | " + inactiveAssignments + " inactive assignments" : "") + " | " +
     calendarState.dateRange.length + " days | " +
     cells.length + " cells | " +
     working.length + " working days | " +
@@ -887,6 +910,8 @@ function resetCalendar() {
   clearFilterSelections();
   const active = $("workforceCalendarActivePeopleOnly");
   if (active) active.checked = true;
+  const inactiveAssignments = $("workforceCalendarIncludeInactiveAssignments");
+  if (inactiveAssignments) inactiveAssignments.checked = false;
   void loadCalendarData();
 }
 
@@ -897,6 +922,8 @@ function clearFilterSelections() {
   });
   const active = $("workforceCalendarActivePeopleOnly");
   if (active) active.checked = true;
+  const inactiveAssignments = $("workforceCalendarIncludeInactiveAssignments");
+  if (inactiveAssignments) inactiveAssignments.checked = false;
   updateFilterSummaries();
   renderCalendar();
 }
