@@ -6,10 +6,29 @@ import { renderEmptyState } from "./platformUi.js";
 import { showWorkforceCalendarWorkspace } from "./shell.js";
 import { hasAnyCapability } from "./capabilities.js";
 import { exportDateStamp, todayDate } from "./utils.js";
+import {
+  isClearDuplicateAssignment,
+  isLikelyRotaConflictAssignment
+} from "./assignmentConflicts.js";
 
 const DISPLAY_MODE_KEY = "oh_workforce_calendar_display_mode";
 const MAX_RANGE_DAYS = 31;
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const MONTH_NAMES = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December"
+];
+const PRINT_WEEKDAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 const ASSIGNMENT_COLUMNS = [
   "id",
@@ -48,6 +67,7 @@ const calendarState = {
   people: [],
   assignments: [],
   lookups: {
+    sites: [],
     departments: [],
     roles: [],
     contracts: [],
@@ -60,6 +80,11 @@ const calendarState = {
   dateRange: [],
   loaded: false,
   fullscreen: false
+};
+
+const monthlyPrintState = {
+  open: false,
+  lastPreview: null
 };
 
 function hasWorkforceCalendarAccess() {
@@ -104,6 +129,53 @@ function mondayFor(date) {
 function currentWeekRange() {
   const start = mondayFor(parseDateKey(todayDate()) || new Date());
   return { from: dateKey(start), to: dateKey(addDays(start, 6)) };
+}
+
+function currentMonthValue() {
+  const today = parseDateKey(todayDate()) || new Date();
+  return today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, "0");
+}
+
+function parseMonthValue(value) {
+  const match = String(value || "").match(/^(\d{4})-(\d{2})$/);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const monthIndex = Number(match[2]) - 1;
+  if (!Number.isInteger(year) || !Number.isInteger(monthIndex) || monthIndex < 0 || monthIndex > 11) return null;
+  return { year, monthIndex };
+}
+
+function monthRange(value) {
+  const parsed = parseMonthValue(value);
+  if (!parsed) return null;
+  const start = new Date(parsed.year, parsed.monthIndex, 1);
+  const end = new Date(parsed.year, parsed.monthIndex + 1, 0);
+  return {
+    from: dateKey(start),
+    to: dateKey(end),
+    monthName: MONTH_NAMES[parsed.monthIndex],
+    year: parsed.year,
+    monthIndex: parsed.monthIndex
+  };
+}
+
+function monthCalendarDays(value) {
+  const range = monthRange(value);
+  if (!range) return [];
+  const start = mondayFor(parseDateKey(range.from));
+  const endDate = parseDateKey(range.to);
+  const endDay = endDate.getDay();
+  const daysToSunday = endDay === 0 ? 0 : 7 - endDay;
+  const end = addDays(endDate, daysToSunday);
+  const days = [];
+  for (let cursor = start; cursor <= end; cursor = addDays(cursor, 1)) {
+    days.push({
+      date: dateKey(cursor),
+      dayNumber: cursor.getDate(),
+      inMonth: cursor.getMonth() === range.monthIndex
+    });
+  }
+  return days;
 }
 
 function rangeDays(fromValue, toValue) {
@@ -568,6 +640,383 @@ function compactWorkingLabel(cell) {
   return "W";
 }
 
+function personSearchText(person) {
+  return [
+    person && person.display_name,
+    person && person.external_person_number
+  ].filter(Boolean).join(" ").toLowerCase();
+}
+
+function renderMonthlyPrintPeopleOptions() {
+  const select = $("personMonthlyRotaPersonSelect");
+  if (!select) return;
+  const previous = select.value;
+  const query = $("personMonthlyRotaPersonSearch")
+    ? $("personMonthlyRotaPersonSearch").value.trim().toLowerCase()
+    : "";
+  const people = calendarState.people
+    .filter(person => !query || personSearchText(person).includes(query))
+    .sort((a, b) => String(a.display_name || "").localeCompare(String(b.display_name || "")));
+
+  select.replaceChildren();
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = people.length ? "Select a person" : "No people match";
+  select.appendChild(placeholder);
+
+  people.forEach(person => {
+    const option = document.createElement("option");
+    option.value = person.id;
+    option.textContent = (person.display_name || "Unnamed person") +
+      (person.external_person_number ? " (" + person.external_person_number + ")" : "") +
+      (person.active === false ? " - inactive" : "");
+    select.appendChild(option);
+  });
+
+  if (previous && people.some(person => person.id === previous)) select.value = previous;
+  else if (people.length === 1) select.value = people[0].id;
+}
+
+function assignmentLegendContext(assignment) {
+  return [
+    labelFor(calendarState.lookups.sites, assignment.site_id, "site_name"),
+    labelFor(calendarState.lookups.contracts, assignment.contract_id, "contract_name"),
+    labelFor(calendarState.lookups.departments, assignment.department_id, "department_name"),
+    labelFor(calendarState.lookups.roles, assignment.job_role_id, "role_name"),
+    labelFor(calendarState.lookups.employers, assignment.employer_organisation_id, "organisation_name")
+  ].filter(Boolean).join(" | ") || "Assignment context";
+}
+
+function assignmentProfileLabel(assignment) {
+  const profile = calendarState.lookups.workTimeProfiles.find(item => item.id === assignment.work_time_profile_id) || {};
+  const pattern = calendarState.lookups.shiftPatterns.find(item => item.id === assignment.shift_pattern_id) || {};
+  return [
+    profile.profile_name || profile.profile_code,
+    pattern.shift_name
+  ].filter(Boolean).join(" | ");
+}
+
+function assignmentDateLabel(assignment) {
+  const start = assignment.assignment_start_date || "open";
+  const end = assignment.assignment_end_date || "open";
+  return start + " to " + end;
+}
+
+function assignmentHasOverrideNote(assignment) {
+  return /\[assignment conflict override/i.test(String(assignment && assignment.notes || ""));
+}
+
+function dayConflictWarning(dayEntries) {
+  const entries = dayEntries.filter(entry =>
+    entry.cell.status === "working" ||
+    entry.cell.status === "no_profile" ||
+    entry.cell.status === "pattern_not_configured"
+  );
+  if (entries.length < 2) return false;
+  const lookups = {
+    shiftPatterns: calendarState.lookups.shiftPatterns,
+    workTimeProfiles: calendarState.lookups.workTimeProfiles
+  };
+  for (let first = 0; first < entries.length; first += 1) {
+    for (let second = first + 1; second < entries.length; second += 1) {
+      if (
+        isClearDuplicateAssignment(entries[first].row.assignment, entries[second].row.assignment) ||
+        isLikelyRotaConflictAssignment(entries[first].row.assignment, entries[second].row.assignment, lookups)
+      ) {
+        return true;
+      }
+    }
+  }
+  return entries.filter(entry => entry.cell.status === "working").length > 1;
+}
+
+function monthlyDayStatus(dayEntries) {
+  if (!dayEntries.length) return "no_assignment";
+  if (dayEntries.some(entry => entry.cell.status === "working")) return "working";
+  if (dayEntries.some(entry => entry.cell.status === "no_profile")) return "no_profile";
+  if (dayEntries.some(entry => entry.cell.status === "pattern_not_configured")) return "pattern_not_configured";
+  if (dayEntries.some(entry => entry.cell.status === "assignment_inactive")) return "assignment_inactive";
+  return "off";
+}
+
+function createMonthlyPrintModel(personId, monthValue, options = {}) {
+  const person = calendarState.people.find(item => item.id === personId);
+  const range = monthRange(monthValue);
+  if (!person || !range) return null;
+
+  const monthDates = rangeDays(range.from, range.to);
+  const activeAssignments = calendarState.assignments
+    .filter(assignment => assignment.person_id === person.id)
+    .filter(assignment => assignment.active !== false)
+    .filter(assignment => monthDates.some(dateValue => assignmentCoversDate(assignment, dateValue)));
+  const rows = buildExpectedWorkGrid(
+    [person],
+    activeAssignments,
+    calendarState.lookups.workTimeProfiles,
+    monthDates,
+    calendarState.lookups
+  );
+  const assignmentMarkers = new Map();
+  rows.forEach((row, index) => {
+    if (!assignmentMarkers.has(row.assignment.id)) {
+      assignmentMarkers.set(row.assignment.id, "A" + (index + 1));
+    }
+  });
+
+  const daysByDate = new Map();
+  monthDates.forEach((dateValue, dateIndex) => {
+    const entries = rows
+      .map(row => ({
+        row,
+        marker: assignmentMarkers.get(row.assignment.id) || "A",
+        cell: row.cells[dateIndex]
+      }))
+      .filter(entry => entry.cell && entry.cell.status !== "no_assignment");
+    const workingEntries = entries.filter(entry => entry.cell.status === "working");
+    const issueEntries = entries.filter(entry =>
+      entry.cell.status === "no_profile" ||
+      entry.cell.status === "pattern_not_configured" ||
+      entry.cell.status === "assignment_inactive"
+    );
+    const warning = dayConflictWarning(entries);
+    const overrideRecorded = entries.some(entry => assignmentHasOverrideNote(entry.row.assignment));
+    daysByDate.set(dateValue, {
+      date: dateValue,
+      status: monthlyDayStatus(entries),
+      entries,
+      workingEntries,
+      issueEntries,
+      warning,
+      overrideRecorded
+    });
+  });
+
+  const workingCells = [...daysByDate.values()].flatMap(day => day.workingEntries.map(entry => entry.cell));
+  return {
+    person,
+    range,
+    monthValue,
+    monthDates,
+    calendarDays: monthCalendarDays(monthValue),
+    daysByDate,
+    rows,
+    assignments: rows.map(row => row.assignment),
+    assignmentMarkers,
+    options,
+    summary: {
+      activeAssignments: rows.length,
+      workingDays: [...daysByDate.values()].filter(day => day.workingEntries.length).length,
+      paidHours: workingCells.reduce((sum, cell) => sum + Number(cell.paid_hours || 0), 0),
+      unsociableHours: workingCells.reduce((sum, cell) => sum + Number(cell.unsociable_hours || 0), 0),
+      warnings: [...daysByDate.values()].filter(day => day.warning).length
+    }
+  };
+}
+
+function appendText(parent, tagName, className, text) {
+  const element = document.createElement(tagName);
+  if (className) element.className = className;
+  element.textContent = text;
+  parent.appendChild(element);
+  return element;
+}
+
+function createMonthlyDayCell(model, day) {
+  const cell = document.createElement("div");
+  cell.className = "monthly-rota-day";
+  if (!day.inMonth) {
+    cell.classList.add("is-outside-month");
+    return cell;
+  }
+
+  const detail = model.daysByDate.get(day.date) || { status: "no_assignment", workingEntries: [], issueEntries: [] };
+  cell.classList.add("is-" + detail.status.replace(/_/g, "-"));
+  if (detail.warning) cell.classList.add("has-warning");
+  if (detail.overrideRecorded) cell.classList.add("has-override");
+
+  const header = document.createElement("div");
+  header.className = "monthly-rota-day-header";
+  appendText(header, "span", "monthly-rota-day-number", String(day.dayNumber));
+  if (detail.warning) appendText(header, "span", "monthly-rota-day-warning", "!");
+  else if (detail.overrideRecorded) appendText(header, "span", "monthly-rota-day-override", "Override");
+  cell.appendChild(header);
+
+  const body = document.createElement("div");
+  body.className = "monthly-rota-day-body";
+  if (detail.workingEntries.length) {
+    detail.workingEntries.slice(0, 3).forEach(entry => {
+      const item = document.createElement("div");
+      item.className = "monthly-rota-work-item";
+      appendText(item, "span", "monthly-rota-marker", entry.marker);
+      appendText(item, "span", "monthly-rota-time", formatTime(entry.cell.start_time) + "-" + formatTime(entry.cell.end_time));
+      const tags = entry.cell.tags && entry.cell.tags.length ? entry.cell.tags.join(" ") : "";
+      if (tags) appendText(item, "span", "monthly-rota-tags", tags);
+      body.appendChild(item);
+    });
+    if (detail.workingEntries.length > 3) {
+      appendText(body, "span", "monthly-rota-more", "+" + (detail.workingEntries.length - 3) + " more");
+    }
+  } else if (detail.issueEntries.length) {
+    const issue = detail.issueEntries[0];
+    const item = document.createElement("div");
+    item.className = "monthly-rota-work-item is-issue";
+    appendText(item, "span", "monthly-rota-marker", issue.marker);
+    appendText(item, "span", "monthly-rota-time", stateLabel(issue.cell.status));
+    body.appendChild(item);
+  } else {
+    appendText(body, "span", "monthly-rota-state-label", stateLabel(detail.status));
+  }
+  cell.appendChild(body);
+  return cell;
+}
+
+function renderMonthlyPrintLegend(model, page) {
+  if (!model.options.showLegend) return;
+  const legend = document.createElement("section");
+  legend.className = "monthly-rota-legend";
+  appendText(legend, "h3", "", "Assignment legend");
+
+  if (!model.rows.length) {
+    appendText(legend, "p", "monthly-rota-legend-empty", "No active assignments are expected in this month.");
+    page.appendChild(legend);
+    return;
+  }
+
+  const list = document.createElement("div");
+  list.className = "monthly-rota-legend-list";
+  model.rows.forEach(row => {
+    const item = document.createElement("div");
+    item.className = "monthly-rota-legend-item";
+    appendText(item, "span", "monthly-rota-marker", model.assignmentMarkers.get(row.assignment.id) || "A");
+    const detail = document.createElement("div");
+    appendText(detail, "strong", "", assignmentLegendContext(row.assignment));
+    const profileText = assignmentProfileLabel(row.assignment);
+    appendText(detail, "span", "", [
+      profileText,
+      assignmentDateLabel(row.assignment),
+      assignmentHasOverrideNote(row.assignment) ? "Override recorded" : ""
+    ].filter(Boolean).join(" | "));
+    item.appendChild(detail);
+    list.appendChild(item);
+  });
+  legend.appendChild(list);
+  page.appendChild(legend);
+}
+
+function renderMonthlyPrintNotes(model, page) {
+  if (!model.options.showNotes) return;
+  const notes = document.createElement("section");
+  notes.className = "monthly-rota-notes";
+  appendText(notes, "span", "", "Working days show expected assignment time and marker. Off means an active assignment is present but the pattern is not working that day. No assignment means no active assignment covers the date.");
+  if (model.summary.warnings) {
+    appendText(notes, "span", "", "! indicates a possible overlap or duplicate assignment context for that day.");
+  }
+  page.appendChild(notes);
+}
+
+function monthlyPrintBranding() {
+  const brandText = document.querySelector(".brand div:last-child");
+  const logoImg = $("brandLogoImg");
+  const companyName = brandText
+    ? String(brandText.textContent || "").split(/\s*Operations Hub\b/)[0].trim()
+    : "";
+  const logoVisible = logoImg &&
+    logoImg.getAttribute("src") &&
+    logoImg.style.display !== "none";
+  return {
+    companyName: companyName || "Operations Hub",
+    logoUrl: logoVisible ? logoImg.getAttribute("src") : ""
+  };
+}
+
+function renderMonthlyPrintBrand(page) {
+  const branding = monthlyPrintBranding();
+  const brand = document.createElement("div");
+  brand.className = "monthly-rota-brand";
+
+  if (branding.logoUrl) {
+    const logo = document.createElement("img");
+    logo.className = "monthly-rota-brand-logo";
+    logo.src = branding.logoUrl;
+    logo.alt = branding.companyName + " logo";
+    logo.addEventListener("error", () => {
+      logo.remove();
+      brand.classList.add("has-fallback-text");
+      if (!brand.querySelector(".monthly-rota-brand-fallback")) {
+        appendText(brand, "span", "monthly-rota-brand-fallback", branding.companyName);
+      }
+    });
+    brand.appendChild(logo);
+  } else {
+    brand.classList.add("has-fallback-text");
+    appendText(brand, "span", "monthly-rota-brand-fallback", branding.companyName);
+  }
+  page.appendChild(brand);
+}
+
+function createMonthlyRotaDocument(model, options = {}) {
+  const page = document.createElement("article");
+  page.className = "monthly-rota-print-page";
+  if (options.printDocument) page.classList.add("monthly-rota-print-document");
+  if (model.options.density === "compact") page.classList.add("is-compact");
+
+  const header = document.createElement("header");
+  header.className = "monthly-rota-page-header";
+  renderMonthlyPrintBrand(header);
+  const titleBlock = document.createElement("div");
+  titleBlock.className = "monthly-rota-title-block";
+  appendText(titleBlock, "h2", "", "MONTHLY ROTA");
+  appendText(titleBlock, "p", "monthly-rota-person-name", model.person.display_name || "Person");
+  appendText(titleBlock, "p", "monthly-rota-month-label", model.range.monthName + " " + model.range.year);
+  const meta = document.createElement("div");
+  meta.className = "monthly-rota-page-meta";
+  appendText(meta, "span", "", "Printed " + new Date().toLocaleDateString("en-GB"));
+  appendText(meta, "span", "", model.summary.activeAssignments + " active assignment" + (model.summary.activeAssignments === 1 ? "" : "s"));
+  appendText(meta, "span", "", model.summary.workingDays + " working day" + (model.summary.workingDays === 1 ? "" : "s"));
+  appendText(meta, "span", "", formatHours(model.summary.paidHours) + " paid hours");
+  header.append(titleBlock, meta);
+  page.appendChild(header);
+
+  const grid = document.createElement("section");
+  const weekCount = Math.max(1, Math.ceil(model.calendarDays.length / 7));
+  grid.className = "monthly-rota-grid monthly-rota-grid-" + weekCount + "-weeks";
+  PRINT_WEEKDAY_NAMES.forEach(dayName => appendText(grid, "div", "monthly-rota-weekday", dayName));
+  model.calendarDays.forEach(day => grid.appendChild(createMonthlyDayCell(model, day)));
+  page.appendChild(grid);
+
+  appendText(page, "footer", "monthly-rota-print-footer", "Generated by Operations Hub");
+  renderMonthlyPrintLegend(model, page);
+  renderMonthlyPrintNotes(model, page);
+  return page;
+}
+
+function renderMonthlyRotaPreview(model) {
+  const wrap = $("personMonthlyRotaPreviewWrap");
+  const empty = $("personMonthlyRotaPreviewEmpty");
+  if (!wrap || !empty) return;
+  wrap.replaceChildren();
+  empty.classList.add("hidden");
+  wrap.appendChild(createMonthlyRotaDocument(model));
+}
+
+function ensureMonthlyPrintRoot() {
+  let root = $("personMonthlyRotaPrintRoot");
+  if (!root) {
+    root = document.createElement("div");
+    root.id = "personMonthlyRotaPrintRoot";
+    root.className = "monthly-rota-print-root";
+    root.setAttribute("aria-hidden", "true");
+  }
+  if (root.parentElement !== document.body) document.body.appendChild(root);
+  return root;
+}
+
+function renderMonthlyRotaPrintDocument(model) {
+  const root = ensureMonthlyPrintRoot();
+  root.replaceChildren();
+  root.appendChild(createMonthlyRotaDocument(model, { printDocument: true }));
+}
+
 function createCompactCellContent(cell) {
   const wrapper = document.createElement("div");
   wrapper.className = "workforce-calendar-cell-content workforce-calendar-compact-content";
@@ -838,6 +1287,7 @@ async function loadCalendarData() {
     const [
       peopleResult,
       assignmentsResult,
+      sitesResult,
       departmentsResult,
       rolesResult,
       contractsResult,
@@ -847,6 +1297,7 @@ async function loadCalendarData() {
     ] = await Promise.all([
       supabaseClient.from("people").select("id, external_person_number, display_name, active").order("display_name", { ascending: true }),
       supabaseClient.from("work_assignments").select(ASSIGNMENT_COLUMNS).order("assignment_start_date", { ascending: false }),
+      supabaseClient.from("sites").select("id, site_code, site_name, active").order("site_name", { ascending: true }),
       supabaseClient.from("departments").select("id, department_name, active").order("department_name", { ascending: true }),
       supabaseClient.from("job_roles").select("id, role_name, active").order("role_name", { ascending: true }),
       supabaseClient.from("contracts").select("id, contract_name, active").order("contract_name", { ascending: true }),
@@ -855,7 +1306,7 @@ async function loadCalendarData() {
       loadWorkTimeProfiles()
     ]);
 
-    [peopleResult, assignmentsResult, departmentsResult, rolesResult, contractsResult, employersResult, shiftPatternsResult]
+    [peopleResult, assignmentsResult, sitesResult, departmentsResult, rolesResult, contractsResult, employersResult, shiftPatternsResult]
       .forEach(result => {
         if (result.error) throw result.error;
       });
@@ -863,6 +1314,7 @@ async function loadCalendarData() {
     calendarState.people = peopleResult.data || [];
     calendarState.assignments = assignmentsResult.data || [];
     calendarState.lookups = {
+      sites: sitesResult.data || [],
       departments: departmentsResult.data || [],
       roles: rolesResult.data || [],
       contracts: contractsResult.data || [],
@@ -945,11 +1397,99 @@ function ensureFullscreenOverlayRoot() {
   if (overlay && overlay.parentElement !== document.body) document.body.appendChild(overlay);
 }
 
+function ensureMonthlyPrintOverlayRoot() {
+  const overlay = $("personMonthlyRotaPrintOverlay");
+  if (overlay && overlay.parentElement !== document.body) document.body.appendChild(overlay);
+}
+
+async function openMonthlyPrintOverlay() {
+  if (!requireWorkforceCalendarAccess()) return;
+  setFullscreen(false);
+  ensureMonthlyPrintOverlayRoot();
+  const overlay = $("personMonthlyRotaPrintOverlay");
+  if (!overlay) return;
+  monthlyPrintState.open = true;
+  monthlyPrintState.lastPreview = null;
+  overlay.classList.remove("hidden");
+  document.body.classList.add("monthly-rota-print-open");
+  if ($("personMonthlyRotaPreviewWrap")) $("personMonthlyRotaPreviewWrap").replaceChildren();
+  ensureMonthlyPrintRoot().replaceChildren();
+  if ($("personMonthlyRotaMonth") && !$("personMonthlyRotaMonth").value) {
+    $("personMonthlyRotaMonth").value = currentMonthValue();
+  }
+  if (!calendarState.loaded) await loadCalendarData();
+  renderMonthlyPrintPeopleOptions();
+  if ($("personMonthlyRotaPrintButton")) $("personMonthlyRotaPrintButton").disabled = true;
+  if ($("personMonthlyRotaPrintStatus")) {
+    $("personMonthlyRotaPrintStatus").textContent = "Select a person and month, then preview the rota.";
+  }
+  overlay.focus({ preventScroll: true });
+}
+
+function closeMonthlyPrintOverlay() {
+  const overlay = $("personMonthlyRotaPrintOverlay");
+  if (overlay) overlay.classList.add("hidden");
+  document.body.classList.remove("monthly-rota-print-open", "monthly-rota-printing");
+  monthlyPrintState.open = false;
+}
+
+async function previewMonthlyRotaPrint() {
+  if (!calendarState.loaded) await loadCalendarData();
+  renderMonthlyPrintPeopleOptions();
+  const personId = $("personMonthlyRotaPersonSelect") ? $("personMonthlyRotaPersonSelect").value : "";
+  const monthValue = $("personMonthlyRotaMonth") ? $("personMonthlyRotaMonth").value : "";
+  if (!personId) {
+    showToast("Person required", "Choose a person before previewing the monthly rota.", "error");
+    return;
+  }
+  if (!monthRange(monthValue)) {
+    showToast("Month required", "Choose a valid month before previewing the monthly rota.", "error");
+    return;
+  }
+  const model = createMonthlyPrintModel(personId, monthValue, {
+    density: $("personMonthlyRotaDensity") ? $("personMonthlyRotaDensity").value : "standard",
+    showLegend: $("personMonthlyRotaShowLegend") ? $("personMonthlyRotaShowLegend").checked : true,
+    showNotes: $("personMonthlyRotaShowNotes") ? $("personMonthlyRotaShowNotes").checked : true
+  });
+  if (!model) {
+    showToast("Preview unavailable", "The selected person or month could not be found.", "error");
+    return;
+  }
+  monthlyPrintState.lastPreview = model;
+  renderMonthlyRotaPreview(model);
+  if ($("personMonthlyRotaPrintButton")) $("personMonthlyRotaPrintButton").disabled = false;
+  if ($("personMonthlyRotaPrintStatus")) {
+    $("personMonthlyRotaPrintStatus").textContent =
+      model.person.display_name + " | " +
+      model.range.monthName + " " + model.range.year + " | " +
+      model.summary.workingDays + " working day" + (model.summary.workingDays === 1 ? "" : "s") + " | " +
+      formatHours(model.summary.paidHours) + " paid hours";
+  }
+}
+
+function printMonthlyRota() {
+  if (!monthlyPrintState.lastPreview) {
+    showToast("Preview required", "Preview the monthly rota before printing.", "error");
+    return;
+  }
+  renderMonthlyRotaPrintDocument(monthlyPrintState.lastPreview);
+  document.body.classList.add("monthly-rota-printing");
+  window.print();
+  setTimeout(() => {
+    document.body.classList.remove("monthly-rota-printing");
+  }, 1000);
+}
+
 function handleFullscreenKeydown(event) {
   if (event.key !== "Escape") return;
   const hasOpenFilter = document.querySelector(".workforce-calendar-multi-filter[open]");
   if (hasOpenFilter) {
     closeOpenFilterDropdowns();
+    event.preventDefault();
+    return;
+  }
+  if (monthlyPrintState.open) {
+    closeMonthlyPrintOverlay();
     event.preventDefault();
     return;
   }
@@ -963,6 +1503,14 @@ function handleDocumentPointerDown(event) {
   if (!event.target.closest(".workforce-calendar-multi-filter")) {
     closeOpenFilterDropdowns();
   }
+}
+
+function handleWorkforceCalendarClick(event) {
+  const target = event.target && event.target.closest ? event.target : null;
+  const printButton = target ? target.closest("#workforceCalendarPersonPrintButton") : null;
+  if (!printButton) return;
+  event.preventDefault();
+  void openMonthlyPrintOverlay();
 }
 
 function syncDisplayModeControls(value) {
@@ -982,6 +1530,10 @@ function exitFullscreenToFilters() {
   if (toolbar) toolbar.scrollIntoView({ block: "start" });
 }
 
+function handleAfterPrint() {
+  document.body.classList.remove("monthly-rota-printing");
+}
+
 export async function openWorkforceCalendar() {
   if (!requireWorkforceCalendarAccess()) return;
   showWorkforceCalendarWorkspace();
@@ -991,6 +1543,7 @@ export async function openWorkforceCalendar() {
 
 export function initialiseWorkforceCalendar() {
   ensureFullscreenOverlayRoot();
+  ensureMonthlyPrintOverlayRoot();
   const range = currentWeekRange();
   setRange(range.from, range.to);
   const mode = localStorage.getItem(DISPLAY_MODE_KEY) || "detailed";
@@ -1024,6 +1577,26 @@ export function initialiseWorkforceCalendar() {
       setDisplayMode(event.target.value);
     });
   }
+  if ($("personMonthlyRotaPersonSearch")) {
+    $("personMonthlyRotaPersonSearch").addEventListener("input", () => {
+      monthlyPrintState.lastPreview = null;
+      if ($("personMonthlyRotaPrintButton")) $("personMonthlyRotaPrintButton").disabled = true;
+      renderMonthlyPrintPeopleOptions();
+    });
+  }
+  if ($("personMonthlyRotaPreviewButton")) $("personMonthlyRotaPreviewButton").addEventListener("click", previewMonthlyRotaPrint);
+  if ($("personMonthlyRotaPrintButton")) $("personMonthlyRotaPrintButton").addEventListener("click", printMonthlyRota);
+  if ($("personMonthlyRotaPrintCloseButton")) $("personMonthlyRotaPrintCloseButton").addEventListener("click", closeMonthlyPrintOverlay);
+  ["personMonthlyRotaPersonSelect", "personMonthlyRotaMonth", "personMonthlyRotaDensity", "personMonthlyRotaShowLegend", "personMonthlyRotaShowNotes"].forEach(id => {
+    if ($(id)) {
+      $(id).addEventListener("change", () => {
+        monthlyPrintState.lastPreview = null;
+        if ($("personMonthlyRotaPrintButton")) $("personMonthlyRotaPrintButton").disabled = true;
+      });
+    }
+  });
+  window.addEventListener("afterprint", handleAfterPrint);
+  document.addEventListener("click", handleWorkforceCalendarClick);
   document.addEventListener("pointerdown", handleDocumentPointerDown);
   document.addEventListener("keydown", handleFullscreenKeydown);
 }

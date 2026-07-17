@@ -8680,14 +8680,30 @@ input[data-reference-field="cycle_length_days"][readonly] {
   font-size: 13px;
 }
 
-.workforce-calendar-date-section,
-.workforce-calendar-filter-section {
-  grid-column: span 6;
+.workforce-calendar-date-section {
+  grid-column: span 5;
 }
 
-.workforce-calendar-display-section,
+.workforce-calendar-display-section {
+  grid-column: span 2;
+}
+
 .workforce-calendar-action-section {
-  grid-column: span 3;
+  display: flex;
+  grid-column: span 5;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+}
+
+.workforce-calendar-action-section h2 {
+  flex: 0 0 auto;
+  margin: 0;
+}
+
+.workforce-calendar-filter-section {
+  grid-column: span 6;
 }
 
 .workforce-calendar-filter-summary-row {
@@ -8737,7 +8753,16 @@ input[data-reference-field="cycle_length_days"][readonly] {
 }
 
 .workforce-calendar-action-controls button {
-  flex: 1 1 130px;
+  flex: 0 0 auto;
+  min-height: 34px;
+  padding: 7px 10px;
+  font-size: 12px;
+}
+
+.workforce-calendar-action-controls {
+  flex: 0 1 auto;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .workforce-calendar-filter-controls {
@@ -9355,6 +9380,681 @@ body.workforce-calendar-fullscreen-active .oh-workspace {
   background: #ffffff;
 }
 
+body.monthly-rota-print-open,
+body.monthly-rota-print-open .operations-hub,
+body.monthly-rota-print-open .oh-workspace {
+  overflow: hidden !important;
+}
+
+.monthly-rota-print-overlay {
+  position: fixed;
+  z-index: 2147482000;
+  inset: 0;
+  display: flex;
+  width: 100vw;
+  max-width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  max-height: 100dvh;
+  padding: 12px;
+  overflow: hidden;
+  background: rgba(16, 24, 40, .46);
+  overscroll-behavior: contain;
+}
+
+.monthly-rota-print-overlay.hidden {
+  display: none !important;
+}
+
+.monthly-rota-print-shell {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--oh-shell-border);
+  border-radius: 12px;
+  background: var(--oh-shell-bg, #eef3f8);
+  box-shadow: 0 24px 60px rgba(16, 24, 40, .28);
+}
+
+.monthly-rota-print-header {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--oh-shell-border);
+  background: var(--oh-shell-surface);
+}
+
+.monthly-rota-print-header h2 {
+  margin: 0;
+  font-size: 21px;
+}
+
+.monthly-rota-print-header p:not(.oh-app-eyebrow) {
+  margin: 4px 0 0;
+  color: var(--oh-shell-muted);
+  font-size: 13px;
+}
+
+.monthly-rota-print-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.monthly-rota-print-actions button {
+  min-height: 38px;
+  white-space: nowrap;
+}
+
+.monthly-rota-print-setup {
+  display: grid;
+  flex: 0 0 auto;
+  grid-template-columns: minmax(180px, 1.4fr) minmax(220px, 1.8fr) minmax(150px, .8fr) minmax(130px, .7fr) auto auto;
+  gap: 10px;
+  align-items: end;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--oh-shell-border);
+  background: #ffffff;
+}
+
+.monthly-rota-print-setup label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  color: var(--oh-shell-text);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.monthly-rota-print-check {
+  display: inline-flex !important;
+  grid-template-columns: auto 1fr;
+  min-height: 40px;
+  align-items: center;
+  gap: 7px !important;
+  padding: 0 10px;
+  border: 1px solid var(--oh-shell-border);
+  border-radius: 8px;
+  background: #f8fafc;
+  color: var(--oh-shell-muted);
+  white-space: nowrap;
+}
+
+.monthly-rota-print-check input {
+  width: auto;
+  margin: 0;
+}
+
+.monthly-rota-print-status {
+  flex: 0 0 auto;
+  padding: 9px 16px;
+  border-bottom: 1px solid var(--oh-shell-border);
+  background: #f8fafc;
+  color: var(--oh-shell-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.monthly-rota-preview-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 18px;
+  background: #dfe6ee;
+}
+
+.monthly-rota-print-root {
+  display: none;
+}
+
+.monthly-rota-print-page {
+  width: 1120px;
+  max-width: 100%;
+  min-height: 792px;
+  margin: 0 auto;
+  padding: 22px;
+  border: 1px solid #d0d5dd;
+  background: #ffffff;
+  color: #111827;
+  box-shadow: 0 20px 45px rgba(16, 24, 40, .18);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.monthly-rota-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #111827;
+}
+
+.monthly-rota-brand {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  min-width: 120px;
+}
+
+.monthly-rota-brand-logo {
+  display: block;
+  width: auto;
+  max-width: 150px;
+  height: auto;
+  max-height: 46px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  object-fit: contain;
+}
+
+.monthly-rota-brand-fallback {
+  color: #111827;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.monthly-rota-title-block {
+  min-width: 0;
+  text-align: center;
+}
+
+.monthly-rota-page-header h2 {
+  margin: 0;
+  color: #111827;
+  font-size: 25px;
+  line-height: 1.1;
+}
+
+.monthly-rota-page-header p {
+  margin: 3px 0 0;
+  color: #344054;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.monthly-rota-month-label {
+  color: #475467 !important;
+  font-size: 13px !important;
+}
+
+.monthly-rota-page-meta {
+  display: grid;
+  gap: 4px;
+  min-width: 180px;
+  color: #475467;
+  font-size: 11px;
+  font-weight: 800;
+  text-align: right;
+}
+
+.monthly-rota-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-auto-rows: minmax(96px, 1fr);
+  border-top: 1px solid #cbd5e1;
+  border-left: 1px solid #cbd5e1;
+}
+
+.monthly-rota-weekday,
+.monthly-rota-day {
+  border-right: 1px solid #cbd5e1;
+  border-bottom: 1px solid #cbd5e1;
+}
+
+.monthly-rota-weekday {
+  padding: 6px;
+  background: #f1f5f9;
+  color: #344054;
+  font-size: 11px;
+  font-weight: 900;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.monthly-rota-day {
+  min-height: 96px;
+  overflow: hidden;
+  padding: 7px;
+  background: #ffffff;
+}
+
+.monthly-rota-day.is-outside-month {
+  background: #f8fafc;
+}
+
+.monthly-rota-day.is-working {
+  background: #eefaf3;
+}
+
+.monthly-rota-day.is-off {
+  background: #f8fafc;
+}
+
+.monthly-rota-day.is-no-profile,
+.monthly-rota-day.is-pattern-not-configured,
+.monthly-rota-day.is-assignment-inactive,
+.monthly-rota-day.has-warning {
+  background: #fff8e6;
+}
+
+.monthly-rota-day-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.monthly-rota-day-number {
+  color: #111827;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.monthly-rota-day-warning,
+.monthly-rota-day-override {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  min-height: 18px;
+  padding: 0 5px;
+  border: 1px solid #92400e;
+  border-radius: 999px;
+  color: #92400e;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.monthly-rota-day-override {
+  border-color: #475467;
+  color: #475467;
+}
+
+.monthly-rota-day-body {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.monthly-rota-work-item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 6px;
+  align-items: center;
+  min-width: 0;
+  padding: 4px 5px;
+  border: 1px solid #bbd9c5;
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.monthly-rota-work-item.is-issue {
+  border-color: #f2c77b;
+}
+
+.monthly-rota-marker {
+  display: inline-flex;
+  min-width: 28px;
+  min-height: 20px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 5px;
+  background: #245b49;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.monthly-rota-time,
+.monthly-rota-tags,
+.monthly-rota-state-label,
+.monthly-rota-more {
+  min-width: 0;
+  overflow: hidden;
+  color: #111827;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.monthly-rota-tags {
+  grid-column: 2;
+  color: #475467;
+  font-size: 10px;
+}
+
+.monthly-rota-state-label,
+.monthly-rota-more {
+  color: #667085;
+}
+
+.monthly-rota-legend {
+  margin-top: 12px;
+}
+
+.monthly-rota-legend h3 {
+  margin: 0 0 7px;
+  color: #111827;
+  font-size: 13px;
+}
+
+.monthly-rota-legend-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 12px;
+}
+
+.monthly-rota-legend-item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 7px;
+  align-items: start;
+  min-width: 0;
+  color: #344054;
+  font-size: 10px;
+  line-height: 1.3;
+}
+
+.monthly-rota-legend-item strong,
+.monthly-rota-legend-item span {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.monthly-rota-legend-item strong {
+  color: #111827;
+  font-size: 11px;
+}
+
+.monthly-rota-legend-empty,
+.monthly-rota-notes {
+  color: #475467;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.monthly-rota-notes {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #e4e7ec;
+}
+
+.monthly-rota-print-footer {
+  margin-top: 8px;
+  color: #667085;
+  font-size: 9px;
+  font-weight: 700;
+  text-align: right;
+}
+
+.monthly-rota-print-page.is-compact .monthly-rota-day {
+  min-height: 78px;
+  padding: 5px;
+}
+
+.monthly-rota-print-page.is-compact .monthly-rota-work-item {
+  padding: 3px 4px;
+}
+
+.monthly-rota-print-page.is-compact .monthly-rota-tags {
+  display: none;
+}
+
+@media (max-width: 1023px) {
+  .monthly-rota-print-setup {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .monthly-rota-print-check {
+    justify-content: flex-start;
+  }
+  .monthly-rota-print-page {
+    width: 1040px;
+    max-width: none;
+  }
+}
+
+@media (max-width: 599px) {
+  .monthly-rota-print-overlay {
+    padding: 10px;
+  }
+  .monthly-rota-print-shell {
+    border-radius: 8px;
+  }
+  .monthly-rota-print-header,
+  .monthly-rota-print-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .monthly-rota-print-actions button,
+  .monthly-rota-print-setup label,
+  .monthly-rota-print-check {
+    width: 100%;
+  }
+  .monthly-rota-print-setup {
+    grid-template-columns: 1fr;
+  }
+  .monthly-rota-preview-wrap {
+    padding: 12px;
+  }
+}
+
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 8mm;
+  }
+  html,
+  body {
+    width: auto !important;
+    min-width: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+  }
+  body.monthly-rota-printing > :not(#personMonthlyRotaPrintRoot) {
+    display: none !important;
+  }
+  body.monthly-rota-printing #personMonthlyRotaPrintRoot {
+    position: static !important;
+    display: block !important;
+    width: auto !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+  }
+  body.monthly-rota-printing .monthly-rota-print-document {
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    color: #000000 !important;
+    box-shadow: none !important;
+    font-family: Arial, Helvetica, sans-serif !important;
+  }
+  body.monthly-rota-printing .monthly-rota-page-header {
+    display: grid !important;
+    grid-template-columns: minmax(34mm, auto) 1fr minmax(40mm, auto);
+    gap: 4mm;
+    align-items: start;
+    margin-bottom: 2.5mm;
+    padding-bottom: 2mm;
+    border-bottom: 1.5pt solid #111827;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  body.monthly-rota-printing .monthly-rota-brand {
+    display: flex !important;
+    min-width: 0;
+  }
+  body.monthly-rota-printing .monthly-rota-brand-logo {
+    display: block !important;
+    width: auto;
+    max-width: 36mm;
+    height: auto;
+    max-height: 14mm;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    object-fit: contain;
+  }
+  body.monthly-rota-printing .monthly-rota-brand-fallback {
+    display: inline !important;
+    color: #111827;
+    font-size: 9pt;
+    font-weight: 800;
+  }
+  body.monthly-rota-printing .monthly-rota-title-block {
+    text-align: center;
+  }
+  body.monthly-rota-printing .monthly-rota-page-header h2 {
+    font-size: 15pt;
+  }
+  body.monthly-rota-printing .monthly-rota-page-header p {
+    font-size: 8.5pt;
+  }
+  body.monthly-rota-printing .monthly-rota-page-meta,
+  body.monthly-rota-printing .monthly-rota-weekday,
+  body.monthly-rota-printing .monthly-rota-time,
+  body.monthly-rota-printing .monthly-rota-tags,
+  body.monthly-rota-printing .monthly-rota-state-label,
+  body.monthly-rota-printing .monthly-rota-more,
+  body.monthly-rota-printing .monthly-rota-legend-item,
+  body.monthly-rota-printing .monthly-rota-legend-empty,
+  body.monthly-rota-printing .monthly-rota-notes {
+    font-size: 6.6pt;
+  }
+  body.monthly-rota-printing .monthly-rota-grid {
+    display: grid !important;
+    grid-template-columns: repeat(7, 1fr);
+    grid-template-rows: 5mm repeat(5, 1fr);
+    width: 100%;
+    height: 162mm;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  body.monthly-rota-printing .monthly-rota-grid-4-weeks {
+    grid-template-rows: 5mm repeat(4, 1fr);
+  }
+  body.monthly-rota-printing .monthly-rota-grid-6-weeks {
+    grid-template-rows: 5mm repeat(6, 1fr);
+  }
+  body.monthly-rota-printing .monthly-rota-weekday {
+    padding: 1mm;
+    min-height: 0;
+    overflow: hidden;
+  }
+  body.monthly-rota-printing .monthly-rota-day {
+    min-height: 0;
+    height: auto;
+    overflow: hidden;
+    padding: 1mm;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  body.monthly-rota-printing .monthly-rota-day-number {
+    font-size: 8pt;
+  }
+  body.monthly-rota-printing .monthly-rota-day-header {
+    margin-bottom: .8mm;
+  }
+  body.monthly-rota-printing .monthly-rota-day-body {
+    gap: .8mm;
+  }
+  body.monthly-rota-printing .monthly-rota-work-item {
+    display: grid !important;
+    grid-template-columns: auto 1fr;
+    gap: .8mm 1mm;
+    padding: .7mm;
+    border-radius: 1.5mm;
+    overflow: hidden;
+  }
+  body.monthly-rota-printing .monthly-rota-marker {
+    min-width: 7.5mm;
+    min-height: 4.5mm;
+    background: #e5f1ec !important;
+    border: 1px solid #245b49;
+    color: #111827 !important;
+    font-size: 6.5pt;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  body.monthly-rota-printing .monthly-rota-day.is-working,
+  body.monthly-rota-printing .monthly-rota-day.is-off,
+  body.monthly-rota-printing .monthly-rota-day.is-no-assignment,
+  body.monthly-rota-printing .monthly-rota-day.is-no-profile,
+  body.monthly-rota-printing .monthly-rota-day.is-pattern-not-configured,
+  body.monthly-rota-printing .monthly-rota-day.is-assignment-inactive,
+  body.monthly-rota-printing .monthly-rota-day.has-warning,
+  body.monthly-rota-printing .monthly-rota-weekday {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  body.monthly-rota-printing .monthly-rota-legend,
+  body.monthly-rota-printing .monthly-rota-notes {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  body.monthly-rota-printing .monthly-rota-legend {
+    margin-top: 2mm;
+  }
+  body.monthly-rota-printing .monthly-rota-legend h3 {
+    margin-bottom: 1mm;
+    font-size: 8pt;
+  }
+  body.monthly-rota-printing .monthly-rota-legend-list {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1mm 3mm;
+  }
+  body.monthly-rota-printing .monthly-rota-legend-item {
+    display: grid !important;
+    grid-template-columns: auto 1fr;
+    gap: 1mm;
+  }
+  body.monthly-rota-printing .monthly-rota-notes {
+    display: flex !important;
+    gap: 3mm;
+    margin-top: 1.5mm;
+    padding-top: 1.5mm;
+  }
+  body.monthly-rota-printing .monthly-rota-print-footer {
+    margin-top: 1.5mm;
+    color: #667085;
+    font-size: 6pt;
+    text-align: right;
+  }
+}
+
 @media (max-width: 1023px) {
   .workforce-calendar-date-section,
   .workforce-calendar-filter-section,
@@ -9365,6 +10065,17 @@ body.workforce-calendar-fullscreen-active .oh-workspace {
   .workforce-calendar-date-controls button,
   .workforce-calendar-action-controls button {
     flex: 1 1 170px;
+  }
+  .workforce-calendar-action-section {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .workforce-calendar-action-controls {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .workforce-calendar-action-controls button {
+    flex: 0 1 auto;
   }
   .workforce-calendar-multi-filter {
     max-width: none;

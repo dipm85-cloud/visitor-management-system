@@ -1348,7 +1348,7 @@
       <div class="brand-mark"><img id="brandLogoImg" alt="Logo" style="display:none;width:100%;height:100%;object-fit:contain;border-radius:12px;"><span id="brandLogoFallback">V</span></div>
       <div>
         Visitor Management<br>
-        <span style="font-size:12px;color:var(--muted);font-weight:700;">Operations Hub nextgen-ui - OHP-013B.2</span>
+        <span style="font-size:12px;color:var(--muted);font-weight:700;">Operations Hub nextgen-ui - OHP-013C</span>
       </div>
     </div>
     <div class="button-row no-print" style="margin:0;">
@@ -1397,7 +1397,7 @@
       </div>
       <button id="terminalReturnHomeButton" class="secondary hidden" type="button">Return to Terminal Home</button>
     </section>
-  <div id="appVersionFooter" class="version-footer">Version <span id="appVersionText">OHP-013B.2</span></div>
+  <div id="appVersionFooter" class="version-footer">Version <span id="appVersionText">OHP-013C</span></div>
 </main>
 
   <section id="signInScreen" class="screen">
@@ -3445,6 +3445,15 @@
               </select>
             </label>
           </div>
+          <div class="workforce-calendar-toolbar-section workforce-calendar-action-section">
+            <h2>Actions</h2>
+            <div class="workforce-calendar-action-controls">
+              <button id="workforceCalendarRefreshButton" class="secondary" type="button">Refresh</button>
+              <button id="workforceCalendarPersonPrintButton" class="secondary" type="button">Person Monthly Print</button>
+              <button id="workforceCalendarExportCsv" class="secondary" type="button">Export CSV</button>
+              <button id="workforceCalendarExportXlsx" class="secondary" type="button">Export XLSX</button>
+            </div>
+          </div>
           <div class="workforce-calendar-toolbar-section workforce-calendar-filter-section">
             <h2>People filters</h2>
             <div id="workforceCalendarPeopleFilters" class="workforce-calendar-filter-controls" aria-label="People filters"></div>
@@ -3452,14 +3461,6 @@
           <div class="workforce-calendar-toolbar-section workforce-calendar-filter-section">
             <h2>Work filters</h2>
             <div id="workforceCalendarWorkFilters" class="workforce-calendar-filter-controls" aria-label="Work filters"></div>
-          </div>
-          <div class="workforce-calendar-toolbar-section workforce-calendar-action-section">
-            <h2>Actions</h2>
-            <div class="workforce-calendar-action-controls">
-              <button id="workforceCalendarRefreshButton" class="secondary" type="button">Refresh</button>
-              <button id="workforceCalendarExportCsv" class="secondary" type="button">Export CSV</button>
-              <button id="workforceCalendarExportXlsx" class="secondary" type="button">Export XLSX</button>
-            </div>
           </div>
           <div class="workforce-calendar-filter-summary-row">
             <span id="workforceCalendarFilterSummary">No filters active</span>
@@ -3531,6 +3532,54 @@
             </div>
           </div>
         </section>
+
+        <section id="personMonthlyRotaPrintOverlay" class="monthly-rota-print-overlay hidden" aria-labelledby="personMonthlyRotaPrintTitle" aria-modal="true" role="dialog" tabindex="-1">
+          <div class="monthly-rota-print-shell">
+            <header class="monthly-rota-print-header">
+              <div>
+                <p class="oh-app-eyebrow">Workforce Calendar</p>
+                <h2 id="personMonthlyRotaPrintTitle">Person Monthly Print</h2>
+                <p id="personMonthlyRotaPrintSubtitle">Create a one-person monthly rota printout.</p>
+              </div>
+              <div class="monthly-rota-print-actions">
+                <button id="personMonthlyRotaPreviewButton" type="button">Preview</button>
+                <button id="personMonthlyRotaPrintButton" class="secondary" type="button" disabled>Print</button>
+                <button id="personMonthlyRotaPrintCloseButton" class="ghost" type="button">Close</button>
+              </div>
+            </header>
+
+            <section class="monthly-rota-print-setup" aria-label="Monthly rota print controls">
+              <label for="personMonthlyRotaPersonSearch">Search people
+                <input id="personMonthlyRotaPersonSearch" type="search" placeholder="Search by name or person number" autocomplete="off" />
+              </label>
+              <label for="personMonthlyRotaPersonSelect">Person
+                <select id="personMonthlyRotaPersonSelect"></select>
+              </label>
+              <label for="personMonthlyRotaMonth">Month
+                <input id="personMonthlyRotaMonth" type="month" />
+              </label>
+              <label for="personMonthlyRotaDensity">Density
+                <select id="personMonthlyRotaDensity">
+                  <option value="standard">Standard</option>
+                  <option value="compact">Compact</option>
+                </select>
+              </label>
+              <label class="monthly-rota-print-check" for="personMonthlyRotaShowLegend">
+                <input id="personMonthlyRotaShowLegend" type="checkbox" checked />
+                <span>Legend</span>
+              </label>
+              <label class="monthly-rota-print-check" for="personMonthlyRotaShowNotes">
+                <input id="personMonthlyRotaShowNotes" type="checkbox" checked />
+                <span>Notes</span>
+              </label>
+            </section>
+
+            <div id="personMonthlyRotaPrintStatus" class="monthly-rota-print-status" aria-live="polite">Select a person and month, then preview the rota.</div>
+            <div id="personMonthlyRotaPreviewWrap" class="monthly-rota-preview-wrap" data-oh-scroll-region="operational"></div>
+            <div id="personMonthlyRotaPreviewEmpty" class="people-empty-state hidden" data-oh-empty-state>No monthly rota preview is available.</div>
+          </div>
+        </section>
+        <div id="personMonthlyRotaPrintRoot" class="monthly-rota-print-root" aria-hidden="true"></div>
       </section>
 
       <section id="organisationsWorkspace" class="oh-app-page hidden" aria-labelledby="organisationsPageTitle">
@@ -5378,7 +5427,7 @@
 
   <footer class="oh-footer">
     <strong>Operations Hub</strong>
-    <span>Version <span id="ohPlatformVersion">OHP-013B.2</span></span>
+    <span>Version <span id="ohPlatformVersion">OHP-013C</span></span>
     <span>Environment <span id="ohEnvironment">Local</span></span>
   </footer>
 </div>
