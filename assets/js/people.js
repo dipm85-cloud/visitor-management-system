@@ -202,7 +202,7 @@ export function renderPeopleList() {
     assignmentsButton.textContent = "Assignments";
     assignmentsButton.setAttribute("aria-label", "View assignments for " + person.display_name);
     assignmentsButton.addEventListener("click", () => {
-      selectPersonForAssignments(person.id, person.display_name);
+      selectPersonForAssignments(person.id, person.display_name, person.external_person_number);
     });
     if (hasAssignmentSectionAccess()) actionCell.appendChild(assignmentsButton);
 

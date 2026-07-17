@@ -214,7 +214,14 @@ import {
   cancelAssignmentEditor,
   saveAssignment,
   closeEndAssignmentDialog,
-  confirmEndAssignment
+  confirmEndAssignment,
+  closeAssignmentWorkspace,
+  exportAssignmentsCsv,
+  exportAssignmentsXlsx,
+  refreshAssignmentFilters,
+  loadAssignments,
+  confirmAssignmentConflictOverride,
+  cancelAssignmentConflictOverride
 } from "./assignments.js";
 import {
   initialiseWorkforceCalendar,
@@ -5205,6 +5212,21 @@ window.addEventListener("load", async function () {
       saveReferenceRecord();
     });
     if ($("assignmentCreateButton")) $("assignmentCreateButton").addEventListener("click", () => openAssignmentEditor(null));
+    if ($("assignmentWorkspaceCloseButton")) $("assignmentWorkspaceCloseButton").addEventListener("click", closeAssignmentWorkspace);
+    if ($("assignmentRefreshButton")) $("assignmentRefreshButton").addEventListener("click", loadAssignments);
+    if ($("assignmentExportCsvButton")) $("assignmentExportCsvButton").addEventListener("click", exportAssignmentsCsv);
+    if ($("assignmentExportXlsxButton")) $("assignmentExportXlsxButton").addEventListener("click", exportAssignmentsXlsx);
+    [
+      "assignmentSearchFilter",
+      "assignmentStatusFilter",
+      "assignmentContractFilter",
+      "assignmentSiteFilter",
+      "assignmentDepartmentFilter",
+      "assignmentWorkTimeProfileFilter"
+    ].forEach(id => {
+      if ($(id)) $(id).addEventListener("input", refreshAssignmentFilters);
+      if ($(id)) $(id).addEventListener("change", refreshAssignmentFilters);
+    });
     if ($("assignmentPanelCloseButton")) $("assignmentPanelCloseButton").addEventListener("click", cancelAssignmentEditor);
     if ($("assignmentCancelButton")) $("assignmentCancelButton").addEventListener("click", cancelAssignmentEditor);
     if ($("assignmentForm")) $("assignmentForm").addEventListener("submit", event => {
@@ -5219,6 +5241,15 @@ window.addEventListener("load", async function () {
     }
     if ($("assignmentEndConfirmButton")) {
       $("assignmentEndConfirmButton").addEventListener("click", confirmEndAssignment);
+    }
+    if ($("assignmentConflictOverrideConfirmButton")) {
+      $("assignmentConflictOverrideConfirmButton").addEventListener("click", confirmAssignmentConflictOverride);
+    }
+    if ($("assignmentConflictOverrideCancelButton")) {
+      $("assignmentConflictOverrideCancelButton").addEventListener("click", cancelAssignmentConflictOverride);
+    }
+    if ($("assignmentConflictOverrideCloseButton")) {
+      $("assignmentConflictOverrideCloseButton").addEventListener("click", cancelAssignmentConflictOverride);
     }
 
     $("openSignInButton").addEventListener("click", () => {

@@ -9419,59 +9419,189 @@ body.workforce-calendar-fullscreen-active .oh-workspace {
 }
 
 .person-assignments-section {
-  margin: 0;
-  padding: 0;
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  inset: 0;
+  z-index: 2147482000;
+  display: flex;
+  width: 100vw;
+  max-width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  max-height: 100dvh;
+  min-width: 0;
+  padding: 10px;
   overflow: hidden;
-  box-shadow: none;
+  background: var(--oh-shell-bg, #f4f6f8);
+  overscroll-behavior: contain;
 }
 
-.assignment-inline-row > td {
-  padding: 0;
-  border-bottom: 1px solid #d9e5f3;
-  background: #f6f9fc;
+body.assignment-workspace-open,
+body.assignment-workspace-open .operations-hub,
+body.assignment-workspace-open .oh-workspace {
+  overflow: hidden !important;
 }
 
-.assignment-inline-cell .person-assignments-section {
-  border: 0;
-  border-radius: 0;
-  background: #fff;
+body.assignment-workspace-open #assignmentPanel {
+  position: fixed;
+  z-index: 2147482100;
+  top: 0;
+  right: 0;
+  bottom: 0;
+}
+
+body.assignment-workspace-open .modal-backdrop.active {
+  z-index: 2147482200;
+}
+
+.person-assignments-shell {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  max-height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--oh-shell-border);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 24px 60px rgba(16, 24, 40, .18);
 }
 
 .person-assignments-header {
   display: flex;
+  flex: 0 0 auto;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 18px;
-  padding: 18px 20px;
+  gap: 12px;
+  padding: 10px 14px;
   border-bottom: 1px solid var(--oh-shell-border);
 }
 
-.person-assignments-header h2 { margin: 0; font-size: 21px; }
-.person-assignments-header p:not(.oh-app-eyebrow) {
-  margin: 5px 0 0;
-  color: var(--oh-shell-muted);
-}
-
-.assignment-list-status {
+.person-assignments-header h2 {
   margin: 0;
-  padding: 12px 20px;
-  border-bottom: 1px solid var(--oh-shell-border);
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.person-assignments-header .oh-app-eyebrow {
+  margin-bottom: 2px;
+  font-size: 11px;
+}
+
+.person-assignments-header p:not(.oh-app-eyebrow) {
+  margin: 2px 0 0;
   color: var(--oh-shell-muted);
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.person-assignments-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.person-assignments-actions button {
+  min-height: 34px;
+  padding: 7px 10px;
+  font-size: 12px;
+}
+
+.assignment-summary-grid {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--oh-shell-border);
+  background: #f8fafc;
+}
+
+.assignment-summary-grid div {
+  display: inline-flex;
+  gap: 6px;
+  align-items: baseline;
+  min-width: 0;
+  padding: 5px 8px;
+  border: 1px solid #e9edf2;
+  border-radius: 999px;
+  background: #ffffff;
+}
+
+.assignment-summary-grid span {
+  color: #667085;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.assignment-summary-grid strong {
+  color: #101828;
   font-size: 13px;
 }
 
-.assignment-table-wrap { overflow-x: auto; }
+.assignment-filter-bar {
+  display: grid;
+  flex: 0 0 auto;
+  grid-template-columns: minmax(190px, 1.4fr) minmax(110px, .55fr) repeat(4, minmax(130px, 1fr));
+  gap: 8px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--oh-shell-border);
+}
+
+.assignment-filter-bar label {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  color: #475467;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.assignment-filter-bar input,
+.assignment-filter-bar select {
+  width: 100%;
+  min-width: 0;
+  min-height: 32px;
+  padding: 5px 8px;
+  font-size: 12px;
+}
+
+.assignment-list-status {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 6px 14px;
+  border-bottom: 1px solid var(--oh-shell-border);
+  color: var(--oh-shell-muted);
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.assignment-table-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
 
 .assignment-table {
   width: 100%;
-  min-width: 1220px;
+  min-width: 1180px;
   border-collapse: collapse;
   background: #fff;
 }
 
 .assignment-table th,
 .assignment-table td {
-  padding: 12px 14px;
+  padding: 9px 11px;
   border-bottom: 1px solid #e9edf2;
   text-align: left;
   vertical-align: middle;
@@ -9480,7 +9610,7 @@ body.workforce-calendar-fullscreen-active .oh-workspace {
 .assignment-table th {
   background: #f8fafc;
   color: #475467;
-  font-size: 12px;
+  font-size: 11px;
   white-space: nowrap;
 }
 
@@ -9534,6 +9664,26 @@ body.workforce-calendar-fullscreen-active .oh-workspace {
   white-space: nowrap;
 }
 
+.assignment-warning-badge {
+  display: block;
+  width: max-content;
+  margin-top: 6px;
+  padding: 3px 8px;
+  border: 1px solid #fbbf24;
+  border-radius: 999px;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.assignment-warning-badge.override {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
 .assignment-action-note {
   max-width: 120px;
   color: var(--oh-shell-muted);
@@ -9549,6 +9699,16 @@ body.workforce-calendar-fullscreen-active .oh-workspace {
 }
 
 #assignmentEndDate {
+  width: 100%;
+}
+
+#assignmentConflictOverrideModalBackdrop label {
+  display: block;
+  margin: 16px 0 7px;
+  font-weight: 800;
+}
+
+#assignmentConflictOverrideReason {
   width: 100%;
 }
 
@@ -9616,7 +9776,22 @@ body.workforce-calendar-fullscreen-active .oh-workspace {
   bottom: 0;
 }
 
+@media (max-width: 1023px) {
+  .assignment-filter-bar {
+    grid-template-columns: minmax(180px, 1.4fr) repeat(2, minmax(130px, 1fr));
+  }
+}
+
 @media (max-width: 599px) {
+  .person-assignments-section {
+    padding: 0;
+  }
+
+  .person-assignments-shell {
+    border: 0;
+    border-radius: 0;
+  }
+
   .organisation-search-row {
     grid-template-columns: 1fr;
   }
@@ -9636,9 +9811,114 @@ body.workforce-calendar-fullscreen-active .oh-workspace {
   .person-assignments-header {
     align-items: stretch;
     flex-direction: column;
+    gap: 8px;
+    padding: 8px 10px;
   }
 
-  .person-assignments-header > button { width: 100%; min-height: 48px; }
+  .person-assignments-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .person-assignments-actions button {
+    width: 100%;
+    min-height: 32px;
+    padding: 6px 8px;
+  }
+
+  #assignmentWorkspaceCloseButton {
+    grid-column: 1 / -1;
+  }
+
+  .assignment-summary-grid {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding: 6px 10px;
+  }
+
+  .assignment-summary-grid div {
+    flex: 0 0 auto;
+  }
+
+  .assignment-filter-bar {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 7px 10px;
+  }
+
+  .assignment-filter-bar label {
+    flex: 0 0 150px;
+  }
+
+  .assignment-filter-bar label:first-child {
+    flex-basis: 190px;
+  }
+
+  .assignment-list-status {
+    padding: 5px 10px;
+  }
+
+  .assignment-table {
+    min-width: 0;
+  }
+
+  .assignment-table thead {
+    display: none;
+  }
+
+  .assignment-table,
+  .assignment-table tbody,
+  .assignment-table tr,
+  .assignment-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .assignment-table tr {
+    margin: 8px;
+    border: 1px solid var(--oh-shell-border);
+    border-radius: 8px;
+    overflow: hidden;
+    background: #ffffff;
+  }
+
+  .assignment-table td {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 10px;
+    border-bottom: 1px solid #e9edf2;
+  }
+
+  .assignment-table td::before {
+    flex: 0 0 120px;
+    color: #667085;
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  .assignment-table td:nth-child(1)::before { content: "Site"; }
+  .assignment-table td:nth-child(2)::before { content: "Employer"; }
+  .assignment-table td:nth-child(3)::before { content: "Contract"; }
+  .assignment-table td:nth-child(4)::before { content: "Department"; }
+  .assignment-table td:nth-child(5)::before { content: "Job Role"; }
+  .assignment-table td:nth-child(6)::before { content: "Shift Pattern"; }
+  .assignment-table td:nth-child(7)::before { content: "Work Time"; }
+  .assignment-table td:nth-child(8)::before { content: "Start"; }
+  .assignment-table td:nth-child(9)::before { content: "End"; }
+  .assignment-table td:nth-child(10)::before { content: "State"; }
+
+  .assignment-row-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    white-space: normal;
+  }
+
+  .assignment-row-actions button {
+    flex: 1 1 110px;
+  }
 
   .assignment-form-grid { grid-template-columns: 1fr; }
 }

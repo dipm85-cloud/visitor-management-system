@@ -46,6 +46,7 @@ export function focusFirstModalInput(modalBackdropId) {
 function getActiveModalConfig() {
   const modalKeyboardMap = [
     { backdrop: "assignmentEndModalBackdrop", enter: "assignmentEndConfirmButton", escape: "assignmentEndCancelButton" },
+    { backdrop: "assignmentConflictOverrideModalBackdrop", enter: "assignmentConflictOverrideConfirmButton", escape: "assignmentConflictOverrideCancelButton" },
     { backdrop: "kioskLogoutModalBackdrop", enter: "confirmKioskLogoutButton", escape: "cancelKioskLogoutButton" },
     { backdrop: "notificationTemplateModalBackdrop", enter: "saveNotificationTemplateButton", escape: "cancelNotificationTemplateButton" },
     { backdrop: "gdprCaseModalBackdrop", enter: "saveGdprCaseButton", escape: "cancelGdprCaseButton" },

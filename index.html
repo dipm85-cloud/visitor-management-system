@@ -1348,7 +1348,7 @@
       <div class="brand-mark"><img id="brandLogoImg" alt="Logo" style="display:none;width:100%;height:100%;object-fit:contain;border-radius:12px;"><span id="brandLogoFallback">V</span></div>
       <div>
         Visitor Management<br>
-        <span style="font-size:12px;color:var(--muted);font-weight:700;">Operations Hub nextgen-ui - OHP-013B.1</span>
+        <span style="font-size:12px;color:var(--muted);font-weight:700;">Operations Hub nextgen-ui - OHP-013B.2</span>
       </div>
     </div>
     <div class="button-row no-print" style="margin:0;">
@@ -1397,7 +1397,7 @@
       </div>
       <button id="terminalReturnHomeButton" class="secondary hidden" type="button">Return to Terminal Home</button>
     </section>
-  <div id="appVersionFooter" class="version-footer">Version <span id="appVersionText">OHP-013B.1</span></div>
+  <div id="appVersionFooter" class="version-footer">Version <span id="appVersionText">OHP-013B.2</span></div>
 </main>
 
   <section id="signInScreen" class="screen">
@@ -3147,39 +3147,87 @@
             </div>
           </section>
 
-          <section id="personAssignmentsSection" class="card person-assignments-section hidden" aria-labelledby="personAssignmentsTitle">
-            <div class="person-assignments-header">
-              <div>
-                <p class="oh-app-eyebrow">Selected person</p>
-                <h2 id="personAssignmentsTitle">Assignments</h2>
-                <p id="personAssignmentsName">Select a person to view assignments.</p>
+          <section id="personAssignmentsSection" class="person-assignments-section hidden" aria-labelledby="personAssignmentsTitle" aria-modal="true" role="dialog">
+            <div class="person-assignments-shell">
+              <div class="person-assignments-header">
+                <div>
+                  <p class="oh-app-eyebrow">Assignment workspace</p>
+                  <h2 id="personAssignmentsTitle">Assignments</h2>
+                  <p id="personAssignmentsName">Select a person to view assignments.</p>
+                </div>
+                <div class="person-assignments-actions">
+                  <button id="assignmentCreateButton" type="button">Create Assignment</button>
+                  <button id="assignmentRefreshButton" class="secondary" type="button">Refresh</button>
+                  <button id="assignmentExportCsvButton" class="secondary" type="button">Export CSV</button>
+                  <button id="assignmentExportXlsxButton" class="secondary" type="button">Export XLSX</button>
+                  <button id="assignmentWorkspaceCloseButton" class="ghost" type="button">Back to People</button>
+                </div>
               </div>
-              <button id="assignmentCreateButton" type="button">Create Assignment</button>
-            </div>
 
-            <p id="assignmentListStatus" class="assignment-list-status" aria-live="polite"></p>
+              <div class="assignment-summary-grid" aria-label="Assignment summary">
+                <div>
+                  <span>Active</span>
+                  <strong id="assignmentActiveCount">0</strong>
+                </div>
+                <div>
+                  <span>Historical</span>
+                  <strong id="assignmentHistoricalCount">0</strong>
+                </div>
+                <div>
+                  <span>Shown</span>
+                  <strong id="assignmentShownCount">0</strong>
+                </div>
+              </div>
 
-            <div class="assignment-table-wrap" data-oh-scroll-region="history" aria-label="Assignment records">
-              <table class="assignment-table" aria-labelledby="personAssignmentsTitle">
-                <thead>
-                  <tr>
-                    <th scope="col">Site</th>
-                    <th scope="col">Employer</th>
-                    <th scope="col">Contract</th>
-                    <th scope="col">Department</th>
-                    <th scope="col">Job Role</th>
-                    <th scope="col">Shift Pattern</th>
-                    <th scope="col">Work Time Profile</th>
-                    <th scope="col">Assignment Start</th>
-                    <th scope="col">Assignment End</th>
-                    <th scope="col">State</th>
-                    <th scope="col"><span class="sr-only">Actions</span></th>
-                  </tr>
-                </thead>
-                <tbody id="assignmentResults"></tbody>
-              </table>
-              <div id="assignmentEmptyState" class="people-empty-state" data-oh-empty-state>
-                Select a person to view current and historical assignments.
+              <div class="assignment-filter-bar" aria-label="Assignment filters">
+                <label for="assignmentSearchFilter">Search
+                  <input id="assignmentSearchFilter" type="search" placeholder="Search context, pattern, notes" autocomplete="off" />
+                </label>
+                <label for="assignmentStatusFilter">Status
+                  <select id="assignmentStatusFilter">
+                    <option value="active">Active</option>
+                    <option value="historical">Historical</option>
+                    <option value="all">All</option>
+                  </select>
+                </label>
+                <label for="assignmentContractFilter">Contract
+                  <select id="assignmentContractFilter"></select>
+                </label>
+                <label for="assignmentSiteFilter">Site
+                  <select id="assignmentSiteFilter"></select>
+                </label>
+                <label for="assignmentDepartmentFilter">Department
+                  <select id="assignmentDepartmentFilter"></select>
+                </label>
+                <label for="assignmentWorkTimeProfileFilter">Work Time Profile
+                  <select id="assignmentWorkTimeProfileFilter"></select>
+                </label>
+              </div>
+
+              <p id="assignmentListStatus" class="assignment-list-status" aria-live="polite"></p>
+
+              <div class="assignment-table-wrap" data-oh-scroll-region="history" aria-label="Assignment records">
+                <table class="assignment-table" aria-labelledby="personAssignmentsTitle">
+                  <thead>
+                    <tr>
+                      <th scope="col">Site</th>
+                      <th scope="col">Employer</th>
+                      <th scope="col">Contract</th>
+                      <th scope="col">Department</th>
+                      <th scope="col">Job Role</th>
+                      <th scope="col">Shift Pattern</th>
+                      <th scope="col">Work Time Profile</th>
+                      <th scope="col">Assignment Start</th>
+                      <th scope="col">Assignment End</th>
+                      <th scope="col">State</th>
+                      <th scope="col"><span class="sr-only">Actions</span></th>
+                    </tr>
+                  </thead>
+                  <tbody id="assignmentResults"></tbody>
+                </table>
+                <div id="assignmentEmptyState" class="people-empty-state" data-oh-empty-state>
+                  Select a person to view current and historical assignments.
+                </div>
               </div>
             </div>
           </section>
@@ -3347,7 +3395,7 @@
                 <option value="true">Active</option>
                 <option value="false">Historical</option>
               </select>
-              <small class="assignment-field-help">Only one assignment may be active for this person.</small>
+              <small class="assignment-field-help">Multiple active assignments are allowed unless they duplicate or clearly overlap the same context.</small>
 
               <label for="assignmentNotes">Notes</label>
               <textarea id="assignmentNotes" rows="4"></textarea>
@@ -5330,7 +5378,7 @@
 
   <footer class="oh-footer">
     <strong>Operations Hub</strong>
-    <span>Version <span id="ohPlatformVersion">OHP-013B.1</span></span>
+    <span>Version <span id="ohPlatformVersion">OHP-013B.2</span></span>
     <span>Environment <span id="ohEnvironment">Local</span></span>
   </footer>
 </div>
@@ -5804,6 +5852,25 @@
     <div class="button-row" style="margin-top:16px;">
       <button id="assignmentEndConfirmButton" type="button">End Assignment</button>
       <button id="assignmentEndCancelButton" class="secondary" type="button">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div id="assignmentConflictOverrideModalBackdrop" class="modal-backdrop priority-modal" role="dialog" aria-modal="true" aria-labelledby="assignmentConflictOverrideTitle">
+  <div class="modal" style="width:min(560px,100%);">
+    <div class="modal-header">
+      <h2 id="assignmentConflictOverrideTitle">Possible Assignment Overlap</h2>
+      <button id="assignmentConflictOverrideCloseButton" class="ghost" type="button">Close</button>
+    </div>
+    <p id="assignmentConflictOverrideWarning">
+      This person already has an active assignment that may overlap this assignment's date range, shift pattern and work time profile.
+    </p>
+    <label for="assignmentConflictOverrideReason">Enter the reason this overlapping assignment is valid <span aria-hidden="true">*</span></label>
+    <textarea id="assignmentConflictOverrideReason" rows="4"></textarea>
+    <div id="assignmentConflictOverrideMessage" class="modal-message" aria-live="polite"></div>
+    <div class="button-row" style="margin-top:16px;">
+      <button id="assignmentConflictOverrideConfirmButton" type="button">Save With Override</button>
+      <button id="assignmentConflictOverrideCancelButton" class="secondary" type="button">Cancel</button>
     </div>
   </div>
 </div>

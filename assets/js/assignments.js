@@ -2,9 +2,14 @@ import { supabaseClient } from "./api.js";
 import { $ } from "./dom.js";
 import { showToast } from "./messages.js";
 import { renderEmptyState } from "./platformUi.js";
-import { todayDate } from "./utils.js";
+import { exportDateStamp, todayDate } from "./utils.js";
+import { downloadCsv, downloadXlsx } from "./exports.js";
 import { auditDiffSummary, buildFieldDiff, writeAuditEvent } from "./audit.js";
 import { hasAnyCapability, hasCapability } from "./capabilities.js";
+import {
+  assignmentBlockingMessage,
+  classifyAssignmentConflict
+} from "./assignmentConflicts.js";
 
 const ASSIGNMENT_COLUMNS = [
   "id",
@@ -95,7 +100,7 @@ const lookupDefinitions = {
   },
   shiftPatterns: {
     table: "shift_patterns",
-    columns: "id, shift_code, shift_name, active",
+    columns: "id, shift_code, shift_name, pattern_type, static_weekdays, active",
     orderBy: "shift_name",
     label(record) {
       return record.shift_name + (record.shift_code ? " (" + record.shift_code + ")" : "");
@@ -126,11 +131,14 @@ const assignmentLookups = {};
 let assignmentsCache = [];
 let selectedPersonId = null;
 let selectedPersonName = "";
+let selectedPersonReference = "";
 let assignmentsLoadedSuccessfully = false;
 let assignmentEditorTrigger = null;
 let assignmentEndTrigger = null;
 let assignmentPendingEnd = null;
+let assignmentOverrideResolver = null;
 const ASSIGNMENT_DETAIL_ROW_ID = "inlineAssignmentDetailRow";
+const ASSIGNMENT_OVERRIDE_NOTE_MARKER = "[Assignment conflict override ";
 
 function hasAssignmentAccess() {
   return hasAnyCapability(["assignment.view", "assignment.manage"]);
@@ -185,6 +193,13 @@ function findWorkTimeProfile(profileId) {
   return (assignmentLookups.workTimeProfiles || []).find(profile => profile.id === profileId) || null;
 }
 
+function assignmentConflictLookups() {
+  return {
+    shiftPatterns: assignmentLookups.shiftPatterns || [],
+    workTimeProfiles: assignmentLookups.workTimeProfiles || []
+  };
+}
+
 function workTimeProfileTags(profile) {
   return ["custom_tag_1", "custom_tag_2", "custom_tag_3"]
     .map(key => String(profile && profile[key] ? profile[key] : "").trim())
@@ -194,6 +209,139 @@ function workTimeProfileTags(profile) {
 function workTimeProfileTagsText(profile) {
   const tags = workTimeProfileTags(profile);
   return tags.length ? "Tags: " + tags.join(" - ") : "";
+}
+
+function exportValue(lookupName, id) {
+  if (!id) return "";
+  const label = lookupLabel(lookupName, id);
+  return label === "Unknown" ? "" : label;
+}
+
+function setFilterOptions(controlId, options, emptyLabel) {
+  const control = $(controlId);
+  if (!control) return;
+  const currentValue = control.value;
+  control.replaceChildren();
+
+  const emptyOption = document.createElement("option");
+  emptyOption.value = "";
+  emptyOption.textContent = emptyLabel;
+  control.appendChild(emptyOption);
+
+  options.forEach(option => {
+    if (!option.id || !option.label) return;
+    const item = document.createElement("option");
+    item.value = option.id;
+    item.textContent = option.label;
+    control.appendChild(item);
+  });
+
+  if (currentValue && options.some(option => option.id === currentValue)) {
+    control.value = currentValue;
+  }
+}
+
+function populateAssignmentFilters() {
+  setFilterOptions("assignmentContractFilter", assignmentLookups.contracts || [], "All contracts");
+  setFilterOptions("assignmentSiteFilter", assignmentLookups.sites || [], "All sites");
+  setFilterOptions("assignmentDepartmentFilter", assignmentLookups.departments || [], "All departments");
+  setFilterOptions(
+    "assignmentWorkTimeProfileFilter",
+    (assignmentLookups.workTimeProfiles || []).map(profile => ({
+      id: profile.id,
+      label: profile.profile_name || profile.profile_code || "Work Time Profile"
+    })),
+    "All work time profiles"
+  );
+}
+
+function assignmentFilters() {
+  return {
+    search: $("assignmentSearchFilter") ? $("assignmentSearchFilter").value.trim().toLowerCase() : "",
+    status: $("assignmentStatusFilter") ? $("assignmentStatusFilter").value : "active",
+    contract: $("assignmentContractFilter") ? $("assignmentContractFilter").value : "",
+    site: $("assignmentSiteFilter") ? $("assignmentSiteFilter").value : "",
+    department: $("assignmentDepartmentFilter") ? $("assignmentDepartmentFilter").value : "",
+    workTimeProfile: $("assignmentWorkTimeProfileFilter") ? $("assignmentWorkTimeProfileFilter").value : ""
+  };
+}
+
+function assignmentSearchText(assignment) {
+  const profile = findWorkTimeProfile(assignment.work_time_profile_id);
+  return [
+    selectedPersonName,
+    selectedPersonReference,
+    lookupLabel("sites", assignment.site_id),
+    lookupLabel("organisations", assignment.employer_organisation_id),
+    lookupLabel("contracts", assignment.contract_id),
+    lookupLabel("departments", assignment.department_id),
+    lookupLabel("jobRoles", assignment.job_role_id),
+    lookupLabel("shiftPatterns", assignment.shift_pattern_id),
+    assignment.assignment_type,
+    profile && (profile.profile_name || profile.profile_code),
+    workTimeProfileTags(profile).join(" "),
+    assignment.assignment_start_date,
+    assignment.assignment_end_date,
+    assignment.notes
+  ].join(" ").toLowerCase();
+}
+
+function assignmentMatchesFilters(assignment, filters) {
+  if (filters.status === "active" && assignment.active !== true) return false;
+  if (filters.status === "historical" && assignment.active === true) return false;
+  if (filters.contract && assignment.contract_id !== filters.contract) return false;
+  if (filters.site && assignment.site_id !== filters.site) return false;
+  if (filters.department && assignment.department_id !== filters.department) return false;
+  if (filters.workTimeProfile && assignment.work_time_profile_id !== filters.workTimeProfile) return false;
+  return !filters.search || assignmentSearchText(assignment).includes(filters.search);
+}
+
+function filteredAssignments() {
+  const filters = assignmentFilters();
+  return assignmentsCache.filter(assignment => assignmentMatchesFilters(assignment, filters));
+}
+
+function updateAssignmentSummary(shownCount) {
+  const activeCount = assignmentsCache.filter(assignment => assignment.active === true).length;
+  const historicalCount = assignmentsCache.length - activeCount;
+  if ($("assignmentActiveCount")) $("assignmentActiveCount").textContent = String(activeCount);
+  if ($("assignmentHistoricalCount")) $("assignmentHistoricalCount").textContent = String(historicalCount);
+  if ($("assignmentShownCount")) $("assignmentShownCount").textContent = String(shownCount);
+}
+
+function hasAssignmentOverrideNote(assignment) {
+  return String(assignment && assignment.notes ? assignment.notes : "").includes(ASSIGNMENT_OVERRIDE_NOTE_MARKER);
+}
+
+function appendAssignmentOverrideReason(notes, reason) {
+  const currentNotes = String(notes || "").trim();
+  const overrideLine = ASSIGNMENT_OVERRIDE_NOTE_MARKER + todayDate() + "] Reason: " + reason.trim();
+  return currentNotes ? currentNotes + "\n\n" + overrideLine : overrideLine;
+}
+
+function assignmentConflictWarningMessage() {
+  return "This person already has an active assignment that may overlap this assignment's date range, shift pattern and work time profile.";
+}
+
+function classifyCandidateAssignment(candidate, assignments) {
+  return classifyAssignmentConflict(
+    candidate,
+    assignments || [],
+    assignmentConflictLookups()
+  );
+}
+
+function classificationBlocksSave(classification) {
+  return classification && classification.status === "duplicate_block";
+}
+
+function classificationRequiresOverride(classification) {
+  return classification && classification.status === "likely_conflict_override_required";
+}
+
+function currentAssignmentConflictClassification(assignment) {
+  if (!assignment || assignment.active !== true) return { status: "valid" };
+  return classifyCandidateAssignment(assignment, assignmentsCache);
 }
 
 function workTimeProfileOptionLabel(profile) {
@@ -315,6 +463,7 @@ export async function loadAssignmentLookups() {
     return [
       lookupName,
       (result.data || []).map(record => ({
+        ...record,
         id: record.id,
         label: definition.label(record),
         active: record.active
@@ -348,55 +497,130 @@ export function getSelectedAssignmentPersonId() {
 export function detachAssignmentInlinePlacement() {
   const section = $("personAssignmentsSection");
   const existingRow = document.getElementById(ASSIGNMENT_DETAIL_ROW_ID);
-  const fallback = document.querySelector(".people-workspace-layout");
-
-  if (section && fallback && section.parentElement !== fallback) {
-    fallback.appendChild(section);
-  }
   if (existingRow) existingRow.remove();
+  if (section) section.classList.add("hidden");
+  document.body.classList.remove("assignment-workspace-open");
 }
 
 export function syncAssignmentInlinePlacement() {
-  const section = $("personAssignmentsSection");
   const existingRow = document.getElementById(ASSIGNMENT_DETAIL_ROW_ID);
   if (existingRow) existingRow.remove();
-  if (!section) return false;
-
-  if (!hasAssignmentAccess() || !selectedPersonId) {
-    section.classList.add("hidden");
-    closeAssignmentEditor();
-    return false;
-  }
-
-  const selectedRow = document.querySelector('#peopleResults tr[data-person-id="' + selectedPersonId + '"]');
-  if (!selectedRow) {
-    section.classList.add("hidden");
-    closeAssignmentEditor();
-    return false;
-  }
-
-  const detailRow = document.createElement("tr");
-  detailRow.id = ASSIGNMENT_DETAIL_ROW_ID;
-  detailRow.className = "assignment-inline-row";
-
-  const detailCell = document.createElement("td");
-  detailCell.className = "assignment-inline-cell";
-  detailCell.colSpan = selectedRow.cells.length || 5;
-  detailCell.appendChild(section);
-  detailRow.appendChild(detailCell);
-
-  selectedRow.insertAdjacentElement("afterend", detailRow);
-  section.classList.remove("hidden");
-  return true;
+  return false;
 }
 
-export async function selectPersonForAssignments(personId, displayName) {
+function ensureAssignmentWorkspaceRoot() {
+  const section = $("personAssignmentsSection");
+  if (section && section.parentElement !== document.body) document.body.appendChild(section);
+  return section;
+}
+
+function ensureAssignmentPanelRoot() {
+  const panel = $("assignmentPanel");
+  if (panel && document.body.classList.contains("assignment-workspace-open") && panel.parentElement !== document.body) {
+    document.body.appendChild(panel);
+  }
+  return panel;
+}
+
+function openAssignmentWorkspace() {
+  const section = ensureAssignmentWorkspaceRoot();
+  if (!section) return;
+  section.classList.remove("hidden");
+  document.body.classList.add("assignment-workspace-open");
+  setTimeout(() => {
+    const closeButton = $("assignmentWorkspaceCloseButton");
+    if (closeButton) closeButton.focus({ preventScroll: true });
+  }, 0);
+}
+
+export function closeAssignmentWorkspace() {
+  const section = $("personAssignmentsSection");
+  if (section) section.classList.add("hidden");
+  document.body.classList.remove("assignment-workspace-open");
+  closeAssignmentEditor();
+}
+
+function handleAssignmentWorkspaceKeydown(event) {
+  if (event.key !== "Escape") return;
+  const section = $("personAssignmentsSection");
+  if (!section || section.classList.contains("hidden")) return;
+
+  const activeModal = document.querySelector(".modal-backdrop.active");
+  if (activeModal) return;
+
+  event.preventDefault();
+  closeAssignmentWorkspace();
+}
+
+document.addEventListener("keydown", handleAssignmentWorkspaceKeydown);
+
+function closeAssignmentOverrideDialog(reason) {
+  const backdrop = $("assignmentConflictOverrideModalBackdrop");
+  const input = $("assignmentConflictOverrideReason");
+  const message = $("assignmentConflictOverrideMessage");
+  if (backdrop) backdrop.classList.remove("active");
+  if (message) {
+    message.textContent = "";
+    message.className = "modal-message";
+  }
+  if (input && reason !== undefined) input.value = "";
+  if (assignmentOverrideResolver) {
+    const resolver = assignmentOverrideResolver;
+    assignmentOverrideResolver = null;
+    resolver(reason || null);
+  }
+}
+
+function requestAssignmentOverrideReason() {
+  const backdrop = $("assignmentConflictOverrideModalBackdrop");
+  const input = $("assignmentConflictOverrideReason");
+  const message = $("assignmentConflictOverrideMessage");
+  const warning = $("assignmentConflictOverrideWarning");
+  if (!backdrop || !input) {
+    return Promise.resolve(window.prompt("Enter the reason this overlapping assignment is valid.") || null);
+  }
+
+  if (warning) warning.textContent = assignmentConflictWarningMessage();
+  if (message) {
+    message.textContent = "";
+    message.className = "modal-message";
+  }
+  input.value = "";
+  backdrop.classList.add("active");
+  setTimeout(() => input.focus({ preventScroll: true }), 0);
+
+  return new Promise(resolve => {
+    assignmentOverrideResolver = resolve;
+  });
+}
+
+export function cancelAssignmentConflictOverride() {
+  closeAssignmentOverrideDialog(null);
+}
+
+export function confirmAssignmentConflictOverride() {
+  const input = $("assignmentConflictOverrideReason");
+  const message = $("assignmentConflictOverrideMessage");
+  const reason = input ? input.value.trim() : "";
+  if (!reason) {
+    if (message) {
+      message.textContent = "Enter the reason this overlapping assignment is valid.";
+      message.className = "modal-message error";
+    }
+    return;
+  }
+  closeAssignmentOverrideDialog(reason);
+}
+
+export async function selectPersonForAssignments(personId, displayName, externalPersonNumber) {
   if (!requireAssignmentViewAccess()) return;
 
   selectedPersonId = personId;
   selectedPersonName = displayName || "Selected person";
+  selectedPersonReference = externalPersonNumber || "";
   assignmentsLoadedSuccessfully = false;
-  $("personAssignmentsName").textContent = selectedPersonName;
+  $("personAssignmentsName").textContent = selectedPersonName +
+    (selectedPersonReference ? " | " + selectedPersonReference : "");
   $("assignmentCreateButton").classList.toggle("hidden", !hasAssignmentManageAccess());
   closeAssignmentEditor();
 
@@ -404,7 +628,7 @@ export async function selectPersonForAssignments(personId, displayName) {
     row.classList.toggle("selected", row.dataset.personId === selectedPersonId);
   });
 
-  syncAssignmentInlinePlacement();
+  openAssignmentWorkspace();
 
   await loadAssignments();
 }
@@ -433,6 +657,7 @@ export async function loadAssignments() {
 
     assignmentsCache = result.data || [];
     assignmentsLoadedSuccessfully = true;
+    populateAssignmentFilters();
     renderAssignmentList();
   } catch (err) {
     assignmentsCache = [];
@@ -486,9 +711,10 @@ function createWorkTimeProfileCell(assignment) {
 export function renderAssignmentList() {
   const body = $("assignmentResults");
   body.replaceChildren();
-  const hasActiveAssignment = assignmentsCache.some(assignment => assignment.active === true);
+  const rows = filteredAssignments();
+  updateAssignmentSummary(rows.length);
 
-  assignmentsCache.forEach(assignment => {
+  rows.forEach(assignment => {
     const row = document.createElement("tr");
     row.appendChild(createCell(lookupLabel("sites", assignment.site_id)));
     row.appendChild(createCell(lookupLabel("organisations", assignment.employer_organisation_id)));
@@ -510,6 +736,19 @@ export function renderAssignmentList() {
       currentBadge.className = "assignment-current-badge";
       currentBadge.textContent = "Current assignment";
       activeCell.appendChild(currentBadge);
+    }
+    const rowConflict = currentAssignmentConflictClassification(assignment);
+    if (classificationRequiresOverride(rowConflict)) {
+      const warningBadge = document.createElement("span");
+      warningBadge.className = "assignment-warning-badge";
+      warningBadge.textContent = "Possible overlap";
+      activeCell.appendChild(warningBadge);
+    }
+    if (hasAssignmentOverrideNote(assignment)) {
+      const overrideBadge = document.createElement("span");
+      overrideBadge.className = "assignment-warning-badge override";
+      overrideBadge.textContent = "Override recorded";
+      activeCell.appendChild(overrideBadge);
     }
     row.appendChild(activeCell);
 
@@ -540,20 +779,25 @@ export function renderAssignmentList() {
         reactivateButton.className = "secondary";
         reactivateButton.type = "button";
         reactivateButton.textContent = "Reactivate";
-        reactivateButton.disabled = hasActiveAssignment;
-        if (hasActiveAssignment) {
-          reactivateButton.title = "End the current active assignment before reactivating this one.";
+        const reactivationClassification = classifyCandidateAssignment(
+          { ...assignment, active: true, assignment_end_date: null },
+          assignmentsCache
+        );
+        const reactivationBlocked = classificationBlocksSave(reactivationClassification);
+        reactivateButton.disabled = reactivationBlocked;
+        if (reactivationBlocked) {
+          reactivateButton.title = assignmentBlockingMessage(reactivationClassification);
           reactivateButton.setAttribute(
             "aria-label",
-            "Reactivate assignment unavailable: end the current active assignment first"
+            "Reactivate assignment unavailable: active matching assignment already exists"
           );
         }
         reactivateButton.addEventListener("click", () => reactivateAssignment(assignment.id));
         actionGroup.appendChild(reactivateButton);
-        if (hasActiveAssignment) {
+        if (reactivationBlocked) {
           const unavailableReason = document.createElement("span");
           unavailableReason.className = "assignment-action-note";
-          unavailableReason.textContent = "End current assignment first";
+          unavailableReason.textContent = "Matching assignment exists";
           actionGroup.appendChild(unavailableReason);
         }
       }
@@ -566,18 +810,73 @@ export function renderAssignmentList() {
     body.appendChild(row);
   });
 
-  $("assignmentEmptyState").classList.toggle("hidden", assignmentsCache.length > 0);
-  if (!assignmentsCache.length) {
+  $("assignmentEmptyState").classList.toggle("hidden", rows.length > 0);
+  if (!rows.length) {
     renderEmptyState("assignmentEmptyState", {
-      title: "No assignments",
-      description: hasAssignmentManageAccess()
+      title: assignmentsCache.length ? "No assignments match" : "No assignments",
+      description: assignmentsCache.length
+        ? "Adjust the assignment filters to show more records."
+        : hasAssignmentManageAccess()
         ? "Create an assignment for " + selectedPersonName +
           " to add current or historical work context."
         : "No assignments are available for " + selectedPersonName + "."
     });
   }
   $("assignmentListStatus").textContent =
-    assignmentsCache.length + " assignment" + (assignmentsCache.length === 1 ? "" : "s") + " shown.";
+    rows.length + " of " + assignmentsCache.length + " assignment" +
+    (assignmentsCache.length === 1 ? "" : "s") + " shown.";
+}
+
+function assignmentExportRows() {
+  return filteredAssignments().map(assignment => {
+    const profile = findWorkTimeProfile(assignment.work_time_profile_id);
+    const tags = workTimeProfileTags(profile);
+    return {
+      "Person": selectedPersonName,
+      "Person Reference": selectedPersonReference,
+      "Site": exportValue("sites", assignment.site_id),
+      "Employer": exportValue("organisations", assignment.employer_organisation_id),
+      "Contract": exportValue("contracts", assignment.contract_id),
+      "Department": exportValue("departments", assignment.department_id),
+      "Job Role": exportValue("jobRoles", assignment.job_role_id),
+      "Assignment Type": assignment.assignment_type || "",
+      "Shift Pattern": exportValue("shiftPatterns", assignment.shift_pattern_id),
+      "Work Time Profile": profile ? profile.profile_name || profile.profile_code || "" : "",
+      "Start Time": profile ? formatAssignmentTime(profile.start_time) : formatAssignmentTime(assignment.shift_start_time),
+      "End Time": profile ? formatAssignmentTime(profile.end_time) : formatAssignmentTime(assignment.shift_end_time),
+      "Paid Hours": profile ? formatAssignmentHours(profile.paid_hours) : "",
+      "Unsociable Hours": profile ? formatAssignmentHours(profile.unsociable_hours) : "",
+      "Tags": tags.join(" | "),
+      "Assignment Start": assignment.assignment_start_date || "",
+      "Assignment End": assignment.assignment_end_date || "",
+      "Status": assignment.active ? "Active" : "Historical",
+      "Notes": assignment.notes || ""
+    };
+  });
+}
+
+export function refreshAssignmentFilters() {
+  renderAssignmentList();
+}
+
+export function exportAssignmentsCsv() {
+  const rows = assignmentExportRows();
+  if (!rows.length) {
+    showToast("Nothing to export", "No assignments match the current filters.", "error");
+    return;
+  }
+  downloadCsv("assignments-" + exportDateStamp() + ".csv", rows);
+  showToast("Export created", rows.length + " assignment rows were exported.", "success");
+}
+
+export function exportAssignmentsXlsx() {
+  const rows = assignmentExportRows();
+  if (!rows.length) {
+    showToast("Nothing to export", "No assignments match the current filters.", "error");
+    return;
+  }
+  downloadXlsx("assignments-" + exportDateStamp() + ".xlsx", rows, "Assignments");
+  showToast("Export created", rows.length + " assignment rows were exported.", "success");
 }
 
 function setLookupValues(assignment) {
@@ -594,6 +893,7 @@ function setLookupValues(assignment) {
 export function openAssignmentEditor(sourceAssignmentId) {
   if (!requireAssignmentManageAccess() || !selectedPersonId) return;
 
+  ensureAssignmentPanelRoot();
   assignmentEditorTrigger = document.activeElement instanceof HTMLElement
     ? document.activeElement
     : null;
@@ -709,14 +1009,6 @@ export async function saveAssignment() {
     if (existingAssignment?.active && !active && !assignmentEnd) {
       throw new Error("Assignment End Date is required when ending an active assignment.");
     }
-    if (
-      active &&
-      assignmentsCache.some(assignment => assignment.active === true && assignment.id !== assignmentId)
-    ) {
-      throw new Error(
-        "This person already has an active assignment. End the current active assignment first, or create this assignment as Historical."
-      );
-    }
   } catch (err) {
     showToast("Assignment not saved", err.message, "error");
     return;
@@ -743,18 +1035,36 @@ export async function saveAssignment() {
     notes: optionalValue("assignmentNotes")
   };
 
+  const localClassification = classifyCandidateAssignment({ id: assignmentId, ...payload }, assignmentsCache);
+  if (classificationBlocksSave(localClassification)) {
+    showToast("Assignment not saved", assignmentBlockingMessage(localClassification), "error");
+    return;
+  }
+
   const saveButton = $("assignmentSaveButton");
   saveButton.disabled = true;
   saveButton.textContent = "Saving…";
+  let savedWithOverride = false;
 
   try {
-    if (active) {
-      const activeAssignment = await findActiveAssignment(assignmentId);
-      if (activeAssignment) {
-        throw new Error(
-          "This person already has an active assignment. End the current active assignment first, or create this assignment as Historical."
-        );
+    let overrideClassification = classificationRequiresOverride(localClassification)
+      ? localClassification
+      : null;
+    const databaseClassification = await classifyAssignmentInDatabase({ id: assignmentId, ...payload });
+    if (classificationBlocksSave(databaseClassification)) {
+      throw new Error(assignmentBlockingMessage(databaseClassification));
+    }
+    if (!overrideClassification && classificationRequiresOverride(databaseClassification)) {
+      overrideClassification = databaseClassification;
+    }
+    if (overrideClassification) {
+      const reason = await requestAssignmentOverrideReason();
+      if (!reason) {
+        showToast("Assignment not saved", "Enter an overlap override reason to save this assignment.", "error");
+        return;
       }
+      payload.notes = appendAssignmentOverrideReason(payload.notes, reason);
+      savedWithOverride = true;
     }
 
     const query = assignmentId
@@ -771,10 +1081,7 @@ export async function saveAssignment() {
     if (result.error) throw result.error;
 
     if (active && (!existingAssignment || !existingAssignment.active)) {
-      await rollbackIfActivationConflicted(
-        result.data.id,
-        existingAssignment ? existingAssignment.assignment_end_date : null
-      );
+      await rollbackIfActivationConflicted(result.data, existingAssignment);
     }
 
     let auditEventType = assignmentId ? "assignment.updated" : "assignment.created";
@@ -791,10 +1098,12 @@ export async function saveAssignment() {
     );
 
     showToast(
-      assignmentId ? "Assignment updated" : "Assignment created",
-      assignmentId
-        ? "The assignment record was updated successfully."
-        : "The new assignment record was saved successfully.",
+      savedWithOverride ? "Assignment saved with warning" : assignmentId ? "Assignment updated" : "Assignment created",
+      savedWithOverride
+        ? "This assignment was saved with an overlap override reason."
+        : assignmentId
+          ? "The assignment record was updated successfully."
+          : "The new assignment record was saved successfully.",
       "success"
     );
     closeAssignmentEditor();
@@ -807,39 +1116,42 @@ export async function saveAssignment() {
   }
 }
 
-async function findActiveAssignment(excludeAssignmentId) {
-  let query = supabaseClient
-    .from("work_assignments")
-    .select("id")
-    .eq("person_id", selectedPersonId)
-    .eq("active", true);
-
-  if (excludeAssignmentId) query = query.neq("id", excludeAssignmentId);
-  const result = await query.limit(1);
-  if (result.error) throw result.error;
-  return (result.data || [])[0] || null;
-}
-
-async function rollbackIfActivationConflicted(assignmentId, previousEndDate) {
+async function rollbackIfActivationConflicted(savedAssignment, previousAssignment) {
   const result = await supabaseClient
     .from("work_assignments")
-    .select("id")
+    .select(ASSIGNMENT_COLUMNS)
     .eq("person_id", selectedPersonId)
     .eq("active", true);
 
   if (result.error) throw result.error;
-  if ((result.data || []).length <= 1) return;
+  const classification = classifyCandidateAssignment(savedAssignment, result.data || []);
+  if (!classificationBlocksSave(classification)) return;
 
   const rollback = await supabaseClient
     .from("work_assignments")
-    .update({ active: false, assignment_end_date: previousEndDate })
-    .eq("id", assignmentId)
+    .update({
+      active: previousAssignment ? previousAssignment.active === true : false,
+      assignment_end_date: previousAssignment ? previousAssignment.assignment_end_date : null
+    })
+    .eq("id", savedAssignment.id)
     .eq("person_id", selectedPersonId);
 
   if (rollback.error) throw rollback.error;
   throw new Error(
-    "Another active assignment was saved at the same time. This assignment was kept Historical; end the current active assignment before trying again."
+    "Another active matching assignment was saved at the same time. This assignment was not activated."
   );
+}
+
+async function classifyAssignmentInDatabase(candidate) {
+  if (!candidate || candidate.active !== true) return { status: "valid" };
+  const result = await supabaseClient
+    .from("work_assignments")
+    .select(ASSIGNMENT_COLUMNS)
+    .eq("person_id", selectedPersonId)
+    .eq("active", true);
+
+  if (result.error) throw result.error;
+  return classifyCandidateAssignment(candidate, result.data || []);
 }
 
 export function openEndAssignmentDialog(assignmentId, trigger) {
@@ -924,16 +1236,39 @@ export async function reactivateAssignment(assignmentId) {
   if (!assignment || assignment.active) return;
 
   try {
-    const activeAssignment = await findActiveAssignment(assignmentId);
-    if (activeAssignment) {
-      throw new Error(
-        "This person already has an active assignment. End the current active assignment first."
-      );
+    const candidate = { ...assignment, active: true, assignment_end_date: null };
+    const localClassification = classifyCandidateAssignment(candidate, assignmentsCache);
+    if (classificationBlocksSave(localClassification)) {
+      throw new Error(assignmentBlockingMessage(localClassification));
+    }
+    let overrideClassification = classificationRequiresOverride(localClassification)
+      ? localClassification
+      : null;
+    const databaseClassification = await classifyAssignmentInDatabase(candidate);
+    if (classificationBlocksSave(databaseClassification)) {
+      throw new Error(assignmentBlockingMessage(databaseClassification));
+    }
+    if (!overrideClassification && classificationRequiresOverride(databaseClassification)) {
+      overrideClassification = databaseClassification;
+    }
+    let reactivatedWithOverride = false;
+    let updatePayload = { active: true, assignment_end_date: null };
+    if (overrideClassification) {
+      const reason = await requestAssignmentOverrideReason();
+      if (!reason) {
+        showToast("Assignment not reactivated", "Enter an overlap override reason to reactivate this assignment.", "error");
+        return;
+      }
+      updatePayload = {
+        ...updatePayload,
+        notes: appendAssignmentOverrideReason(assignment.notes, reason)
+      };
+      reactivatedWithOverride = true;
     }
 
     const result = await supabaseClient
       .from("work_assignments")
-      .update({ active: true, assignment_end_date: null })
+      .update(updatePayload)
       .eq("id", assignment.id)
       .eq("person_id", selectedPersonId)
       .eq("active", false)
@@ -941,7 +1276,7 @@ export async function reactivateAssignment(assignmentId) {
       .single();
 
     if (result.error) throw result.error;
-    await rollbackIfActivationConflicted(result.data.id, assignment.assignment_end_date);
+    await rollbackIfActivationConflicted(result.data, assignment);
     void writeAuditEvent(
       "assignment.reactivated",
       "work_assignments",
@@ -949,7 +1284,13 @@ export async function reactivateAssignment(assignmentId) {
       assignmentAuditDetails(assignment, result.data)
     );
     await loadAssignments();
-    showToast("Assignment reactivated", "The assignment is now Active.", "success");
+    showToast(
+      reactivatedWithOverride ? "Assignment reactivated with warning" : "Assignment reactivated",
+      reactivatedWithOverride
+        ? "This assignment was reactivated with an overlap override reason."
+        : "The assignment is now Active.",
+      "success"
+    );
   } catch (err) {
     await loadAssignments();
     showToast("Assignment not reactivated", err.message || "Could not reactivate this assignment.", "error");
