@@ -4391,3 +4391,515 @@ grant execute on function public.calculate_unsociable_minutes_for_shift_v2(time,
 notify pgrst, 'reload schema';
 
 select 'OHP-013B.3 patch - weekend full-day unsociable rules fixed' as result;
+
+-- ============================================================
+-- OHP-013B.3 Corrective Follow-up: Unsociable Day Application Mode
+-- ============================================================
+
+alter table public.unsociable_time_rules
+add column if not exists day_application_mode text not null default 'shift_start_day';
+
+update public.unsociable_time_rules
+set day_application_mode = coalesce(nullif(trim(day_application_mode), ''), 'shift_start_day')
+where true;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'unsociable_time_rules_day_application_mode_check'
+      and conrelid = 'public.unsociable_time_rules'::regclass
+  ) then
+    alter table public.unsociable_time_rules
+    add constraint unsociable_time_rules_day_application_mode_check
+    check (day_application_mode in ('shift_start_day', 'calendar_minutes'));
+  end if;
+end;
+$$;
+
+create index if not exists idx_unsociable_time_rules_day_application_mode
+on public.unsociable_time_rules(day_application_mode);
+
+drop function if exists public.list_unsociable_time_rules(boolean, text);
+
+create or replace function public.list_unsociable_time_rules(
+  p_include_inactive boolean default true,
+  p_search_text text default null
+)
+returns table (
+  rule_id uuid,
+  rule_code text,
+  rule_name text,
+  start_time time,
+  end_time time,
+  crosses_midnight boolean,
+  full_day boolean,
+  day_application_mode text,
+  applies_monday boolean,
+  applies_tuesday boolean,
+  applies_wednesday boolean,
+  applies_thursday boolean,
+  applies_friday boolean,
+  applies_saturday boolean,
+  applies_sunday boolean,
+  active boolean,
+  display_order integer,
+  notes text,
+  created_at timestamptz,
+  updated_at timestamptz
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not public.can_view_working_time_rules() then
+    raise exception 'You do not have permission to view unsociable time rules';
+  end if;
+
+  return query
+  select
+    r.id,
+    r.rule_code,
+    r.rule_name,
+    r.start_time,
+    r.end_time,
+    r.crosses_midnight,
+    r.full_day,
+    coalesce(r.day_application_mode, 'shift_start_day') as day_application_mode,
+    r.applies_monday,
+    r.applies_tuesday,
+    r.applies_wednesday,
+    r.applies_thursday,
+    r.applies_friday,
+    r.applies_saturday,
+    r.applies_sunday,
+    r.active,
+    r.display_order,
+    r.notes,
+    r.created_at,
+    r.updated_at
+  from public.unsociable_time_rules r
+  where (p_include_inactive is true or r.active is true)
+    and (
+      p_search_text is null
+      or trim(p_search_text) = ''
+      or (
+        coalesce(r.rule_code, '') || ' ' ||
+        coalesce(r.rule_name, '') || ' ' ||
+        coalesce(r.day_application_mode, '') || ' ' ||
+        coalesce(r.notes, '') || ' ' ||
+        r.id::text
+      ) ilike '%' || p_search_text || '%'
+    )
+  order by
+    r.active desc,
+    r.display_order asc nulls last,
+    r.rule_name asc;
+end;
+$$;
+
+grant execute on function public.list_unsociable_time_rules(boolean, text) to authenticated;
+
+drop function if exists public.upsert_unsociable_time_rule(
+  uuid,
+  text,
+  text,
+  time,
+  time,
+  boolean,
+  boolean,
+  boolean,
+  boolean,
+  boolean,
+  boolean,
+  boolean,
+  boolean,
+  boolean,
+  boolean,
+  integer,
+  text
+);
+
+create or replace function public.upsert_unsociable_time_rule(
+  p_rule_id uuid default null,
+  p_rule_code text default null,
+  p_rule_name text default null,
+  p_start_time time default '00:00',
+  p_end_time time default '00:00',
+  p_crosses_midnight boolean default false,
+  p_full_day boolean default false,
+  p_applies_monday boolean default true,
+  p_applies_tuesday boolean default true,
+  p_applies_wednesday boolean default true,
+  p_applies_thursday boolean default true,
+  p_applies_friday boolean default true,
+  p_applies_saturday boolean default true,
+  p_applies_sunday boolean default true,
+  p_active boolean default true,
+  p_display_order integer default null,
+  p_notes text default null,
+  p_day_application_mode text default 'shift_start_day'
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_rule_id uuid;
+  v_rule_code text := lower(regexp_replace(trim(coalesce(p_rule_code, '')), '[^a-zA-Z0-9_]+', '_', 'g'));
+  v_rule_name text := nullif(trim(coalesce(p_rule_name, '')), '');
+  v_day_application_mode text := lower(trim(coalesce(p_day_application_mode, 'shift_start_day')));
+begin
+  if not public.can_manage_working_time_rules() then
+    raise exception 'You do not have permission to manage unsociable time rules';
+  end if;
+
+  if v_rule_name is null then
+    raise exception 'Unsociable time rule name is required';
+  end if;
+
+  if nullif(v_rule_code, '') is null then
+    v_rule_code := lower(regexp_replace(v_rule_name, '[^a-zA-Z0-9_]+', '_', 'g'));
+  end if;
+
+  if v_day_application_mode not in ('shift_start_day', 'calendar_minutes') then
+    raise exception 'Invalid day application mode';
+  end if;
+
+  if not (
+    coalesce(p_applies_monday, false)
+    or coalesce(p_applies_tuesday, false)
+    or coalesce(p_applies_wednesday, false)
+    or coalesce(p_applies_thursday, false)
+    or coalesce(p_applies_friday, false)
+    or coalesce(p_applies_saturday, false)
+    or coalesce(p_applies_sunday, false)
+  ) then
+    raise exception 'Unsociable time rule must apply to at least one day';
+  end if;
+
+  if p_rule_id is null then
+    insert into public.unsociable_time_rules (
+      rule_code,
+      rule_name,
+      start_time,
+      end_time,
+      crosses_midnight,
+      full_day,
+      day_application_mode,
+      applies_monday,
+      applies_tuesday,
+      applies_wednesday,
+      applies_thursday,
+      applies_friday,
+      applies_saturday,
+      applies_sunday,
+      active,
+      display_order,
+      notes
+    )
+    values (
+      v_rule_code,
+      v_rule_name,
+      p_start_time,
+      p_end_time,
+      coalesce(p_crosses_midnight, false),
+      coalesce(p_full_day, false),
+      v_day_application_mode,
+      coalesce(p_applies_monday, false),
+      coalesce(p_applies_tuesday, false),
+      coalesce(p_applies_wednesday, false),
+      coalesce(p_applies_thursday, false),
+      coalesce(p_applies_friday, false),
+      coalesce(p_applies_saturday, false),
+      coalesce(p_applies_sunday, false),
+      coalesce(p_active, true),
+      p_display_order,
+      p_notes
+    )
+    returning id into v_rule_id;
+  else
+    update public.unsociable_time_rules
+    set
+      rule_code = v_rule_code,
+      rule_name = v_rule_name,
+      start_time = p_start_time,
+      end_time = p_end_time,
+      crosses_midnight = coalesce(p_crosses_midnight, false),
+      full_day = coalesce(p_full_day, false),
+      day_application_mode = v_day_application_mode,
+      applies_monday = coalesce(p_applies_monday, false),
+      applies_tuesday = coalesce(p_applies_tuesday, false),
+      applies_wednesday = coalesce(p_applies_wednesday, false),
+      applies_thursday = coalesce(p_applies_thursday, false),
+      applies_friday = coalesce(p_applies_friday, false),
+      applies_saturday = coalesce(p_applies_saturday, false),
+      applies_sunday = coalesce(p_applies_sunday, false),
+      active = coalesce(p_active, true),
+      display_order = p_display_order,
+      notes = p_notes
+    where id = p_rule_id
+    returning id into v_rule_id;
+
+    if v_rule_id is null then
+      raise exception 'Unsociable time rule was not found';
+    end if;
+  end if;
+
+  update public.work_time_profiles
+  set unsociable_hours_manual_override = coalesce(unsociable_hours_manual_override, true)
+  where true;
+
+  begin
+    perform public.write_audit_event(
+      'unsociable_time_rule.upserted',
+      'unsociable_time_rules',
+      v_rule_id::text,
+      jsonb_build_object(
+        'summary', 'Unsociable time rule created or updated.',
+        'rule_code', v_rule_code,
+        'rule_name', v_rule_name,
+        'day_application_mode', v_day_application_mode
+      )
+    );
+  exception
+    when others then
+      raise notice 'Audit write failed during unsociable time rule upsert: %', sqlerrm;
+  end;
+
+  return v_rule_id;
+end;
+$$;
+
+grant execute on function public.upsert_unsociable_time_rule(
+  uuid,
+  text,
+  text,
+  time,
+  time,
+  boolean,
+  boolean,
+  boolean,
+  boolean,
+  boolean,
+  boolean,
+  boolean,
+  boolean,
+  boolean,
+  boolean,
+  integer,
+  text,
+  text
+) to authenticated;
+
+drop function if exists public.list_unsociable_time_rule_set_rules(uuid);
+
+create or replace function public.list_unsociable_time_rule_set_rules(
+  p_rule_set_id uuid
+)
+returns table (
+  link_id uuid,
+  rule_set_id uuid,
+  rule_id uuid,
+  rule_code text,
+  rule_name text,
+  start_time time,
+  end_time time,
+  crosses_midnight boolean,
+  full_day boolean,
+  day_application_mode text,
+  active boolean,
+  display_order integer
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not public.can_view_working_time_rules() then
+    raise exception 'You do not have permission to view unsociable rule set rules';
+  end if;
+
+  if p_rule_set_id is null then
+    raise exception 'Unsociable rule set is required';
+  end if;
+
+  return query
+  select
+    rsr.id as link_id,
+    rsr.rule_set_id,
+    r.id as rule_id,
+    r.rule_code,
+    r.rule_name,
+    r.start_time,
+    r.end_time,
+    r.crosses_midnight,
+    r.full_day,
+    coalesce(r.day_application_mode, 'shift_start_day') as day_application_mode,
+    r.active,
+    rsr.display_order
+  from public.unsociable_time_rule_set_rules rsr
+  join public.unsociable_time_rules r
+    on r.id = rsr.rule_id
+  where rsr.rule_set_id = p_rule_set_id
+  order by
+    rsr.display_order asc nulls last,
+    r.rule_name asc;
+end;
+$$;
+
+grant execute on function public.list_unsociable_time_rule_set_rules(uuid) to authenticated;
+
+create or replace function public.calculate_unsociable_minutes_for_shift_v2(
+  p_start_time time,
+  p_end_time time,
+  p_crosses_midnight boolean default false,
+  p_iso_dow integer default 1,
+  p_unsociable_rule_set_id uuid default null
+)
+returns integer
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  v_shift_start_dow integer := least(greatest(coalesce(p_iso_dow, 1), 1), 7);
+  v_start_date date := date '2024-01-01';
+  v_start_ts timestamp;
+  v_end_ts timestamp;
+  v_minute_ts timestamp;
+  v_time time;
+  v_current_dow integer;
+  v_minutes integer := 0;
+begin
+  if p_start_time is null or p_end_time is null then
+    return null;
+  end if;
+
+  if p_unsociable_rule_set_id is null then
+    return 0;
+  end if;
+
+  v_start_date := v_start_date + (v_shift_start_dow - 1);
+
+  v_start_ts := v_start_date + p_start_time;
+  v_end_ts := v_start_date + p_end_time;
+
+  if coalesce(p_crosses_midnight, false) is true
+     or p_end_time < p_start_time then
+    v_end_ts := v_end_ts + interval '1 day';
+  end if;
+
+  if v_end_ts <= v_start_ts then
+    return 0;
+  end if;
+
+  for v_minute_ts in
+    select generate_series(v_start_ts, v_end_ts - interval '1 minute', interval '1 minute')
+  loop
+    v_time := v_minute_ts::time;
+    v_current_dow := extract(isodow from v_minute_ts)::integer;
+
+    if exists (
+      select 1
+      from public.unsociable_time_rule_set_rules rsr
+      join public.unsociable_time_rules r
+        on r.id = rsr.rule_id
+      where rsr.rule_set_id = p_unsociable_rule_set_id
+        and r.active is true
+        and (
+          (
+            coalesce(r.day_application_mode, 'shift_start_day') = 'shift_start_day'
+            and case v_shift_start_dow
+              when 1 then r.applies_monday
+              when 2 then r.applies_tuesday
+              when 3 then r.applies_wednesday
+              when 4 then r.applies_thursday
+              when 5 then r.applies_friday
+              when 6 then r.applies_saturday
+              when 7 then r.applies_sunday
+              else false
+            end
+            and (
+              r.full_day is true
+              or (
+                coalesce(r.crosses_midnight, false) is false
+                and r.start_time < r.end_time
+                and v_time >= r.start_time
+                and v_time < r.end_time
+              )
+              or (
+                coalesce(r.crosses_midnight, false) is true
+                and (
+                  v_time >= r.start_time
+                  or v_time < r.end_time
+                )
+              )
+            )
+          )
+          or
+          (
+            coalesce(r.day_application_mode, 'shift_start_day') = 'calendar_minutes'
+            and case v_current_dow
+              when 1 then r.applies_monday
+              when 2 then r.applies_tuesday
+              when 3 then r.applies_wednesday
+              when 4 then r.applies_thursday
+              when 5 then r.applies_friday
+              when 6 then r.applies_saturday
+              when 7 then r.applies_sunday
+              else false
+            end
+            and (
+              r.full_day is true
+              or (
+                coalesce(r.crosses_midnight, false) is false
+                and r.start_time < r.end_time
+                and v_time >= r.start_time
+                and v_time < r.end_time
+              )
+              or (
+                coalesce(r.crosses_midnight, false) is true
+                and (
+                  v_time >= r.start_time
+                  or v_time < r.end_time
+                )
+              )
+            )
+          )
+        )
+      limit 1
+    ) then
+      v_minutes := v_minutes + 1;
+    end if;
+  end loop;
+
+  return v_minutes;
+end;
+$$;
+
+grant execute on function public.calculate_unsociable_minutes_for_shift_v2(time, time, boolean, integer, uuid) to authenticated;
+
+update public.work_time_profiles
+set
+  paid_hours_manual_override = coalesce(paid_hours_manual_override, true),
+  unsociable_hours_manual_override = coalesce(unsociable_hours_manual_override, true)
+where true;
+
+notify pgrst, 'reload schema';
+
+select
+  'OHP-013B.3 patch - unsociable day application mode installed' as result,
+  (select count(*) from public.unsociable_time_rules where day_application_mode = 'shift_start_day') as shift_start_day_rules,
+  (select count(*) from public.unsociable_time_rules where day_application_mode = 'calendar_minutes') as calendar_minutes_rules,
+  (
+    select count(*)
+    from public.work_time_profiles
+    where calculated_unsociable_hours is not null
+      and paid_hours is not null
+      and calculated_unsociable_hours > paid_hours
+  ) as profiles_where_suggested_unsociable_exceeds_final_paid_hours;

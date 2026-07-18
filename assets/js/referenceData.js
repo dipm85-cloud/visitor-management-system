@@ -249,6 +249,18 @@ const entityDefinitions = {
         sectionTitle: "Active days",
         sectionHelp: "Configure company-specific unsociable time bands. Rules can overlap; a minute is counted once when any active rule applies."
       },
+      {
+        key: "day_application_mode",
+        label: "Day Application Mode",
+        type: "select",
+        required: true,
+        defaultValue: "shift_start_day",
+        options: [
+          { value: "shift_start_day", label: "Shift start day" },
+          { value: "calendar_minutes", label: "Calendar minutes" }
+        ],
+        help: "Shift start day applies the rule based on the day the shift begins. Calendar minutes applies the rule to each actual clock/calendar minute. For whole-day premiums such as Sunday/weekend, Shift start day is usually easiest when the whole shift should follow the start day. For strict calendar-time policies, use Calendar minutes."
+      },
       { key: "applies_monday", label: "Applies Monday", type: "select", defaultValue: "true", boolean: true, options: [{ value: "true", label: "Yes" }, { value: "false", label: "No" }] },
       { key: "applies_tuesday", label: "Applies Tuesday", type: "select", defaultValue: "true", boolean: true, options: [{ value: "true", label: "Yes" }, { value: "false", label: "No" }] },
       { key: "applies_wednesday", label: "Applies Wednesday", type: "select", defaultValue: "true", boolean: true, options: [{ value: "true", label: "Yes" }, { value: "false", label: "No" }] },
@@ -264,6 +276,7 @@ const entityDefinitions = {
       { key: "rule_name", label: "Rule" },
       { key: "time_band", label: "Time", format: "unsociableTimeBand" },
       { key: "active_days", label: "Days", format: "unsociableDays" },
+      { key: "day_application_mode", label: "Mode", format: "unsociableDayApplicationMode" },
       { key: "display_order", label: "Order" },
       { key: "notes", label: "Notes" }
     ]
@@ -582,6 +595,7 @@ function formatValue(record, column) {
   }
   if (column.format === "unsociableTimeBand") return unsociableTimeBandText(record);
   if (column.format === "unsociableDays") return unsociableDaysText(record);
+  if (column.format === "unsociableDayApplicationMode") return unsociableDayApplicationModeText(record);
   if (column.format === "compactSummary") return compactText(record[column.key]);
   if (column.format === "title") {
     return String(record[column.key] || "")
@@ -791,6 +805,11 @@ function unsociableTimeBandText(record) {
     (record.crosses_midnight ? " overnight" : "");
 }
 
+function unsociableDayApplicationModeText(record) {
+  const mode = record && record.day_application_mode ? record.day_application_mode : "shift_start_day";
+  return mode === "calendar_minutes" ? "Calendar minutes" : "Shift start day";
+}
+
 function normaliseBreakRuleRecord(record) {
   const item = record || {};
   return {
@@ -809,6 +828,7 @@ function normaliseUnsociableTimeRuleRecord(record) {
   return {
     ...item,
     id: item.id || item.rule_id,
+    day_application_mode: item.day_application_mode || "shift_start_day",
     active: item.active !== false
   };
 }
@@ -970,6 +990,15 @@ function createFieldControl(field) {
     control.autocapitalize = "characters";
   }
   if (field.required) control.required = true;
+  if (field.key === "day_application_mode") {
+    decorateCapabilityAction(control, {
+      actionId: "reference_data.unsociable_time_rules.day_application_mode",
+      label: "Set Unsociable Time Rule Day Application Mode",
+      area: "Reference Data",
+      requiredAny: definitionEditCapabilities(currentDefinition()),
+      actionType: "edit"
+    });
+  }
   if (field.key === "unsociable_rule_set_id") {
     decorateCapabilityAction(control, {
       actionId: "reference_data.work_time_profiles.unsociable_rule_set.select",
@@ -1067,11 +1096,11 @@ function createUnsociableRuleSetRulePicker() {
   section.id = "unsociableRuleSetRulePicker";
   section.className = "reference-rule-picker";
   decorateCapabilityAction(section, {
-    actionId: "reference_data.unsociable_rule_sets.rules.manage",
-    label: "Manage Unsociable Rule Set Rules",
+    actionId: "reference_data.unsociable_rule_sets.rules.view",
+    label: "View Unsociable Rule Set Rules",
     area: "Reference Data",
-    requiredAny: definitionEditCapabilities(currentDefinition()),
-    actionType: "edit"
+    requiredAny: definitionViewCapabilities(currentDefinition()),
+    actionType: "view"
   });
 
   const heading = document.createElement("h3");
@@ -1090,6 +1119,7 @@ function createUnsociableRuleSetRulePicker() {
 function unsociableRuleOptionText(rule) {
   return (rule.rule_name || rule.rule_code || "Unsociable rule") + " - " +
     unsociableTimeBandText(rule) + " - " + unsociableDaysText(rule) +
+    " - Mode: " + unsociableDayApplicationModeText(rule) +
     (rule.active === false ? " - inactive" : "");
 }
 
@@ -1157,7 +1187,7 @@ function createWorkTimeProfileCalculationPreview() {
   const heading = document.createElement("h3");
   heading.textContent = "Calculation preview";
   const help = document.createElement("p");
-  help.textContent = "Suggested paid unsociable hours are capped by final paid hours, so unpaid breaks are not counted as payable unsociable time.";
+  help.textContent = "Suggested paid unsociable hours are capped by final paid hours. Rule Set day mode is handled by each Unsociable Time Rule.";
   const grid = document.createElement("dl");
   grid.className = "work-time-profile-preview-grid";
   [
@@ -1184,7 +1214,7 @@ function createWorkTimeProfileCalculationPreview() {
   const unsociableHeader = document.createElement("div");
   unsociableHeader.className = "work-time-profile-preview-actions";
   const unsociableTitle = document.createElement("h3");
-  unsociableTitle.textContent = "Unsociable rule-window preview";
+  unsociableTitle.textContent = "Preview by shift start day";
   const refreshButton = document.createElement("button");
   refreshButton.id = "workTimeProfileUnsociablePreviewRefresh";
   refreshButton.className = "secondary";
@@ -1192,9 +1222,12 @@ function createWorkTimeProfileCalculationPreview() {
   refreshButton.textContent = "Refresh";
   decorateCapabilityAction(refreshButton, {
     actionId: "reference_data.work_time_profiles.unsociable_preview",
-    label: "Preview Work Time Profile paid unsociable hours",
+    label: "Preview Work Time Profile unsociable hours",
     area: "Reference Data",
-    requiredAny: definitionViewCapabilities(currentDefinition()),
+    requiredAny: [
+      "work_time_profiles.view",
+      "work_time_profiles.manage"
+    ],
     actionType: "view"
   });
   refreshButton.addEventListener("click", () => {
@@ -1383,15 +1416,15 @@ function renderWorkTimeProfileUnsociablePreview(profileId, error) {
   }
   if (!workTimeProfileUnsociablePreviewRows.length) {
     container.textContent = selectedWorkTimeProfileUnsociableRuleSet()
-      ? "Suggested paid unsociable hours depend on the actual day worked."
+      ? "Suggested paid unsociable hours depend on the shift start day."
       : "No unsociable rule set selected.";
     return;
   }
 
   const selectedRuleSet = selectedWorkTimeProfileUnsociableRuleSet();
   const heading = document.createElement("strong");
-  heading.textContent = (selectedRuleSet ? selectedRuleSet.rule_set_name : "Selected rule set") +
-    ": suggested paid unsociable hours depend on the actual day worked.";
+  heading.textContent = "Rule Set: " + (selectedRuleSet ? selectedRuleSet.rule_set_name : "Selected rule set") +
+    ". Day mode is handled by individual rules.";
   container.appendChild(heading);
 
   const values = calculateWorkTimeProfilePreviewValues();
@@ -1613,17 +1646,22 @@ function updateReferencePageLabels() {
   }
   if ($("referenceSaveButton")) {
     const isRuleSets = isUnsociableRuleSetsDefinition(definition);
+    const isUnsociableRules = isUnsociableTimeRulesDefinition(definition);
     decorateCapabilityAction($("referenceSaveButton"), {
       actionId: isWorkTimeProfiles
         ? "reference_data.work_time_profiles.working_time_alignment.save"
         : isRuleSets
           ? "reference_data.unsociable_rule_sets.save"
-          : "reference_data." + referenceActionNamespace(definition) + ".save",
+          : isUnsociableRules
+            ? "reference_data.unsociable_time_rules.save"
+            : "reference_data." + referenceActionNamespace(definition) + ".save",
       label: isWorkTimeProfiles
         ? "Save Work Time Profile alignment"
         : isRuleSets
           ? "Save Unsociable Rule Set"
-          : "Save Reference Data Record",
+          : isUnsociableRules
+            ? "Save Unsociable Time Rule"
+            : "Save Reference Data Record",
       area: "Reference Data",
       requiredAny: definitionEditCapabilities(definition),
       actionType: "save"
@@ -1763,6 +1801,7 @@ function unsociableTimeRuleSearchText(record) {
     record.rule_name,
     unsociableTimeBandText(record),
     unsociableDaysText(record),
+    unsociableDayApplicationModeText(record),
     record.active ? "active" : "inactive",
     record.notes
   ].join(" ").toLowerCase();
@@ -1993,6 +2032,7 @@ function unsociableTimeRuleExportRows() {
     "End Time": formatReferenceTime(record.end_time),
     "Crosses Midnight": record.crosses_midnight ? "Yes" : "No",
     "Full Day": record.full_day ? "Yes" : "No",
+    "Day Application Mode": unsociableDayApplicationModeText(record),
     "Applies Monday": record.applies_monday ? "Yes" : "No",
     "Applies Tuesday": record.applies_tuesday ? "Yes" : "No",
     "Applies Wednesday": record.applies_wednesday ? "Yes" : "No",
@@ -2226,15 +2266,20 @@ export function renderReferenceDataList() {
     editButton.addEventListener("click", () => openReferenceDataPanel(record.id));
     if (hasReferenceDataEditAccess()) {
       actionCell.appendChild(editButton);
-    } else if (isUnsociableRuleSetsDefinition(definition)) {
+    } else if (isUnsociableTimeRulesDefinition(definition) || isUnsociableRuleSetsDefinition(definition)) {
       const viewButton = document.createElement("button");
       viewButton.className = "ghost";
       viewButton.type = "button";
       viewButton.textContent = "View";
       viewButton.setAttribute("aria-label", "View " + recordLabel);
+      const isTimeRules = isUnsociableTimeRulesDefinition(definition);
       decorateCapabilityAction(viewButton, {
-        actionId: "reference_data.unsociable_rule_sets.view",
-        label: "View Unsociable Rule Sets",
+        actionId: isTimeRules
+          ? "reference_data.unsociable_time_rules.view"
+          : "reference_data.unsociable_rule_sets.view",
+        label: isTimeRules
+          ? "View Unsociable Time Rules"
+          : "View Unsociable Rule Sets",
         area: "Reference Data",
         requiredAny: definitionViewCapabilities(definition),
         actionType: "view"
@@ -2619,7 +2664,8 @@ async function upsertUnsociableTimeRuleRecord(recordId, payload) {
     p_applies_sunday: payload.applies_sunday === true,
     p_active: payload.active,
     p_display_order: payload.display_order,
-    p_notes: payload.notes || null
+    p_notes: payload.notes || null,
+    p_day_application_mode: payload.day_application_mode || "shift_start_day"
   });
   if (result.error) throw result.error;
   return result.data;
