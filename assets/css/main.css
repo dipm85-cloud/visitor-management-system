@@ -11600,10 +11600,215 @@ body.people-profile-context-open {
   margin-top: 0;
 }
 
+.people-profile-overview {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.people-profile-overview-hero,
+.people-profile-overview-section {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #e4e7ec;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.people-profile-overview-hero {
+  display: grid;
+  grid-template-columns: minmax(220px, .85fr) minmax(0, 1.6fr);
+  gap: 14px;
+  background: #f8fafc;
+}
+
+.people-profile-overview-title {
+  min-width: 0;
+}
+
+.people-profile-overview-title h3,
+.people-profile-overview-section h3 {
+  margin: 0;
+  color: #101828;
+  font-size: 16px;
+  line-height: 1.25;
+}
+
+.people-profile-overview-title h3 {
+  font-size: 22px;
+}
+
+.people-profile-overview-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.people-profile-overview-facts > div {
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid #e4e7ec;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.people-profile-overview-facts dt {
+  color: #667085;
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.people-profile-overview-facts dd {
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
+  color: #101828;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.people-profile-overview-section {
+  display: grid;
+  gap: 10px;
+}
+
+.people-profile-overview-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 10px;
+  min-width: 0;
+}
+
+.people-profile-overview-card {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #e4e7ec;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.people-profile-overview-card.is-warning {
+  border-color: #fcd34d;
+  background: #fffbeb;
+}
+
+.people-profile-overview-card-header,
+.people-profile-attention-item,
+.people-profile-timeline-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+}
+
+.people-profile-overview-card-header {
+  justify-content: space-between;
+}
+
+.people-profile-overview-card h4 {
+  margin: 0;
+  color: #344054;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1.25;
+  text-transform: uppercase;
+}
+
+.people-profile-overview-card strong {
+  overflow-wrap: anywhere;
+  color: #101828;
+  font-size: 22px;
+  line-height: 1.1;
+}
+
+.people-profile-overview-card p,
+.people-profile-attention-item p,
+.people-profile-timeline-row p {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: #667085;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.people-profile-overview-card button,
+.people-profile-attention-item button,
+.people-profile-timeline-row button,
+.people-profile-overview-actions button {
+  min-height: 32px;
+  padding: 6px 9px;
+  font-size: 12px;
+}
+
+.people-profile-attention-list,
+.people-profile-timeline {
+  display: grid;
+  gap: 8px;
+}
+
+.people-profile-attention-item,
+.people-profile-timeline-row {
+  padding: 10px;
+  border: 1px solid #e4e7ec;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.people-profile-attention-item.is-warning {
+  border-color: #fcd34d;
+  background: #fffbeb;
+}
+
+.people-profile-attention-item.is-critical {
+  border-color: #fca5a5;
+  background: #fff1f2;
+}
+
+.people-profile-attention-item > div,
+.people-profile-timeline-row > div {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.people-profile-attention-item strong,
+.people-profile-timeline-row strong {
+  display: block;
+  overflow-wrap: anywhere;
+  color: #101828;
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+.people-profile-timeline-row {
+  align-items: center;
+}
+
+.people-profile-timeline-row time {
+  flex: 0 0 150px;
+  color: #475467;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.people-profile-overview-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 @media (max-width: 1023px) {
   .people-profile-summary-grid,
   .people-profile-detail-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .people-profile-overview-hero {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -11654,6 +11859,28 @@ body.people-profile-context-open {
 
   .people-profile-record-actions button,
   .people-profile-action-row button {
+    width: 100%;
+  }
+
+  .people-profile-overview-facts,
+  .people-profile-overview-card-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .people-profile-attention-item,
+  .people-profile-timeline-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .people-profile-timeline-row time {
+    flex-basis: auto;
+  }
+
+  .people-profile-overview-card button,
+  .people-profile-attention-item button,
+  .people-profile-timeline-row button,
+  .people-profile-overview-actions button {
     width: 100%;
   }
 

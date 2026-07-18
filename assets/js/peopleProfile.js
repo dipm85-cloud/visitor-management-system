@@ -211,6 +211,17 @@ function statusText(person) {
   return person && person.active === false ? "Inactive" : "Active";
 }
 
+function isUuidLike(value) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    String(value || "").trim()
+  );
+}
+
+function safeDisplayReference(value) {
+  const text = String(value || "").trim();
+  return text && !isUuidLike(text) ? text : "";
+}
+
 function summaryObject(value) {
   if (!value) return {};
   if (typeof value === "object") return value;
@@ -465,35 +476,757 @@ function assignmentCounts() {
   };
 }
 
-function renderOverview(content) {
+const OVERVIEW_SECTION_CAPABILITIES = {
+  assignments: ["assignment.view", "assignment.manage"],
+  rota: ["workforce_calendar.view", "workforce_calendar.manage"],
+  visits: ["visitor.view", "visitor.history.view", "visitor.edit", "visitor.export"],
+  documents: ["agreements.view", "agreements.manage", "document_signoff.manage", "audit.view", "module_configuration.manage"],
+  identity: ["identity_resolution.view", "identity_resolution.manage"],
+  privacy: ["privacy.case.view", "privacy.case.manage", "privacy.view", "privacy.manage", "gdpr.view", "gdpr.manage"]
+};
+
+const OVERVIEW_SECTION_LABELS = {
+  assignments: "Assignments",
+  rota: "Rota",
+  visits: "Visits",
+  documents: "Documents",
+  identity: "Identity",
+  privacy: "Privacy"
+};
+
+function overviewCanSeeSection(sectionId) {
+  if (sectionId === "assignments") return hasAssignmentAccess();
+  if (sectionId === "rota") return hasRotaAccess();
+  if (sectionId === "visits") return hasVisitorContextAccess();
+  if (sectionId === "documents") return hasDocumentContextAccess();
+  if (sectionId === "identity") return hasIdentityAccess();
+  if (sectionId === "privacy") return hasPrivacyAccess();
+  return false;
+}
+
+function decorateOverviewAction(button, sectionId, label, actionType, actionId) {
+  return decorateCapabilityAction(button, {
+    actionId: actionId || "people.profile.overview.jump." + sectionId,
+    label,
+    area: "People Profile Overview",
+    requiredAny: OVERVIEW_SECTION_CAPABILITIES[sectionId] || [],
+    actionType: actionType || "navigate"
+  });
+}
+
+function jumpToProfileSection(sectionId) {
+  if (!overviewCanSeeSection(sectionId)) return;
+  profileState.activeSection = sectionId;
+  void renderActiveSection();
+}
+
+function createOverviewSection(title, className) {
+  const section = document.createElement("section");
+  section.className = className || "people-profile-overview-section";
+  const heading = document.createElement("h3");
+  heading.textContent = title;
+  section.appendChild(heading);
+  return section;
+}
+
+function overviewActiveAssignments() {
+  return profileState.assignments.filter(assignment => assignment.active === true);
+}
+
+function activeAssignmentContext() {
+  const assignment = overviewActiveAssignments()[0];
+  if (!assignment) return {};
+  const lookups = profileState.lookups || {};
+  return {
+    assignment,
+    employer: lookupLabel(lookups.employers, assignment.employer_organisation_id, "organisation_name"),
+    department: lookupLabel(lookups.departments, assignment.department_id, "department_name"),
+    role: lookupLabel(lookups.roles, assignment.job_role_id, "role_name"),
+    contract: lookupLabel(lookups.contracts, assignment.contract_id, "contract_name"),
+    site: lookupLabel(lookups.sites, assignment.site_id, "site_name")
+  };
+}
+
+function privacyStatusValue(record) {
+  return privacyCaseSummaryValue(record, ["status", "case_status", "workflow_status"]);
+}
+
+function privacyCaseLooksOpen(record) {
+  const status = String(privacyStatusValue(record) || "").trim().toLowerCase();
+  if (!status) return true;
+  return !["closed", "complete", "completed", "resolved", "cancelled", "canceled"].includes(status);
+}
+
+function recordSummaryDate(record, keys) {
+  const summary = summaryObject(record && record.linked_source_summary);
+  return firstNonBlank((keys || []).flatMap(key => [
+    summary[key],
+    record && record[key]
+  ]));
+}
+
+function linkedRecordEventDate(record) {
+  return recordSummaryDate(record, [
+    "updated_at",
+    "modified_at",
+    "signed_at",
+    "sign_out_time",
+    "sign_in_time",
+    "visit_date",
+    "request_received_date",
+    "received_at",
+    "created_at"
+  ]);
+}
+
+function documentItemEventDate(item) {
+  const record = item && item.record || {};
+  const source = item && item.source || {};
+  const summary = summaryObject(source.linked_source_summary);
+  return firstNonBlank([
+    record.signed_at,
+    record.created_at,
+    summary.signed_at,
+    summary.accepted_at,
+    summary.created_at
+  ]);
+}
+
+function documentItemStatusText(item) {
+  const record = item && item.record || {};
+  const source = item && item.source || {};
+  const summary = summaryObject(source.linked_source_summary);
+  return firstNonBlank([
+    record.compliance_status,
+    record.requirement_status,
+    record.status,
+    summary.compliance_status,
+    summary.requirement_status,
+    summary.status
+  ]);
+}
+
+function documentItemNeedsAttention(item) {
+  const status = String(documentItemStatusText(item) || "").trim().toLowerCase();
+  if (!status) return false;
+  return ["missing", "outdated", "expired", "pending", "required"].some(token => status.includes(token));
+}
+
+function identityRecordDate(record) {
+  return firstNonBlank([
+    record && record.confirmed_at,
+    record && record.link_confirmed_at,
+    record && record.reviewed_at,
+    record && record.created_at,
+    record && record.request_received_date,
+    linkedRecordEventDate(record)
+  ]);
+}
+
+function identityRecordLooksPending(record) {
+  const summary = summaryObject(record && record.linked_source_summary);
+  const status = String(firstNonBlank([
+    record && record.link_status,
+    record && record.review_status,
+    record && record.request_status,
+    summary.link_status,
+    summary.review_status,
+    summary.request_status,
+    summary.status
+  ]) || "").trim().toLowerCase();
+  return ["pending", "requested", "review"].some(token => status.includes(token));
+}
+
+function visitLinkedRecordSignedIn(record) {
+  const summary = summaryObject(record && record.linked_source_summary);
+  const status = String(firstNonBlank([
+    summary.visit_status,
+    summary.status,
+    record && record.visit_status,
+    record && record.status
+  ]) || "").trim().toLowerCase();
+  const hasSignIn = Boolean(firstNonBlank([summary.sign_in_time, record && record.sign_in_time]));
+  const hasSignOut = Boolean(firstNonBlank([summary.sign_out_time, record && record.sign_out_time]));
+  return status === "signed_in" || (hasSignIn && !hasSignOut);
+}
+
+function createPersonOverviewHeader(model) {
   const person = profileState.person || {};
-  const counts = assignmentCounts();
-  const detailGrid = document.createElement("dl");
-  detailGrid.className = "people-profile-detail-grid";
+  const context = model.assignmentContext || {};
+  const header = document.createElement("section");
+  header.className = "people-profile-overview-hero";
+  const titleBlock = document.createElement("div");
+  titleBlock.className = "people-profile-overview-title";
+  const eyebrow = document.createElement("p");
+  eyebrow.className = "oh-app-eyebrow";
+  eyebrow.textContent = "Operational summary";
+  const title = document.createElement("h3");
+  title.textContent = person.display_name || "Person Profile";
+  const chips = document.createElement("div");
+  chips.className = "people-profile-header-meta";
+  chips.appendChild(createMetaChip(statusText(person), person.active === false ? "inactive" : "active"));
+  if (person.external_person_number) chips.appendChild(createMetaChip(person.external_person_number));
+  if (model.identityCanonicalLabel) chips.appendChild(createMetaChip("Canonical identity confirmed", "active"));
+  titleBlock.append(eyebrow, title, chips);
+
+  const details = document.createElement("dl");
+  details.className = "people-profile-overview-facts";
   [
+    ["Company / employer", context.employer],
+    ["Department", context.department],
+    ["Role / job title", context.role],
+    ["Contract / site", [context.contract, context.site].filter(value => value && value !== "-").join(" / ")],
+    ["Primary email", person.email],
+    ["Phone", person.phone],
+    ["Canonical identity", model.identityCanonicalLabel],
+    ["Status", statusText(person)],
+    ["Created", formatDateTime(person.created_at)],
+    ["Updated", formatDateTime(person.updated_at)]
+  ].forEach(([label, value]) => {
+    if (String(value || "").trim() && value !== "-") details.appendChild(createDetailItem(label, value));
+  });
+  if (!details.childElementCount) {
+    details.appendChild(createDetailItem("Profile", "No additional safe identity fields available."));
+  }
+  header.append(titleBlock, details);
+  return header;
+}
+
+function createOverviewStatusCard(options) {
+  const card = document.createElement("article");
+  card.className = "people-profile-overview-card" + (options.tone ? " is-" + options.tone : "");
+  const header = document.createElement("div");
+  header.className = "people-profile-overview-card-header";
+  const title = document.createElement("h4");
+  title.textContent = options.title;
+  header.appendChild(title);
+  if (options.badge) header.appendChild(createMetaChip(options.badge, options.badgeTone));
+  const value = document.createElement("strong");
+  value.textContent = textOrDash(options.value);
+  const detail = document.createElement("p");
+  detail.textContent = options.detail || "";
+  card.append(header, value, detail);
+  if (options.sectionId) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "secondary";
+    button.textContent = options.actionLabel || "View " + (OVERVIEW_SECTION_LABELS[options.sectionId] || "Section");
+    decorateOverviewAction(
+      button,
+      options.sectionId,
+      "View " + (OVERVIEW_SECTION_LABELS[options.sectionId] || "section") + " summary",
+      "view",
+      "people.profile.overview." + options.sectionId + "_summary"
+    );
+    button.addEventListener("click", () => jumpToProfileSection(options.sectionId));
+    card.appendChild(button);
+  }
+  return card;
+}
+
+function createAttentionItem(item) {
+  const row = document.createElement("article");
+  row.className = "people-profile-attention-item is-" + (item.severity || "info");
+  const body = document.createElement("div");
+  const heading = document.createElement("strong");
+  heading.textContent = item.label;
+  const detail = document.createElement("p");
+  detail.textContent = item.detail || "";
+  body.append(heading, detail);
+  row.append(createMetaChip(item.severityLabel || "Info", item.severity === "critical" ? "inactive" : ""), body);
+  if (item.sectionId) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "secondary";
+    button.textContent = "View " + (OVERVIEW_SECTION_LABELS[item.sectionId] || "Section");
+    decorateOverviewAction(button, item.sectionId, "Jump to " + (OVERVIEW_SECTION_LABELS[item.sectionId] || "section"), "navigate");
+    button.addEventListener("click", () => jumpToProfileSection(item.sectionId));
+    row.appendChild(button);
+  }
+  return row;
+}
+
+function createTimelineEvent(options) {
+  const dateValue = options.date || "";
+  const timestamp = Date.parse(dateValue);
+  return {
+    ...options,
+    date: dateValue,
+    timestamp: Number.isNaN(timestamp) ? 0 : timestamp
+  };
+}
+
+function timelineEventFromLinkedRecord(record, moduleName, eventType, sectionId, openAction) {
+  const summary = summaryObject(record && record.linked_source_summary);
+  const label = record.linked_source_label ||
+    firstNonBlank([summary.visitor_name, summary.subject_name, summary.display_name, summary.case_reference, summary.reference]) ||
+    moduleName + " record";
+  const status = firstNonBlank([
+    summary.status,
+    summary.visit_status,
+    summary.case_status,
+    record && record.status,
+    record && record.visit_status
+  ]);
+  return createTimelineEvent({
+    date: linkedRecordEventDate(record),
+    type: eventType,
+    label,
+    source: moduleName,
+    status,
+    sectionId,
+    requiredAny: OVERVIEW_SECTION_CAPABILITIES[sectionId],
+    openAction
+  });
+}
+
+function openAssignmentTimelineDetail(assignment) {
+  const context = profileState.lookups || {};
+  const container = document.createElement("div");
+  container.className = "people-profile-context-stack";
+  container.appendChild(detailList([
+    ["Assignment", assignmentSubtitle(assignment)],
+    ["Employer", lookupLabel(context.employers, assignment.employer_organisation_id, "organisation_name")],
+    ["Department", lookupLabel(context.departments, assignment.department_id, "department_name")],
+    ["Role", lookupLabel(context.roles, assignment.job_role_id, "role_name")],
+    ["Work time profile", workProfileLabel(assignment)],
+    ["Start date", assignment.assignment_start_date || assignment.employment_start_date],
+    ["End date", assignment.assignment_end_date],
+    ["Status", assignment.active === true ? "Active" : "Inactive"]
+  ]));
+  openProfileContextPanel({
+    eyebrow: "Assignments",
+    title: assignment.active === true ? "Active assignment" : "Assignment history",
+    content: container
+  });
+}
+
+function openPersonTimelineDetail(event) {
+  const person = profileState.person || {};
+  const container = document.createElement("div");
+  container.className = "people-profile-context-stack";
+  container.appendChild(detailList([
     ["Display name", person.display_name],
     ["Preferred name", person.preferred_name],
-    ["First name", person.first_name],
-    ["Last name", person.last_name],
     ["External person number", person.external_person_number],
     ["Email", person.email],
     ["Phone", person.phone],
     ["Status", statusText(person)],
-    ["Notes", person.notes],
-    ["Created", formatDateTime(person.created_at)],
-    ["Updated", formatDateTime(person.updated_at)]
-  ].forEach(([label, value]) => detailGrid.appendChild(createDetailItem(label, value)));
+    ["Event", event.label],
+    ["Event time", formatDateTime(event.date)]
+  ]));
+  openProfileContextPanel({
+    eyebrow: "People",
+    title: event.label,
+    content: container
+  });
+}
 
-  const summary = document.createElement("div");
-  summary.className = "people-profile-summary-grid";
-  summary.append(
-    createSummaryTile("Active assignments", hasAssignmentAccess() ? counts.active : "-", hasAssignmentAccess() ? "Current work context." : "Assignments hidden by capability."),
-    createSummaryTile("Historical assignments", hasAssignmentAccess() ? counts.historical : "-", hasAssignmentAccess() ? "Retained assignment history." : "Assignments hidden by capability."),
-    createSummaryTile("Rota snapshot", hasRotaAccess() ? "Available" : "-", hasRotaAccess() ? "Open Rota for the next 7 days." : "Rota hidden by capability."),
-    createSummaryTile("Identity links", canViewLinkedIdentityContext() ? "Checked in Identity" : "-", canViewLinkedIdentityContext() ? "Confirmed-link context only." : "Identity context hidden by capability.")
-  );
+function createTimelineRow(event) {
+  const row = document.createElement("article");
+  row.className = "people-profile-timeline-row";
+  const time = document.createElement("time");
+  time.dateTime = event.date || "";
+  time.textContent = formatDateTime(event.date);
+  const body = document.createElement("div");
+  const heading = document.createElement("strong");
+  heading.textContent = event.label || event.type || "Activity";
+  const meta = document.createElement("p");
+  meta.textContent = [event.type, event.source].filter(Boolean).join(" | ");
+  body.append(heading, meta);
+  row.append(time, body);
+  if (event.status) row.appendChild(createMetaChip(visitStatusLabel(event.status) || textOrDash(event.status)));
+  if (typeof event.openAction === "function") {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "secondary";
+    button.textContent = "View";
+    decorateCapabilityAction(button, {
+      actionId: "people.profile.overview.timeline.open_detail",
+      label: "Open timeline item detail",
+      area: "People Profile Overview",
+      requiredAny: event.requiredAny || [],
+      actionType: "view"
+    });
+    button.addEventListener("click", () => event.openAction(event));
+    row.appendChild(button);
+  }
+  return row;
+}
 
-  content.append(summary, detailGrid);
+async function buildOverviewModel() {
+  const model = {
+    assignmentContext: activeAssignmentContext(),
+    errors: {},
+    visits: null,
+    documents: null,
+    identity: null,
+    privacy: null,
+    rotaReady: false
+  };
+
+  const jobs = [];
+  if (hasRotaAccess()) {
+    jobs.push(ensureRotaData()
+      .then(() => { model.rotaReady = true; })
+      .catch(error => { model.errors.rota = error; }));
+  }
+  if (hasVisitorContextAccess()) {
+    jobs.push(loadLinkedContext("visits", ["visit_log", "visitor_history", "planned_visits", "planned_visit"])
+      .then(rows => { model.visits = rows; })
+      .catch(error => { model.errors.visits = error; }));
+  }
+  if (hasDocumentContextAccess()) {
+    jobs.push(loadDocumentContext()
+      .then(rows => { model.documents = rows; })
+      .catch(error => { model.errors.documents = error; }));
+  }
+  if (hasIdentityAccess() && canViewLinkedIdentityContext()) {
+    jobs.push(loadPersonConfirmedIdentityLinkedRecords(profileState.person.id)
+      .then(rows => { model.identity = rows; })
+      .catch(error => { model.errors.identity = error; }));
+  }
+  if (hasPrivacyAccess() && canViewLinkedIdentityContext()) {
+    jobs.push(loadLinkedContext("privacy", ["privacy_cases", "privacy_case"])
+      .then(rows => { model.privacy = rows; })
+      .catch(error => { model.errors.privacy = error; }));
+  }
+  await Promise.all(jobs);
+  model.identityCanonicalLabel = (model.identity || [])
+    .map(row => safeDisplayReference(row.canonical_label) || safeDisplayReference(row.link_reference))
+    .find(Boolean) || "";
+  return model;
+}
+
+function buildOverviewCards(model) {
+  const cards = [];
+  const counts = assignmentCounts();
+  const activeAssignments = overviewActiveAssignments();
+  if (hasAssignmentAccess()) {
+    cards.push(createOverviewStatusCard({
+      title: "Assignments",
+      value: counts.active + " active",
+      detail: counts.historical + " historical | " + (model.assignmentContext.contract || model.assignmentContext.site || "No current context"),
+      badge: activeAssignments.length ? "Current" : "Needs attention",
+      badgeTone: activeAssignments.length ? "active" : "",
+      tone: activeAssignments.length ? "" : "warning",
+      sectionId: "assignments"
+    }));
+  }
+  if (hasRotaAccess()) {
+    const noProfileCount = activeAssignments.filter(assignment => !assignment.work_time_profile_id).length;
+    cards.push(createOverviewStatusCard({
+      title: "Rota",
+      value: model.errors.rota ? "Unavailable" : noProfileCount ? noProfileCount + " missing" : "Ready",
+      detail: model.errors.rota ? "Rota summary could not be loaded." : noProfileCount ? "Active assignment without work time profile." : "Next 7 days can be viewed in Rota.",
+      badge: model.errors.rota ? "Limited" : "Work profile",
+      tone: noProfileCount || model.errors.rota ? "warning" : "",
+      sectionId: "rota",
+      actionLabel: "View Rota"
+    }));
+  }
+  if (hasVisitorContextAccess()) {
+    const rows = model.visits || [];
+    const signedIn = rows.filter(visitLinkedRecordSignedIn).length;
+    cards.push(createOverviewStatusCard({
+      title: "Visits",
+      value: model.errors.visits ? "Unavailable" : rows.length + " linked",
+      detail: model.errors.visits ? "Visit summary could not be loaded." : signedIn ? signedIn + " currently signed in." : "No current signed-in visitor link detected.",
+      badge: signedIn ? "Signed in" : "History",
+      badgeTone: signedIn ? "active" : "",
+      tone: signedIn ? "warning" : "",
+      sectionId: "visits"
+    }));
+  }
+  if (hasDocumentContextAccess()) {
+    const rows = model.documents || [];
+    const attention = rows.filter(documentItemNeedsAttention).length;
+    cards.push(createOverviewStatusCard({
+      title: "Documents",
+      value: model.errors.documents ? "Unavailable" : rows.length + " evidence",
+      detail: model.errors.documents ? "Document summary could not be loaded." : attention ? attention + " item(s) may need review." : "Linked sign-off evidence available where present.",
+      badge: attention ? "Review" : "Sign-offs",
+      tone: attention ? "warning" : "",
+      sectionId: "documents"
+    }));
+  }
+  if (hasIdentityAccess()) {
+    const rows = model.identity || [];
+    const pending = rows.filter(identityRecordLooksPending).length;
+    cards.push(createOverviewStatusCard({
+      title: "Identity",
+      value: model.errors.identity ? "Unavailable" : rows.length + " links",
+      detail: model.errors.identity ? "Identity summary could not be loaded." : model.identityCanonicalLabel || (pending ? pending + " pending review." : "Confirmed context only."),
+      badge: pending ? "Review" : "Confirmed",
+      badgeTone: pending ? "" : "active",
+      tone: pending ? "warning" : "",
+      sectionId: "identity"
+    }));
+  }
+  if (hasPrivacyAccess()) {
+    const rows = model.privacy || [];
+    const openCases = rows.filter(privacyCaseLooksOpen).length;
+    cards.push(createOverviewStatusCard({
+      title: "Privacy",
+      value: model.errors.privacy ? "Unavailable" : openCases + " open",
+      detail: model.errors.privacy ? "Privacy summary could not be loaded." : rows.length + " linked case(s) visible under current permissions.",
+      badge: openCases ? "Open case" : "Clear",
+      badgeTone: openCases ? "" : "active",
+      tone: openCases ? "warning" : "",
+      sectionId: "privacy"
+    }));
+  }
+  return cards;
+}
+
+function buildOverviewAttentionItems(model) {
+  const items = [];
+  const activeAssignments = overviewActiveAssignments();
+  if (hasAssignmentAccess() && !activeAssignments.length) {
+    items.push({
+      severity: "warning",
+      severityLabel: "Warning",
+      label: "No active assignment",
+      detail: "This person has no current operational assignment.",
+      sectionId: "assignments"
+    });
+  }
+  if (hasRotaAccess() && activeAssignments.some(assignment => !assignment.work_time_profile_id)) {
+    items.push({
+      severity: "warning",
+      severityLabel: "Warning",
+      label: "Missing work time profile",
+      detail: "At least one active assignment has no work time profile.",
+      sectionId: "rota"
+    });
+  }
+  if (hasAssignmentAccess() && profileState.person && profileState.person.active === false && activeAssignments.length) {
+    items.push({
+      severity: "critical",
+      severityLabel: "Critical",
+      label: "Inactive person has active assignment",
+      detail: "Review whether the assignment should be ended or the profile reactivated.",
+      sectionId: "assignments"
+    });
+  }
+  if (hasVisitorContextAccess() && (model.visits || []).some(visitLinkedRecordSignedIn)) {
+    items.push({
+      severity: "warning",
+      severityLabel: "Warning",
+      label: "Visitor still signed in",
+      detail: "A linked visitor record appears to be currently signed in.",
+      sectionId: "visits"
+    });
+  }
+  if (hasDocumentContextAccess() && (model.documents || []).some(documentItemNeedsAttention)) {
+    items.push({
+      severity: "warning",
+      severityLabel: "Warning",
+      label: "Document or sign-off needs review",
+      detail: "A linked document status indicates missing, pending, expired or outdated evidence.",
+      sectionId: "documents"
+    });
+  }
+  if (hasIdentityAccess() && (model.identity || []).some(identityRecordLooksPending)) {
+    items.push({
+      severity: "warning",
+      severityLabel: "Warning",
+      label: "Pending identity review",
+      detail: "A visible identity link/request appears to need review.",
+      sectionId: "identity"
+    });
+  }
+  if (hasPrivacyAccess() && (model.privacy || []).some(privacyCaseLooksOpen)) {
+    items.push({
+      severity: "critical",
+      severityLabel: "Critical",
+      label: "Open privacy case",
+      detail: "A visible privacy case linked to this person is not closed.",
+      sectionId: "privacy"
+    });
+  }
+  Object.entries(model.errors).forEach(([sectionId]) => {
+    if (!overviewCanSeeSection(sectionId)) return;
+    items.push({
+      severity: "info",
+      severityLabel: "Info",
+      label: OVERVIEW_SECTION_LABELS[sectionId] + " summary unavailable",
+      detail: "Open the section to retry under current permissions.",
+      sectionId
+    });
+  });
+  return items;
+}
+
+function buildOverviewTimelineEvents(model) {
+  const person = profileState.person || {};
+  const events = [];
+  if (person.updated_at) {
+    events.push(createTimelineEvent({
+      date: person.updated_at,
+      type: "Profile updated",
+      label: "People profile updated",
+      source: "People",
+      status: statusText(person),
+      requiredAny: ["people.view", "people.manage"],
+      openAction: openPersonTimelineDetail
+    }));
+  }
+  if (person.created_at) {
+    events.push(createTimelineEvent({
+      date: person.created_at,
+      type: "Profile created",
+      label: "People profile created",
+      source: "People",
+      status: statusText(person),
+      requiredAny: ["people.view", "people.manage"],
+      openAction: openPersonTimelineDetail
+    }));
+  }
+  if (hasAssignmentAccess()) {
+    profileState.assignments.forEach(assignment => {
+      if (assignment.assignment_start_date || assignment.employment_start_date) {
+        events.push(createTimelineEvent({
+          date: assignment.assignment_start_date || assignment.employment_start_date,
+          type: assignment.active === true ? "Assignment active" : "Assignment history",
+          label: assignmentSubtitle(assignment),
+          source: "Assignments",
+          status: assignment.active === true ? "Active" : "Inactive",
+          sectionId: "assignments",
+          requiredAny: OVERVIEW_SECTION_CAPABILITIES.assignments,
+          openAction: () => openAssignmentTimelineDetail(assignment)
+        }));
+      }
+      if (assignment.assignment_end_date) {
+        events.push(createTimelineEvent({
+          date: assignment.assignment_end_date,
+          type: "Assignment ended",
+          label: assignmentSubtitle(assignment),
+          source: "Assignments",
+          status: "Ended",
+          sectionId: "assignments",
+          requiredAny: OVERVIEW_SECTION_CAPABILITIES.assignments,
+          openAction: () => openAssignmentTimelineDetail(assignment)
+        }));
+      }
+    });
+  }
+  if (hasVisitorContextAccess()) {
+    (model.visits || []).forEach(record => {
+      events.push(timelineEventFromLinkedRecord(record, "Visits", "Visitor activity", "visits", () => {
+        void openVisitRecordInContext(record);
+      }));
+    });
+  }
+  if (hasDocumentContextAccess()) {
+    (model.documents || []).forEach(item => {
+      events.push(createTimelineEvent({
+        date: documentItemEventDate(item),
+        type: "Document evidence",
+        label: documentContextTitle(item),
+        source: "Documents",
+        status: documentItemStatusText(item) || evidenceTypeLabel(item.record),
+        sectionId: "documents",
+        requiredAny: OVERVIEW_SECTION_CAPABILITIES.documents,
+        openAction: item.sourceRecordId ? () => { void openDocumentEvidenceInContext(item); } : null
+      }));
+    });
+  }
+  if (hasIdentityAccess()) {
+    (model.identity || []).forEach(record => {
+      events.push(createTimelineEvent({
+        date: identityRecordDate(record),
+        type: "Identity link",
+        label: record.linked_source_label ||
+          safeDisplayReference(record.canonical_label) ||
+          safeDisplayReference(record.link_reference) ||
+          "Identity context confirmed",
+        source: "Identity",
+        status: firstNonBlank([record.link_status, record.review_status]) || "Confirmed",
+        sectionId: "identity",
+        requiredAny: OVERVIEW_SECTION_CAPABILITIES.identity,
+        openAction: () => openLinkedRecordInContext(record)
+      }));
+    });
+  }
+  if (hasPrivacyAccess()) {
+    (model.privacy || []).forEach(record => {
+      events.push(timelineEventFromLinkedRecord(record, "Privacy", "Privacy case activity", "privacy", () => {
+        void openPeopleProfilePrivacyCaseDetail(privacyCaseIdFromLinkedRecord(record), record);
+      }));
+    });
+  }
+  return events
+    .filter(event => event && event.date && event.timestamp)
+    .sort((a, b) => b.timestamp - a.timestamp)
+    .slice(0, 15);
+}
+
+function renderOverviewQuickActions(section) {
+  const actions = document.createElement("div");
+  actions.className = "people-profile-overview-actions";
+  ["assignments", "rota", "visits", "documents", "identity", "privacy"].forEach(sectionId => {
+    if (!overviewCanSeeSection(sectionId)) return;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "secondary";
+    button.textContent = "View " + OVERVIEW_SECTION_LABELS[sectionId];
+    decorateOverviewAction(button, sectionId, "Jump to " + OVERVIEW_SECTION_LABELS[sectionId], "navigate");
+    button.addEventListener("click", () => jumpToProfileSection(sectionId));
+    actions.appendChild(button);
+  });
+  if (!actions.childElementCount) {
+    actions.appendChild(createWorkspaceEmpty(
+      "No section actions available",
+      "Additional profile sections are hidden by current permissions."
+    ));
+  }
+  section.appendChild(actions);
+}
+
+async function renderOverview(content) {
+  const loading = createWorkspaceEmpty("Loading overview", "Preparing a safe operational summary.");
+  content.appendChild(loading);
+  const model = await buildOverviewModel();
+  if (profileState.activeSection !== "overview") return;
+
+  const cards = buildOverviewCards(model);
+  const attentionItems = buildOverviewAttentionItems(model);
+  const timelineEvents = buildOverviewTimelineEvents(model);
+
+  const dashboard = document.createElement("div");
+  dashboard.className = "people-profile-overview";
+  dashboard.appendChild(createPersonOverviewHeader(model));
+
+  const cardsSection = createOverviewSection("Operational Status", "people-profile-overview-section");
+  const cardGrid = document.createElement("div");
+  cardGrid.className = "people-profile-overview-card-grid";
+  if (cards.length) cards.forEach(card => cardGrid.appendChild(card));
+  else cardGrid.appendChild(createWorkspaceEmpty("No summaries visible", "Operational summary areas are hidden by current permissions."));
+  cardsSection.appendChild(cardGrid);
+  dashboard.appendChild(cardsSection);
+
+  const attentionSection = createOverviewSection("Needs Attention", "people-profile-overview-section");
+  const attentionList = document.createElement("div");
+  attentionList.className = "people-profile-attention-list";
+  if (attentionItems.length) attentionItems.forEach(item => attentionList.appendChild(createAttentionItem(item)));
+  else attentionList.appendChild(createWorkspaceEmpty("No attention items", "No actionable issues are visible from the loaded profile context."));
+  attentionSection.appendChild(attentionList);
+  dashboard.appendChild(attentionSection);
+
+  const timelineSection = createOverviewSection("Recent Activity", "people-profile-overview-section");
+  const timeline = document.createElement("div");
+  timeline.className = "people-profile-timeline";
+  if (timelineEvents.length) timelineEvents.forEach(event => timeline.appendChild(createTimelineRow(event)));
+  else timeline.appendChild(createWorkspaceEmpty("No recent activity", "No safe profile activity is available from the loaded section data."));
+  timelineSection.appendChild(timeline);
+  dashboard.appendChild(timelineSection);
+
+  const actionsSection = createOverviewSection("Quick Section Actions", "people-profile-overview-section");
+  renderOverviewQuickActions(actionsSection);
+  dashboard.appendChild(actionsSection);
+
+  content.replaceChildren(dashboard);
 }
 
 function lookupLabel(list, id, field) {
@@ -1921,7 +2654,7 @@ async function renderActiveSection() {
   content.replaceChildren();
   content.className = "people-profile-content is-" + profileState.activeSection;
 
-  if (profileState.activeSection === "overview") renderOverview(content);
+  if (profileState.activeSection === "overview") await renderOverview(content);
   else if (profileState.activeSection === "assignments") renderAssignments(content);
   else if (profileState.activeSection === "rota") await renderRota(content);
   else if (profileState.activeSection === "visits") {
