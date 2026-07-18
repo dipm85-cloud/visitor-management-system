@@ -457,11 +457,17 @@ export function renderSelectedAssignmentWorkTimeProfileSummary() {
       "Start " + formatAssignmentTime(profile.start_time) +
       " - End " + formatAssignmentTime(profile.end_time) +
       " - Crosses midnight " + (profile.crosses_midnight ? "Yes" : "No") +
-      " - Break source: " + (overrideRule ? "Assignment override (" + overrideRule + ")" : "Work Time Profile") +
+      " - Break source: Work Time Profile" +
       " - Break " + workTimeProfileBreakText(profile) +
       " - Paid " + formatAssignmentHours(profile.paid_hours) +
       " - Unsociable " + formatAssignmentHours(profile.unsociable_hours);
     summary.appendChild(details);
+    if (overrideRule) {
+      const advanced = document.createElement("span");
+      advanced.className = "assignment-advanced-detail";
+      advanced.textContent = "Assignment-level break override: " + overrideRule;
+      summary.appendChild(advanced);
+    }
 
     const tagsText = workTimeProfileTagsText(profile);
     if (tagsText) {
@@ -730,10 +736,16 @@ function createWorkTimeProfileCell(assignment) {
     const detail = document.createElement("span");
     const overrideRule = assignment.break_rule_id ? lookupLabel("breakRules", assignment.break_rule_id) : "";
     detail.textContent =
-      "Break source: " + (overrideRule ? "Assignment override (" + overrideRule + ")" : "Work Time Profile") +
+      "Break source: Work Time Profile" +
       " - Break " + workTimeProfileBreakText(profile) +
       " - Crosses midnight " + (profile.crosses_midnight ? "Yes" : "No");
     cell.appendChild(detail);
+    if (overrideRule) {
+      const advanced = document.createElement("span");
+      advanced.className = "assignment-advanced-detail";
+      advanced.textContent = "Assignment-level break override: " + overrideRule;
+      cell.appendChild(advanced);
+    }
 
     const tagsText = workTimeProfileTagsText(profile);
     if (tagsText) {

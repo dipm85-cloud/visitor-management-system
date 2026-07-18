@@ -2365,3 +2365,1301 @@ select
   (select count(*) from public.break_rules) as break_rules_checked,
   (select count(*) from public.unsociable_time_rules) as unsociable_time_rules_checked,
   (select count(*) from public.work_time_profiles where calculated_unsociable_hours is not null) as profiles_with_unsociable_suggestion;
+
+-- ============================================================
+-- OHP-013B.3 Corrective Follow-up: Unsociable Rule Sets
+-- ============================================================
+
+-- ============================================================
+-- Operations Hub - OHP-013B.3 Patch
+-- Unsociable Rule Sets + Work Time Profile UI Support
+--
+-- Purpose:
+-- - Allow Work Time Profiles to select an Unsociable Rule Set.
+-- - A rule set can contain multiple Unsociable Time Rules.
+-- - Avoid treating all active unsociable rules as global.
+-- - Preserve existing manual unsociable_hours by default.
+-- ============================================================
+
+create extension if not exists pgcrypto;
+
+-- ------------------------------------------------------------
+-- 1. Rule set tables
+-- ------------------------------------------------------------
+
+create table if not exists public.unsociable_time_rule_sets (
+  id uuid primary key default gen_random_uuid(),
+
+  rule_set_code text not null unique,
+  rule_set_name text not null,
+
+  active boolean not null default true,
+  display_order integer,
+  notes text,
+  metadata jsonb not null default '{}'::jsonb,
+
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+
+  constraint unsociable_time_rule_sets_code_not_blank
+    check (length(trim(rule_set_code)) > 0),
+
+  constraint unsociable_time_rule_sets_name_not_blank
+    check (length(trim(rule_set_name)) > 0)
+);
+
+create table if not exists public.unsociable_time_rule_set_rules (
+  id uuid primary key default gen_random_uuid(),
+
+  rule_set_id uuid not null references public.unsociable_time_rule_sets(id) on delete cascade,
+  rule_id uuid not null references public.unsociable_time_rules(id) on delete cascade,
+
+  display_order integer,
+  created_at timestamptz not null default now(),
+
+  unique(rule_set_id, rule_id)
+);
+
+create index if not exists idx_unsociable_time_rule_sets_active_order
+on public.unsociable_time_rule_sets(active, display_order, rule_set_name);
+
+create index if not exists idx_unsociable_rule_set_rules_set
+on public.unsociable_time_rule_set_rules(rule_set_id, display_order);
+
+create index if not exists idx_unsociable_rule_set_rules_rule
+on public.unsociable_time_rule_set_rules(rule_id);
+
+-- Work Time Profile selects one rule set.
+alter table public.work_time_profiles
+add column if not exists unsociable_rule_set_id uuid;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'work_time_profiles_unsociable_rule_set_id_fkey'
+      and conrelid = 'public.work_time_profiles'::regclass
+  ) then
+    alter table public.work_time_profiles
+    add constraint work_time_profiles_unsociable_rule_set_id_fkey
+    foreign key (unsociable_rule_set_id)
+    references public.unsociable_time_rule_sets(id)
+    on delete set null;
+  end if;
+end;
+$$;
+
+create index if not exists idx_work_time_profiles_unsociable_rule_set_id
+on public.work_time_profiles(unsociable_rule_set_id);
+
+-- Ensure required Work Time Profile columns exist.
+alter table public.work_time_profiles
+add column if not exists calculated_unsociable_hours numeric(8,2);
+
+alter table public.work_time_profiles
+add column if not exists unsociable_hours_manual_override boolean not null default true;
+
+alter table public.work_time_profiles
+add column if not exists unsociable_alignment_notes text;
+
+alter table public.work_time_profiles
+add column if not exists effective_paid_break_minutes integer;
+
+alter table public.work_time_profiles
+add column if not exists effective_unpaid_break_minutes integer;
+
+-- Default rule set for future use. Do not auto-assign to profiles.
+insert into public.unsociable_time_rule_sets (
+  rule_set_code,
+  rule_set_name,
+  active,
+  display_order,
+  notes
+)
+values (
+  'standard_unsociable_policy',
+  'Standard Unsociable Policy',
+  true,
+  10,
+  'Default unsociable rule set. Add rules to this set, then assign it to Work Time Profiles.'
+)
+on conflict (rule_set_code) do update
+set
+  rule_set_name = excluded.rule_set_name,
+  active = true,
+  display_order = excluded.display_order,
+  notes = coalesce(public.unsociable_time_rule_sets.notes, excluded.notes);
+
+-- ------------------------------------------------------------
+-- 2. Updated-at trigger
+-- ------------------------------------------------------------
+
+create or replace function public.oh_set_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_unsociable_time_rule_sets_updated_at
+on public.unsociable_time_rule_sets;
+
+create trigger trg_unsociable_time_rule_sets_updated_at
+before update on public.unsociable_time_rule_sets
+for each row
+execute function public.oh_set_updated_at();
+
+-- ------------------------------------------------------------
+-- 3. RLS
+-- ------------------------------------------------------------
+
+alter table public.unsociable_time_rule_sets enable row level security;
+alter table public.unsociable_time_rule_set_rules enable row level security;
+
+drop policy if exists "admins can view unsociable time rule sets" on public.unsociable_time_rule_sets;
+drop policy if exists "admins can insert unsociable time rule sets" on public.unsociable_time_rule_sets;
+drop policy if exists "admins can update unsociable time rule sets" on public.unsociable_time_rule_sets;
+
+create policy "admins can view unsociable time rule sets"
+on public.unsociable_time_rule_sets
+for select
+to authenticated
+using (public.can_view_working_time_rules());
+
+create policy "admins can insert unsociable time rule sets"
+on public.unsociable_time_rule_sets
+for insert
+to authenticated
+with check (public.can_manage_working_time_rules());
+
+create policy "admins can update unsociable time rule sets"
+on public.unsociable_time_rule_sets
+for update
+to authenticated
+using (public.can_manage_working_time_rules())
+with check (public.can_manage_working_time_rules());
+
+drop policy if exists "admins can view unsociable rule set rules" on public.unsociable_time_rule_set_rules;
+drop policy if exists "admins can insert unsociable rule set rules" on public.unsociable_time_rule_set_rules;
+drop policy if exists "admins can delete unsociable rule set rules" on public.unsociable_time_rule_set_rules;
+
+create policy "admins can view unsociable rule set rules"
+on public.unsociable_time_rule_set_rules
+for select
+to authenticated
+using (public.can_view_working_time_rules());
+
+create policy "admins can insert unsociable rule set rules"
+on public.unsociable_time_rule_set_rules
+for insert
+to authenticated
+with check (public.can_manage_working_time_rules());
+
+create policy "admins can delete unsociable rule set rules"
+on public.unsociable_time_rule_set_rules
+for delete
+to authenticated
+using (public.can_manage_working_time_rules());
+
+grant select, insert, update on public.unsociable_time_rule_sets to authenticated;
+grant select, insert, delete on public.unsociable_time_rule_set_rules to authenticated;
+
+-- ------------------------------------------------------------
+-- 4. Rule set management RPCs
+-- ------------------------------------------------------------
+
+create or replace function public.list_unsociable_time_rule_sets(
+  p_include_inactive boolean default true,
+  p_search_text text default null
+)
+returns table (
+  rule_set_id uuid,
+  rule_set_code text,
+  rule_set_name text,
+  active boolean,
+  display_order integer,
+  notes text,
+  rule_count integer,
+  rule_summary text,
+  created_at timestamptz,
+  updated_at timestamptz
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not public.can_view_working_time_rules() then
+    raise exception 'You do not have permission to view unsociable rule sets';
+  end if;
+
+  return query
+  select
+    rs.id as rule_set_id,
+    rs.rule_set_code,
+    rs.rule_set_name,
+    rs.active,
+    rs.display_order,
+    rs.notes,
+    coalesce(rule_counts.rule_count, 0)::integer as rule_count,
+    rule_counts.rule_summary,
+    rs.created_at,
+    rs.updated_at
+  from public.unsociable_time_rule_sets rs
+  left join lateral (
+    select
+      count(*) as rule_count,
+      string_agg(r.rule_name, ', ' order by coalesce(rsr.display_order, 999999), r.rule_name) as rule_summary
+    from public.unsociable_time_rule_set_rules rsr
+    join public.unsociable_time_rules r
+      on r.id = rsr.rule_id
+    where rsr.rule_set_id = rs.id
+  ) rule_counts on true
+  where (p_include_inactive is true or rs.active is true)
+    and (
+      p_search_text is null
+      or trim(p_search_text) = ''
+      or (
+        coalesce(rs.rule_set_code, '') || ' ' ||
+        coalesce(rs.rule_set_name, '') || ' ' ||
+        coalesce(rs.notes, '') || ' ' ||
+        coalesce(rule_counts.rule_summary, '') || ' ' ||
+        rs.id::text
+      ) ilike '%' || p_search_text || '%'
+    )
+  order by
+    rs.active desc,
+    rs.display_order asc nulls last,
+    rs.rule_set_name asc;
+end;
+$$;
+
+grant execute on function public.list_unsociable_time_rule_sets(boolean, text) to authenticated;
+
+create or replace function public.upsert_unsociable_time_rule_set(
+  p_rule_set_id uuid default null,
+  p_rule_set_code text default null,
+  p_rule_set_name text default null,
+  p_active boolean default true,
+  p_display_order integer default null,
+  p_notes text default null
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_rule_set_id uuid;
+  v_code text := lower(regexp_replace(trim(coalesce(p_rule_set_code, '')), '[^a-zA-Z0-9_]+', '_', 'g'));
+  v_name text := nullif(trim(coalesce(p_rule_set_name, '')), '');
+begin
+  if not public.can_manage_working_time_rules() then
+    raise exception 'You do not have permission to manage unsociable rule sets';
+  end if;
+
+  if v_name is null then
+    raise exception 'Unsociable rule set name is required';
+  end if;
+
+  if nullif(v_code, '') is null then
+    v_code := lower(regexp_replace(v_name, '[^a-zA-Z0-9_]+', '_', 'g'));
+  end if;
+
+  if p_rule_set_id is null then
+    insert into public.unsociable_time_rule_sets (
+      rule_set_code,
+      rule_set_name,
+      active,
+      display_order,
+      notes
+    )
+    values (
+      v_code,
+      v_name,
+      coalesce(p_active, true),
+      p_display_order,
+      p_notes
+    )
+    returning id into v_rule_set_id;
+  else
+    update public.unsociable_time_rule_sets
+    set
+      rule_set_code = v_code,
+      rule_set_name = v_name,
+      active = coalesce(p_active, true),
+      display_order = p_display_order,
+      notes = p_notes
+    where id = p_rule_set_id
+    returning id into v_rule_set_id;
+
+    if v_rule_set_id is null then
+      raise exception 'Unsociable rule set was not found';
+    end if;
+  end if;
+
+  begin
+    perform public.write_audit_event(
+      'unsociable_time_rule_set.upserted',
+      'unsociable_time_rule_sets',
+      v_rule_set_id::text,
+      jsonb_build_object(
+        'summary', 'Unsociable time rule set created or updated.',
+        'rule_set_code', v_code,
+        'rule_set_name', v_name
+      )
+    );
+  exception
+    when others then
+      raise notice 'Audit write failed during unsociable rule set upsert: %', sqlerrm;
+  end;
+
+  return v_rule_set_id;
+end;
+$$;
+
+grant execute on function public.upsert_unsociable_time_rule_set(
+  uuid,
+  text,
+  text,
+  boolean,
+  integer,
+  text
+) to authenticated;
+
+create or replace function public.list_unsociable_time_rule_set_rules(
+  p_rule_set_id uuid
+)
+returns table (
+  link_id uuid,
+  rule_set_id uuid,
+  rule_id uuid,
+  rule_code text,
+  rule_name text,
+  start_time time,
+  end_time time,
+  crosses_midnight boolean,
+  full_day boolean,
+  active boolean,
+  display_order integer
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not public.can_view_working_time_rules() then
+    raise exception 'You do not have permission to view unsociable rule set rules';
+  end if;
+
+  if p_rule_set_id is null then
+    raise exception 'Unsociable rule set is required';
+  end if;
+
+  return query
+  select
+    rsr.id as link_id,
+    rsr.rule_set_id,
+    r.id as rule_id,
+    r.rule_code,
+    r.rule_name,
+    r.start_time,
+    r.end_time,
+    r.crosses_midnight,
+    r.full_day,
+    r.active,
+    rsr.display_order
+  from public.unsociable_time_rule_set_rules rsr
+  join public.unsociable_time_rules r
+    on r.id = rsr.rule_id
+  where rsr.rule_set_id = p_rule_set_id
+  order by
+    rsr.display_order asc nulls last,
+    r.rule_name asc;
+end;
+$$;
+
+grant execute on function public.list_unsociable_time_rule_set_rules(uuid) to authenticated;
+
+create or replace function public.set_unsociable_time_rule_set_rules(
+  p_rule_set_id uuid,
+  p_rule_ids uuid[]
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_rule_id uuid;
+  v_order integer := 10;
+begin
+  if not public.can_manage_working_time_rules() then
+    raise exception 'You do not have permission to manage unsociable rule set rules';
+  end if;
+
+  if p_rule_set_id is null then
+    raise exception 'Unsociable rule set is required';
+  end if;
+
+  if not exists (
+    select 1
+    from public.unsociable_time_rule_sets rs
+    where rs.id = p_rule_set_id
+  ) then
+    raise exception 'Unsociable rule set was not found';
+  end if;
+
+  delete from public.unsociable_time_rule_set_rules
+  where rule_set_id = p_rule_set_id;
+
+  if p_rule_ids is not null then
+    foreach v_rule_id in array p_rule_ids
+    loop
+      if exists (
+        select 1
+        from public.unsociable_time_rules r
+        where r.id = v_rule_id
+      ) then
+        insert into public.unsociable_time_rule_set_rules (
+          rule_set_id,
+          rule_id,
+          display_order
+        )
+        values (
+          p_rule_set_id,
+          v_rule_id,
+          v_order
+        )
+        on conflict (rule_set_id, rule_id) do nothing;
+
+        v_order := v_order + 10;
+      end if;
+    end loop;
+  end if;
+
+  begin
+    perform public.write_audit_event(
+      'unsociable_time_rule_set.rules_updated',
+      'unsociable_time_rule_sets',
+      p_rule_set_id::text,
+      jsonb_build_object(
+        'summary', 'Unsociable time rule set rules updated.',
+        'rule_count', coalesce(array_length(p_rule_ids, 1), 0)
+      )
+    );
+  exception
+    when others then
+      raise notice 'Audit write failed during unsociable rule set rules update: %', sqlerrm;
+  end;
+
+  -- Recalculate Work Time Profile suggestions for profiles using this set.
+  update public.work_time_profiles
+  set unsociable_hours_manual_override = coalesce(unsociable_hours_manual_override, true)
+  where unsociable_rule_set_id = p_rule_set_id;
+
+  return p_rule_set_id;
+end;
+$$;
+
+grant execute on function public.set_unsociable_time_rule_set_rules(uuid, uuid[]) to authenticated;
+
+create or replace function public.list_work_time_profile_unsociable_rule_set_options()
+returns table (
+  rule_set_id uuid,
+  rule_set_code text,
+  rule_set_name text,
+  rule_count integer,
+  rule_summary text,
+  option_label text
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not public.can_view_work_time_profile_alignment() then
+    raise exception 'You do not have permission to view unsociable rule sets';
+  end if;
+
+  return query
+  select
+    rs.rule_set_id,
+    rs.rule_set_code,
+    rs.rule_set_name,
+    rs.rule_count,
+    rs.rule_summary,
+    (
+      rs.rule_set_name ||
+      case
+        when coalesce(rs.rule_count, 0) > 0
+          then ' — ' || rs.rule_count::text || ' rule(s)'
+        else ' — no rules'
+      end
+    ) as option_label
+  from public.list_unsociable_time_rule_sets(false, null) rs
+  order by rs.display_order asc nulls last, rs.rule_set_name asc;
+end;
+$$;
+
+grant execute on function public.list_work_time_profile_unsociable_rule_set_options() to authenticated;
+
+-- ------------------------------------------------------------
+-- 5. Calculation using selected rule set only
+-- ------------------------------------------------------------
+
+create or replace function public.calculate_unsociable_minutes_for_shift_v2(
+  p_start_time time,
+  p_end_time time,
+  p_crosses_midnight boolean default false,
+  p_iso_dow integer default 1,
+  p_unsociable_rule_set_id uuid default null
+)
+returns integer
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  v_iso_dow integer := least(greatest(coalesce(p_iso_dow, 1), 1), 7);
+  v_start_date date := date '2024-01-01';
+  v_start_ts timestamp;
+  v_end_ts timestamp;
+  v_minute_ts timestamp;
+  v_time time;
+  v_current_dow integer;
+  v_previous_dow integer;
+  v_minutes integer := 0;
+begin
+  if p_start_time is null or p_end_time is null then
+    return null;
+  end if;
+
+  -- No selected rule set means no automatic unsociable calculation.
+  if p_unsociable_rule_set_id is null then
+    return 0;
+  end if;
+
+  v_start_date := v_start_date + (v_iso_dow - 1);
+
+  v_start_ts := v_start_date + p_start_time;
+  v_end_ts := v_start_date + p_end_time;
+
+  if coalesce(p_crosses_midnight, false) is true
+     or p_end_time < p_start_time then
+    v_end_ts := v_end_ts + interval '1 day';
+  end if;
+
+  if v_end_ts <= v_start_ts then
+    return 0;
+  end if;
+
+  for v_minute_ts in
+    select generate_series(v_start_ts, v_end_ts - interval '1 minute', interval '1 minute')
+  loop
+    v_time := v_minute_ts::time;
+    v_current_dow := extract(isodow from v_minute_ts)::integer;
+    v_previous_dow := case when v_current_dow = 1 then 7 else v_current_dow - 1 end;
+
+    if exists (
+      select 1
+      from public.unsociable_time_rule_set_rules rsr
+      join public.unsociable_time_rules r
+        on r.id = rsr.rule_id
+      where rsr.rule_set_id = p_unsociable_rule_set_id
+        and r.active is true
+        and (
+          (
+            r.full_day is true
+            and case v_current_dow
+              when 1 then r.applies_monday
+              when 2 then r.applies_tuesday
+              when 3 then r.applies_wednesday
+              when 4 then r.applies_thursday
+              when 5 then r.applies_friday
+              when 6 then r.applies_saturday
+              when 7 then r.applies_sunday
+              else false
+            end
+          )
+          or
+          (
+            r.full_day is false
+            and coalesce(r.crosses_midnight, false) is false
+            and r.start_time < r.end_time
+            and v_time >= r.start_time
+            and v_time < r.end_time
+            and case v_current_dow
+              when 1 then r.applies_monday
+              when 2 then r.applies_tuesday
+              when 3 then r.applies_wednesday
+              when 4 then r.applies_thursday
+              when 5 then r.applies_friday
+              when 6 then r.applies_saturday
+              when 7 then r.applies_sunday
+              else false
+            end
+          )
+          or
+          (
+            r.full_day is false
+            and coalesce(r.crosses_midnight, false) is true
+            and (
+              (
+                v_time >= r.start_time
+                and case v_current_dow
+                  when 1 then r.applies_monday
+                  when 2 then r.applies_tuesday
+                  when 3 then r.applies_wednesday
+                  when 4 then r.applies_thursday
+                  when 5 then r.applies_friday
+                  when 6 then r.applies_saturday
+                  when 7 then r.applies_sunday
+                  else false
+                end
+              )
+              or
+              (
+                v_time < r.end_time
+                and case v_previous_dow
+                  when 1 then r.applies_monday
+                  when 2 then r.applies_tuesday
+                  when 3 then r.applies_wednesday
+                  when 4 then r.applies_thursday
+                  when 5 then r.applies_friday
+                  when 6 then r.applies_saturday
+                  when 7 then r.applies_sunday
+                  else false
+                end
+              )
+            )
+          )
+        )
+      limit 1
+    ) then
+      v_minutes := v_minutes + 1;
+    end if;
+  end loop;
+
+  return v_minutes;
+end;
+$$;
+
+grant execute on function public.calculate_unsociable_minutes_for_shift_v2(time, time, boolean, integer, uuid) to authenticated;
+
+create or replace function public.calculate_work_time_profile_values_v3(
+  p_start_time time,
+  p_end_time time,
+  p_crosses_midnight boolean default false,
+  p_break_rule_id uuid default null,
+  p_break_minutes integer default null,
+  p_paid_hours_manual_override boolean default true,
+  p_manual_paid_hours numeric default null,
+  p_unsociable_hours_manual_override boolean default true,
+  p_manual_unsociable_hours numeric default null,
+  p_iso_dow integer default 1,
+  p_unsociable_rule_set_id uuid default null
+)
+returns table (
+  gross_minutes integer,
+  gross_hours numeric,
+  break_rule_id uuid,
+  paid_break_minutes integer,
+  unpaid_break_minutes integer,
+  effective_break_minutes integer,
+  unpaid_break_minutes_for_pay integer,
+  calculated_paid_minutes integer,
+  calculated_paid_hours numeric,
+  unsociable_rule_set_id uuid,
+  calculated_unsociable_minutes integer,
+  calculated_unsociable_hours numeric,
+  final_paid_hours numeric,
+  final_unsociable_hours numeric
+)
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  v_start_ts timestamp;
+  v_end_ts timestamp;
+  v_gross_minutes integer;
+  v_paid_break_minutes integer := 0;
+  v_unpaid_break_minutes integer := greatest(coalesce(p_break_minutes, 0), 0);
+  v_effective_break_minutes integer;
+  v_calculated_paid_minutes integer;
+  v_calculated_paid_hours numeric;
+  v_unsociable_minutes integer;
+  v_unsociable_hours numeric;
+begin
+  if p_break_rule_id is not null then
+    select
+      greatest(coalesce(br.paid_break_minutes, case when coalesce(br.paid_break, false) then br.break_minutes else 0 end, 0), 0),
+      greatest(coalesce(br.unpaid_break_minutes, case when coalesce(br.paid_break, false) then 0 else br.break_minutes end, 0), 0)
+    into
+      v_paid_break_minutes,
+      v_unpaid_break_minutes
+    from public.break_rules br
+    where br.id = p_break_rule_id;
+
+    if not found then
+      v_paid_break_minutes := 0;
+      v_unpaid_break_minutes := greatest(coalesce(p_break_minutes, 0), 0);
+    end if;
+  end if;
+
+  v_effective_break_minutes := v_paid_break_minutes + v_unpaid_break_minutes;
+
+  if p_start_time is null or p_end_time is null then
+    return query
+    select
+      null::integer,
+      null::numeric,
+      p_break_rule_id,
+      v_paid_break_minutes,
+      v_unpaid_break_minutes,
+      v_effective_break_minutes,
+      v_unpaid_break_minutes,
+      null::integer,
+      null::numeric,
+      p_unsociable_rule_set_id,
+      null::integer,
+      null::numeric,
+      p_manual_paid_hours,
+      p_manual_unsociable_hours;
+    return;
+  end if;
+
+  v_start_ts := timestamp '2000-01-01' + p_start_time;
+  v_end_ts := timestamp '2000-01-01' + p_end_time;
+
+  if coalesce(p_crosses_midnight, false) is true
+     or p_end_time < p_start_time then
+    v_end_ts := v_end_ts + interval '1 day';
+  end if;
+
+  v_gross_minutes := greatest(
+    round(extract(epoch from (v_end_ts - v_start_ts)) / 60)::integer,
+    0
+  );
+
+  v_unpaid_break_minutes := least(v_unpaid_break_minutes, v_gross_minutes);
+  v_calculated_paid_minutes := greatest(v_gross_minutes - v_unpaid_break_minutes, 0);
+  v_calculated_paid_hours := round((v_calculated_paid_minutes::numeric / 60), 2);
+
+  v_unsociable_minutes := public.calculate_unsociable_minutes_for_shift_v2(
+    p_start_time,
+    p_end_time,
+    coalesce(p_crosses_midnight, false),
+    p_iso_dow,
+    p_unsociable_rule_set_id
+  );
+
+  v_unsociable_hours := case
+    when v_unsociable_minutes is null then null
+    else round((v_unsociable_minutes::numeric / 60), 2)
+  end;
+
+  return query
+  select
+    v_gross_minutes,
+    round((v_gross_minutes::numeric / 60), 2),
+    p_break_rule_id,
+    v_paid_break_minutes,
+    v_unpaid_break_minutes,
+    v_effective_break_minutes,
+    v_unpaid_break_minutes,
+    v_calculated_paid_minutes,
+    v_calculated_paid_hours,
+    p_unsociable_rule_set_id,
+    v_unsociable_minutes,
+    v_unsociable_hours,
+    case
+      when coalesce(p_paid_hours_manual_override, true) is true
+        then p_manual_paid_hours
+      else v_calculated_paid_hours
+    end,
+    case
+      when coalesce(p_unsociable_hours_manual_override, true) is true
+        then p_manual_unsociable_hours
+      else v_unsociable_hours
+    end;
+end;
+$$;
+
+grant execute on function public.calculate_work_time_profile_values_v3(
+  time,
+  time,
+  boolean,
+  uuid,
+  integer,
+  boolean,
+  numeric,
+  boolean,
+  numeric,
+  integer,
+  uuid
+) to authenticated;
+
+-- ------------------------------------------------------------
+-- 6. Trigger uses selected rule set
+-- ------------------------------------------------------------
+
+create or replace function public.apply_work_time_profile_break_alignment()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_calc record;
+begin
+  select *
+  into v_calc
+  from public.calculate_work_time_profile_values_v3(
+    new.start_time,
+    new.end_time,
+    coalesce(new.crosses_midnight, false),
+    new.break_rule_id,
+    new.break_minutes,
+    coalesce(new.paid_hours_manual_override, true),
+    new.paid_hours,
+    coalesce(new.unsociable_hours_manual_override, true),
+    new.unsociable_hours,
+    1,
+    new.unsociable_rule_set_id
+  );
+
+  new.gross_hours := v_calc.gross_hours;
+  new.effective_paid_break_minutes := v_calc.paid_break_minutes;
+  new.effective_unpaid_break_minutes := v_calc.unpaid_break_minutes;
+  new.effective_break_minutes := v_calc.effective_break_minutes;
+  new.calculated_paid_hours := v_calc.calculated_paid_hours;
+  new.calculated_unsociable_hours := v_calc.calculated_unsociable_hours;
+
+  if coalesce(new.paid_hours_manual_override, true) is false then
+    new.paid_hours := v_calc.calculated_paid_hours;
+  elsif new.paid_hours is null then
+    new.paid_hours := v_calc.calculated_paid_hours;
+  end if;
+
+  if coalesce(new.unsociable_hours_manual_override, true) is false then
+    new.unsociable_hours := v_calc.calculated_unsociable_hours;
+  elsif new.unsociable_hours is null then
+    new.unsociable_hours := v_calc.calculated_unsociable_hours;
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_work_time_profiles_break_alignment
+on public.work_time_profiles;
+
+create trigger trg_work_time_profiles_break_alignment
+before insert or update of
+  start_time,
+  end_time,
+  crosses_midnight,
+  break_rule_id,
+  break_minutes,
+  paid_hours_manual_override,
+  paid_hours,
+  unsociable_rule_set_id,
+  unsociable_hours_manual_override,
+  unsociable_hours
+on public.work_time_profiles
+for each row
+execute function public.apply_work_time_profile_break_alignment();
+
+-- ------------------------------------------------------------
+-- 7. Replace Work Time Profile alignment RPCs
+-- ------------------------------------------------------------
+
+drop function if exists public.list_work_time_profiles_with_break_alignment(boolean, text);
+
+create or replace function public.list_work_time_profiles_with_break_alignment(
+  p_include_inactive boolean default true,
+  p_search_text text default null
+)
+returns table (
+  profile_id uuid,
+  profile_code text,
+  profile_name text,
+  start_time time,
+  end_time time,
+  crosses_midnight boolean,
+  break_rule_id uuid,
+  break_rule_label text,
+  break_rule_paid_minutes integer,
+  break_rule_unpaid_minutes integer,
+  break_rule_total_minutes integer,
+  break_rule_break_minutes integer,
+  break_rule_paid_break boolean,
+  legacy_break_minutes integer,
+  effective_paid_break_minutes integer,
+  effective_unpaid_break_minutes integer,
+  effective_break_minutes integer,
+  gross_hours numeric,
+  calculated_paid_hours numeric,
+  paid_hours_manual_override boolean,
+  paid_hours numeric,
+  unsociable_rule_set_id uuid,
+  unsociable_rule_set_name text,
+  unsociable_rule_set_summary text,
+  calculated_unsociable_hours numeric,
+  unsociable_hours_manual_override boolean,
+  unsociable_hours numeric,
+  active boolean,
+  display_order integer,
+  custom_tag_1 text,
+  custom_tag_2 text,
+  custom_tag_3 text,
+  notes text,
+  break_alignment_notes text,
+  unsociable_alignment_notes text,
+  metadata jsonb,
+  created_at timestamptz,
+  updated_at timestamptz
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not public.can_view_work_time_profile_alignment() then
+    raise exception 'You do not have permission to view work time profile alignment';
+  end if;
+
+  return query
+  select
+    wtp.id as profile_id,
+    wtp.profile_code,
+    wtp.profile_name,
+    wtp.start_time,
+    wtp.end_time,
+    wtp.crosses_midnight,
+    wtp.break_rule_id,
+    case
+      when br.id is null then null
+      else (
+        coalesce(br.rule_name, 'Break rule') ||
+        ' — ' ||
+        coalesce(br.total_break_minutes, br.break_minutes, 0)::text ||
+        ' min total (' ||
+        coalesce(br.paid_break_minutes, 0)::text ||
+        ' paid, ' ||
+        coalesce(br.unpaid_break_minutes, 0)::text ||
+        ' unpaid)'
+      )
+    end as break_rule_label,
+    coalesce(br.paid_break_minutes, 0) as break_rule_paid_minutes,
+    coalesce(br.unpaid_break_minutes, 0) as break_rule_unpaid_minutes,
+    coalesce(br.total_break_minutes, br.break_minutes, 0) as break_rule_total_minutes,
+    coalesce(br.total_break_minutes, br.break_minutes, 0) as break_rule_break_minutes,
+    coalesce(br.paid_break, false) as break_rule_paid_break,
+    wtp.break_minutes as legacy_break_minutes,
+    wtp.effective_paid_break_minutes,
+    wtp.effective_unpaid_break_minutes,
+    wtp.effective_break_minutes,
+    wtp.gross_hours,
+    wtp.calculated_paid_hours,
+    coalesce(wtp.paid_hours_manual_override, true) as paid_hours_manual_override,
+    wtp.paid_hours,
+    wtp.unsociable_rule_set_id,
+    urs.rule_set_name as unsociable_rule_set_name,
+    rule_counts.rule_summary as unsociable_rule_set_summary,
+    wtp.calculated_unsociable_hours,
+    coalesce(wtp.unsociable_hours_manual_override, true) as unsociable_hours_manual_override,
+    wtp.unsociable_hours,
+    wtp.active,
+    wtp.display_order,
+    wtp.custom_tag_1,
+    wtp.custom_tag_2,
+    wtp.custom_tag_3,
+    wtp.notes,
+    wtp.break_alignment_notes,
+    wtp.unsociable_alignment_notes,
+    wtp.metadata,
+    wtp.created_at,
+    wtp.updated_at
+  from public.work_time_profiles wtp
+  left join public.break_rules br
+    on br.id = wtp.break_rule_id
+  left join public.unsociable_time_rule_sets urs
+    on urs.id = wtp.unsociable_rule_set_id
+  left join lateral (
+    select
+      string_agg(r.rule_name, ', ' order by coalesce(rsr.display_order, 999999), r.rule_name) as rule_summary
+    from public.unsociable_time_rule_set_rules rsr
+    join public.unsociable_time_rules r
+      on r.id = rsr.rule_id
+    where rsr.rule_set_id = wtp.unsociable_rule_set_id
+  ) rule_counts on true
+  where (p_include_inactive is true or wtp.active is true)
+    and (
+      p_search_text is null
+      or trim(p_search_text) = ''
+      or (
+        coalesce(wtp.profile_code, '') || ' ' ||
+        coalesce(wtp.profile_name, '') || ' ' ||
+        coalesce(wtp.custom_tag_1, '') || ' ' ||
+        coalesce(wtp.custom_tag_2, '') || ' ' ||
+        coalesce(wtp.custom_tag_3, '') || ' ' ||
+        coalesce(wtp.notes, '') || ' ' ||
+        coalesce(wtp.break_alignment_notes, '') || ' ' ||
+        coalesce(wtp.unsociable_alignment_notes, '') || ' ' ||
+        coalesce(urs.rule_set_name, '') || ' ' ||
+        coalesce(rule_counts.rule_summary, '') || ' ' ||
+        wtp.id::text
+      ) ilike '%' || p_search_text || '%'
+    )
+  order by
+    wtp.active desc,
+    wtp.display_order asc nulls last,
+    wtp.profile_name asc,
+    wtp.profile_code asc;
+end;
+$$;
+
+grant execute on function public.list_work_time_profiles_with_break_alignment(boolean, text) to authenticated;
+
+drop function if exists public.update_work_time_profile_break_alignment(
+  uuid,
+  uuid,
+  boolean,
+  integer,
+  boolean,
+  numeric,
+  text,
+  boolean,
+  numeric,
+  text
+);
+
+create or replace function public.update_work_time_profile_break_alignment(
+  p_profile_id uuid,
+  p_break_rule_id uuid default null,
+  p_use_break_rule boolean default true,
+  p_legacy_break_minutes integer default null,
+  p_paid_hours_manual_override boolean default true,
+  p_paid_hours numeric default null,
+  p_break_alignment_notes text default null,
+  p_unsociable_rule_set_id uuid default null,
+  p_unsociable_hours_manual_override boolean default true,
+  p_unsociable_hours numeric default null,
+  p_unsociable_alignment_notes text default null
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_profile_id uuid;
+begin
+  if not public.can_manage_work_time_profile_alignment() then
+    raise exception 'You do not have permission to manage Work Time Profile alignment';
+  end if;
+
+  if p_profile_id is null then
+    raise exception 'Work Time Profile is required';
+  end if;
+
+  if p_use_break_rule is true and p_break_rule_id is not null then
+    if not exists (
+      select 1
+      from public.break_rules br
+      where br.id = p_break_rule_id
+    ) then
+      raise exception 'Selected break rule was not found';
+    end if;
+  end if;
+
+  if p_unsociable_rule_set_id is not null then
+    if not exists (
+      select 1
+      from public.unsociable_time_rule_sets rs
+      where rs.id = p_unsociable_rule_set_id
+    ) then
+      raise exception 'Selected unsociable rule set was not found';
+    end if;
+  end if;
+
+  update public.work_time_profiles
+  set
+    break_rule_id = case
+      when coalesce(p_use_break_rule, true) is true then p_break_rule_id
+      else null
+    end,
+    break_minutes = case
+      when coalesce(p_use_break_rule, true) is true then break_minutes
+      else greatest(coalesce(p_legacy_break_minutes, break_minutes, 0), 0)
+    end,
+    paid_hours_manual_override = coalesce(p_paid_hours_manual_override, true),
+    paid_hours = case
+      when coalesce(p_paid_hours_manual_override, true) is true
+        then p_paid_hours
+      else paid_hours
+    end,
+    break_alignment_notes = p_break_alignment_notes,
+
+    unsociable_rule_set_id = p_unsociable_rule_set_id,
+    unsociable_hours_manual_override = coalesce(p_unsociable_hours_manual_override, true),
+    unsociable_hours = case
+      when coalesce(p_unsociable_hours_manual_override, true) is true
+        then p_unsociable_hours
+      else unsociable_hours
+    end,
+    unsociable_alignment_notes = p_unsociable_alignment_notes
+  where id = p_profile_id
+  returning id into v_profile_id;
+
+  if v_profile_id is null then
+    raise exception 'Work Time Profile was not found';
+  end if;
+
+  begin
+    perform public.write_audit_event(
+      'work_time_profile.working_time_alignment_updated',
+      'work_time_profiles',
+      v_profile_id::text,
+      jsonb_build_object(
+        'summary', 'Work Time Profile working time alignment updated.',
+        'break_rule_id', p_break_rule_id,
+        'use_break_rule', p_use_break_rule,
+        'paid_hours_manual_override', p_paid_hours_manual_override,
+        'paid_hours', p_paid_hours,
+        'unsociable_rule_set_id', p_unsociable_rule_set_id,
+        'unsociable_hours_manual_override', p_unsociable_hours_manual_override,
+        'unsociable_hours', p_unsociable_hours
+      )
+    );
+  exception
+    when others then
+      raise notice 'Audit write failed during Work Time Profile working time alignment update: %', sqlerrm;
+  end;
+
+  return v_profile_id;
+end;
+$$;
+
+grant execute on function public.update_work_time_profile_break_alignment(
+  uuid,
+  uuid,
+  boolean,
+  integer,
+  boolean,
+  numeric,
+  text,
+  uuid,
+  boolean,
+  numeric,
+  text
+) to authenticated;
+
+drop function if exists public.preview_work_time_profile_unsociable_by_day(uuid);
+
+create or replace function public.preview_work_time_profile_unsociable_by_day(
+  p_profile_id uuid
+)
+returns table (
+  iso_dow integer,
+  day_name text,
+  unsociable_rule_set_id uuid,
+  unsociable_rule_set_name text,
+  calculated_unsociable_minutes integer,
+  calculated_unsociable_hours numeric
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_profile record;
+begin
+  if not public.can_view_work_time_profile_alignment() then
+    raise exception 'You do not have permission to preview unsociable hours';
+  end if;
+
+  select
+    wtp.start_time,
+    wtp.end_time,
+    wtp.crosses_midnight,
+    wtp.unsociable_rule_set_id,
+    rs.rule_set_name
+  into v_profile
+  from public.work_time_profiles wtp
+  left join public.unsociable_time_rule_sets rs
+    on rs.id = wtp.unsociable_rule_set_id
+  where wtp.id = p_profile_id;
+
+  if not found then
+    raise exception 'Work Time Profile was not found';
+  end if;
+
+  return query
+  with days as (
+    select *
+    from (
+      values
+        (1, 'Monday'),
+        (2, 'Tuesday'),
+        (3, 'Wednesday'),
+        (4, 'Thursday'),
+        (5, 'Friday'),
+        (6, 'Saturday'),
+        (7, 'Sunday')
+    ) as d(iso_dow, day_name)
+  ),
+  calc as (
+    select
+      d.iso_dow,
+      d.day_name,
+      public.calculate_unsociable_minutes_for_shift_v2(
+        v_profile.start_time,
+        v_profile.end_time,
+        coalesce(v_profile.crosses_midnight, false),
+        d.iso_dow,
+        v_profile.unsociable_rule_set_id
+      ) as minutes
+    from days d
+  )
+  select
+    c.iso_dow,
+    c.day_name,
+    v_profile.unsociable_rule_set_id,
+    v_profile.rule_set_name,
+    c.minutes as calculated_unsociable_minutes,
+    round(coalesce(c.minutes, 0)::numeric / 60, 2) as calculated_unsociable_hours
+  from calc c
+  order by c.iso_dow;
+end;
+$$;
+
+grant execute on function public.preview_work_time_profile_unsociable_by_day(uuid) to authenticated;
+
+-- Recalculate suggestions, preserving final manual values.
+update public.work_time_profiles
+set
+  paid_hours_manual_override = coalesce(paid_hours_manual_override, true),
+  unsociable_hours_manual_override = coalesce(unsociable_hours_manual_override, true)
+where true;
+
+-- ------------------------------------------------------------
+-- 8. Verification
+-- ------------------------------------------------------------
+
+notify pgrst, 'reload schema';
+
+select
+  'OHP-013B.3 patch - unsociable rule sets installed' as result,
+  (select count(*) from public.unsociable_time_rule_sets) as rule_sets,
+  (select count(*) from public.unsociable_time_rules) as rules,
+  (select count(*) from public.work_time_profiles where unsociable_rule_set_id is not null) as profiles_with_unsociable_rule_set;
