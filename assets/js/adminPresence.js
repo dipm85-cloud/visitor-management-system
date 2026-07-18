@@ -22,6 +22,13 @@ const MESSAGE_SEND_CAPABILITIES = [
   "module_configuration.manage",
   "settings.edit"
 ];
+const FORCE_ACTION_CAPABILITIES = [
+  "admin_system_messages.force_action",
+  "access_control.manage",
+  "users.manage",
+  "module_configuration.manage",
+  "settings.edit"
+];
 const MESSAGE_HISTORY_CAPABILITIES = [
   "admin_system_messages.view",
   "admin_system_messages.send",
@@ -30,19 +37,50 @@ const MESSAGE_HISTORY_CAPABILITIES = [
   "module_configuration.manage",
   "settings.view"
 ];
+const SESSION_SECURITY_VIEW_CAPABILITIES = [
+  "session_security_settings.view",
+  "session_security_settings.manage",
+  "access_control.manage",
+  "settings.view",
+  "settings.edit"
+];
+const SESSION_SECURITY_MANAGE_CAPABILITIES = [
+  "session_security_settings.manage",
+  "access_control.manage",
+  "settings.edit"
+];
+const ADMIN_PRESENCE_CAPABILITIES = [
+  ...PRESENCE_VIEW_CAPABILITIES,
+  ...SESSION_SECURITY_VIEW_CAPABILITIES
+];
 const SESSION_KEY = "oh_session_key";
 const HEARTBEAT_MS = 30000;
 const PENDING_POLL_MS = 90000;
 const ONLINE_WINDOW_SECONDS = 120;
 const MESSAGE_TYPES = ["info", "warning", "maintenance", "access_update", "refresh_required"];
-const ACTION_HINTS = ["acknowledge_only", "refresh_now", "sign_out_now", "sign_out_and_back_in", "none"];
+const ADVISORY_ACTION_HINTS = ["acknowledge_only", "refresh_now", "sign_out_now", "sign_out_and_back_in", "none"];
+const REQUIRED_ACTIONS = ["acknowledge_only", "refresh_required", "sign_out_required", "sign_out_and_back_in_required"];
+const DEFAULT_SECURITY_SETTINGS = {
+  staff_inactivity_enabled: true,
+  staff_idle_timeout_minutes: 30,
+  staff_warning_seconds: 60,
+  staff_auto_sign_out_enabled: true,
+  shared_terminal_idle_reset_enabled: false,
+  shared_terminal_idle_reset_seconds: 120,
+  shared_terminal_excluded_from_staff_timeout: true,
+  notes: ""
+};
 
 let initialised = false;
 let heartbeatTimer = null;
 let pendingPollTimer = null;
 let onlineRealtimeChannel = null;
 let messageRealtimeChannel = null;
+let inactivityTimer = null;
+let inactivityWarningTimer = null;
+let requiredActionTimer = null;
 let lastHeartbeatAt = 0;
+let lastStaffActivityAt = Date.now();
 let sessionKey = null;
 let onlineSessions = [];
 let messageHistory = [];
@@ -50,6 +88,14 @@ let selectedRecipient = null;
 let messageQueue = [];
 let activeMessage = null;
 let sendMode = "profile";
+let securitySettings = { ...DEFAULT_SECURITY_SETTINGS };
+let adminSecuritySettings = null;
+let inactivityWarningActive = false;
+let inactivityLogoutInProgress = false;
+
+function uniqueCodes(codes) {
+  return Array.from(new Set(codes));
+}
 
 function hasActiveStaffProfile() {
   return Boolean(
@@ -60,6 +106,10 @@ function hasActiveStaffProfile() {
 }
 
 export function canViewAdminPresence() {
+  return hasActiveStaffProfile() && hasAnyCapability(uniqueCodes(ADMIN_PRESENCE_CAPABILITIES));
+}
+
+function canViewOnlineUsers() {
   return hasActiveStaffProfile() && hasAnyCapability(PRESENCE_VIEW_CAPABILITIES);
 }
 
@@ -67,8 +117,20 @@ function canSendSystemMessages() {
   return hasActiveStaffProfile() && hasAnyCapability(MESSAGE_SEND_CAPABILITIES);
 }
 
+function canSendForcedActions() {
+  return hasActiveStaffProfile() && hasAnyCapability(FORCE_ACTION_CAPABILITIES);
+}
+
 function canViewSystemMessageHistory() {
   return hasActiveStaffProfile() && hasAnyCapability(MESSAGE_HISTORY_CAPABILITIES);
+}
+
+function canViewSessionSecuritySettings() {
+  return hasActiveStaffProfile() && hasAnyCapability(SESSION_SECURITY_VIEW_CAPABILITIES);
+}
+
+function canManageSessionSecuritySettings() {
+  return hasActiveStaffProfile() && hasAnyCapability(SESSION_SECURITY_MANAGE_CAPABILITIES);
 }
 
 function ensureSessionKey() {
@@ -81,6 +143,25 @@ function ensureSessionKey() {
     sessionStorage.setItem(SESSION_KEY, sessionKey);
   }
   return sessionKey;
+}
+
+function isSharedTerminalRuntime() {
+  return document.body.dataset.operationsHubMode === "terminal" ||
+    Boolean(AppState.terminalRegistration && AppState.terminalRegistration.registered);
+}
+
+function isKioskRuntime() {
+  return Boolean(
+    AppState.currentProfile &&
+    AppState.currentProfile.role === "kiosk_user"
+  ) || document.getElementById("operationsHubShell")?.classList.contains("oh-kiosk-mode");
+}
+
+function isStaffSessionRuntime() {
+  return hasActiveStaffProfile() &&
+    document.body.dataset.operationsHubMode === "workspace" &&
+    !isSharedTerminalRuntime() &&
+    !isKioskRuntime();
 }
 
 function currentWorkspaceLabel() {
@@ -175,7 +256,7 @@ function messageTypeLabel(value) {
   return String(value || "info").replace(/_/g, " ");
 }
 
-function actionHintLabel(value) {
+function requiredActionLabel(value) {
   return String(value || "acknowledge_only").replace(/_/g, " ");
 }
 
@@ -183,6 +264,13 @@ function syncAdminPresenceVisibility() {
   const visible = canViewAdminPresence();
   const section = $("adminPresenceSection");
   if (section) section.classList.toggle("hidden", !visible);
+  const online = $("adminPresenceOnlineCard");
+  if (online) online.classList.toggle("hidden", !canViewOnlineUsers());
+  const refresh = $("adminPresenceRefreshButton");
+  if (refresh) {
+    refresh.classList.toggle("hidden", !canViewOnlineUsers());
+    refresh.disabled = !canViewOnlineUsers();
+  }
   const sendAll = $("adminPresenceSendAllButton");
   if (sendAll) {
     sendAll.classList.toggle("hidden", !canSendSystemMessages());
@@ -190,6 +278,38 @@ function syncAdminPresenceVisibility() {
   }
   const history = $("adminPresenceMessageHistoryCard");
   if (history) history.classList.toggle("hidden", !canViewSystemMessageHistory());
+  const settings = $("adminPresenceSessionSecurityCard");
+  if (settings) settings.classList.toggle("hidden", !canViewSessionSecuritySettings());
+  syncForceActionControls();
+  syncSessionSecurityFormState();
+}
+
+function syncForceActionControls() {
+  const mode = $("adminPresenceMessageMode") ? $("adminPresenceMessageMode").value : "advisory";
+  const required = mode === "required";
+  const forceAllowed = canSendForcedActions();
+  const actionRow = $("adminPresenceRequiredActionRow");
+  const forceRow = $("adminPresenceForceActionRow");
+  const grace = $("adminPresenceGraceSeconds");
+  const hint = $("adminPresenceActionHint");
+  if (actionRow) actionRow.classList.toggle("hidden", !required);
+  if (forceRow) forceRow.classList.toggle("hidden", !required || !forceAllowed);
+  if (grace) grace.disabled = !required;
+  if (hint) hint.disabled = required;
+  const forceMode = $("adminPresenceForceMode");
+  if (forceMode && (!forceAllowed || !required)) forceMode.value = "request";
+  updateSendAllConfirmationText();
+}
+
+function updateSendAllConfirmationText() {
+  const confirmation = $("adminPresenceSendAllConfirmText");
+  if (!confirmation) return;
+  const mode = $("adminPresenceMessageMode") ? $("adminPresenceMessageMode").value : "advisory";
+  const forceMode = $("adminPresenceForceMode") ? $("adminPresenceForceMode").value : "request";
+  const messageKind = mode === "required"
+    ? (forceMode === "force" && canSendForcedActions() ? "forced required action message" : "required action message")
+    : "advisory system message";
+  confirmation.textContent = "Send this " + messageKind + " to all currently connected users.";
 }
 
 function renderOnlineSessions() {
@@ -238,7 +358,7 @@ function renderOnlineSessions() {
 }
 
 async function loadOnlineSessions(options = {}) {
-  if (!canViewAdminPresence()) {
+  if (!canViewOnlineUsers()) {
     onlineSessions = [];
     renderOnlineSessions();
     return;
@@ -266,36 +386,46 @@ async function loadOnlineSessions(options = {}) {
 async function loadMessageHistory() {
   if (!canViewSystemMessageHistory()) return;
   try {
-    const messageResult = await supabaseClient
-      .from("admin_system_messages")
-      .select("id, target_scope, target_profile_id, message_type, title, sent_at, expires_at, sent_by")
-      .order("sent_at", { ascending: false })
-      .limit(20);
-    if (messageResult.error) throw messageResult.error;
-    const acknowledgementResult = await supabaseClient
-      .from("admin_system_message_acknowledgements")
-      .select("message_id");
-    const ackCounts = new Map();
-    if (!acknowledgementResult.error) {
-      (acknowledgementResult.data || []).forEach(row => {
-        ackCounts.set(row.message_id, (ackCounts.get(row.message_id) || 0) + 1);
-      });
-    }
-    messageHistory = (messageResult.data || []).map(row => ({
-      ...row,
-      acknowledgement_count: ackCounts.get(row.id) || 0
-    }));
+    const result = await supabaseClient.rpc("list_admin_system_message_history", {
+      p_limit: 50,
+      p_search_text: $("adminPresenceHistorySearch") ? $("adminPresenceHistorySearch").value.trim() || null : null
+    });
+    if (result.error) throw result.error;
+    messageHistory = result.data || [];
     renderMessageHistory();
   } catch (err) {
-    messageHistory = [];
-    renderMessageHistory();
+    try {
+      const fallback = await supabaseClient
+        .from("admin_system_messages")
+        .select("id, target_scope, target_profile_id, message_type, title, sent_at, expires_at, sent_by, requires_action, required_action, force_after_grace, required_action_deadline_at")
+        .order("sent_at", { ascending: false })
+        .limit(20);
+      if (fallback.error) throw fallback.error;
+      messageHistory = (fallback.data || []).map(row => ({
+        message_id: row.id,
+        ...row,
+        acknowledgement_count: 0,
+        action_completed_count: 0,
+        auto_completed_count: 0
+      }));
+      renderMessageHistory();
+    } catch (fallbackErr) {
+      messageHistory = [];
+      renderMessageHistory();
+    }
   }
 }
 
 function renderMessageHistory() {
   const list = $("adminPresenceMessageHistoryList");
+  const summary = $("adminPresenceHistorySummary");
   if (!list) return;
   list.innerHTML = "";
+  if (summary) {
+    summary.textContent = messageHistory.length
+      ? messageHistory.length + " recent system message" + (messageHistory.length === 1 ? "" : "s")
+      : "No recent system messages are available.";
+  }
   if (!messageHistory.length) {
     list.innerHTML = "<div class='people-empty-state'>No recent system messages are available.</div>";
     return;
@@ -305,14 +435,19 @@ function renderMessageHistory() {
     item.className = "admin-presence-history-item";
     const target = message.target_scope === "all_connected"
       ? "All connected"
-      : "Selected user" + (message.target_profile_id ? " " + String(message.target_profile_id).slice(0, 8) : "");
-    const sender = message.sent_by ? String(message.sent_by).slice(0, 8) : "System";
+      : (message.target_display_name || "Selected user" + (message.target_profile_id ? " " + String(message.target_profile_id).slice(0, 8) : ""));
+    const sender = message.sent_by_name || (message.sent_by ? String(message.sent_by).slice(0, 8) : "System");
+    const forced = message.force_after_grace ? "Forced" : (message.requires_action ? "Required" : "Advisory");
     item.innerHTML =
-      "<div><strong>" + safe(message.title) + "</strong><span>" + safe(messageTypeLabel(message.message_type)) + "</span></div>" +
-      "<p>" + safe(new Date(message.sent_at).toLocaleString()) + " · " +
-      safe("Sent by " + sender) + " · " +
-      safe(target) + " · " +
-      safe(String(message.acknowledgement_count || 0)) + " acknowledged</p>";
+      "<div><strong>" + safe(message.title) + "</strong><span>" + safe(messageTypeLabel(message.message_type)) + "</span><span>" + safe(forced) + "</span></div>" +
+      "<p>" + safe(new Date(message.sent_at).toLocaleString()) + " - " +
+      safe("Sent by " + sender) + " - " +
+      safe(target) + " - " +
+      safe(message.required_action ? requiredActionLabel(message.required_action) : "no required action") + "</p>" +
+      "<p>" + safe(String(message.acknowledgement_count || 0)) + " acknowledged - " +
+      safe(String(message.action_completed_count || 0)) + " completed - " +
+      safe(String(message.auto_completed_count || 0)) + " auto-completed" +
+      (message.required_action_deadline_at ? " - Deadline " + safe(new Date(message.required_action_deadline_at).toLocaleString()) : "") + "</p>";
     list.appendChild(item);
   });
 }
@@ -322,14 +457,23 @@ function resetMessageForm() {
     const input = $(id);
     if (input) input.value = "";
   });
+  const mode = $("adminPresenceMessageMode");
   const type = $("adminPresenceMessageType");
   const hint = $("adminPresenceActionHint");
+  const requiredAction = $("adminPresenceRequiredAction");
+  const forceMode = $("adminPresenceForceMode");
   const expiry = $("adminPresenceExpiresMinutes");
+  const grace = $("adminPresenceGraceSeconds");
   const confirm = $("adminPresenceSendAllConfirm");
+  if (mode) mode.value = "advisory";
   if (type) type.value = "info";
   if (hint) hint.value = "acknowledge_only";
+  if (requiredAction) requiredAction.value = "refresh_required";
+  if (forceMode) forceMode.value = "request";
   if (expiry) expiry.value = "60";
+  if (grace) grace.value = "300";
   if (confirm) confirm.checked = false;
+  syncForceActionControls();
 }
 
 function openSendMessageModal(mode, session = null) {
@@ -371,9 +515,14 @@ async function sendSystemMessage() {
   if (!canSendSystemMessages()) return;
   const title = $("adminPresenceMessageTitle") ? $("adminPresenceMessageTitle").value.trim() : "";
   const body = $("adminPresenceMessageBody") ? $("adminPresenceMessageBody").value.trim() : "";
+  const messageMode = $("adminPresenceMessageMode") ? $("adminPresenceMessageMode").value : "advisory";
   const messageType = $("adminPresenceMessageType") ? $("adminPresenceMessageType").value : "info";
   const actionHint = $("adminPresenceActionHint") ? $("adminPresenceActionHint").value : "acknowledge_only";
+  const requiredAction = $("adminPresenceRequiredAction") ? $("adminPresenceRequiredAction").value : "refresh_required";
+  const forceMode = $("adminPresenceForceMode") ? $("adminPresenceForceMode").value : "request";
   const expiresMinutes = $("adminPresenceExpiresMinutes") ? Number($("adminPresenceExpiresMinutes").value || 60) : 60;
+  const graceSeconds = $("adminPresenceGraceSeconds") ? Number($("adminPresenceGraceSeconds").value || 300) : 300;
+  const forceAfterGrace = messageMode === "required" && forceMode === "force";
   const confirmAll = $("adminPresenceSendAllConfirm");
   if (!title || !body) {
     showToast("Message incomplete", "Enter a title and body before sending.", "error");
@@ -381,6 +530,10 @@ async function sendSystemMessage() {
   }
   if (sendMode === "profile" && (!selectedRecipient || !selectedRecipient.profile_id)) {
     showToast("Recipient missing", "Select an online user before sending.", "error");
+    return;
+  }
+  if (forceAfterGrace && !canSendForcedActions()) {
+    showToast("Forced action unavailable", "Forcing action after grace requires forced system action permission.", "error");
     return;
   }
   if (sendMode === "all_connected" && (!confirmAll || !confirmAll.checked)) {
@@ -391,24 +544,46 @@ async function sendSystemMessage() {
   const button = $("adminPresenceMessageSendButton");
   if (button) button.disabled = true;
   try {
-    const result = await supabaseClient.rpc("send_admin_system_message", {
-      p_target_scope: sendMode === "all_connected" ? "all_connected" : "profile",
-      p_target_profile_id: sendMode === "all_connected" ? null : selectedRecipient.profile_id,
-      p_title: title,
-      p_body: body,
-      p_message_type: MESSAGE_TYPES.includes(messageType) ? messageType : "info",
-      p_action_hint: ACTION_HINTS.includes(actionHint) ? actionHint : "acknowledge_only",
-      p_expires_minutes: Number.isFinite(expiresMinutes) ? expiresMinutes : 60,
-      p_metadata: {
-        source: "operations_hub_admin_presence",
-        recipient_preview_count: sendMode === "all_connected" ? onlineSessions.length : 1
-      }
-    });
+    const targetScope = sendMode === "all_connected" ? "all_connected" : "profile";
+    const targetProfileId = sendMode === "all_connected" ? null : selectedRecipient.profile_id;
+    const rpcName = messageMode === "required"
+      ? "send_required_admin_system_message"
+      : "send_admin_system_message";
+    const params = messageMode === "required"
+      ? {
+          p_target_scope: targetScope,
+          p_target_profile_id: targetProfileId,
+          p_title: title,
+          p_body: body,
+          p_message_type: MESSAGE_TYPES.includes(messageType) ? messageType : "access_update",
+          p_required_action: REQUIRED_ACTIONS.includes(requiredAction) ? requiredAction : "refresh_required",
+          p_force_after_grace: forceAfterGrace,
+          p_grace_seconds: Math.max(30, Number.isFinite(graceSeconds) ? graceSeconds : 300),
+          p_expires_minutes: Number.isFinite(expiresMinutes) ? expiresMinutes : 60,
+          p_metadata: {
+            source: "operations_hub_required_admin_presence",
+            recipient_preview_count: sendMode === "all_connected" ? onlineSessions.length : 1
+          }
+        }
+      : {
+          p_target_scope: targetScope,
+          p_target_profile_id: targetProfileId,
+          p_title: title,
+          p_body: body,
+          p_message_type: MESSAGE_TYPES.includes(messageType) ? messageType : "info",
+          p_action_hint: ADVISORY_ACTION_HINTS.includes(actionHint) ? actionHint : "acknowledge_only",
+          p_expires_minutes: Number.isFinite(expiresMinutes) ? expiresMinutes : 60,
+          p_metadata: {
+            source: "operations_hub_admin_presence",
+            recipient_preview_count: sendMode === "all_connected" ? onlineSessions.length : 1
+          }
+        };
+    const result = await supabaseClient.rpc(rpcName, params);
     if (result.error) throw result.error;
     showToast(
       "System message sent",
       sendMode === "all_connected"
-        ? "System message sent to all connected users."
+        ? (messageMode === "required" ? "Required system message sent to all connected users." : "System message sent to all connected users.")
         : "System message sent to " + (selectedRecipient.display_name || "the selected user") + ".",
       "success"
     );
@@ -429,9 +604,14 @@ function normaliseIncomingMessage(row) {
     message_type: row.message_type || "info",
     title: row.title || "System Message",
     body: row.body || "",
-    action_hint: row.action_hint || "acknowledge_only",
+    action_hint: row.action_hint || row.required_action || "acknowledge_only",
     sent_at: row.sent_at,
-    expires_at: row.expires_at
+    expires_at: row.expires_at,
+    requires_action: row.requires_action === true,
+    required_action: row.required_action || "",
+    required_action_grace_seconds: row.required_action_grace_seconds || null,
+    required_action_deadline_at: row.required_action_deadline_at || null,
+    force_after_grace: row.force_after_grace === true
   };
 }
 
@@ -448,6 +628,58 @@ function enqueueSystemMessage(rawMessage) {
   showNextSystemMessage();
 }
 
+function actionButtonLabel(message) {
+  const action = message.required_action || message.action_hint || "acknowledge_only";
+  if (action === "refresh_required" || action === "refresh_now") return "Refresh now";
+  if (action === "sign_out_and_back_in_required" || action === "sign_out_and_back_in") return "Sign out and back in";
+  if (action === "sign_out_required" || action === "sign_out_now") return "Sign out now";
+  return "Acknowledge";
+}
+
+function actionTakenForMessage(message) {
+  const action = message.required_action || message.action_hint || "acknowledge_only";
+  if (action === "refresh_required" || action === "refresh_now") return "refresh_now";
+  if (action === "sign_out_and_back_in_required" || action === "sign_out_and_back_in") return "sign_out_and_back_in_now";
+  if (action === "sign_out_required" || action === "sign_out_now") return "sign_out_now";
+  return "acknowledge_only";
+}
+
+function updateRequiredActionCountdown() {
+  if (!activeMessage) return;
+  const countdown = $("adminSystemMessageCountdown");
+  if (!countdown) return;
+  if (!activeMessage.requires_action) {
+    countdown.classList.add("hidden");
+    countdown.textContent = "";
+    return;
+  }
+  if (!activeMessage.force_after_grace || !activeMessage.required_action_deadline_at) {
+    countdown.classList.remove("hidden");
+    countdown.textContent = "Required action: " + requiredActionLabel(activeMessage.required_action) + ".";
+    return;
+  }
+  const remaining = Math.max(0, Math.ceil((new Date(activeMessage.required_action_deadline_at).getTime() - Date.now()) / 1000));
+  countdown.classList.remove("hidden");
+  countdown.textContent = remaining
+    ? "Required action: " + requiredActionLabel(activeMessage.required_action) + ". Forced in " + remaining + " seconds."
+    : "Required action deadline reached.";
+  if (remaining <= 0) {
+    void completeActiveMessageAction({ autoCompleted: true });
+  }
+}
+
+function startRequiredActionCountdown() {
+  stopRequiredActionCountdown();
+  updateRequiredActionCountdown();
+  if (!activeMessage || !activeMessage.requires_action) return;
+  requiredActionTimer = window.setInterval(updateRequiredActionCountdown, 1000);
+}
+
+function stopRequiredActionCountdown() {
+  if (requiredActionTimer) window.clearInterval(requiredActionTimer);
+  requiredActionTimer = null;
+}
+
 function showNextSystemMessage() {
   if (activeMessage || !messageQueue.length) return;
   activeMessage = messageQueue.shift();
@@ -456,33 +688,70 @@ function showNextSystemMessage() {
   $("adminSystemMessageType").textContent = messageTypeLabel(activeMessage.message_type);
   $("adminSystemMessageTitle").textContent = activeMessage.title || "System Message";
   $("adminSystemMessageBody").textContent = activeMessage.body || "";
+  const ack = $("adminSystemMessageAcknowledgeButton");
   const action = $("adminSystemMessageActionButton");
+  const later = $("adminSystemMessageCloseButton");
+  const activeActionTaken = actionTakenForMessage(activeMessage);
+  if (ack) {
+    ack.classList.toggle("hidden", activeMessage.requires_action && (
+      activeMessage.force_after_grace || activeActionTaken !== "acknowledge_only"
+    ));
+    ack.textContent = activeMessage.requires_action ? "Complete required action" : "Acknowledge";
+  }
   if (action) {
-    const hint = activeMessage.action_hint || "acknowledge_only";
-    const showAction = ["refresh_now", "sign_out_now", "sign_out_and_back_in"].includes(hint);
+    const showAction = (activeMessage.requires_action && (
+      activeMessage.force_after_grace || activeActionTaken !== "acknowledge_only"
+    )) ||
+      ["refresh_now", "sign_out_now", "sign_out_and_back_in"].includes(activeMessage.action_hint);
     action.classList.toggle("hidden", !showAction);
-    action.textContent = hint === "refresh_now"
-      ? "Refresh now"
-      : (hint === "sign_out_and_back_in" ? "Sign out and back in" : "Sign out now");
+    action.textContent = actionButtonLabel(activeMessage);
+  }
+  if (later) {
+    const allowLater = !activeMessage.requires_action ||
+      (activeMessage.force_after_grace && activeMessage.required_action_deadline_at &&
+        new Date(activeMessage.required_action_deadline_at).getTime() > Date.now());
+    later.classList.toggle("hidden", !allowLater);
+    later.textContent = activeMessage.requires_action && activeMessage.force_after_grace
+      ? "Later"
+      : "Later / Acknowledge";
   }
   backdrop.classList.add("active");
+  startRequiredActionCountdown();
 }
 
 function closeSystemMessageModal() {
   const backdrop = $("adminSystemMessageModalBackdrop");
   if (backdrop) backdrop.classList.remove("active");
+  stopRequiredActionCountdown();
   activeMessage = null;
   showNextSystemMessage();
 }
 
 async function acknowledgeActiveSystemMessage(options = {}) {
   if (!activeMessage || !activeMessage.message_id) return;
+  if (activeMessage.requires_action &&
+    (activeMessage.force_after_grace || actionTakenForMessage(activeMessage) !== "acknowledge_only") &&
+    !options.forceAcknowledge) {
+    await completeActiveMessageAction({ autoCompleted: false });
+    return;
+  }
   const message = activeMessage;
   try {
-    const result = await supabaseClient.rpc("acknowledge_admin_system_message", {
-      p_message_id: message.message_id,
-      p_session_key: ensureSessionKey()
-    });
+    const rpcName = message.requires_action
+      ? "complete_admin_system_message_action"
+      : "acknowledge_admin_system_message";
+    const params = message.requires_action
+      ? {
+          p_message_id: message.message_id,
+          p_session_key: ensureSessionKey(),
+          p_action_taken: "acknowledge_only",
+          p_auto_completed: false
+        }
+      : {
+          p_message_id: message.message_id,
+          p_session_key: ensureSessionKey()
+        };
+    const result = await supabaseClient.rpc(rpcName, params);
     if (result.error) throw result.error;
     if (!options.silent) showToast("System message acknowledged", "Thank you.", "success");
   } catch (err) {
@@ -492,28 +761,93 @@ async function acknowledgeActiveSystemMessage(options = {}) {
   closeSystemMessageModal();
 }
 
-async function runActiveMessageAction() {
-  if (!activeMessage) return;
-  const hint = activeMessage.action_hint || "acknowledge_only";
-  await acknowledgeActiveSystemMessage({ silent: true });
-  if (hint === "refresh_now") {
+async function completeActiveMessageAction(options = {}) {
+  if (!activeMessage || activeMessage.__completionInProgress) return;
+  activeMessage.__completionInProgress = true;
+  const message = activeMessage;
+  const actionTaken = actionTakenForMessage(message);
+  try {
+    const rpcName = message.requires_action
+      ? "complete_admin_system_message_action"
+      : "acknowledge_admin_system_message";
+    const params = message.requires_action
+      ? {
+          p_message_id: message.message_id,
+          p_session_key: ensureSessionKey(),
+          p_action_taken: actionTaken,
+          p_auto_completed: options.autoCompleted === true
+        }
+      : {
+          p_message_id: message.message_id,
+          p_session_key: ensureSessionKey()
+        };
+    const result = await supabaseClient.rpc(rpcName, params);
+    if (result.error) throw result.error;
+  } catch (err) {
+    activeMessage.__completionInProgress = false;
+    showToast("Required action not recorded", err.message || "Could not record the required action.", "error");
+    return;
+  }
+  closeSystemMessageModal();
+  if (actionTaken === "refresh_now") {
     window.location.reload();
     return;
   }
-  if (hint === "sign_out_now" || hint === "sign_out_and_back_in") {
-    const logoutButton = $("ohAccountLogout") || $("topbarLogoutButton") || $("logoutButton");
-    if (logoutButton) logoutButton.click();
+  if (actionTaken === "sign_out_now" || actionTaken === "sign_out_and_back_in_now") {
+    requestExistingLogout();
   }
+}
+
+function requestExistingLogout() {
+  const logoutButton = $("ohAccountLogout") || $("topbarLogoutButton") || $("logoutButton");
+  if (logoutButton) logoutButton.click();
+}
+
+async function runActiveMessageAction() {
+  if (!activeMessage) return;
+  await completeActiveMessageAction({ autoCompleted: false });
+}
+
+function postponeActiveMessage() {
+  if (!activeMessage) return;
+  if (activeMessage.requires_action && activeMessage.force_after_grace) {
+    const deadline = activeMessage.required_action_deadline_at
+      ? new Date(activeMessage.required_action_deadline_at).getTime()
+      : 0;
+    if (deadline <= Date.now()) {
+      void completeActiveMessageAction({ autoCompleted: true });
+      return;
+    }
+    const message = activeMessage;
+    const backdrop = $("adminSystemMessageModalBackdrop");
+    if (backdrop) backdrop.classList.remove("active");
+    activeMessage = null;
+    window.setTimeout(() => {
+      enqueueSystemMessage(message);
+    }, Math.min(Math.max(1000, deadline - Date.now()), 60000));
+    stopRequiredActionCountdown();
+    showNextSystemMessage();
+    return;
+  }
+  void acknowledgeActiveSystemMessage();
 }
 
 async function loadPendingMessages() {
   if (!hasActiveStaffProfile()) return;
   try {
-    const result = await supabaseClient.rpc("list_my_pending_system_messages");
+    const result = await supabaseClient.rpc("list_my_pending_system_messages_v2", {
+      p_session_key: ensureSessionKey()
+    });
     if (result.error) throw result.error;
     (result.data || []).forEach(enqueueSystemMessage);
   } catch (err) {
-    // Pending message fallback must stay quiet unless the user receives a message.
+    try {
+      const fallback = await supabaseClient.rpc("list_my_pending_system_messages");
+      if (fallback.error) throw fallback.error;
+      (fallback.data || []).forEach(enqueueSystemMessage);
+    } catch (fallbackErr) {
+      // Pending message fallback must stay quiet unless the user receives a message.
+    }
   }
 }
 
@@ -527,6 +861,170 @@ function startPendingPolling() {
 function stopPendingPolling() {
   if (pendingPollTimer) window.clearInterval(pendingPollTimer);
   pendingPollTimer = null;
+}
+
+async function loadMySessionSecuritySettings() {
+  if (!hasActiveStaffProfile()) return;
+  try {
+    const result = await supabaseClient.rpc("get_my_session_security_settings");
+    if (result.error) throw result.error;
+    securitySettings = {
+      ...DEFAULT_SECURITY_SETTINGS,
+      ...((result.data && result.data[0]) || {})
+    };
+  } catch (err) {
+    securitySettings = { ...DEFAULT_SECURITY_SETTINGS };
+  }
+  scheduleStaffInactivityCheck();
+}
+
+async function loadSessionSecurityAdminSettings() {
+  if (!canViewSessionSecuritySettings()) return;
+  try {
+    const result = await supabaseClient.rpc("get_session_security_admin_settings");
+    if (result.error) throw result.error;
+    adminSecuritySettings = (result.data && result.data[0]) || null;
+    renderSessionSecuritySettings();
+  } catch (err) {
+    adminSecuritySettings = null;
+    renderSessionSecuritySettings();
+  }
+}
+
+function renderSessionSecuritySettings() {
+  const settings = adminSecuritySettings || securitySettings || DEFAULT_SECURITY_SETTINGS;
+  [
+    ["adminPresenceStaffInactivityEnabled", settings.staff_inactivity_enabled],
+    ["adminPresenceStaffAutoSignOutEnabled", settings.staff_auto_sign_out_enabled],
+    ["adminPresenceTerminalIdleResetEnabled", settings.shared_terminal_idle_reset_enabled],
+    ["adminPresenceTerminalExcluded", settings.shared_terminal_excluded_from_staff_timeout]
+  ].forEach(([id, value]) => {
+    const input = $(id);
+    if (input) input.checked = value === true;
+  });
+  [
+    ["adminPresenceStaffIdleMinutes", settings.staff_idle_timeout_minutes],
+    ["adminPresenceStaffWarningSeconds", settings.staff_warning_seconds],
+    ["adminPresenceTerminalIdleSeconds", settings.shared_terminal_idle_reset_seconds]
+  ].forEach(([id, value]) => {
+    const input = $(id);
+    if (input) input.value = value == null ? "" : String(value);
+  });
+  const notes = $("adminPresenceSessionSecurityNotes");
+  if (notes) notes.value = settings.notes || "";
+  const meta = $("adminPresenceSessionSecurityMeta");
+  if (meta) {
+    meta.textContent = adminSecuritySettings && adminSecuritySettings.updated_at
+      ? "Updated " + new Date(adminSecuritySettings.updated_at).toLocaleString() +
+        (adminSecuritySettings.updated_by_name ? " by " + adminSecuritySettings.updated_by_name : "")
+      : "Using default session security settings.";
+  }
+  syncSessionSecurityFormState();
+}
+
+function syncSessionSecurityFormState() {
+  const canManage = canManageSessionSecuritySettings();
+  [
+    "adminPresenceStaffInactivityEnabled",
+    "adminPresenceStaffIdleMinutes",
+    "adminPresenceStaffWarningSeconds",
+    "adminPresenceStaffAutoSignOutEnabled",
+    "adminPresenceTerminalIdleResetEnabled",
+    "adminPresenceTerminalIdleSeconds",
+    "adminPresenceTerminalExcluded",
+    "adminPresenceSessionSecurityNotes",
+    "adminPresenceSessionSecuritySaveButton"
+  ].forEach(id => {
+    const element = $(id);
+    if (element) element.disabled = !canManage;
+  });
+}
+
+async function saveSessionSecuritySettings() {
+  if (!canManageSessionSecuritySettings()) {
+    showToast("You do not have permission", "Updating session security settings requires management permission.", "error");
+    return;
+  }
+  const button = $("adminPresenceSessionSecuritySaveButton");
+  if (button) button.disabled = true;
+  try {
+    const result = await supabaseClient.rpc("update_session_security_settings", {
+      p_staff_inactivity_enabled: $("adminPresenceStaffInactivityEnabled").checked,
+      p_staff_idle_timeout_minutes: Number($("adminPresenceStaffIdleMinutes").value || 30),
+      p_staff_warning_seconds: Number($("adminPresenceStaffWarningSeconds").value || 60),
+      p_staff_auto_sign_out_enabled: $("adminPresenceStaffAutoSignOutEnabled").checked,
+      p_shared_terminal_idle_reset_enabled: $("adminPresenceTerminalIdleResetEnabled").checked,
+      p_shared_terminal_idle_reset_seconds: Number($("adminPresenceTerminalIdleSeconds").value || 120),
+      p_shared_terminal_excluded_from_staff_timeout: $("adminPresenceTerminalExcluded").checked,
+      p_notes: $("adminPresenceSessionSecurityNotes").value.trim() || null
+    });
+    if (result.error) throw result.error;
+    showToast("Session security saved", "Staff session security settings were updated.", "success");
+    await loadMySessionSecuritySettings();
+    await loadSessionSecurityAdminSettings();
+  } catch (err) {
+    showToast("Session security not saved", err.message || "Could not update session security settings.", "error");
+  } finally {
+    if (button) button.disabled = !canManageSessionSecuritySettings();
+  }
+}
+
+function scheduleStaffInactivityCheck() {
+  if (inactivityTimer) window.clearTimeout(inactivityTimer);
+  inactivityTimer = null;
+  if (!isStaffSessionRuntime()) return;
+  if (!securitySettings.staff_inactivity_enabled || !securitySettings.staff_auto_sign_out_enabled) return;
+  if (inactivityWarningActive || inactivityLogoutInProgress) return;
+  const idleMs = Math.max(5, Number(securitySettings.staff_idle_timeout_minutes || 30)) * 60000;
+  const remaining = Math.max(1000, lastStaffActivityAt + idleMs - Date.now());
+  inactivityTimer = window.setTimeout(showInactivityWarning, remaining);
+}
+
+function recordStaffActivity() {
+  if (!isStaffSessionRuntime() || inactivityWarningActive || inactivityLogoutInProgress) return;
+  lastStaffActivityAt = Date.now();
+  scheduleStaffInactivityCheck();
+}
+
+function showInactivityWarning() {
+  if (!isStaffSessionRuntime()) return;
+  inactivityWarningActive = true;
+  const backdrop = $("staffInactivityWarningModalBackdrop");
+  if (!backdrop) return;
+  backdrop.classList.add("active");
+  const deadline = Date.now() + Math.max(15, Number(securitySettings.staff_warning_seconds || 60)) * 1000;
+  if (inactivityWarningTimer) window.clearInterval(inactivityWarningTimer);
+  inactivityWarningTimer = window.setInterval(() => {
+    const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+    const countdown = $("staffInactivityWarningCountdown");
+    if (countdown) countdown.textContent = String(remaining);
+    if (remaining <= 0) {
+      void performInactivityLogout();
+    }
+  }, 1000);
+}
+
+function closeInactivityWarning() {
+  const backdrop = $("staffInactivityWarningModalBackdrop");
+  if (backdrop) backdrop.classList.remove("active");
+  if (inactivityWarningTimer) window.clearInterval(inactivityWarningTimer);
+  inactivityWarningTimer = null;
+  inactivityWarningActive = false;
+}
+
+function staySignedIn() {
+  closeInactivityWarning();
+  lastStaffActivityAt = Date.now();
+  showToast("Session extended", "Your staff session remains active.", "success");
+  scheduleStaffInactivityCheck();
+}
+
+async function performInactivityLogout() {
+  if (inactivityLogoutInProgress) return;
+  inactivityLogoutInProgress = true;
+  closeInactivityWarning();
+  showToast("Signing out", "You are being signed out due to inactivity.", "warning");
+  requestExistingLogout();
 }
 
 function startRealtimeSubscriptions() {
@@ -552,7 +1050,7 @@ function startRealtimeSubscriptions() {
     messageRealtimeChannel = null;
   }
 
-  if (!canViewAdminPresence()) return;
+  if (!canViewOnlineUsers()) return;
   try {
     onlineRealtimeChannel = supabaseClient
       .channel("oh-admin-presence-sessions")
@@ -560,7 +1058,7 @@ function startRealtimeSubscriptions() {
         "postgres_changes",
         { event: "*", schema: "public", table: "app_user_sessions" },
         () => {
-          if (canViewAdminPresence()) void loadOnlineSessions();
+          if (canViewOnlineUsers()) void loadOnlineSessions();
         }
       )
       .subscribe();
@@ -580,22 +1078,31 @@ function stopRealtimeSubscriptions() {
 export function syncAdminPresenceUi() {
   syncAdminPresenceVisibility();
   if (canViewAdminPresence()) {
-    renderOnlineSessions();
-    renderMessageHistory();
+    if (canViewOnlineUsers()) renderOnlineSessions();
+    if (canViewSystemMessageHistory()) renderMessageHistory();
+    if (canViewSessionSecuritySettings()) renderSessionSecuritySettings();
   }
 }
 
 export function refreshAdminPresenceWorkspace() {
   syncAdminPresenceUi();
   if (!canViewAdminPresence()) return;
-  void loadOnlineSessions();
-  void loadMessageHistory();
+  if (canViewOnlineUsers()) void loadOnlineSessions();
+  if (canViewSystemMessageHistory()) void loadMessageHistory();
+  if (canViewSessionSecuritySettings()) void loadSessionSecurityAdminSettings();
 }
 
 export function resetAdminPresence() {
   stopHeartbeat();
   stopPendingPolling();
   stopRealtimeSubscriptions();
+  stopRequiredActionCountdown();
+  if (inactivityTimer) window.clearTimeout(inactivityTimer);
+  if (inactivityWarningTimer) window.clearInterval(inactivityWarningTimer);
+  inactivityTimer = null;
+  inactivityWarningTimer = null;
+  inactivityWarningActive = false;
+  inactivityLogoutInProgress = false;
   onlineSessions = [];
   messageHistory = [];
   messageQueue = [];
@@ -603,6 +1110,8 @@ export function resetAdminPresence() {
   closeSendMessageModal();
   const systemModal = $("adminSystemMessageModalBackdrop");
   if (systemModal) systemModal.classList.remove("active");
+  const inactivityModal = $("staffInactivityWarningModalBackdrop");
+  if (inactivityModal) inactivityModal.classList.remove("active");
 }
 
 export function initialiseAdminPresence() {
@@ -614,7 +1123,12 @@ export function initialiseAdminPresence() {
     ["adminPresenceSendAllButton", "admin_presence.send_all_connected", "Send to All Connected", MESSAGE_SEND_CAPABILITIES, "send"],
     ["adminPresenceMessageHistoryRefreshButton", "admin_presence.message_history.refresh", "View System Message History", MESSAGE_HISTORY_CAPABILITIES, "view"],
     ["adminPresenceMessageSendButton", "admin_presence.system_message.send", "Send System Message", MESSAGE_SEND_CAPABILITIES, "send"],
-    ["adminSystemMessageAcknowledgeButton", "admin_presence.system_message.acknowledge", "Acknowledge System Message", [], "acknowledge"]
+    ["adminSystemMessageAcknowledgeButton", "admin_presence.system_message.acknowledge", "Acknowledge System Message", [], "acknowledge"],
+    ["adminSystemMessageActionButton", "admin_presence.system_message.complete_required_action", "Complete Required System Message Action", [], "complete"],
+    ["adminPresenceSessionSecurityRefreshButton", "admin_presence.session_security.refresh", "View Session Security Settings", SESSION_SECURITY_VIEW_CAPABILITIES, "view"],
+    ["adminPresenceSessionSecuritySaveButton", "admin_presence.session_security.update", "Update Session Security Settings", SESSION_SECURITY_MANAGE_CAPABILITIES, "update"],
+    ["staffInactivityStaySignedInButton", "admin_presence.staff_inactivity.stay_signed_in", "Stay Signed In", [], "session"],
+    ["staffInactivitySignOutButton", "admin_presence.staff_inactivity.sign_out_now", "Sign Out Now", [], "session"]
   ].forEach(([id, actionId, label, requiredAny, actionType]) => {
     const element = $(id);
     if (element) {
@@ -636,6 +1150,12 @@ export function initialiseAdminPresence() {
   if (sendAll) sendAll.addEventListener("click", () => openSendMessageModal("all_connected"));
   const historyRefresh = $("adminPresenceMessageHistoryRefreshButton");
   if (historyRefresh) historyRefresh.addEventListener("click", loadMessageHistory);
+  const historySearch = $("adminPresenceHistorySearch");
+  if (historySearch) historySearch.addEventListener("input", loadMessageHistory);
+  const messageMode = $("adminPresenceMessageMode");
+  if (messageMode) messageMode.addEventListener("change", syncForceActionControls);
+  const forceMode = $("adminPresenceForceMode");
+  if (forceMode) forceMode.addEventListener("change", updateSendAllConfirmationText);
   const modalClose = $("adminPresenceMessageModalClose");
   if (modalClose) modalClose.addEventListener("click", closeSendMessageModal);
   const modalCancel = $("adminPresenceMessageCancelButton");
@@ -647,7 +1167,19 @@ export function initialiseAdminPresence() {
   const action = $("adminSystemMessageActionButton");
   if (action) action.addEventListener("click", runActiveMessageAction);
   const close = $("adminSystemMessageCloseButton");
-  if (close) close.addEventListener("click", () => acknowledgeActiveSystemMessage());
+  if (close) close.addEventListener("click", postponeActiveMessage);
+  const securityRefresh = $("adminPresenceSessionSecurityRefreshButton");
+  if (securityRefresh) securityRefresh.addEventListener("click", loadSessionSecurityAdminSettings);
+  const securitySave = $("adminPresenceSessionSecuritySaveButton");
+  if (securitySave) securitySave.addEventListener("click", saveSessionSecuritySettings);
+  const stay = $("staffInactivityStaySignedInButton");
+  if (stay) stay.addEventListener("click", staySignedIn);
+  const signOut = $("staffInactivitySignOutButton");
+  if (signOut) signOut.addEventListener("click", performInactivityLogout);
+
+  ["click", "keydown", "pointerdown", "touchstart", "input", "change", "scroll"].forEach(eventName => {
+    document.addEventListener(eventName, recordStaffActivity, { passive: true });
+  });
 
   window.addEventListener("oh:capabilities-changed", () => {
     syncAdminPresenceUi();
@@ -656,6 +1188,7 @@ export function initialiseAdminPresence() {
   window.addEventListener("oh:session-signed-out", resetAdminPresence);
   window.addEventListener("oh:workspace-changed", () => {
     void sendPresenceHeartbeat({ force: true });
+    recordStaffActivity();
   });
   window.addEventListener("beforeunload", () => {
     void endPresence();
@@ -664,14 +1197,18 @@ export function initialiseAdminPresence() {
   startHeartbeat();
   startPendingPolling();
   startRealtimeSubscriptions();
+  void loadMySessionSecuritySettings();
   syncAdminPresenceUi();
 }
 
 export function startAdminPresenceSession() {
+  lastStaffActivityAt = Date.now();
+  inactivityLogoutInProgress = false;
   startHeartbeat();
   startPendingPolling();
   startRealtimeSubscriptions();
   syncAdminPresenceUi();
+  void loadMySessionSecuritySettings();
   void loadPendingMessages();
 }
 

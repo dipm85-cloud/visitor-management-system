@@ -217,7 +217,10 @@ export function shouldShowAdministrationNavigation() {
     "access_control.manage",
     "online_users.view",
     "admin_system_messages.view",
-    "admin_system_messages.send"
+    "admin_system_messages.send",
+    "admin_system_messages.force_action",
+    "session_security_settings.view",
+    "session_security_settings.manage"
   ]);
 }
 

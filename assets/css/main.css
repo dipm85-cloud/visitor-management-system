@@ -8014,6 +8014,10 @@ button.oh-section-nav-item:focus-visible,
   background: var(--oh-shell-surface);
 }
 
+.admin-presence-card.is-wide {
+  grid-column: 1 / -1;
+}
+
 .admin-presence-card h4,
 .admin-presence-card p {
   margin: 0;
@@ -8031,8 +8035,31 @@ button.oh-section-nav-item:focus-visible,
   margin-bottom: 12px;
 }
 
-.admin-presence-card-heading input {
+.admin-presence-card-heading input,
+.admin-presence-card-tools input {
   min-width: min(240px, 100%);
+}
+
+.admin-presence-card-tools {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.admin-presence-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.admin-presence-settings-grid label {
+  min-width: 0;
+}
+
+.admin-presence-settings-notes {
+  grid-column: 1 / -1;
 }
 
 .admin-presence-session-list,
@@ -8105,6 +8132,20 @@ button.oh-section-nav-item:focus-visible,
   line-height: 1.5;
 }
 
+.admin-system-message-countdown {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border: 1px solid #f2c94c;
+  border-radius: 8px;
+  background: #fff8db;
+  color: #7a4b00;
+  font-weight: 800;
+}
+
+.staff-inactivity-warning-modal {
+  max-width: min(520px, calc(100vw - 28px));
+}
+
 @media (max-width: 900px) {
   .admin-presence-heading,
   .admin-presence-card-heading,
@@ -8118,6 +8159,10 @@ button.oh-section-nav-item:focus-visible,
   }
 
   .admin-presence-actions {
+    justify-content: flex-start;
+  }
+
+  .admin-presence-card-tools {
     justify-content: flex-start;
   }
 }
