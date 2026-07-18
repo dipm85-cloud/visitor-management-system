@@ -12,6 +12,7 @@ import {
   registerModuleSections,
   selectModuleSection
 } from "./sectionNavigation.js";
+import { decorateCapabilityAction } from "./capabilityInspector.js";
 import {
   normaliseBusinessCode,
   titleCaseText,
@@ -228,8 +229,29 @@ const entityDefinitions = {
           { value: "true", label: "Yes - overnight" }
         ]
       },
-      { key: "break_minutes", label: "Break Minutes", type: "number", min: 0, max: 1440, defaultValue: 0 },
-      { key: "paid_hours", label: "Paid Working Hours", type: "number", min: 0, max: 24, step: "0.25", required: true },
+      {
+        key: "break_rule_id",
+        label: "Break Rule",
+        type: "lookup",
+        lookup: "workTimeProfileBreakRules",
+        sectionTitle: "Break alignment",
+        sectionHelp: "Break Rules define the normal break duration and paid/unpaid behaviour. Final paid hours can remain manual or follow the calculated suggestion.",
+        help: "Select a standard Break Rule, or leave empty to use the legacy manual break minutes below."
+      },
+      { key: "break_minutes", label: "Legacy / Manual Break Minutes", type: "number", min: 0, max: 1440, defaultValue: 0, help: "Used when no Break Rule is selected." },
+      {
+        key: "paid_hours_manual_override",
+        label: "Paid Hours Mode",
+        type: "select",
+        defaultValue: "true",
+        boolean: true,
+        options: [
+          { value: "true", label: "Manual paid hours" },
+          { value: "false", label: "Use calculated paid hours" }
+        ]
+      },
+      { key: "paid_hours", label: "Manual Paid Hours / Final Paid Hours", type: "number", min: 0, max: 24, step: "0.25" },
+      { key: "break_alignment_notes", label: "Break Alignment Notes", type: "textarea", allowEmptyString: true },
       { key: "unsociable_hours", label: "Unsociable Hours", type: "number", min: 0, max: 24, step: "0.25", defaultValue: 0 },
       {
         key: "custom_tag_1",
@@ -246,15 +268,12 @@ const entityDefinitions = {
     columns: [
       { key: "profile_name", label: "Profile" },
       { key: "profile_code", label: "Code" },
-      { key: "start_time", label: "Start", format: "time" },
-      { key: "end_time", label: "End", format: "time" },
-      { key: "custom_tags", label: "Tags", format: "workTimeTags" },
-      { key: "crosses_midnight", label: "Overnight", format: "boolean" },
-      { key: "break_minutes", label: "Break" },
-      { key: "paid_hours", label: "Paid", format: "hours" },
-      { key: "unsociable_hours", label: "Unsociable", format: "hours" },
-      { key: "display_order", label: "Order" },
-      { key: "notes", label: "Notes" }
+      { key: "time_summary", label: "Times", format: "workTimeProfileTimes" },
+      { key: "break_rule_label", label: "Break Rule" },
+      { key: "effective_break_minutes", label: "Effective Break" },
+      { key: "hours_summary", label: "Hours", format: "workTimeProfileHours" },
+      { key: "paid_hours_manual_override", label: "Manual", format: "boolean" },
+      { key: "custom_tags", label: "Tags", format: "workTimeTags" }
     ]
   }
 };
@@ -262,7 +281,8 @@ const entityDefinitions = {
 const referenceCache = {};
 const lookupCache = {
   sites: [],
-  organisations: []
+  organisations: [],
+  workTimeProfileBreakRules: []
 };
 
 let currentEntityKey = "sites";
@@ -404,6 +424,16 @@ function formatValue(record, column) {
   if (column.format === "boolean") return record[column.key] ? "Yes" : "No";
   if (column.format === "time") return formatReferenceTime(record[column.key]);
   if (column.format === "hours") return formatReferenceHours(record[column.key]);
+  if (column.format === "workTimeProfileTimes") {
+    return formatReferenceTime(record.start_time) + "-" + formatReferenceTime(record.end_time) +
+      (record.crosses_midnight ? " overnight" : "");
+  }
+  if (column.format === "workTimeProfileHours") {
+    return "Final " + formatReferenceHours(record.paid_hours) +
+      " | Suggested " + formatReferenceHours(record.calculated_paid_hours) +
+      " | Gross " + formatReferenceHours(record.gross_hours) +
+      " | Unsoc " + formatReferenceHours(record.unsociable_hours);
+  }
   if (column.format === "title") {
     return String(record[column.key] || "")
       .replace(/_/g, " ")
@@ -420,6 +450,64 @@ function formatReferenceTime(value) {
 function formatReferenceHours(value) {
   const numberValue = Number(value);
   return Number.isFinite(numberValue) ? numberValue.toFixed(2) : "-";
+}
+
+function formatReferenceMinutes(value) {
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) ? String(numberValue) + " min" : "-";
+}
+
+function workTimeProfileId(record) {
+  return record && (record.id || record.profile_id);
+}
+
+function normaliseWorkTimeProfileRecord(record) {
+  const item = record || {};
+  return {
+    ...item,
+    id: workTimeProfileId(item),
+    break_minutes: item.break_minutes ?? item.legacy_break_minutes ?? 0,
+    paid_hours_manual_override: item.paid_hours_manual_override !== false,
+    break_rule_label: item.break_rule_label || "",
+    legacy_break_minutes: item.legacy_break_minutes ?? item.break_minutes ?? 0
+  };
+}
+
+function workTimeProfileBreakRuleLabel(record) {
+  if (record.break_rule_label) return record.break_rule_label;
+  if (record.break_rule_id) return "Selected Break Rule";
+  return "Manual break minutes";
+}
+
+function createWorkTimeProfileHoursCell(record) {
+  const cell = document.createElement("td");
+  const stack = document.createElement("div");
+  stack.className = "work-time-profile-hours-stack";
+  [
+    ["Final", formatReferenceHours(record.paid_hours)],
+    ["Suggested", formatReferenceHours(record.calculated_paid_hours)],
+    ["Gross", formatReferenceHours(record.gross_hours)]
+  ].forEach(([label, value]) => {
+    const line = document.createElement("span");
+    line.textContent = label + " " + value + "h";
+    stack.appendChild(line);
+  });
+  cell.appendChild(stack);
+  return cell;
+}
+
+function createWorkTimeProfileBreakCell(record) {
+  const cell = document.createElement("td");
+  const stack = document.createElement("div");
+  stack.className = "work-time-profile-break-stack";
+  const rule = document.createElement("strong");
+  rule.textContent = workTimeProfileBreakRuleLabel(record);
+  const detail = document.createElement("span");
+  detail.textContent = "Effective " + formatReferenceMinutes(record.effective_break_minutes) +
+    " | Legacy " + formatReferenceMinutes(record.legacy_break_minutes);
+  stack.append(rule, detail);
+  cell.appendChild(stack);
+  return cell;
 }
 
 function workTimeProfileTags(record) {
@@ -498,6 +586,19 @@ async function loadReferenceLookups(definition) {
         label: organisation.organisation_name +
           (organisation.organisation_code ? " (" + organisation.organisation_code + ")" : ""),
         active: organisation.active
+      }));
+    }
+
+    if (lookupName === "workTimeProfileBreakRules") {
+      const result = await supabaseClient.rpc("list_work_time_profile_break_rule_options");
+      if (result.error) throw result.error;
+
+      lookupCache.workTimeProfileBreakRules = (result.data || []).map(rule => ({
+        id: rule.break_rule_id,
+        label: rule.break_rule_label,
+        break_minutes: rule.break_minutes,
+        paid_break: rule.paid_break,
+        active: true
       }));
     }
   }));
@@ -633,8 +734,130 @@ function renderReferenceFormFields() {
   });
 
   if (isWorkTimeProfilesDefinition(definition)) {
+    container.appendChild(createWorkTimeProfileCalculationPreview());
     setupWorkTimeProfileFormBehaviour();
   }
+}
+
+function createWorkTimeProfileCalculationPreview() {
+  const preview = document.createElement("section");
+  preview.id = "workTimeProfileCalculationPreview";
+  preview.className = "work-time-profile-preview";
+  preview.setAttribute("aria-live", "polite");
+  const heading = document.createElement("h3");
+  heading.textContent = "Calculation preview";
+  const help = document.createElement("p");
+  help.textContent = "Preview only. Save applies the selected manual or calculated final paid hours.";
+  const grid = document.createElement("dl");
+  grid.className = "work-time-profile-preview-grid";
+  [
+    ["Gross hours", "gross"],
+    ["Break rule", "rule"],
+    ["Effective break", "break"],
+    ["Unpaid break", "unpaid"],
+    ["Suggested paid", "calculated"],
+    ["Final paid", "final"]
+  ].forEach(([label, key]) => {
+    const item = document.createElement("div");
+    const term = document.createElement("dt");
+    const detail = document.createElement("dd");
+    term.textContent = label;
+    detail.id = "workTimeProfilePreview_" + key;
+    detail.textContent = "-";
+    item.append(term, detail);
+    grid.appendChild(item);
+  });
+  preview.append(heading, help, grid);
+  return preview;
+}
+
+function timeToMinutes(value) {
+  const match = String(value || "").match(/^(\d{1,2}):(\d{2})/);
+  if (!match) return null;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+  return (hours * 60) + minutes;
+}
+
+function selectedWorkTimeProfileBreakRule() {
+  const control = $("referenceField_break_rule_id");
+  const id = control ? control.value : "";
+  return (lookupCache.workTimeProfileBreakRules || []).find(rule => rule.id === id) || null;
+}
+
+function numericControlValue(id) {
+  const control = $(id);
+  if (!control) return null;
+  const text = control.value.trim();
+  if (!text) return null;
+  const value = Number(text);
+  return Number.isFinite(value) ? value : null;
+}
+
+function calculateWorkTimeProfilePreviewValues() {
+  const start = timeToMinutes($("referenceField_start_time") && $("referenceField_start_time").value);
+  const end = timeToMinutes($("referenceField_end_time") && $("referenceField_end_time").value);
+  const crossesMidnight = $("referenceField_crosses_midnight") && $("referenceField_crosses_midnight").value === "true";
+  const breakRule = selectedWorkTimeProfileBreakRule();
+  const legacyBreakMinutes = Math.max(0, numericControlValue("referenceField_break_minutes") ?? 0);
+  const manualOverride = !$("referenceField_paid_hours_manual_override") ||
+    $("referenceField_paid_hours_manual_override").value !== "false";
+  const manualPaidHours = numericControlValue("referenceField_paid_hours");
+
+  let grossMinutes = null;
+  if (start !== null && end !== null) {
+    let adjustedEnd = end;
+    if (crossesMidnight || end < start) adjustedEnd += 24 * 60;
+    grossMinutes = Math.max(adjustedEnd - start, 0);
+  }
+
+  const effectiveBreakMinutes = breakRule
+    ? Math.max(0, Number(breakRule.break_minutes || 0))
+    : legacyBreakMinutes;
+  const paidBreak = Boolean(breakRule && breakRule.paid_break);
+  const unpaidBreakMinutes = grossMinutes === null
+    ? (paidBreak ? 0 : effectiveBreakMinutes)
+    : paidBreak
+      ? 0
+      : Math.min(effectiveBreakMinutes, grossMinutes);
+  const calculatedPaidMinutes = grossMinutes === null ? null : Math.max(grossMinutes - unpaidBreakMinutes, 0);
+  const calculatedPaidHours = calculatedPaidMinutes === null ? null : Number((calculatedPaidMinutes / 60).toFixed(2));
+  const finalPaidHours = manualOverride ? manualPaidHours : calculatedPaidHours;
+
+  return {
+    breakRule,
+    manualOverride,
+    grossMinutes,
+    grossHours: grossMinutes === null ? null : Number((grossMinutes / 60).toFixed(2)),
+    effectiveBreakMinutes,
+    unpaidBreakMinutes,
+    calculatedPaidHours,
+    finalPaidHours
+  };
+}
+
+function setPreviewText(key, value) {
+  const target = $("workTimeProfilePreview_" + key);
+  if (target) target.textContent = value;
+}
+
+function updateWorkTimeProfileCalculationPreview() {
+  const values = calculateWorkTimeProfilePreviewValues();
+  const paidHours = $("referenceField_paid_hours");
+  if (paidHours) {
+    paidHours.readOnly = values.manualOverride === false;
+    if (values.manualOverride === false && values.calculatedPaidHours !== null) {
+      paidHours.value = String(values.calculatedPaidHours);
+    }
+  }
+
+  setPreviewText("gross", values.grossHours === null ? "-" : formatReferenceHours(values.grossHours) + "h");
+  setPreviewText("rule", values.breakRule ? values.breakRule.label : "Manual break minutes");
+  setPreviewText("break", formatReferenceMinutes(values.effectiveBreakMinutes));
+  setPreviewText("unpaid", formatReferenceMinutes(values.unpaidBreakMinutes));
+  setPreviewText("calculated", values.calculatedPaidHours === null ? "-" : formatReferenceHours(values.calculatedPaidHours) + "h");
+  setPreviewText("final", values.finalPaidHours === null ? "-" : formatReferenceHours(values.finalPaidHours) + "h");
 }
 
 function setupWorkTimeProfileFormBehaviour() {
@@ -649,6 +872,21 @@ function setupWorkTimeProfileFormBehaviour() {
     if (codeControl.dataset.userEdited === "true" || codeControl.value.trim()) return;
     codeControl.value = normaliseWorkTimeProfileCode(nameControl.value) || "";
   });
+
+  [
+    "referenceField_start_time",
+    "referenceField_end_time",
+    "referenceField_crosses_midnight",
+    "referenceField_break_rule_id",
+    "referenceField_break_minutes",
+    "referenceField_paid_hours_manual_override",
+    "referenceField_paid_hours"
+  ].forEach(id => {
+    const control = $(id);
+    if (control) control.addEventListener("input", updateWorkTimeProfileCalculationPreview);
+    if (control) control.addEventListener("change", updateWorkTimeProfileCalculationPreview);
+  });
+  updateWorkTimeProfileCalculationPreview();
 }
 
 function updateReferencePageLabels() {
@@ -663,6 +901,35 @@ function updateReferencePageLabels() {
     const element = $(id);
     if (element) element.classList.toggle("hidden", !isWorkTimeProfiles);
   });
+  if ($("referenceExportCsvButton")) {
+    decorateCapabilityAction($("referenceExportCsvButton"), {
+      actionId: "reference_data.work_time_profiles.export_csv",
+      label: "Export Work Time Profiles",
+      area: "Reference Data",
+      requiredAny: definitionViewCapabilities(definition),
+      actionType: "export"
+    });
+  }
+  if ($("referenceExportXlsxButton")) {
+    decorateCapabilityAction($("referenceExportXlsxButton"), {
+      actionId: "reference_data.work_time_profiles.export_xlsx",
+      label: "Export Work Time Profiles",
+      area: "Reference Data",
+      requiredAny: definitionViewCapabilities(definition),
+      actionType: "export"
+    });
+  }
+  if ($("referenceSaveButton")) {
+    decorateCapabilityAction($("referenceSaveButton"), {
+      actionId: isWorkTimeProfiles
+        ? "reference_data.work_time_profiles.break_alignment.save"
+        : "reference_data." + currentEntityKey + ".save",
+      label: isWorkTimeProfiles ? "Save Work Time Profile break alignment" : "Save Reference Data Record",
+      area: "Reference Data",
+      requiredAny: definitionEditCapabilities(definition),
+      actionType: "save"
+    });
+  }
   syncReferenceEntityNavigation();
 }
 
@@ -690,7 +957,8 @@ async function loadWorkTimeProfiles(requestedEntityKey, definition) {
   $("referenceEmptyState").classList.add("hidden");
 
   try {
-    const result = await supabaseClient.rpc("list_work_time_profiles", {
+    await loadReferenceLookups(definition);
+    const result = await supabaseClient.rpc("list_work_time_profiles_with_break_alignment", {
       p_include_inactive: includeInactiveWorkTimeProfiles(),
       p_search_text: null
     });
@@ -698,7 +966,7 @@ async function loadWorkTimeProfiles(requestedEntityKey, definition) {
     if (result.error) throw result.error;
     if (requestedEntityKey !== currentEntityKey) return;
 
-    referenceCache[requestedEntityKey] = result.data || [];
+    referenceCache[requestedEntityKey] = (result.data || []).map(normaliseWorkTimeProfileRecord);
     renderReferenceDataList();
   } catch (err) {
     if (requestedEntityKey !== currentEntityKey) return;
@@ -716,7 +984,14 @@ function workTimeProfileSearchText(record) {
     formatReferenceTime(record.start_time),
     formatReferenceTime(record.end_time),
     record.crosses_midnight ? "overnight crosses midnight night" : "day",
+    record.break_rule_label,
+    record.break_rule_paid_break ? "paid break" : "unpaid break",
+    record.effective_break_minutes,
+    record.gross_hours,
+    record.calculated_paid_hours,
+    record.paid_hours_manual_override ? "manual override manual paid hours" : "calculated paid hours",
     record.break_minutes,
+    record.legacy_break_minutes,
     record.paid_hours,
     record.unsociable_hours,
     record.custom_tag_1,
@@ -765,9 +1040,10 @@ function renderWorkTimeProfileList() {
   filtered.forEach(record => {
     const row = document.createElement("tr");
     definition.columns.forEach(column => {
-      row.appendChild(column.format === "workTimeTags"
-        ? createWorkTimeProfileTagsCell(record)
-        : createTextCell(formatValue(record, column)));
+      if (column.format === "workTimeTags") row.appendChild(createWorkTimeProfileTagsCell(record));
+      else if (column.format === "workTimeProfileHours") row.appendChild(createWorkTimeProfileHoursCell(record));
+      else if (column.key === "break_rule_label") row.appendChild(createWorkTimeProfileBreakCell(record));
+      else row.appendChild(createTextCell(formatValue(record, column)));
     });
 
     const statusCell = document.createElement("td");
@@ -785,10 +1061,30 @@ function renderWorkTimeProfileList() {
       editButton.type = "button";
       editButton.textContent = "Edit";
       editButton.setAttribute("aria-label", "Edit " + (record.profile_name || "work time profile"));
+      decorateCapabilityAction(editButton, {
+        actionId: "reference_data.work_time_profiles.break_alignment.edit",
+        label: "Edit Work Time Profile break alignment",
+        area: "Reference Data",
+        requiredAny: definitionEditCapabilities(definition),
+        actionType: "edit"
+      });
       editButton.addEventListener("click", () => openReferenceDataPanel(record.id));
       actionCell.appendChild(editButton);
     } else {
-      actionCell.textContent = "Read only";
+      const viewButton = document.createElement("button");
+      viewButton.className = "ghost";
+      viewButton.type = "button";
+      viewButton.textContent = "View";
+      viewButton.setAttribute("aria-label", "View " + (record.profile_name || "work time profile") + " break alignment");
+      decorateCapabilityAction(viewButton, {
+        actionId: "reference_data.work_time_profiles.break_alignment.view",
+        label: "View Work Time Profile break alignment",
+        area: "Reference Data",
+        requiredAny: definitionViewCapabilities(definition),
+        actionType: "view"
+      });
+      viewButton.addEventListener("click", () => openWorkTimeProfileAlignmentDetails(record.id, viewButton));
+      actionCell.appendChild(viewButton);
     }
     row.appendChild(actionCell);
     body.appendChild(row);
@@ -816,14 +1112,22 @@ function workTimeProfileExportRows() {
     "Start Time": formatReferenceTime(record.start_time),
     "End Time": formatReferenceTime(record.end_time),
     "Crosses Midnight": record.crosses_midnight ? "Yes" : "No",
-    "Break Minutes": record.break_minutes ?? "",
-    "Paid Hours": formatReferenceHours(record.paid_hours),
-    "Unsociable Hours": formatReferenceHours(record.unsociable_hours),
+    "break_rule_id": record.break_rule_id || "",
+    "break_rule_label": record.break_rule_label || "",
+    "legacy_break_minutes": record.legacy_break_minutes ?? record.break_minutes ?? "",
+    "effective_break_minutes": record.effective_break_minutes ?? "",
+    "gross_hours": formatReferenceHours(record.gross_hours),
+    "calculated_paid_hours": formatReferenceHours(record.calculated_paid_hours),
+    "paid_hours_manual_override": record.paid_hours_manual_override ? "Yes" : "No",
+    "paid_hours": formatReferenceHours(record.paid_hours),
+    "unsociable_hours": formatReferenceHours(record.unsociable_hours),
+    "tags": workTimeProfileTags(record).join(" | "),
     "Tag 1": record.custom_tag_1 || "",
     "Tag 2": record.custom_tag_2 || "",
     "Tag 3": record.custom_tag_3 || "",
-    "Active": record.active ? "Yes" : "No",
+    "active": record.active ? "Yes" : "No",
     "Display Order": record.display_order ?? "",
+    "Break Alignment Notes": record.break_alignment_notes || "",
     "Notes": record.notes || ""
   }));
 }
@@ -1006,8 +1310,25 @@ export function renderReferenceDataList() {
   setListStatus(filtered.length + " of " + records.length + " records shown.");
 }
 
-export function openReferenceDataPanel(recordId) {
-  if (!requireReferenceDataEditAccess()) return;
+function setReferencePanelReadOnly(readOnly) {
+  const form = $("referenceDataForm");
+  if (!form) return;
+  form.querySelectorAll("input, select, textarea").forEach(control => {
+    if (control.id === "referenceRecordId") return;
+    control.disabled = readOnly;
+  });
+  if ($("referenceSaveButton")) $("referenceSaveButton").classList.toggle("hidden", readOnly);
+  if ($("referenceClearButton")) $("referenceClearButton").classList.toggle("hidden", readOnly);
+}
+
+function openWorkTimeProfileAlignmentDetails(recordId) {
+  openReferenceDataPanel(recordId, { readOnly: true });
+}
+
+export function openReferenceDataPanel(recordId, options = {}) {
+  const readOnly = options.readOnly === true;
+  if (!readOnly && !requireReferenceDataEditAccess()) return;
+  if (readOnly && !requireReferenceEntityAccess(currentDefinition())) return;
 
   clearReferenceForm();
   const definition = currentDefinition();
@@ -1027,12 +1348,14 @@ export function openReferenceDataPanel(recordId) {
       }
     });
     $("referenceRecordActive").value = record.active === false ? "false" : "true";
-    $("referencePanelTitle").textContent = "Edit " + definition.singular;
+    $("referencePanelTitle").textContent = readOnly ? "View " + definition.singular : "Edit " + definition.singular;
     syncDerivedCycleLength(false);
+    if (isWorkTimeProfilesDefinition(definition)) updateWorkTimeProfileCalculationPreview();
   }
 
   $("referenceDataPanel").classList.remove("hidden");
   $("referenceDataPanel").setAttribute("aria-hidden", "false");
+  setReferencePanelReadOnly(readOnly);
   const firstControl = $("referenceFormFields").querySelector("input, select, textarea");
   if (firstControl) setTimeout(() => firstControl.focus(), 0);
 }
@@ -1048,11 +1371,13 @@ export function clearReferenceForm() {
   $("referenceRecordId").value = "";
   $("referenceRecordActive").value = "true";
   $("referencePanelTitle").textContent = "Create " + definition.singular;
+  setReferencePanelReadOnly(false);
 
   definition.fields.forEach(field => {
     const control = $("referenceField_" + field.key);
     if (field.defaultValue !== undefined) control.value = String(field.defaultValue);
   });
+  if (isWorkTimeProfilesDefinition(definition)) updateWorkTimeProfileCalculationPreview();
 }
 
 function fieldValue(field) {
@@ -1105,12 +1430,24 @@ function buildWorkTimeProfilePayload() {
     payload[field.key] = fieldValue(field);
   });
   payload.active = $("referenceRecordActive").value === "true";
+  payload.paid_hours_manual_override = payload.paid_hours_manual_override !== false;
 
   if (payload.unsociable_hours === null) payload.unsociable_hours = 0;
   if (payload.break_minutes === null) payload.break_minutes = 0;
   if (payload.display_order === null) payload.display_order = 0;
   if (payload.profile_code) payload.profile_code = normaliseWorkTimeProfileCode(payload.profile_code);
   if (!payload.profile_code) payload.profile_code = normaliseWorkTimeProfileCode(payload.profile_name);
+
+  payload.calculation = calculateWorkTimeProfilePreviewValues();
+  if (!payload.paid_hours_manual_override) {
+    if (payload.calculation.calculatedPaidHours === null) {
+      throw new Error("Start time and end time are required before calculated paid hours can be used.");
+    }
+    payload.paid_hours = payload.calculation.calculatedPaidHours;
+  }
+  if (payload.paid_hours_manual_override && payload.paid_hours === null) {
+    throw new Error("Manual paid hours is required when manual paid hours mode is selected.");
+  }
 
   if (payload.unsociable_hours > payload.paid_hours) {
     throw new Error("Unsociable hours cannot exceed paid working hours.");
@@ -1131,6 +1468,20 @@ function buildWorkTimeProfilePayload() {
   }
 
   return payload;
+}
+
+async function saveWorkTimeProfileBreakAlignment(profileId, payload) {
+  const result = await supabaseClient.rpc("update_work_time_profile_break_alignment", {
+    p_profile_id: profileId,
+    p_break_rule_id: payload.break_rule_id || null,
+    p_use_break_rule: Boolean(payload.break_rule_id),
+    p_legacy_break_minutes: payload.break_minutes,
+    p_paid_hours_manual_override: payload.paid_hours_manual_override,
+    p_paid_hours: payload.paid_hours,
+    p_break_alignment_notes: payload.break_alignment_notes || null
+  });
+  if (result.error) throw result.error;
+  return result.data;
 }
 
 async function saveWorkTimeProfile() {
@@ -1177,6 +1528,8 @@ async function saveWorkTimeProfile() {
     const result = await supabaseClient.rpc(rpcName, rpcPayload);
     if (result.error) throw result.error;
     const savedRecord = Array.isArray(result.data) ? result.data[0] : result.data;
+    const savedRecordId = workTimeProfileId(savedRecord);
+    await saveWorkTimeProfileBreakAlignment(savedRecordId, payload);
 
     const auditFields = referenceAuditFields(currentDefinition());
     const changes = buildFieldDiff(

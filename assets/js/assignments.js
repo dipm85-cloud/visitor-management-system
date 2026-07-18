@@ -351,8 +351,15 @@ function workTimeProfileOptionLabel(profile) {
   return name + " " + formatAssignmentTime(profile.start_time) + "-" +
     formatAssignmentTime(profile.end_time) + " - " +
     formatAssignmentHours(profile.paid_hours) + " paid - " +
+    "break " + workTimeProfileBreakText(profile) + " - " +
     formatAssignmentHours(profile.unsociable_hours) + " unsociable" +
     (profile.active === false ? " - inactive" : "");
+}
+
+function workTimeProfileBreakText(profile) {
+  if (!profile) return "not selected";
+  return profile.break_rule_label ||
+    ((profile.effective_break_minutes ?? profile.break_minutes ?? 0) + " min from Work Time Profile");
 }
 
 function workTimeProfileSummaryText(profile) {
@@ -430,11 +437,15 @@ export function renderSelectedAssignmentWorkTimeProfileSummary() {
 
   if (profile) {
     const details = document.createElement("span");
+    const overrideRule = $("assignmentBreakRule") && $("assignmentBreakRule").value
+      ? lookupLabel("breakRules", $("assignmentBreakRule").value)
+      : "";
     details.textContent =
       "Start " + formatAssignmentTime(profile.start_time) +
       " - End " + formatAssignmentTime(profile.end_time) +
       " - Crosses midnight " + (profile.crosses_midnight ? "Yes" : "No") +
-      " - Break " + (profile.break_minutes ?? 0) + " mins" +
+      " - Break source: " + (overrideRule ? "Assignment override (" + overrideRule + ")" : "Work Time Profile") +
+      " - Break " + workTimeProfileBreakText(profile) +
       " - Paid " + formatAssignmentHours(profile.paid_hours) +
       " - Unsociable " + formatAssignmentHours(profile.unsociable_hours);
     summary.appendChild(details);
@@ -701,8 +712,10 @@ function createWorkTimeProfileCell(assignment) {
 
   if (profile) {
     const detail = document.createElement("span");
+    const overrideRule = assignment.break_rule_id ? lookupLabel("breakRules", assignment.break_rule_id) : "";
     detail.textContent =
-      "Break " + (profile.break_minutes ?? 0) + " mins" +
+      "Break source: " + (overrideRule ? "Assignment override (" + overrideRule + ")" : "Work Time Profile") +
+      " - Break " + workTimeProfileBreakText(profile) +
       " - Crosses midnight " + (profile.crosses_midnight ? "Yes" : "No");
     cell.appendChild(detail);
 

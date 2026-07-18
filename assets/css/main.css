@@ -8920,6 +8920,85 @@ button.oh-section-nav-item:focus-visible,
   white-space: nowrap;
 }
 
+.work-time-profile-hours-stack,
+.work-time-profile-break-stack {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.work-time-profile-hours-stack span,
+.work-time-profile-break-stack span {
+  color: var(--oh-shell-muted);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.25;
+  white-space: normal;
+}
+
+.work-time-profile-break-stack strong {
+  overflow-wrap: anywhere;
+  color: #101828;
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+.work-time-profile-preview {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 10px;
+  margin-top: 4px;
+  padding: 12px;
+  border: 1px solid #d0d7de;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.work-time-profile-preview h3 {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.25;
+}
+
+.work-time-profile-preview p {
+  margin: 0;
+  color: var(--oh-shell-muted);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.work-time-profile-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.work-time-profile-preview-grid > div {
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid #e4e7ec;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.work-time-profile-preview-grid dt {
+  color: var(--oh-shell-muted);
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.work-time-profile-preview-grid dd {
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
+  color: #101828;
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1.25;
+}
+
 input[data-business-code="true"] {
   font-family: Consolas, "Courier New", monospace;
   font-weight: 700;
@@ -8955,6 +9034,12 @@ input[data-reference-field="cycle_length_days"][readonly] {
   .access-control-role-grid { grid-template-columns: 1fr; }
   .module-configuration-card-grid { grid-template-columns: 1fr 1fr; }
   .shared-terminal-status-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 760px) {
+  .work-time-profile-preview-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 599px) {
@@ -9010,6 +9095,10 @@ input[data-reference-field="cycle_length_days"][readonly] {
   }
 
   .reference-toolbar-actions button { width: 100%; }
+
+  .work-time-profile-preview-grid {
+    grid-template-columns: 1fr;
+  }
 
   .shared-terminals-heading,
   .shared-terminal-card-heading {
