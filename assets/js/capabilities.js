@@ -106,6 +106,23 @@ async function loadRolePresetCapabilities(profile) {
   return (result.data || []).map(row => row.capability_code);
 }
 
+async function loadEffectiveProfileCapabilities(profile) {
+  if (!profile || !profile.id) return [];
+
+  const step = "load_profile_effective_capabilities";
+  const source = "rpc:public.list_profile_effective_capabilities";
+  logCapabilityQueryStart(step, source, { profile_id: profile.id });
+  const result = await supabaseClient.rpc("list_profile_effective_capabilities", {
+    p_profile_id: profile.id
+  });
+
+  logCapabilityQueryResult(step, source, result);
+  if (result.error) throw result.error;
+  return (result.data || [])
+    .filter(row => row.effective === true)
+    .map(row => row.capability_code);
+}
+
 async function applyProfileCapabilityOverrides(profile, capabilitySet) {
   if (!profile || !profile.id) return;
 
@@ -140,7 +157,14 @@ export async function loadUserCapabilities(profile) {
   const fallbackCapabilities = fallbackCapabilitiesByRole[profile.role] || [];
 
   try {
-    const capabilitySet = new Set(await loadRolePresetCapabilities(profile));
+    let capabilityCodes = [];
+    try {
+      capabilityCodes = await loadEffectiveProfileCapabilities(profile);
+    } catch (err) {
+      console.warn("Effective capability RPC unavailable; using role preset capability fallback.", err);
+      capabilityCodes = await loadRolePresetCapabilities(profile);
+    }
+    const capabilitySet = new Set(capabilityCodes);
     (compatibilityCapabilitiesByRole[profile.role] || []).forEach(code => {
       capabilitySet.add(code);
     });

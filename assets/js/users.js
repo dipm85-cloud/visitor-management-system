@@ -115,7 +115,7 @@ export function renderProfiles(data) {
     row.innerHTML =
       "<div class='row-title'>" + safe(profile.display_name) + "</div>" +
       "<div class='row-meta'>" +
-      "Role: " + safe(profile.role) + "<br>" +
+      "Legacy Role: " + safe(profile.role) + "<br>" +
       "Status: " + (profile.active ? "Active" : "Inactive") + "<br>" +
       "Failed attempts: " + safe(profile.failed_login_attempts) + "<br>" +
       "User ID: " + safe(profile.id) + "<br>" +

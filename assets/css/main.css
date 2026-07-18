@@ -7934,7 +7934,9 @@ button.oh-section-nav-item:focus-visible,
 }
 
 .access-control-filter-bar input,
+.access-control-filter-bar select,
 .access-control-panel-field input,
+.access-control-panel-field select,
 .access-control-panel-field textarea {
   width: 100%;
 }
@@ -8067,6 +8069,14 @@ button.oh-section-nav-item:focus-visible,
   min-width: 960px;
 }
 
+.access-control-assignment-table {
+  min-width: 1280px;
+}
+
+.access-control-diagnostics-table {
+  min-width: 1040px;
+}
+
 .access-control-table th,
 .access-control-table td {
   padding: 12px 14px;
@@ -8102,6 +8112,17 @@ button.oh-section-nav-item:focus-visible,
   margin-top: 4px;
   color: var(--oh-shell-muted);
   line-height: 1.35;
+}
+
+.access-control-monospace {
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 12px;
+}
+
+.access-control-preset-stack {
+  display: grid;
+  justify-items: start;
+  gap: 5px;
 }
 
 .access-control-type-badge {
@@ -8154,6 +8175,53 @@ button.oh-section-nav-item:focus-visible,
 
 .access-control-placeholder button {
   min-height: 44px;
+}
+
+.access-control-assignment-filter-bar {
+  grid-template-columns: minmax(220px, 1fr) minmax(150px, auto) minmax(360px, auto);
+}
+
+.access-control-diagnostics-filter-bar {
+  grid-template-columns: minmax(220px, 1fr) minmax(180px, .6fr) minmax(150px, auto);
+}
+
+.access-control-diagnostics-user,
+.access-control-diagnostic-test {
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--oh-shell-border);
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.access-control-diagnostics-user {
+  color: #344054;
+  font-size: 13px;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.access-control-diagnostic-test {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto minmax(180px, .8fr);
+  gap: 12px;
+  align-items: end;
+}
+
+.access-control-diagnostic-test label {
+  display: grid;
+  gap: 7px;
+  color: var(--oh-shell-muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.access-control-diagnostic-test p {
+  margin: 0;
+  color: #344054;
+  font-size: 13px;
+  font-weight: 800;
+  overflow-wrap: anywhere;
 }
 
 .role-capability-panel-body {
@@ -8466,6 +8534,9 @@ input[data-reference-field="cycle_length_days"][readonly] {
   .access-control-row-actions button,
   .access-control-detail-actions button { width: 100%; }
   .access-control-filter-bar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .access-control-diagnostic-test {
     grid-template-columns: minmax(0, 1fr);
   }
   .access-control-check-option {

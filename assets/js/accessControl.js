@@ -1,4 +1,5 @@
 import { supabaseClient } from "./api.js";
+import { downloadCsv, downloadXlsx } from "./exports.js";
 import {
   hasAnyCapability,
   loadUserCapabilities
@@ -15,6 +16,7 @@ import {
   selectModuleSection
 } from "./sectionNavigation.js";
 import { AppState } from "./state.js";
+import { exportDateStamp } from "./utils.js";
 
 const ROLE_PRESET_VIEW_CAPABILITIES = [
   "role_presets.view",
@@ -32,15 +34,39 @@ const ROLE_PRESET_MANAGE_CAPABILITIES = [
   "settings.edit"
 ];
 
+const USER_ROLE_ASSIGNMENT_VIEW_CAPABILITIES = [
+  "user_role_assignments.view",
+  "user_role_assignments.manage",
+  "capabilities.diagnose",
+  "users.view",
+  "users.manage",
+  "access_control.view",
+  "access_control.manage",
+  "role_presets.view",
+  "role_presets.manage",
+  "module_configuration.manage",
+  "settings.view"
+];
+
+const USER_ROLE_ASSIGNMENT_MANAGE_CAPABILITIES = [
+  "user_role_assignments.manage",
+  "users.manage",
+  "access_control.manage",
+  "module_configuration.manage",
+  "settings.edit"
+];
+
 let accessControlData = {
   rolePresets: [],
   capabilities: [],
-  groups: []
+  groups: [],
+  userAssignments: []
 };
 let accessControlInitialised = false;
 let rolePresetPanelState = {
   mode: "details",
   role: null,
+  userAssignment: null,
   capabilityCatalogue: [],
   selectedCapabilityCodes: new Set(),
   capabilityFilter: "",
@@ -48,6 +74,15 @@ let rolePresetPanelState = {
 };
 let roleCodeEditedByUser = false;
 let rolePresetSearchTimer = null;
+let userAssignmentSearchTimer = null;
+let effectiveCapabilityState = {
+  userAssignment: null,
+  capabilities: [],
+  searchText: "",
+  groupFilter: "",
+  effectiveOnly: false,
+  testCode: ""
+};
 
 function hasActiveProfile() {
   return !!(
@@ -57,11 +92,22 @@ function hasActiveProfile() {
 }
 
 function hasAccessControlAccess() {
-  return hasActiveProfile() && hasAnyCapability(ROLE_PRESET_VIEW_CAPABILITIES);
+  return hasActiveProfile() && (
+    hasAnyCapability(ROLE_PRESET_VIEW_CAPABILITIES) ||
+    hasAnyCapability(USER_ROLE_ASSIGNMENT_VIEW_CAPABILITIES)
+  );
 }
 
 function hasAccessControlManageAccess() {
   return hasActiveProfile() && hasAnyCapability(ROLE_PRESET_MANAGE_CAPABILITIES);
+}
+
+function hasUserRoleAssignmentAccess() {
+  return hasActiveProfile() && hasAnyCapability(USER_ROLE_ASSIGNMENT_VIEW_CAPABILITIES);
+}
+
+function hasUserRoleAssignmentManageAccess() {
+  return hasActiveProfile() && hasAnyCapability(USER_ROLE_ASSIGNMENT_MANAGE_CAPABILITIES);
 }
 
 function requireAccessControlAccess() {
@@ -79,6 +125,26 @@ function requireAccessControlManageAccess() {
   showToast(
     "You do not have permission",
     "Managing custom role presets requires role preset management permission.",
+    "error"
+  );
+  return false;
+}
+
+function requireUserRoleAssignmentAccess() {
+  if (hasUserRoleAssignmentAccess()) return true;
+  showToast(
+    "You do not have permission",
+    "User role assignments require assignment or access-control view permission.",
+    "error"
+  );
+  return false;
+}
+
+function requireUserRoleAssignmentManageAccess() {
+  if (hasUserRoleAssignmentManageAccess()) return true;
+  showToast(
+    "You do not have permission",
+    "Assigning role presets requires user role assignment management permission.",
     "error"
   );
   return false;
@@ -142,13 +208,25 @@ export function syncAccessControlVisibility() {
 
 function syncAccessControlPermissionUi() {
   const canManage = hasAccessControlManageAccess();
+  const canManageAssignments = hasUserRoleAssignmentManageAccess();
   const badge = $("accessControlPermissionBadge");
-  if (badge) badge.textContent = canManage ? "Custom presets editable" : "Read only";
+  if (badge) {
+    badge.textContent = canManage || canManageAssignments
+      ? "Access control editable"
+      : "Read only";
+  }
   const newButton = $("accessControlNewRolePresetButton");
   if (newButton) {
     newButton.classList.toggle("hidden", !canManage);
     newButton.disabled = !canManage;
   }
+  [
+    $("accessControlUserAssignmentExportCsvButton"),
+    $("accessControlUserAssignmentExportXlsxButton"),
+    $("accessControlDiagnosticsExportCsvButton")
+  ].forEach(button => {
+    if (button) button.classList.toggle("hidden", !hasUserRoleAssignmentAccess());
+  });
 }
 
 function createCell(text) {
@@ -161,6 +239,13 @@ function createActiveStatus(active) {
   const status = document.createElement("span");
   status.className = "people-status " + (active === false ? "inactive" : "active");
   status.textContent = active === false ? "Inactive" : "Active";
+  return status;
+}
+
+function createYesNoStatus(value) {
+  const status = document.createElement("span");
+  status.className = "people-status " + (value ? "active" : "inactive");
+  status.textContent = value ? "Yes" : "No";
   return status;
 }
 
@@ -212,10 +297,61 @@ function normaliseCapability(row) {
   };
 }
 
+function normaliseUserRoleAssignment(row) {
+  return {
+    profile_id: row.profile_id || "",
+    display_name: row.display_name || "",
+    legacy_role: row.legacy_role || "",
+    active: row.active !== false,
+    assigned_role_preset_id: row.assigned_role_preset_id || "",
+    assigned_role_code: row.assigned_role_code || "",
+    assigned_role_name: row.assigned_role_name || "",
+    assigned_role_is_system: row.assigned_role_is_system === true,
+    effective_role_preset_id: row.effective_role_preset_id || "",
+    effective_role_code: row.effective_role_code || "",
+    effective_role_name: row.effective_role_name || "",
+    effective_role_is_system: row.effective_role_is_system === true,
+    direct_allow_count: Number(row.direct_allow_count || 0),
+    direct_deny_count: Number(row.direct_deny_count || 0),
+    effective_capability_count: Number(row.effective_capability_count || 0),
+    created_at: row.created_at || null,
+    updated_at: row.updated_at || null
+  };
+}
+
+function normaliseEffectiveCapability(row) {
+  return {
+    capability_id: row.capability_id || "",
+    capability_code: row.capability_code || "",
+    capability_name: row.capability_name || "",
+    capability_description: row.capability_description || "",
+    group_code: row.group_code || "ungrouped",
+    group_name: row.group_name || "Ungrouped",
+    role_preset_id: row.role_preset_id || "",
+    role_code: row.role_code || "",
+    role_name: row.role_name || "",
+    role_assigned: row.role_assigned === true,
+    direct_grant_state: row.direct_grant_state || "",
+    effective: row.effective === true,
+    effective_source: row.effective_source || "not_granted"
+  };
+}
+
 function rolePresetFilters() {
   return {
     searchText: $("accessControlRoleSearch") ? $("accessControlRoleSearch").value.trim() : "",
     includeInactive: $("accessControlIncludeInactive") ? $("accessControlIncludeInactive").checked : true
+  };
+}
+
+function userAssignmentFilters() {
+  return {
+    searchText: $("accessControlUserAssignmentSearch")
+      ? $("accessControlUserAssignmentSearch").value.trim()
+      : "",
+    includeInactive: $("accessControlUserAssignmentIncludeInactive")
+      ? $("accessControlUserAssignmentIncludeInactive").checked
+      : true
   };
 }
 
@@ -318,6 +454,125 @@ function renderRolePresets() {
       (accessControlData.rolePresets.length === 1 ? "" : "s");
 }
 
+function rolePresetLabelFromParts(name, code) {
+  const safeName = String(name || "").trim();
+  const safeCode = String(code || "").trim();
+  if (safeName && safeCode) return safeName + " (" + safeCode + ")";
+  return safeName || safeCode || "-";
+}
+
+function renderUserRoleAssignments() {
+  const body = $("accessControlUserAssignments");
+  if (!body) return;
+  body.replaceChildren();
+  const canManage = hasUserRoleAssignmentManageAccess();
+
+  accessControlData.userAssignments.forEach(assignment => {
+    const row = document.createElement("tr");
+
+    const userCell = document.createElement("td");
+    const name = document.createElement("strong");
+    name.className = "access-control-table-primary";
+    name.textContent = assignment.display_name || "Unnamed profile";
+    const id = document.createElement("span");
+    id.className = "access-control-table-secondary access-control-monospace";
+    id.textContent = assignment.profile_id;
+    userCell.append(name, id);
+
+    const statusCell = document.createElement("td");
+    statusCell.appendChild(createActiveStatus(assignment.active));
+
+    const assignedCell = document.createElement("td");
+    assignedCell.appendChild(createRoleAssignmentPresetBadge(
+      assignment.assigned_role_name,
+      assignment.assigned_role_code,
+      assignment.assigned_role_is_system,
+      "Fallback to legacy role"
+    ));
+
+    const effectiveCell = document.createElement("td");
+    effectiveCell.appendChild(createRoleAssignmentPresetBadge(
+      assignment.effective_role_name,
+      assignment.effective_role_code,
+      assignment.effective_role_is_system,
+      "No effective preset"
+    ));
+
+    const actionCell = document.createElement("td");
+    actionCell.className = "access-control-row-actions";
+
+    if (canManage) {
+      const assign = document.createElement("button");
+      assign.type = "button";
+      assign.className = "secondary";
+      assign.textContent = "Assign Role Preset";
+      assign.addEventListener("click", event => {
+        openUserRoleAssignmentPanel(assignment, event.currentTarget);
+      });
+      actionCell.appendChild(assign);
+    }
+
+    const capabilities = document.createElement("button");
+    capabilities.type = "button";
+    capabilities.className = "secondary";
+    capabilities.textContent = "View Effective Capabilities";
+    capabilities.addEventListener("click", () => {
+      openEffectiveCapabilitiesForUser(assignment);
+    });
+    actionCell.appendChild(capabilities);
+
+    if (canManage && assignment.assigned_role_preset_id) {
+      const clear = document.createElement("button");
+      clear.type = "button";
+      clear.className = "secondary";
+      clear.textContent = "Clear Explicit Assignment";
+      clear.addEventListener("click", () => clearUserRoleAssignment(assignment));
+      actionCell.appendChild(clear);
+    }
+
+    row.append(
+      userCell,
+      statusCell,
+      createCell(assignment.legacy_role),
+      assignedCell,
+      effectiveCell,
+      createCell(assignment.effective_capability_count),
+      createCell("Allow " + assignment.direct_allow_count + " / Deny " + assignment.direct_deny_count),
+      createCell(formatDate(assignment.updated_at || assignment.created_at)),
+      actionCell
+    );
+    body.appendChild(row);
+  });
+
+  const empty = accessControlData.userAssignments.length === 0;
+  $("accessControlUserAssignmentsEmpty").classList.toggle("hidden", !empty);
+  $("accessControlUserAssignmentSummary").textContent = empty
+    ? ""
+    : accessControlData.userAssignments.length + " profile" +
+      (accessControlData.userAssignments.length === 1 ? "" : "s");
+}
+
+function createRoleAssignmentPresetBadge(name, code, isSystem, fallbackText) {
+  const wrapper = document.createElement("span");
+  wrapper.className = "access-control-preset-stack";
+  const label = document.createElement("span");
+  label.className = "access-control-table-primary";
+  label.textContent = rolePresetLabelFromParts(name, code);
+  wrapper.appendChild(label);
+  if (name || code) {
+    const badge = document.createElement("span");
+    badge.className = "access-control-type-badge " + (isSystem ? "system" : "custom");
+    badge.textContent = isSystem ? "System" : "Custom";
+    wrapper.appendChild(badge);
+  } else {
+    const fallback = document.createElement("span");
+    fallback.className = "access-control-table-secondary";
+    fallback.textContent = fallbackText || "-";
+    wrapper.appendChild(fallback);
+  }
+  return wrapper;
+}
+
 function renderCapabilities() {
   const body = $("accessControlCapabilities");
   body.replaceChildren();
@@ -365,8 +620,112 @@ function renderCapabilityGroups() {
   );
 }
 
+function effectiveCapabilityMatchesFilter(capability) {
+  const filterText = String(effectiveCapabilityState.searchText || "").toLowerCase();
+  const groupFilter = String(effectiveCapabilityState.groupFilter || "");
+  if (effectiveCapabilityState.effectiveOnly && !capability.effective) return false;
+  if (groupFilter && capability.group_code !== groupFilter) return false;
+  if (!filterText) return true;
+  return [
+    capability.capability_code,
+    capability.capability_name,
+    capability.capability_description,
+    capability.group_code,
+    capability.group_name,
+    capability.effective_source,
+    capability.direct_grant_state,
+    capability.role_code,
+    capability.role_name
+  ].some(value => String(value || "").toLowerCase().includes(filterText));
+}
+
+function renderEffectiveCapabilityGroupFilter() {
+  const select = $("accessControlCapabilityDiagnosticGroup");
+  if (!select) return;
+  const current = effectiveCapabilityState.groupFilter;
+  const groups = new Map();
+  effectiveCapabilityState.capabilities.forEach(capability => {
+    groups.set(capability.group_code, capability.group_name);
+  });
+  select.replaceChildren();
+  const all = document.createElement("option");
+  all.value = "";
+  all.textContent = "All groups";
+  select.appendChild(all);
+  Array.from(groups.entries())
+    .sort((a, b) => String(a[1]).localeCompare(String(b[1])))
+    .forEach(([code, name]) => {
+      const option = document.createElement("option");
+      option.value = code;
+      option.textContent = name || code;
+      select.appendChild(option);
+    });
+  select.value = groups.has(current) ? current : "";
+  effectiveCapabilityState.groupFilter = select.value;
+}
+
+function renderEffectiveCapabilityDiagnostics() {
+  const body = $("accessControlEffectiveCapabilities");
+  if (!body) return;
+  body.replaceChildren();
+  renderEffectiveCapabilityGroupFilter();
+
+  const selected = effectiveCapabilityState.userAssignment;
+  const selectedUser = $("accessControlDiagnosticsSelectedUser");
+  if (selectedUser) {
+    selectedUser.textContent = selected
+      ? (selected.display_name || "Unnamed profile") + " - " + selected.profile_id
+      : "No user profile selected.";
+  }
+
+  const rows = effectiveCapabilityState.capabilities.filter(effectiveCapabilityMatchesFilter);
+  rows.forEach(capability => {
+    const row = document.createElement("tr");
+
+    const capabilityCell = document.createElement("td");
+    const name = document.createElement("strong");
+    name.className = "access-control-table-primary";
+    name.textContent = capability.capability_name || capability.capability_code;
+    const code = document.createElement("code");
+    code.textContent = capability.capability_code;
+    const description = document.createElement("span");
+    description.className = "access-control-table-secondary";
+    description.textContent = capability.capability_description || "";
+    capabilityCell.append(name, code, description);
+
+    const effectiveCell = document.createElement("td");
+    effectiveCell.appendChild(createYesNoStatus(capability.effective));
+
+    row.append(
+      createCell(capability.group_name),
+      capabilityCell,
+      effectiveCell,
+      createCell(capability.effective_source),
+      createCell(rolePresetLabelFromParts(capability.role_name, capability.role_code)),
+      createCell(capability.direct_grant_state || "-")
+    );
+    body.appendChild(row);
+  });
+
+  const empty = $("accessControlEffectiveCapabilitiesEmpty");
+  if (empty) {
+    empty.textContent = selected
+      ? "No capabilities match the current filters."
+      : "Select a user profile to view effective capabilities.";
+  }
+  empty.classList.toggle(
+    "hidden",
+    Boolean(selected) && rows.length > 0
+  );
+  $("accessControlDiagnosticsSummary").textContent = selected
+    ? rows.length + " of " + effectiveCapabilityState.capabilities.length + " capabilities shown"
+    : "";
+}
+
 function renderAccessControl() {
   renderRolePresets();
+  renderUserRoleAssignments();
+  renderEffectiveCapabilityDiagnostics();
   renderCapabilities();
   renderCapabilityGroups();
   syncAccessControlPermissionUi();
@@ -426,6 +785,7 @@ function closeRolePresetPanel(restoreFocus = true) {
   rolePresetPanelState = {
     mode: "details",
     role: null,
+    userAssignment: null,
     capabilityCatalogue: [],
     selectedCapabilityCodes: new Set(),
     capabilityFilter: "",
@@ -488,6 +848,23 @@ async function fetchCapabilityCatalogue(rolePresetId) {
   return (result.data || []).map(normaliseCapability);
 }
 
+async function fetchActiveRolePresetsForAssignment() {
+  const result = await supabaseClient.rpc("list_role_presets_for_management", {
+    p_include_inactive: false,
+    p_search_text: null
+  });
+  if (result.error) throw result.error;
+  return (result.data || []).map(normaliseRolePreset);
+}
+
+async function fetchEffectiveCapabilities(profileId) {
+  const result = await supabaseClient.rpc("list_profile_effective_capabilities", {
+    p_profile_id: profileId
+  });
+  if (result.error) throw result.error;
+  return (result.data || []).map(normaliseEffectiveCapability);
+}
+
 function createDetailRow(label, value) {
   const wrapper = document.createElement("div");
   const term = document.createElement("dt");
@@ -496,6 +873,78 @@ function createDetailRow(label, value) {
   description.textContent = value === null || value === undefined || value === "" ? "-" : String(value);
   wrapper.append(term, description);
   return wrapper;
+}
+
+function renderRoleAssignmentPanel(assignment, presets) {
+  const container = $("rolePresetCapabilityGroups");
+  container.replaceChildren();
+
+  const summary = document.createElement("dl");
+  summary.className = "access-control-detail-list";
+  summary.append(
+    createDetailRow("User", assignment.display_name || "Unnamed profile"),
+    createDetailRow("Profile ID", assignment.profile_id),
+    createDetailRow("Legacy role", assignment.legacy_role),
+    createDetailRow("Current assigned preset", rolePresetLabelFromParts(assignment.assigned_role_name, assignment.assigned_role_code)),
+    createDetailRow("Effective preset", rolePresetLabelFromParts(assignment.effective_role_name, assignment.effective_role_code)),
+    createDetailRow("Effective capabilities", assignment.effective_capability_count)
+  );
+
+  const form = document.createElement("form");
+  form.id = "userRoleAssignmentForm";
+  form.className = "access-control-role-form";
+  form.noValidate = true;
+
+  const presetLabel = document.createElement("label");
+  presetLabel.className = "access-control-panel-field";
+  presetLabel.setAttribute("for", "userRolePresetSelect");
+  presetLabel.textContent = "Role preset";
+  const select = document.createElement("select");
+  select.id = "userRolePresetSelect";
+  select.required = true;
+  presets.forEach(preset => {
+    const option = document.createElement("option");
+    option.value = preset.role_preset_id;
+    option.textContent = rolePresetLabelFromParts(preset.role_name, preset.role_code) +
+      (preset.is_system ? " - system" : " - custom") +
+      " - " + preset.capability_count + " capabilities";
+    select.appendChild(option);
+  });
+  select.value = assignment.assigned_role_preset_id ||
+    assignment.effective_role_preset_id ||
+    (presets[0] && presets[0].role_preset_id) ||
+    "";
+  presetLabel.appendChild(select);
+
+  const details = document.createElement("dl");
+  details.className = "access-control-detail-list access-control-selected-preset-details";
+
+  function refreshSelectedPresetDetails() {
+    const preset = presets.find(item => item.role_preset_id === select.value);
+    details.replaceChildren(
+      createDetailRow("Description", preset && preset.description ? preset.description : "No description."),
+      createDetailRow("Type", preset && preset.is_system ? "System / Protected" : "Custom"),
+      createDetailRow("Capability count", preset ? preset.capability_count : "-"),
+      createDetailRow("Status", preset && preset.active ? "Active" : "Inactive")
+    );
+  }
+
+  select.addEventListener("change", refreshSelectedPresetDetails);
+  form.append(presetLabel, details);
+  form.addEventListener("submit", event => {
+    event.preventDefault();
+    saveRolePresetPanel();
+  });
+
+  container.append(summary, form);
+  refreshSelectedPresetDetails();
+
+  if (AppState.currentProfile && AppState.currentProfile.id === assignment.profile_id) {
+    setPanelNotice(
+      "For safety, you cannot assign a non-SuperUser preset to your own profile in this milestone.",
+      "warning"
+    );
+  }
 }
 
 function renderCapabilitySummary(capabilities) {
@@ -607,6 +1056,38 @@ async function openRolePresetDetails(rolePresetId, trigger) {
       err.message || "Could not load role preset details.",
       "error"
     );
+  }
+}
+
+async function openUserRoleAssignmentPanel(assignment, trigger) {
+  if (!requireUserRoleAssignmentManageAccess()) return;
+  clearPanelBody();
+  rolePresetPanelState.mode = "assign-profile-role";
+  rolePresetPanelState.userAssignment = assignment;
+  openPanel({
+    trigger,
+    title: "Assign Role Preset",
+    subtitle: assignment.display_name || assignment.profile_id,
+    saveVisible: true,
+    saveLabel: "Save Assignment"
+  });
+
+  try {
+    const presets = await fetchActiveRolePresetsForAssignment();
+    if (!presets.length) {
+      showToast("Role presets unavailable", "No active role presets are available for assignment.", "error");
+      closeRolePresetPanel(false);
+      return;
+    }
+    rolePresetPanelState.capabilityCatalogue = presets;
+    renderRoleAssignmentPanel(assignment, presets);
+  } catch (err) {
+    showToast(
+      "Role assignment unavailable",
+      err.message || "Could not load role presets for assignment.",
+      "error"
+    );
+    closeRolePresetPanel(false);
   }
 }
 
@@ -994,11 +1475,64 @@ async function refreshCurrentUserCapabilitiesIfNeeded(role) {
   window.dispatchEvent(new CustomEvent("oh:capabilities-changed"));
 }
 
+async function refreshCurrentUserCapabilitiesForProfile(profileId) {
+  if (!AppState.currentProfile || AppState.currentProfile.id !== profileId) return;
+  await loadUserCapabilities(AppState.currentProfile);
+  syncNavigationCapabilityVisibility();
+  syncAccessControlVisibility();
+  window.dispatchEvent(new CustomEvent("oh:capabilities-changed"));
+}
+
 async function saveRolePresetPanel() {
   if (rolePresetPanelState.mode === "details") return;
-  if (!requireAccessControlManageAccess()) return;
 
   const mode = rolePresetPanelState.mode;
+  if (mode === "assign-profile-role") {
+    if (!requireUserRoleAssignmentManageAccess()) return;
+    const assignment = rolePresetPanelState.userAssignment;
+    const select = $("userRolePresetSelect");
+    const rolePresetId = select ? select.value : "";
+    if (!assignment || !assignment.profile_id || !rolePresetId) {
+      showToast("Assignment incomplete", "Select a user and role preset before saving.", "error");
+      return;
+    }
+    setPanelBusy(true, "Saving...");
+    try {
+      const result = await supabaseClient.rpc("assign_profile_role_preset", {
+        p_profile_id: assignment.profile_id,
+        p_role_preset_id: rolePresetId
+      });
+      if (result.error) throw result.error;
+      await loadUserRoleAssignments();
+      renderUserRoleAssignments();
+      await refreshCurrentUserCapabilitiesForProfile(assignment.profile_id);
+      if (
+        effectiveCapabilityState.userAssignment &&
+        effectiveCapabilityState.userAssignment.profile_id === assignment.profile_id
+      ) {
+        const updated = accessControlData.userAssignments.find(item => item.profile_id === assignment.profile_id) || assignment;
+        await openEffectiveCapabilitiesForUser(updated, { preserveSection: true });
+      }
+      showToast(
+        "Role preset assigned",
+        "The user role preset assignment was saved. The user may need to refresh or sign in again for all navigation changes.",
+        "success"
+      );
+      closeRolePresetPanel(false);
+    } catch (err) {
+      showToast(
+        "Role preset not assigned",
+        err.message || "Could not assign this role preset.",
+        "error"
+      );
+    } finally {
+      setPanelBusy(false, "Save Assignment");
+    }
+    return;
+  }
+
+  if (!requireAccessControlManageAccess()) return;
+
   const role = rolePresetPanelState.role;
   const capabilityCodes = Array.from(rolePresetPanelState.selectedCapabilityCodes).sort();
 
@@ -1103,6 +1637,21 @@ async function loadRolePresetsForManagement() {
   return (result.data || []).map(normaliseRolePreset);
 }
 
+async function loadUserRoleAssignments() {
+  if (!hasUserRoleAssignmentAccess()) {
+    accessControlData.userAssignments = [];
+    return [];
+  }
+  const filters = userAssignmentFilters();
+  const result = await supabaseClient.rpc("list_user_role_assignments", {
+    p_include_inactive: filters.includeInactive,
+    p_search_text: filters.searchText || null
+  });
+  if (result.error) throw result.error;
+  accessControlData.userAssignments = (result.data || []).map(normaliseUserRoleAssignment);
+  return accessControlData.userAssignments;
+}
+
 async function loadCapabilityCatalogueTables() {
   const [groupResult, capabilityResult] = await Promise.all([
     supabaseClient
@@ -1132,27 +1681,183 @@ async function loadCapabilityCatalogueTables() {
   return { groups, capabilities };
 }
 
+function userRoleAssignmentExportRows() {
+  return accessControlData.userAssignments.map(row => ({
+    "Display Name": row.display_name || "",
+    "Profile ID": row.profile_id || "",
+    "Active": row.active ? "Active" : "Inactive",
+    "Legacy Role": row.legacy_role || "",
+    "Assigned Role Code": row.assigned_role_code || "",
+    "Assigned Role Name": row.assigned_role_name || "",
+    "Effective Role Code": row.effective_role_code || "",
+    "Effective Role Name": row.effective_role_name || "",
+    "Direct Allow Count": row.direct_allow_count,
+    "Direct Deny Count": row.direct_deny_count,
+    "Effective Capability Count": row.effective_capability_count
+  }));
+}
+
+function effectiveCapabilityExportRows() {
+  return effectiveCapabilityState.capabilities
+    .filter(effectiveCapabilityMatchesFilter)
+    .map(row => ({
+      "Group": row.group_name || "",
+      "Capability Code": row.capability_code || "",
+      "Capability Name": row.capability_name || "",
+      "Effective": row.effective ? "Yes" : "No",
+      "Source": row.effective_source || "",
+      "Role Code": row.role_code || "",
+      "Role Name": row.role_name || "",
+      "Role Assigned": row.role_assigned ? "Yes" : "No",
+      "Direct Override": row.direct_grant_state || ""
+    }));
+}
+
+function exportUserRoleAssignments(format) {
+  const rows = userRoleAssignmentExportRows();
+  if (!rows.length) {
+    showToast("Nothing to export", "No user role assignment rows are available.", "error");
+    return;
+  }
+  if (format === "xlsx") {
+    downloadXlsx("user-role-assignments-" + exportDateStamp() + ".xlsx", rows, "User Roles");
+  } else {
+    downloadCsv("user-role-assignments-" + exportDateStamp() + ".csv", rows);
+  }
+  showToast("Export ready", "User role assignments were exported.", "success");
+}
+
+function exportEffectiveCapabilitiesCsv() {
+  const rows = effectiveCapabilityExportRows();
+  if (!rows.length) {
+    showToast("Nothing to export", "No effective capability rows are available.", "error");
+    return;
+  }
+  downloadCsv("effective-capabilities-" + exportDateStamp() + ".csv", rows);
+  showToast("Export ready", "Effective capabilities were exported.", "success");
+}
+
+async function clearUserRoleAssignment(assignment) {
+  if (!requireUserRoleAssignmentManageAccess()) return;
+  if (!assignment || !assignment.profile_id) return;
+  const message = "Clear the explicit role preset assignment for " +
+    (assignment.display_name || assignment.profile_id) +
+    "? The user will fall back to their legacy role.";
+  if (!window.confirm(message)) return;
+
+  try {
+    const result = await supabaseClient.rpc("clear_profile_role_preset_assignment", {
+      p_profile_id: assignment.profile_id
+    });
+    if (result.error) throw result.error;
+    await loadUserRoleAssignments();
+    renderUserRoleAssignments();
+    await refreshCurrentUserCapabilitiesForProfile(assignment.profile_id);
+    if (
+      effectiveCapabilityState.userAssignment &&
+      effectiveCapabilityState.userAssignment.profile_id === assignment.profile_id
+    ) {
+      const updated = accessControlData.userAssignments.find(item => item.profile_id === assignment.profile_id) || assignment;
+      await openEffectiveCapabilitiesForUser(updated, { preserveSection: true });
+    }
+    showToast(
+      "Assignment cleared",
+      "The explicit role preset assignment was cleared. The user may need to refresh or sign in again.",
+      "success"
+    );
+  } catch (err) {
+    showToast(
+      "Assignment not cleared",
+      err.message || "Could not clear this role preset assignment.",
+      "error"
+    );
+  }
+}
+
+async function openEffectiveCapabilitiesForUser(assignment, options = {}) {
+  if (!requireUserRoleAssignmentAccess()) return;
+  effectiveCapabilityState.userAssignment = assignment;
+  effectiveCapabilityState.capabilities = [];
+  effectiveCapabilityState.testCode = "";
+  if ($("accessControlCapabilityTestInput")) $("accessControlCapabilityTestInput").value = "";
+  if ($("accessControlCapabilityTestResult")) $("accessControlCapabilityTestResult").textContent = "";
+  renderEffectiveCapabilityDiagnostics();
+  if (!options.preserveSection) showAccessControlView("diagnostics");
+
+  try {
+    effectiveCapabilityState.capabilities = await fetchEffectiveCapabilities(assignment.profile_id);
+    renderEffectiveCapabilityDiagnostics();
+  } catch (err) {
+    effectiveCapabilityState.capabilities = [];
+    renderEffectiveCapabilityDiagnostics();
+    showToast(
+      "Effective capabilities unavailable",
+      err.message || "Could not load effective capabilities for this user.",
+      "error"
+    );
+  }
+}
+
+function testSelectedUserCapability() {
+  const input = $("accessControlCapabilityTestInput");
+  const output = $("accessControlCapabilityTestResult");
+  const code = input ? input.value.trim() : "";
+  if (!output) return;
+  if (!effectiveCapabilityState.userAssignment) {
+    showToast("Select a user", "Open effective capabilities for a user before testing a capability.", "error");
+    return;
+  }
+  if (!code) {
+    showToast("Capability code required", "Enter a capability code to test.", "error");
+    return;
+  }
+  const match = effectiveCapabilityState.capabilities.find(
+    capability => capability.capability_code === code
+  );
+  if (!match) {
+    output.textContent = code + ": not in the active capability catalogue.";
+    return;
+  }
+  output.textContent = code + ": " +
+    (match.effective ? "effective" : "not granted") +
+    " via " + (match.effective_source || "not_granted") + ".";
+}
+
 export async function loadAccessControl() {
   if (!requireAccessControlAccess()) return;
   $("accessControlStatus").textContent = "Loading...";
   $("accessControlRefreshButton").disabled = true;
   $("accessControlRolePresetRefreshButton").disabled = true;
+  if ($("accessControlUserAssignmentRefreshButton")) $("accessControlUserAssignmentRefreshButton").disabled = true;
 
   try {
-    const [rolePresets, catalogue] = await Promise.all([
-      loadRolePresetsForManagement(),
-      loadCapabilityCatalogueTables().catch(err => {
+    const [rolePresets, userAssignments, catalogue] = await Promise.all([
+      hasAnyCapability(ROLE_PRESET_VIEW_CAPABILITIES)
+        ? loadRolePresetsForManagement()
+        : fetchActiveRolePresetsForAssignment().catch(() => []),
+      loadUserRoleAssignments().catch(err => {
         showToast(
-          "Capability catalogue unavailable",
-          err.message || "Could not load the read-only capability catalogue.",
+          "User role assignments unavailable",
+          err.message || "Could not load user role assignments.",
           "error"
         );
-        return { groups: [], capabilities: [] };
-      })
+        return [];
+      }),
+      hasAnyCapability(ROLE_PRESET_VIEW_CAPABILITIES)
+        ? loadCapabilityCatalogueTables().catch(err => {
+          showToast(
+            "Capability catalogue unavailable",
+            err.message || "Could not load the read-only capability catalogue.",
+            "error"
+          );
+          return { groups: [], capabilities: [] };
+        })
+        : Promise.resolve({ groups: [], capabilities: [] })
     ]);
 
     accessControlData = {
       rolePresets,
+      userAssignments,
       capabilities: catalogue.capabilities,
       groups: catalogue.groups
     };
@@ -1161,6 +1866,7 @@ export async function loadAccessControl() {
   } catch (err) {
     accessControlData = {
       rolePresets: [],
+      userAssignments: [],
       capabilities: [],
       groups: []
     };
@@ -1174,6 +1880,7 @@ export async function loadAccessControl() {
   } finally {
     $("accessControlRefreshButton").disabled = false;
     $("accessControlRolePresetRefreshButton").disabled = false;
+    if ($("accessControlUserAssignmentRefreshButton")) $("accessControlUserAssignmentRefreshButton").disabled = false;
   }
 }
 
@@ -1183,12 +1890,39 @@ function resetRolePresetFilters() {
   loadAccessControl();
 }
 
+function resetUserAssignmentFilters() {
+  $("accessControlUserAssignmentSearch").value = "";
+  $("accessControlUserAssignmentIncludeInactive").checked = true;
+  loadAccessControl();
+}
+
 function scheduleRolePresetSearch() {
   if (rolePresetSearchTimer) window.clearTimeout(rolePresetSearchTimer);
   rolePresetSearchTimer = window.setTimeout(() => {
     rolePresetSearchTimer = null;
     loadAccessControl();
   }, 250);
+}
+
+function scheduleUserAssignmentSearch() {
+  if (userAssignmentSearchTimer) window.clearTimeout(userAssignmentSearchTimer);
+  userAssignmentSearchTimer = window.setTimeout(() => {
+    userAssignmentSearchTimer = null;
+    loadAccessControl();
+  }, 250);
+}
+
+function updateEffectiveCapabilityFilters() {
+  effectiveCapabilityState.searchText = $("accessControlCapabilityDiagnosticSearch")
+    ? $("accessControlCapabilityDiagnosticSearch").value.trim()
+    : "";
+  effectiveCapabilityState.groupFilter = $("accessControlCapabilityDiagnosticGroup")
+    ? $("accessControlCapabilityDiagnosticGroup").value
+    : "";
+  effectiveCapabilityState.effectiveOnly = $("accessControlCapabilityDiagnosticEffectiveOnly")
+    ? $("accessControlCapabilityDiagnosticEffectiveOnly").checked
+    : false;
+  renderEffectiveCapabilityDiagnostics();
 }
 
 export function showAccessControlView(viewName) {
@@ -1216,11 +1950,27 @@ function registerAccessControlSections() {
       default: true
     },
     {
+      id: "assignments",
+      title: "Users",
+      fullTitle: "User Role Assignments",
+      icon: "UR",
+      target: "accessControlAssignmentsView",
+      order: 20
+    },
+    {
+      id: "diagnostics",
+      title: "Diagnostics",
+      fullTitle: "Effective Capability Diagnostics",
+      icon: "D",
+      target: "accessControlDiagnosticsView",
+      order: 30
+    },
+    {
       id: "capabilities",
       title: "Capabilities",
       icon: "C",
       target: "accessControlCapabilitiesView",
-      order: 20
+      order: 40
     },
     {
       id: "groups",
@@ -1228,14 +1978,7 @@ function registerAccessControlSections() {
       fullTitle: "Capability Groups",
       icon: "G",
       target: "accessControlGroupsView",
-      order: 30
-    },
-    {
-      id: "overrides",
-      title: "User Overrides",
-      icon: "UO",
-      target: "accessControlOverridesView",
-      order: 40
+      order: 50
     }
   ], {
     content: "accessControlWorkspaceContent",
@@ -1258,6 +2001,23 @@ export function initialiseAccessControl() {
   $("accessControlRolePresetResetButton").addEventListener("click", resetRolePresetFilters);
   $("accessControlRoleSearch").addEventListener("input", scheduleRolePresetSearch);
   $("accessControlIncludeInactive").addEventListener("change", loadAccessControl);
+  $("accessControlUserAssignmentRefreshButton").addEventListener("click", loadAccessControl);
+  $("accessControlUserAssignmentResetButton").addEventListener("click", resetUserAssignmentFilters);
+  $("accessControlUserAssignmentSearch").addEventListener("input", scheduleUserAssignmentSearch);
+  $("accessControlUserAssignmentIncludeInactive").addEventListener("change", loadAccessControl);
+  $("accessControlUserAssignmentExportCsvButton").addEventListener("click", () => exportUserRoleAssignments("csv"));
+  $("accessControlUserAssignmentExportXlsxButton").addEventListener("click", () => exportUserRoleAssignments("xlsx"));
+  $("accessControlCapabilityDiagnosticSearch").addEventListener("input", updateEffectiveCapabilityFilters);
+  $("accessControlCapabilityDiagnosticGroup").addEventListener("change", updateEffectiveCapabilityFilters);
+  $("accessControlCapabilityDiagnosticEffectiveOnly").addEventListener("change", updateEffectiveCapabilityFilters);
+  $("accessControlCapabilityTestButton").addEventListener("click", testSelectedUserCapability);
+  $("accessControlCapabilityTestInput").addEventListener("keydown", event => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      testSelectedUserCapability();
+    }
+  });
+  $("accessControlDiagnosticsExportCsvButton").addEventListener("click", exportEffectiveCapabilitiesCsv);
   $("accessControlNewRolePresetButton").addEventListener("click", event => {
     openRolePresetForm("create", null, event.currentTarget);
   });

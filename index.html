@@ -1348,7 +1348,7 @@
       <div class="brand-mark"><img id="brandLogoImg" alt="Logo" style="display:none;width:100%;height:100%;object-fit:contain;border-radius:12px;"><span id="brandLogoFallback">V</span></div>
       <div>
         Visitor Management<br>
-        <span style="font-size:12px;color:var(--muted);font-weight:700;">Operations Hub nextgen-ui - OHP-014A</span>
+        <span style="font-size:12px;color:var(--muted);font-weight:700;">Operations Hub nextgen-ui - OHP-015</span>
       </div>
     </div>
     <div class="button-row no-print" style="margin:0;">
@@ -1397,7 +1397,7 @@
       </div>
       <button id="terminalReturnHomeButton" class="secondary hidden" type="button">Return to Terminal Home</button>
     </section>
-  <div id="appVersionFooter" class="version-footer">Version <span id="appVersionText">OHP-014A</span></div>
+  <div id="appVersionFooter" class="version-footer">Version <span id="appVersionText">OHP-015</span></div>
 </main>
 
   <section id="signInScreen" class="screen">
@@ -3040,7 +3040,7 @@
             <div class="settings-icon">👤</div>
             <div>
               <h3>Add / Update User Profile</h3>
-              <p>Use the Auth user ID from Supabase Authentication &gt; Users.</p>
+              <p>Use the Auth user ID from Supabase Authentication &gt; Users. Custom capability presets are assigned in Access Control.</p>
             </div>
           </div>
 
@@ -3054,7 +3054,7 @@
               <input id="profileDisplayName" placeholder="Display name" />
             </div>
             <div class="setting-field">
-              <label for="profileRole">Role</label>
+              <label for="profileRole">Legacy Role</label>
               <select id="profileRole">
                 <option value="kiosk_user">Kiosk User</option>
                 <option value="general_user">General User</option>
@@ -3083,7 +3083,7 @@
             <div class="settings-icon">🔎</div>
             <div>
               <h3>Existing Profiles</h3>
-              <p>Review, edit role, activate or deactivate staff profiles.</p>
+              <p>Review, edit legacy role, activate or deactivate staff profiles.</p>
             </div>
           </div>
 
@@ -5211,7 +5211,7 @@
             <div>
               <p class="oh-app-eyebrow">Administration</p>
               <h2 id="accessControlTitle">Access Control</h2>
-              <p>Manage custom role presets and review the capability catalogue.</p>
+              <p>Manage custom role presets, user role assignments and effective capability diagnostics.</p>
             </div>
             <span id="accessControlPermissionBadge" class="access-control-mode">Read only</span>
           </div>
@@ -5270,6 +5270,103 @@
               </div>
             </section>
 
+            <section id="accessControlAssignmentsView" class="access-control-view" data-access-control-panel="assignments" aria-labelledby="accessControlAssignmentsTitle">
+              <div class="access-control-section-heading">
+                <div>
+                  <h3 id="accessControlAssignmentsTitle">Users &amp; Role Assignments</h3>
+                  <p>Assign active built-in and custom role presets to user profiles.</p>
+                </div>
+              </div>
+              <div class="access-control-filter-bar access-control-assignment-filter-bar">
+                <label for="accessControlUserAssignmentSearch">
+                  Search
+                  <input id="accessControlUserAssignmentSearch" type="search" placeholder="Name, profile id or legacy role" autocomplete="off" />
+                </label>
+                <label class="access-control-check-option" for="accessControlUserAssignmentIncludeInactive">
+                  <input id="accessControlUserAssignmentIncludeInactive" type="checkbox" checked />
+                  <span>Include inactive</span>
+                </label>
+                <div class="access-control-filter-actions">
+                  <button id="accessControlUserAssignmentRefreshButton" class="secondary" type="button">Refresh</button>
+                  <button id="accessControlUserAssignmentResetButton" class="secondary" type="button">Reset Filters</button>
+                  <button id="accessControlUserAssignmentExportCsvButton" class="secondary" type="button">Export CSV</button>
+                  <button id="accessControlUserAssignmentExportXlsxButton" class="secondary" type="button">Export XLSX</button>
+                </div>
+              </div>
+              <div id="accessControlUserAssignmentSummary" class="access-control-result-summary"></div>
+              <div class="access-control-table-wrap" data-oh-scroll-region="operational" aria-label="User role assignments">
+                <table class="access-control-table access-control-assignment-table" aria-label="User role assignments">
+                  <thead>
+                    <tr>
+                      <th scope="col">User</th>
+                      <th scope="col">Status</th>
+                      <th scope="col">Legacy Role</th>
+                      <th scope="col">Assigned Preset</th>
+                      <th scope="col">Effective Preset</th>
+                      <th scope="col">Capabilities</th>
+                      <th scope="col">Direct Overrides</th>
+                      <th scope="col">Updated</th>
+                      <th scope="col">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="accessControlUserAssignments"></tbody>
+                </table>
+                <div id="accessControlUserAssignmentsEmpty" class="people-empty-state hidden" data-oh-empty-state>No user role assignments are available.</div>
+              </div>
+            </section>
+
+            <section id="accessControlDiagnosticsView" class="access-control-view" data-access-control-panel="diagnostics" aria-labelledby="accessControlDiagnosticsTitle">
+              <div class="access-control-section-heading">
+                <div>
+                  <h3 id="accessControlDiagnosticsTitle">Effective Capability Diagnostics</h3>
+                  <p>Review effective capabilities for the selected user profile.</p>
+                </div>
+                <button id="accessControlDiagnosticsExportCsvButton" class="secondary" type="button">Export CSV</button>
+              </div>
+              <div id="accessControlDiagnosticsSelectedUser" class="access-control-diagnostics-user"></div>
+              <div class="access-control-filter-bar access-control-diagnostics-filter-bar">
+                <label for="accessControlCapabilityDiagnosticSearch">
+                  Search
+                  <input id="accessControlCapabilityDiagnosticSearch" type="search" placeholder="Capability code, name, source or group" autocomplete="off" />
+                </label>
+                <label for="accessControlCapabilityDiagnosticGroup">
+                  Group
+                  <select id="accessControlCapabilityDiagnosticGroup">
+                    <option value="">All groups</option>
+                  </select>
+                </label>
+                <label class="access-control-check-option" for="accessControlCapabilityDiagnosticEffectiveOnly">
+                  <input id="accessControlCapabilityDiagnosticEffectiveOnly" type="checkbox" />
+                  <span>Effective only</span>
+                </label>
+              </div>
+              <div class="access-control-diagnostic-test">
+                <label for="accessControlCapabilityTestInput">
+                  Test capability code
+                  <input id="accessControlCapabilityTestInput" type="search" placeholder="people.view" autocomplete="off" />
+                </label>
+                <button id="accessControlCapabilityTestButton" class="secondary" type="button">Test</button>
+                <p id="accessControlCapabilityTestResult" aria-live="polite"></p>
+              </div>
+              <div id="accessControlDiagnosticsSummary" class="access-control-result-summary"></div>
+              <div class="access-control-table-wrap" data-oh-scroll-region="operational" aria-label="Effective capabilities">
+                <table class="access-control-table access-control-diagnostics-table" aria-label="Effective capabilities">
+                  <thead>
+                    <tr>
+                      <th scope="col">Group</th>
+                      <th scope="col">Capability</th>
+                      <th scope="col">Effective</th>
+                      <th scope="col">Source</th>
+                      <th scope="col">Role Preset</th>
+                      <th scope="col">Direct Override</th>
+                    </tr>
+                  </thead>
+                  <tbody id="accessControlEffectiveCapabilities"></tbody>
+                </table>
+                <div id="accessControlEffectiveCapabilitiesEmpty" class="people-empty-state hidden" data-oh-empty-state>Select a user profile to view effective capabilities.</div>
+              </div>
+            </section>
+
             <section id="accessControlCapabilitiesView" class="access-control-view" data-access-control-panel="capabilities" aria-labelledby="accessControlCapabilitiesTitle">
               <div class="access-control-section-heading">
                 <h3 id="accessControlCapabilitiesTitle">Capabilities</h3>
@@ -5314,18 +5411,6 @@
               </div>
             </section>
 
-            <section id="accessControlOverridesView" class="access-control-view" data-access-control-panel="overrides" aria-labelledby="accessControlOverridesTitle">
-              <div class="access-control-section-heading">
-                <h3 id="accessControlOverridesTitle">User Overrides</h3>
-                <p>Reserved view for future per-user grants and denials.</p>
-              </div>
-              <div class="access-control-placeholder">
-                <span class="report-status coming-soon">Coming Soon</span>
-                <h3>User Overrides</h3>
-                <p>Per-user capability grants and denials will be reviewed here in a future milestone.</p>
-                <button type="button" disabled>Read-only placeholder</button>
-              </div>
-            </section>
           </div>
 
           <aside id="rolePresetCapabilityPanel" class="reference-data-panel access-control-role-panel hidden" aria-labelledby="rolePresetCapabilityPanelTitle" aria-hidden="true" data-oh-side-panel>
@@ -5427,7 +5512,7 @@
 
   <footer class="oh-footer">
     <strong>Operations Hub</strong>
-    <span>Version <span id="ohPlatformVersion">OHP-014A</span></span>
+    <span>Version <span id="ohPlatformVersion">OHP-015</span></span>
     <span>Environment <span id="ohEnvironment">Local</span></span>
   </footer>
 </div>
