@@ -16,7 +16,7 @@ let inspectorInitialised = false;
 let inspectorEnabled = false;
 let inspectorTimer = null;
 let effectiveCapabilitySources = new Map();
-let inspectorToggle = null;
+let inspectorToggles = [];
 let inspectorIndicator = null;
 let inspectorGlobalIndicator = null;
 
@@ -33,20 +33,39 @@ function parseCapabilities(value) {
     .filter(Boolean);
 }
 
+function readableActionLabel(element, fallback) {
+  const label = element
+    ? element.dataset.capabilityLabel || element.getAttribute("aria-label") || element.textContent || fallback
+    : fallback;
+  return String(label || fallback || "Unregistered action").replace(/\s+/g, " ").trim();
+}
+
 function actionMetadataFromElement(element) {
   if (!element) return null;
   const data = element.dataset || {};
-  const actionId = data.capabilityAction || "";
-  if (!actionId) return null;
+  const actionId = data.capabilityAction || data.navAction || data.module || element.id || "";
   return {
-    actionId,
-    label: data.capabilityLabel || element.getAttribute("aria-label") || element.textContent || actionId,
-    area: data.capabilityArea || "Operations Hub",
+    actionId: actionId || "unregistered.app_action",
+    label: readableActionLabel(element, actionId),
+    area: data.capabilityArea || inferActionArea(element),
     requiredAny: parseCapabilities(data.capabilityAny),
     requiredAll: parseCapabilities(data.capabilityAll),
     notes: data.capabilityNotes || "",
     actionType: data.capabilityType || ""
   };
+}
+
+function inferActionArea(element) {
+  if (!element) return "Operations Hub";
+  if (element.closest("#ohNavigation")) return "Navigation";
+  if (element.closest("#accessControlSection")) return "Access Control";
+  if (element.closest("#peopleWorkspace")) return "People";
+  if (element.closest("#workforceCalendarWorkspace")) return "Workforce Calendar";
+  if (element.closest("#assignmentsSection")) return "Assignments";
+  if (element.closest("#identityResolutionSection")) return "Identity Resolution";
+  if (element.closest("#privacyGdprSection")) return "Privacy / Data Governance";
+  if (element.closest("#visitorsWorkspace")) return "Visitors";
+  return "Operations Hub";
 }
 
 function evaluateCapabilities(metadata) {
@@ -98,10 +117,11 @@ async function refreshInspectorCapabilitySources() {
 
 function setInspectorVisualState() {
   document.body.classList.toggle("capability-inspector-active", inspectorEnabled);
-  if (inspectorToggle) {
-    inspectorToggle.checked = inspectorEnabled;
-    inspectorToggle.disabled = !canUseCapabilityInspector();
-  }
+  inspectorToggles.forEach(toggle => {
+    toggle.checked = inspectorEnabled;
+    toggle.disabled = !canUseCapabilityInspector();
+    toggle.setAttribute("aria-checked", String(inspectorEnabled));
+  });
   if (inspectorIndicator) {
     inspectorIndicator.classList.toggle("hidden", !inspectorEnabled);
   }
@@ -205,15 +225,43 @@ function inspectAction(element) {
   });
 }
 
+function isInteractiveFormControl(element) {
+  return Boolean(element && element.closest(
+    "input, textarea, select, option, [contenteditable='true'], [contenteditable=''], [role='textbox'], [role='searchbox'], [role='combobox'], [role='listbox'], [role='option'], [role='checkbox'], [role='radio'], [data-capability-inspector-ignore='true']"
+  ));
+}
+
+function isInspectorIgnoredTarget(element) {
+  if (!element) return true;
+  if (isInteractiveFormControl(element)) return true;
+  return Boolean(element.closest(
+    "[data-capability-inspector-control], [data-capability-inspector-ignore='true'], .toast-close"
+  ));
+}
+
+function isVisibleAction(element) {
+  if (!element || element.disabled || element.getAttribute("aria-disabled") === "true") return false;
+  if (element.closest(".hidden, [hidden]")) return false;
+  return true;
+}
+
+function findInspectableAction(target) {
+  if (!(target instanceof Element) || isInspectorIgnoredTarget(target)) return null;
+  const action = target.closest(
+    "[data-capability-action], [data-nav-action], [data-module], button, a, [role='button']"
+  );
+  if (!action || isInspectorIgnoredTarget(action) || !isVisibleAction(action)) return null;
+  if (action.matches("a") && !action.getAttribute("href") && !action.dataset.capabilityAction) return null;
+  return action;
+}
+
 function handleInspectorClick(event) {
   if (!inspectorEnabled || !canUseCapabilityInspector()) return;
-  const target = event.target instanceof Element
-    ? event.target.closest("[data-capability-action]")
-    : null;
+  const target = findInspectableAction(event.target);
   if (!target) return;
   event.preventDefault();
   event.stopPropagation();
-  event.stopImmediatePropagation();
+  if (typeof event.stopImmediatePropagation === "function") event.stopImmediatePropagation();
   inspectAction(target);
 }
 
@@ -253,15 +301,15 @@ export function resetCapabilityInspector() {
 export function initialiseCapabilityInspector() {
   if (inspectorInitialised) return;
   inspectorInitialised = true;
-  inspectorToggle = document.getElementById("capabilityInspectorToggle");
+  inspectorToggles = Array.from(document.querySelectorAll("[data-capability-inspector-toggle]"));
   inspectorIndicator = document.getElementById("capabilityInspectorIndicator");
   inspectorGlobalIndicator = document.getElementById("capabilityInspectorGlobalIndicator");
   document.addEventListener("click", handleInspectorClick, true);
-  if (inspectorToggle) {
-    inspectorToggle.addEventListener("change", event => {
+  inspectorToggles.forEach(toggle => {
+    toggle.addEventListener("change", event => {
       void setInspectorEnabled(event.currentTarget.checked);
     });
-  }
+  });
   window.addEventListener("oh:capabilities-changed", syncCapabilityInspectorUi);
   window.addEventListener("oh:session-signed-out", resetCapabilityInspector);
   inspectorEnabled = sessionStorage.getItem(SESSION_KEY) === "true" && canUseCapabilityInspector();

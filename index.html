@@ -32,6 +32,10 @@
     </div>
 
     <div class="oh-header-actions">
+      <label class="oh-header-action capability-inspector-toggle hidden no-print" data-capability-inspector-control data-capability-inspector-ignore="true" for="capabilityInspectorHeaderToggle" title="Inspect visible action capabilities">
+        <input id="capabilityInspectorHeaderToggle" type="checkbox" data-capability-inspector-toggle data-capability-inspector-ignore="true" />
+        <span>Capability Inspector</span>
+      </label>
       <button class="oh-header-action no-print hidden" type="button" disabled title="Notifications are coming soon">
         <span aria-hidden="true">●</span>
         <span class="oh-action-label">Notifications</span>
@@ -74,28 +78,28 @@
         <span class="oh-nav-heading-short">Apps</span>
       </div>
       <nav class="oh-nav-list">
-        <button id="ohDashboardNav" class="oh-nav-item" type="button" title="Dashboard">
+        <button id="ohDashboardNav" class="oh-nav-item" type="button" title="Dashboard" data-nav-action="navigation.dashboard.open" data-capability-action="navigation.dashboard.open" data-capability-label="Dashboard" data-capability-area="Navigation" data-capability-any="dashboard.view" data-capability-type="navigation">
           <span class="oh-nav-icon" aria-hidden="true">⌂</span>
           <span class="oh-nav-label">Home</span>
         </button>
-        <button id="ohVisitorsNav" class="oh-nav-item active" type="button" aria-current="page" title="Visitors">
+        <button id="ohVisitorsNav" class="oh-nav-item active" type="button" aria-current="page" title="Visitors" data-nav-action="navigation.visitors.open" data-capability-action="navigation.visitors.open" data-capability-label="Visitors" data-capability-area="Navigation" data-capability-any="visitor.view" data-capability-type="navigation">
           <span class="oh-nav-icon" aria-hidden="true">V</span>
           <span class="oh-nav-label">Visitors</span>
         </button>
-        <button id="ohLegacyVmsNav" class="oh-nav-item" type="button" title="Legacy VMS — temporary internal workspace">
+        <button id="ohLegacyVmsNav" class="oh-nav-item" type="button" title="Legacy VMS — temporary internal workspace" data-nav-action="navigation.legacy_vms.open" data-capability-action="navigation.legacy_vms.open" data-capability-label="Legacy VMS" data-capability-area="Navigation" data-capability-any="visitor.view" data-capability-type="navigation">
           <span class="oh-nav-icon" aria-hidden="true">LV</span>
           <span class="oh-nav-label">Legacy VMS</span>
           <span class="oh-nav-status">Temporary</span>
         </button>
-        <button id="ohPeopleNav" class="oh-nav-item" type="button" title="People" data-capability-action="people.workspace.open" data-capability-label="Open People Workspace" data-capability-area="People" data-capability-any="people.view people.manage" data-capability-type="view">
+        <button id="ohPeopleNav" class="oh-nav-item" type="button" title="People" data-nav-action="navigation.people.open" data-capability-action="people.workspace.open" data-capability-label="People" data-capability-area="Navigation" data-capability-any="people.view people.manage" data-capability-type="navigation">
           <span class="oh-nav-icon" aria-hidden="true">P</span>
           <span class="oh-nav-label">People</span>
         </button>
-        <button id="ohOrganisationsNav" class="oh-nav-item" type="button" title="Organisations">
+        <button id="ohOrganisationsNav" class="oh-nav-item" type="button" title="Organisations" data-nav-action="navigation.organisations.open" data-capability-action="navigation.organisations.open" data-capability-label="Organisations" data-capability-area="Navigation" data-capability-any="organisation.view organisation.manage" data-capability-type="navigation">
           <span class="oh-nav-icon" aria-hidden="true">O</span>
           <span class="oh-nav-label">Organisations</span>
         </button>
-        <button id="ohWorkforceCalendarNav" class="oh-nav-item hidden" type="button" title="Workforce Calendar" data-capability-action="workforce_calendar.open" data-capability-label="Open Workforce Calendar" data-capability-area="Workforce Calendar" data-capability-any="workforce_calendar.view workforce_calendar.manage" data-capability-type="view">
+        <button id="ohWorkforceCalendarNav" class="oh-nav-item hidden" type="button" title="Workforce Calendar" data-nav-action="navigation.workforce_calendar.open" data-capability-action="workforce_calendar.open" data-capability-label="Workforce Calendar" data-capability-area="Navigation" data-capability-any="workforce_calendar.view workforce_calendar.manage people.view people.manage" data-capability-type="navigation">
           <span class="oh-nav-icon" aria-hidden="true">W</span>
           <span class="oh-nav-label">Workforce Calendar</span>
         </button>
@@ -104,24 +108,24 @@
           <span class="oh-nav-label">Planning</span>
           <span class="oh-nav-status">Soon</span>
         </button>
-        <button id="ohReportingNav" class="oh-nav-item" type="button" title="Reporting Centre">
+        <button id="ohReportingNav" class="oh-nav-item" type="button" title="Reporting Centre" data-nav-action="navigation.reporting.open" data-capability-action="navigation.reporting.open" data-capability-label="Reporting Centre" data-capability-area="Navigation" data-capability-any="reports.view" data-capability-type="navigation">
           <span class="oh-nav-icon" aria-hidden="true">R</span>
           <span class="oh-nav-label">Reports</span>
         </button>
         <div id="ohAdministrationGroup" class="oh-nav-group" data-oh-nav-group="administration">
-          <button id="ohAdministrationNav" class="oh-nav-item oh-nav-group-toggle" type="button" title="Administration" aria-expanded="false" aria-controls="ohAdministrationChildren">
+          <button id="ohAdministrationNav" class="oh-nav-item oh-nav-group-toggle" type="button" title="Administration" aria-expanded="false" aria-controls="ohAdministrationChildren" data-nav-action="navigation.administration.open" data-capability-action="navigation.administration.open" data-capability-label="Administration" data-capability-area="Navigation" data-capability-any="settings.view settings.edit module_configuration.view module_configuration.manage visitor.housekeeping.run devices.view devices.manage document_signoff.manage agreements.manage gdpr.view gdpr.manage privacy.view privacy.manage identity_resolution.view identity_resolution.manage audit.view access_control.view access_control.manage" data-capability-type="navigation">
             <span class="oh-nav-icon" aria-hidden="true">A</span>
             <span class="oh-nav-label">Administration</span>
             <span class="oh-nav-caret" aria-hidden="true">›</span>
           </button>
           <div id="ohAdministrationChildren" class="oh-nav-children" aria-label="Administration areas">
-            <button id="administrationReferenceNav" class="oh-nav-child-item active" type="button" aria-current="page" title="Reference Data">Reference Data</button>
-            <button id="administrationIdentityResolutionNav" class="oh-nav-child-item hidden" type="button" title="Identity Resolution">Identity Resolution</button>
-            <button id="administrationDocumentSignoffsNav" class="oh-nav-child-item hidden" type="button" title="Document Sign-offs">Document Sign-offs</button>
-            <button id="administrationPrivacyGdprNav" class="oh-nav-child-item hidden" type="button" title="Privacy / Data Governance">Privacy / Data Governance</button>
-            <button id="administrationSharedTerminalsNav" class="oh-nav-child-item hidden" type="button" title="Shared Terminals">Shared Terminals</button>
-            <button id="administrationModuleConfigurationNav" class="oh-nav-child-item hidden" type="button" title="Module Configuration">Module Configuration</button>
-            <button id="administrationAccessControlNav" class="oh-nav-child-item hidden" type="button" title="Access Control">Access Control</button>
+            <button id="administrationReferenceNav" class="oh-nav-child-item active" type="button" aria-current="page" title="Reference Data" data-nav-action="navigation.reference_data.open" data-capability-action="navigation.reference_data.open" data-capability-label="Reference Data" data-capability-area="Navigation" data-capability-any="reference_data.view reference_data.manage settings.view settings.edit" data-capability-type="navigation">Reference Data</button>
+            <button id="administrationIdentityResolutionNav" class="oh-nav-child-item hidden" type="button" title="Identity Resolution" data-nav-action="navigation.identity_resolution.open" data-capability-action="navigation.identity_resolution.open" data-capability-label="Identity Resolution" data-capability-area="Navigation" data-capability-any="identity_resolution.view identity_resolution.manage" data-capability-type="navigation">Identity Resolution</button>
+            <button id="administrationDocumentSignoffsNav" class="oh-nav-child-item hidden" type="button" title="Document Sign-offs" data-nav-action="navigation.document_signoffs.open" data-capability-action="navigation.document_signoffs.open" data-capability-label="Document Sign-offs" data-capability-area="Navigation" data-capability-any="agreements.view agreements.manage document_signoff.manage" data-capability-type="navigation">Document Sign-offs</button>
+            <button id="administrationPrivacyGdprNav" class="oh-nav-child-item hidden" type="button" title="Privacy / Data Governance" data-nav-action="navigation.privacy_gdpr.open" data-capability-action="navigation.privacy_gdpr.open" data-capability-label="Privacy / Data Governance" data-capability-area="Navigation" data-capability-any="privacy.case.view privacy.case.manage privacy.view privacy.manage gdpr.view gdpr.manage" data-capability-type="navigation">Privacy / Data Governance</button>
+            <button id="administrationSharedTerminalsNav" class="oh-nav-child-item hidden" type="button" title="Shared Terminals" data-nav-action="navigation.shared_terminals.open" data-capability-action="navigation.shared_terminals.open" data-capability-label="Shared Terminals" data-capability-area="Navigation" data-capability-any="devices.view devices.manage" data-capability-type="navigation">Shared Terminals</button>
+            <button id="administrationModuleConfigurationNav" class="oh-nav-child-item hidden" type="button" title="Module Configuration" data-nav-action="navigation.module_configuration.open" data-capability-action="navigation.module_configuration.open" data-capability-label="Module Configuration" data-capability-area="Navigation" data-capability-any="module_configuration.view module_configuration.manage settings.view settings.edit" data-capability-type="navigation">Module Configuration</button>
+            <button id="administrationAccessControlNav" class="oh-nav-child-item hidden" type="button" title="Access Control" data-nav-action="navigation.access_control.open" data-capability-action="navigation.access_control.open" data-capability-label="Access Control" data-capability-area="Navigation" data-capability-any="access_control.view access_control.manage role_presets.view user_role_assignments.view" data-capability-type="navigation">Access Control</button>
           </div>
         </div>
       </nav>
@@ -647,16 +651,16 @@
                 <h2 id="visitorsHistoryTitle">Visitor History</h2>
                 <p>Review recent and historical visitor activity available under your current access.</p>
               </div>
-              <button id="visitorsHistoryRefresh" class="secondary" type="button">Refresh</button>
+              <button id="visitorsHistoryRefresh" class="secondary" type="button" data-capability-action="visitors.history.refresh" data-capability-label="Refresh Visitor History" data-capability-area="Visitors" data-capability-any="visitor.history.view visitor.view" data-capability-type="view">Refresh</button>
             </div>
 
             <div class="oh-filter-panel" role="search" aria-label="Filter visitor history">
               <div class="visitors-history-quick-filters oh-filter-quick-group" aria-label="Visitor history quick filters">
-                <button type="button" class="secondary" data-history-quick-filter="today" aria-pressed="false">Today</button>
-                <button type="button" class="secondary" data-history-quick-filter="on_site" aria-pressed="false">Currently on site</button>
-                <button type="button" class="secondary" data-history-quick-filter="overdue" aria-pressed="false">Overdue</button>
-                <button type="button" class="secondary" data-history-quick-filter="signed_out_today" aria-pressed="false">Signed out today</button>
-                <button type="button" class="secondary" data-history-quick-filter="planned" aria-pressed="false">Planned visits</button>
+                <button type="button" class="secondary" data-history-quick-filter="today" aria-pressed="false" data-capability-action="visitors.history.quick_filter.today" data-capability-label="Visitor History Today Filter" data-capability-area="Visitors" data-capability-any="visitor.history.view visitor.view" data-capability-type="filter">Today</button>
+                <button type="button" class="secondary" data-history-quick-filter="on_site" aria-pressed="false" data-capability-action="visitors.history.quick_filter.on_site" data-capability-label="Visitor History On Site Filter" data-capability-area="Visitors" data-capability-any="visitor.history.view visitor.view" data-capability-type="filter">Currently on site</button>
+                <button type="button" class="secondary" data-history-quick-filter="overdue" aria-pressed="false" data-capability-action="visitors.history.quick_filter.overdue" data-capability-label="Visitor History Overdue Filter" data-capability-area="Visitors" data-capability-any="visitor.history.view visitor.view" data-capability-type="filter">Overdue</button>
+                <button type="button" class="secondary" data-history-quick-filter="signed_out_today" aria-pressed="false" data-capability-action="visitors.history.quick_filter.signed_out_today" data-capability-label="Visitor History Signed Out Today Filter" data-capability-area="Visitors" data-capability-any="visitor.history.view visitor.view" data-capability-type="filter">Signed out today</button>
+                <button type="button" class="secondary" data-history-quick-filter="planned" aria-pressed="false" data-capability-action="visitors.history.quick_filter.planned" data-capability-label="Visitor History Planned Visits Filter" data-capability-area="Visitors" data-capability-any="visitor.history.view visitor.view" data-capability-type="filter">Planned visits</button>
               </div>
 
               <div class="visitors-planned-filters visitors-history-filters oh-responsive-filter-grid oh-filter-field-grid" aria-label="Custom visitor history filters">
@@ -685,10 +689,10 @@
                 </label>
               </div>
               <div class="visitors-planned-filter-actions oh-responsive-filter-actions oh-filter-actions-row">
-                <button id="visitorsHistoryApplyFilters" class="secondary" type="button">Apply Filters</button>
-                <button id="visitorsHistoryClearFilters" class="ghost" type="button">Reset</button>
-                <button id="visitorsHistoryExportCsv" class="secondary" type="button">Export CSV</button>
-                <button id="visitorsHistoryExportXlsx" class="secondary" type="button">Export XLSX</button>
+                <button id="visitorsHistoryApplyFilters" class="secondary" type="button" data-capability-action="visitors.history.apply_filters" data-capability-label="Apply Visitor History Filters" data-capability-area="Visitors" data-capability-any="visitor.history.view visitor.view" data-capability-type="filter">Apply Filters</button>
+                <button id="visitorsHistoryClearFilters" class="ghost" type="button" data-capability-action="visitors.history.reset_filters" data-capability-label="Reset Visitor History Filters" data-capability-area="Visitors" data-capability-any="visitor.history.view visitor.view" data-capability-type="filter">Reset</button>
+                <button id="visitorsHistoryExportCsv" class="secondary" type="button" data-capability-action="visitors.history.export_csv" data-capability-label="Export Visitor History CSV" data-capability-area="Visitors" data-capability-any="visitor.export" data-capability-type="export">Export CSV</button>
+                <button id="visitorsHistoryExportXlsx" class="secondary" type="button" data-capability-action="visitors.history.export_xlsx" data-capability-label="Export Visitor History XLSX" data-capability-area="Visitors" data-capability-any="visitor.export" data-capability-type="export">Export XLSX</button>
               </div>
             </div>
 
@@ -3982,9 +3986,9 @@
               <p>Review candidates comparing two existing records that may represent the same real-world identity, organisation, vehicle or email.</p>
             </div>
             <div class="identity-resolution-heading-actions">
-              <button id="identityResolutionNewRequestButton" type="button">Request Identity Review</button>
-              <button id="identityResolutionNewCandidateButton" class="secondary" type="button">Advanced Manual Candidate</button>
-              <button id="identityResolutionRefreshButton" class="secondary" type="button">Refresh</button>
+              <button id="identityResolutionNewRequestButton" type="button" data-capability-action="identity_resolution.request.create" data-capability-label="Request Identity Review" data-capability-area="Identity Resolution" data-capability-any="identity_resolution.manage" data-capability-type="create">Request Identity Review</button>
+              <button id="identityResolutionNewCandidateButton" class="secondary" type="button" data-capability-action="identity_resolution.candidate.create_manual" data-capability-label="Advanced Manual Candidate" data-capability-area="Identity Resolution" data-capability-any="identity_resolution.manage" data-capability-type="create">Advanced Manual Candidate</button>
+              <button id="identityResolutionRefreshButton" class="secondary" type="button" data-capability-action="identity_resolution.refresh" data-capability-label="Refresh Identity Resolution" data-capability-area="Identity Resolution" data-capability-any="identity_resolution.view identity_resolution.manage" data-capability-type="view">Refresh</button>
             </div>
           </div>
 
@@ -4089,10 +4093,10 @@
                     </select>
                   </label>
                   <div class="oh-responsive-filter-actions identity-resolution-actions">
-                    <button id="identityResolutionApplyRequestFiltersButton" type="button">Apply Filters</button>
-                    <button id="identityResolutionResetRequestFiltersButton" class="secondary" type="button">Reset</button>
-                    <button id="identityResolutionExportRequestsCsv" class="secondary" type="button">Export CSV</button>
-                    <button id="identityResolutionExportRequestsXlsx" class="secondary" type="button">Export XLSX</button>
+                    <button id="identityResolutionApplyRequestFiltersButton" type="button" data-capability-action="identity_resolution.requests.apply_filters" data-capability-label="Apply Review Request Filters" data-capability-area="Identity Resolution" data-capability-any="identity_resolution.view identity_resolution.manage" data-capability-type="filter">Apply Filters</button>
+                    <button id="identityResolutionResetRequestFiltersButton" class="secondary" type="button" data-capability-action="identity_resolution.requests.reset_filters" data-capability-label="Reset Review Request Filters" data-capability-area="Identity Resolution" data-capability-any="identity_resolution.view identity_resolution.manage" data-capability-type="filter">Reset</button>
+                    <button id="identityResolutionExportRequestsCsv" class="secondary" type="button" data-capability-action="identity_resolution.requests.export_csv" data-capability-label="Export Review Requests CSV" data-capability-area="Identity Resolution" data-capability-any="identity_resolution.view identity_resolution.manage" data-capability-type="export">Export CSV</button>
+                    <button id="identityResolutionExportRequestsXlsx" class="secondary" type="button" data-capability-action="identity_resolution.requests.export_xlsx" data-capability-label="Export Review Requests XLSX" data-capability-area="Identity Resolution" data-capability-any="identity_resolution.view identity_resolution.manage" data-capability-type="export">Export XLSX</button>
                   </div>
                 </div>
               </div>
@@ -4145,10 +4149,10 @@
                     </select>
                   </label>
                   <div class="oh-responsive-filter-actions identity-resolution-actions">
-                    <button id="identityResolutionApplyFiltersButton" type="button">Apply Filters</button>
-                    <button id="identityResolutionResetFiltersButton" class="secondary" type="button">Reset</button>
-                    <button id="identityResolutionExportCandidatesCsv" class="secondary" type="button">Export CSV</button>
-                    <button id="identityResolutionExportCandidatesXlsx" class="secondary" type="button">Export XLSX</button>
+                    <button id="identityResolutionApplyFiltersButton" type="button" data-capability-action="identity_resolution.candidates.apply_filters" data-capability-label="Apply Candidate Filters" data-capability-area="Identity Resolution" data-capability-any="identity_resolution.view identity_resolution.manage" data-capability-type="filter">Apply Filters</button>
+                    <button id="identityResolutionResetFiltersButton" class="secondary" type="button" data-capability-action="identity_resolution.candidates.reset_filters" data-capability-label="Reset Candidate Filters" data-capability-area="Identity Resolution" data-capability-any="identity_resolution.view identity_resolution.manage" data-capability-type="filter">Reset</button>
+                    <button id="identityResolutionExportCandidatesCsv" class="secondary" type="button" data-capability-action="identity_resolution.candidates.export_csv" data-capability-label="Export Candidates CSV" data-capability-area="Identity Resolution" data-capability-any="identity_resolution.view identity_resolution.manage" data-capability-type="export">Export CSV</button>
+                    <button id="identityResolutionExportCandidatesXlsx" class="secondary" type="button" data-capability-action="identity_resolution.candidates.export_xlsx" data-capability-label="Export Candidates XLSX" data-capability-area="Identity Resolution" data-capability-any="identity_resolution.view identity_resolution.manage" data-capability-type="export">Export XLSX</button>
                   </div>
                 </div>
               </div>
@@ -4198,10 +4202,10 @@
                     </select>
                   </label>
                   <div class="oh-responsive-filter-actions identity-resolution-actions">
-                    <button id="identityResolutionApplyLinkFiltersButton" type="button">Apply Filters</button>
-                    <button id="identityResolutionResetLinkFiltersButton" class="secondary" type="button">Reset</button>
-                    <button id="identityResolutionExportLinksCsv" class="secondary" type="button">Export CSV</button>
-                    <button id="identityResolutionExportLinksXlsx" class="secondary" type="button">Export XLSX</button>
+                    <button id="identityResolutionApplyLinkFiltersButton" type="button" data-capability-action="identity_resolution.links.apply_filters" data-capability-label="Apply Confirmed Link Filters" data-capability-area="Identity Resolution" data-capability-any="identity_resolution.view identity_resolution.manage" data-capability-type="filter">Apply Filters</button>
+                    <button id="identityResolutionResetLinkFiltersButton" class="secondary" type="button" data-capability-action="identity_resolution.links.reset_filters" data-capability-label="Reset Confirmed Link Filters" data-capability-area="Identity Resolution" data-capability-any="identity_resolution.view identity_resolution.manage" data-capability-type="filter">Reset</button>
+                    <button id="identityResolutionExportLinksCsv" class="secondary" type="button" data-capability-action="identity_resolution.links.export_csv" data-capability-label="Export Confirmed Links CSV" data-capability-area="Identity Resolution" data-capability-any="identity_resolution.view identity_resolution.manage" data-capability-type="export">Export CSV</button>
+                    <button id="identityResolutionExportLinksXlsx" class="secondary" type="button" data-capability-action="identity_resolution.links.export_xlsx" data-capability-label="Export Confirmed Links XLSX" data-capability-area="Identity Resolution" data-capability-any="identity_resolution.view identity_resolution.manage" data-capability-type="export">Export XLSX</button>
                   </div>
                 </div>
               </div>
@@ -4220,8 +4224,8 @@
               <div class="oh-result-toolbar">
                 <div class="oh-result-toolbar-label"></div>
                 <div class="oh-result-toolbar-actions">
-                  <button id="identityResolutionExportDecisionsCsv" class="secondary" type="button">Export CSV</button>
-                  <button id="identityResolutionExportDecisionsXlsx" class="secondary" type="button">Export XLSX</button>
+                  <button id="identityResolutionExportDecisionsCsv" class="secondary" type="button" data-capability-action="identity_resolution.decisions.export_csv" data-capability-label="Export Decisions CSV" data-capability-area="Identity Resolution" data-capability-any="identity_resolution.view identity_resolution.manage" data-capability-type="export">Export CSV</button>
+                  <button id="identityResolutionExportDecisionsXlsx" class="secondary" type="button" data-capability-action="identity_resolution.decisions.export_xlsx" data-capability-label="Export Decisions XLSX" data-capability-area="Identity Resolution" data-capability-any="identity_resolution.view identity_resolution.manage" data-capability-type="export">Export XLSX</button>
                 </div>
               </div>
               <div id="identityResolutionDecisionCount" class="visitors-history-result-summary" aria-live="polite">-</div>
@@ -4261,10 +4265,10 @@
             </header>
             <div id="identityResolutionDetailPanelBody" class="identity-resolution-panel-body oh-side-panel-body oh-detail-body"></div>
             <div class="visitors-side-panel-actions identity-resolution-detail-actions" data-oh-side-panel-actions>
-              <button id="identityResolutionDetailConfirmButton" type="button">Confirm Link</button>
-              <button id="identityResolutionDetailRejectButton" class="secondary" type="button">Reject</button>
-              <button id="identityResolutionDetailDeferButton" class="secondary" type="button">Defer</button>
-              <button id="identityResolutionDetailIgnoreButton" class="secondary" type="button">Ignore</button>
+              <button id="identityResolutionDetailConfirmButton" type="button" data-capability-action="identity_resolution.candidate.confirm" data-capability-label="Confirm Identity Link" data-capability-area="Identity Resolution" data-capability-any="identity_resolution.manage" data-capability-type="manage">Confirm Link</button>
+              <button id="identityResolutionDetailRejectButton" class="secondary" type="button" data-capability-action="identity_resolution.candidate.reject" data-capability-label="Reject Identity Candidate" data-capability-area="Identity Resolution" data-capability-any="identity_resolution.manage" data-capability-type="manage">Reject</button>
+              <button id="identityResolutionDetailDeferButton" class="secondary" type="button" data-capability-action="identity_resolution.candidate.defer" data-capability-label="Defer Identity Candidate" data-capability-area="Identity Resolution" data-capability-any="identity_resolution.manage" data-capability-type="manage">Defer</button>
+              <button id="identityResolutionDetailIgnoreButton" class="secondary" type="button" data-capability-action="identity_resolution.candidate.ignore" data-capability-label="Ignore Identity Candidate" data-capability-area="Identity Resolution" data-capability-any="identity_resolution.manage" data-capability-type="manage">Ignore</button>
             </div>
           </aside>
         </div>
@@ -4306,8 +4310,8 @@
               </fieldset>
               <label for="identityResolutionFormMetadata"><span>Metadata JSON</span><textarea id="identityResolutionFormMetadata" rows="4" spellcheck="false" placeholder="{ }"></textarea></label>
               <div class="visitors-side-panel-actions" data-oh-side-panel-actions>
-                <button id="identityResolutionCreateCandidateButton" type="submit">Create Manual Candidate</button>
-                <button id="identityResolutionCandidateCancelButton" class="secondary" type="button">Cancel</button>
+                <button id="identityResolutionCreateCandidateButton" type="submit" data-capability-action="identity_resolution.candidate.save_manual" data-capability-label="Create Manual Candidate" data-capability-area="Identity Resolution" data-capability-any="identity_resolution.manage" data-capability-type="create">Create Manual Candidate</button>
+                <button id="identityResolutionCandidateCancelButton" class="secondary" type="button" data-capability-inspector-ignore="true">Cancel</button>
               </div>
             </form>
           </aside>
@@ -4330,8 +4334,8 @@
               <label id="identityResolutionCanonicalLabelField" for="identityResolutionDecisionCanonicalLabel"><span>Canonical label</span><input id="identityResolutionDecisionCanonicalLabel" type="text" autocomplete="off" /></label>
               <label for="identityResolutionDecisionMetadata"><span>Decision metadata JSON</span><textarea id="identityResolutionDecisionMetadata" rows="4" spellcheck="false" placeholder="{ }"></textarea></label>
               <div class="visitors-side-panel-actions" data-oh-side-panel-actions>
-                <button id="identityResolutionSaveDecisionButton" type="submit">Save Decision</button>
-                <button id="identityResolutionDecisionCancelButton" class="secondary" type="button">Cancel</button>
+                <button id="identityResolutionSaveDecisionButton" type="submit" data-capability-action="identity_resolution.decision.save" data-capability-label="Save Identity Decision" data-capability-area="Identity Resolution" data-capability-any="identity_resolution.manage" data-capability-type="manage">Save Decision</button>
+                <button id="identityResolutionDecisionCancelButton" class="secondary" type="button" data-capability-inspector-ignore="true">Cancel</button>
               </div>
             </form>
           </aside>
@@ -4344,7 +4348,7 @@
               <h2 id="privacyGdprTitle">Privacy / Data Governance</h2>
               <p>Review the native foundation for privacy data governance, GDPR case visibility, retention posture and existing Legacy VMS GDPR workflows.</p>
             </div>
-            <button id="privacyGdprRefreshButton" class="secondary" type="button">Refresh</button>
+            <button id="privacyGdprRefreshButton" class="secondary" type="button" data-capability-action="privacy_gdpr.refresh" data-capability-label="Refresh Privacy / Data Governance" data-capability-area="Privacy / Data Governance" data-capability-any="privacy.view privacy.manage gdpr.view gdpr.manage privacy.case.view privacy.case.manage" data-capability-type="view">Refresh</button>
           </div>
 
           <div id="privacyGdprStatus" class="local-action-status" aria-live="polite"></div>
@@ -4462,13 +4466,13 @@
                   </label>
                 </div>
                 <div class="oh-responsive-filter-actions oh-filter-actions-row">
-                  <button id="privacyGdprNewCaseButton" type="button">New Case</button>
-                  <button id="privacyGdprCaseFilterButton" type="button">Apply Filters</button>
-                  <button id="privacyGdprCaseResetButton" class="secondary" type="button">Reset</button>
-                  <button id="privacyGdprCaseRefreshButton" class="secondary" type="button">Refresh</button>
-                  <button id="privacyGdprCaseExportCsv" class="secondary" type="button">Export CSV</button>
-                  <button id="privacyGdprCaseExportXlsx" class="secondary" type="button">Export XLSX</button>
-                  <button id="privacyGdprCaseLegacyButton" class="secondary" type="button">Open Legacy GDPR Case Tools</button>
+                  <button id="privacyGdprNewCaseButton" type="button" data-capability-action="privacy_gdpr.case.create" data-capability-label="New Privacy Case" data-capability-area="Privacy / Data Governance" data-capability-any="privacy.case.manage privacy.manage gdpr.manage" data-capability-type="create">New Case</button>
+                  <button id="privacyGdprCaseFilterButton" type="button" data-capability-action="privacy_gdpr.case.apply_filters" data-capability-label="Apply Privacy Case Filters" data-capability-area="Privacy / Data Governance" data-capability-any="privacy.case.view privacy.case.manage privacy.view privacy.manage gdpr.view gdpr.manage" data-capability-type="filter">Apply Filters</button>
+                  <button id="privacyGdprCaseResetButton" class="secondary" type="button" data-capability-action="privacy_gdpr.case.reset_filters" data-capability-label="Reset Privacy Case Filters" data-capability-area="Privacy / Data Governance" data-capability-any="privacy.case.view privacy.case.manage privacy.view privacy.manage gdpr.view gdpr.manage" data-capability-type="filter">Reset</button>
+                  <button id="privacyGdprCaseRefreshButton" class="secondary" type="button" data-capability-action="privacy_gdpr.case.refresh" data-capability-label="Refresh Privacy Cases" data-capability-area="Privacy / Data Governance" data-capability-any="privacy.case.view privacy.case.manage privacy.view privacy.manage gdpr.view gdpr.manage" data-capability-type="view">Refresh</button>
+                  <button id="privacyGdprCaseExportCsv" class="secondary" type="button" data-capability-action="privacy_gdpr.case.export_csv" data-capability-label="Export Privacy Cases CSV" data-capability-area="Privacy / Data Governance" data-capability-any="privacy.case.view privacy.case.manage privacy.view privacy.manage gdpr.view gdpr.manage" data-capability-type="export">Export CSV</button>
+                  <button id="privacyGdprCaseExportXlsx" class="secondary" type="button" data-capability-action="privacy_gdpr.case.export_xlsx" data-capability-label="Export Privacy Cases XLSX" data-capability-area="Privacy / Data Governance" data-capability-any="privacy.case.view privacy.case.manage privacy.view privacy.manage gdpr.view gdpr.manage" data-capability-type="export">Export XLSX</button>
+                  <button id="privacyGdprCaseLegacyButton" class="secondary" type="button" data-capability-action="privacy_gdpr.case.open_legacy" data-capability-label="Open Legacy GDPR Case Tools" data-capability-area="Privacy / Data Governance" data-capability-any="privacy.case.manage privacy.manage gdpr.manage" data-capability-type="module">Open Legacy GDPR Case Tools</button>
                 </div>
               </div>
               <div id="privacyGdprCaseStatus" class="local-action-status" aria-live="polite"></div>
@@ -4773,9 +4777,9 @@
               </div>
               <div class="oh-filter-panel" role="search" aria-label="Search visit log privacy records">
                 <div class="oh-filter-quick-group" aria-label="Visit log quick filters">
-                  <button id="privacyGdprVisitLogTodayButton" class="secondary" type="button">Today</button>
-                  <button id="privacyGdprVisitLogSevenDaysButton" class="secondary" type="button">Last 7 days</button>
-                  <button id="privacyGdprVisitLogThirtyDaysButton" class="secondary" type="button">Last 30 days</button>
+                  <button id="privacyGdprVisitLogTodayButton" class="secondary" type="button" data-capability-action="privacy_gdpr.visit_log.quick_filter.today" data-capability-label="Visit Log Today Filter" data-capability-area="Privacy / Data Governance" data-capability-any="privacy.view privacy.manage gdpr.view gdpr.manage visitor.history.view" data-capability-type="filter">Today</button>
+                  <button id="privacyGdprVisitLogSevenDaysButton" class="secondary" type="button" data-capability-action="privacy_gdpr.visit_log.quick_filter.seven_days" data-capability-label="Visit Log Last 7 Days Filter" data-capability-area="Privacy / Data Governance" data-capability-any="privacy.view privacy.manage gdpr.view gdpr.manage visitor.history.view" data-capability-type="filter">Last 7 days</button>
+                  <button id="privacyGdprVisitLogThirtyDaysButton" class="secondary" type="button" data-capability-action="privacy_gdpr.visit_log.quick_filter.thirty_days" data-capability-label="Visit Log Last 30 Days Filter" data-capability-area="Privacy / Data Governance" data-capability-any="privacy.view privacy.manage gdpr.view gdpr.manage visitor.history.view" data-capability-type="filter">Last 30 days</button>
                 </div>
                 <div class="oh-responsive-filter-grid oh-filter-field-grid privacy-gdpr-search-filters">
                   <label>
@@ -4801,10 +4805,10 @@
                   </label>
                 </div>
                 <div class="oh-responsive-filter-actions oh-filter-actions-row">
-                  <button id="privacyGdprVisitLogSearchButton" type="button">Search</button>
-                  <button id="privacyGdprVisitLogResetButton" class="secondary" type="button">Reset</button>
-                  <button id="privacyGdprVisitLogExportCsv" class="secondary" type="button">Export CSV</button>
-                  <button id="privacyGdprVisitLogExportXlsx" class="secondary" type="button">Export XLSX</button>
+                  <button id="privacyGdprVisitLogSearchButton" type="button" data-capability-action="privacy_gdpr.visit_log.search" data-capability-label="Search Visit Log Privacy Records" data-capability-area="Privacy / Data Governance" data-capability-any="privacy.view privacy.manage gdpr.view gdpr.manage visitor.history.view" data-capability-type="view">Search</button>
+                  <button id="privacyGdprVisitLogResetButton" class="secondary" type="button" data-capability-action="privacy_gdpr.visit_log.reset_filters" data-capability-label="Reset Visit Log Search" data-capability-area="Privacy / Data Governance" data-capability-any="privacy.view privacy.manage gdpr.view gdpr.manage visitor.history.view" data-capability-type="filter">Reset</button>
+                  <button id="privacyGdprVisitLogExportCsv" class="secondary" type="button" data-capability-action="privacy_gdpr.visit_log.export_csv" data-capability-label="Export Visit Log CSV" data-capability-area="Privacy / Data Governance" data-capability-any="privacy.view privacy.manage gdpr.view gdpr.manage visitor.export" data-capability-type="export">Export CSV</button>
+                  <button id="privacyGdprVisitLogExportXlsx" class="secondary" type="button" data-capability-action="privacy_gdpr.visit_log.export_xlsx" data-capability-label="Export Visit Log XLSX" data-capability-area="Privacy / Data Governance" data-capability-any="privacy.view privacy.manage gdpr.view gdpr.manage visitor.export" data-capability-type="export">Export XLSX</button>
                 </div>
               </div>
               <div id="privacyGdprVisitLogSearchStatus" class="local-action-status" aria-live="polite"></div>
@@ -4820,9 +4824,9 @@
               </div>
               <div class="oh-filter-panel" role="search" aria-label="Search document evidence privacy records">
                 <div class="oh-filter-quick-group" aria-label="Document evidence quick filters">
-                  <button id="privacyGdprDocumentTodayButton" class="secondary" type="button">Today</button>
-                  <button id="privacyGdprDocumentSevenDaysButton" class="secondary" type="button">Last 7 days</button>
-                  <button id="privacyGdprDocumentThirtyDaysButton" class="secondary" type="button">Last 30 days</button>
+                  <button id="privacyGdprDocumentTodayButton" class="secondary" type="button" data-capability-action="privacy_gdpr.document_evidence.quick_filter.today" data-capability-label="Document Evidence Today Filter" data-capability-area="Privacy / Data Governance" data-capability-any="agreements.view agreements.manage document_signoff.manage privacy.view privacy.manage gdpr.view gdpr.manage" data-capability-type="filter">Today</button>
+                  <button id="privacyGdprDocumentSevenDaysButton" class="secondary" type="button" data-capability-action="privacy_gdpr.document_evidence.quick_filter.seven_days" data-capability-label="Document Evidence Last 7 Days Filter" data-capability-area="Privacy / Data Governance" data-capability-any="agreements.view agreements.manage document_signoff.manage privacy.view privacy.manage gdpr.view gdpr.manage" data-capability-type="filter">Last 7 days</button>
+                  <button id="privacyGdprDocumentThirtyDaysButton" class="secondary" type="button" data-capability-action="privacy_gdpr.document_evidence.quick_filter.thirty_days" data-capability-label="Document Evidence Last 30 Days Filter" data-capability-area="Privacy / Data Governance" data-capability-any="agreements.view agreements.manage document_signoff.manage privacy.view privacy.manage gdpr.view gdpr.manage" data-capability-type="filter">Last 30 days</button>
                 </div>
                 <div class="oh-responsive-filter-grid oh-filter-field-grid privacy-gdpr-search-filters">
                   <label>
@@ -4848,10 +4852,10 @@
                   </label>
                 </div>
                 <div class="oh-responsive-filter-actions oh-filter-actions-row">
-                  <button id="privacyGdprDocumentSearchButton" type="button">Search</button>
-                  <button id="privacyGdprDocumentResetButton" class="secondary" type="button">Reset</button>
-                  <button id="privacyGdprDocumentExportCsv" class="secondary" type="button">Export CSV</button>
-                  <button id="privacyGdprDocumentExportXlsx" class="secondary" type="button">Export XLSX</button>
+                  <button id="privacyGdprDocumentSearchButton" type="button" data-capability-action="privacy_gdpr.document_evidence.search" data-capability-label="Search Document Evidence" data-capability-area="Privacy / Data Governance" data-capability-any="agreements.view agreements.manage document_signoff.manage privacy.view privacy.manage gdpr.view gdpr.manage" data-capability-type="view">Search</button>
+                  <button id="privacyGdprDocumentResetButton" class="secondary" type="button" data-capability-action="privacy_gdpr.document_evidence.reset_filters" data-capability-label="Reset Document Evidence Search" data-capability-area="Privacy / Data Governance" data-capability-any="agreements.view agreements.manage document_signoff.manage privacy.view privacy.manage gdpr.view gdpr.manage" data-capability-type="filter">Reset</button>
+                  <button id="privacyGdprDocumentExportCsv" class="secondary" type="button" data-capability-action="privacy_gdpr.document_evidence.export_csv" data-capability-label="Export Document Evidence CSV" data-capability-area="Privacy / Data Governance" data-capability-any="agreements.view agreements.manage document_signoff.manage privacy.view privacy.manage gdpr.view gdpr.manage" data-capability-type="export">Export CSV</button>
+                  <button id="privacyGdprDocumentExportXlsx" class="secondary" type="button" data-capability-action="privacy_gdpr.document_evidence.export_xlsx" data-capability-label="Export Document Evidence XLSX" data-capability-area="Privacy / Data Governance" data-capability-any="agreements.view agreements.manage document_signoff.manage privacy.view privacy.manage gdpr.view gdpr.manage" data-capability-type="export">Export XLSX</button>
                 </div>
               </div>
               <div id="privacyGdprDocumentSearchStatus" class="local-action-status" aria-live="polite"></div>
@@ -5214,8 +5218,8 @@
               <p>Manage custom role presets, user role assignments and effective capability diagnostics.</p>
             </div>
             <div class="access-control-heading-actions">
-              <label class="capability-inspector-toggle hidden" data-capability-inspector-control for="capabilityInspectorToggle">
-                <input id="capabilityInspectorToggle" type="checkbox" />
+              <label class="capability-inspector-toggle hidden" data-capability-inspector-control data-capability-inspector-ignore="true" for="capabilityInspectorAccessToggle">
+                <input id="capabilityInspectorAccessToggle" type="checkbox" data-capability-inspector-toggle data-capability-inspector-ignore="true" />
                 <span>Capability Inspector</span>
               </label>
               <span id="accessControlPermissionBadge" class="access-control-mode">Read only</span>
@@ -5796,7 +5800,8 @@
 </div>
 
 <div id="capabilityInspectorGlobalIndicator" class="capability-inspector-global hidden" role="status">
-  Capability Inspector Active - actions will not run
+  <strong>Capability Inspector Active</strong>
+  <span>Actions will be inspected instead of executed.</span>
 </div>
 <div id="toastArea" class="toast-area"></div>
 

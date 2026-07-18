@@ -7887,11 +7887,26 @@ button.oh-section-nav-item:focus-visible,
   font-size: 13px;
 }
 
-.capability-inspector-active [data-capability-action] {
+.capability-inspector-active [data-capability-action],
+.capability-inspector-active [data-nav-action],
+.capability-inspector-active button:not([disabled]),
+.capability-inspector-active a[href],
+.capability-inspector-active [role='button'] {
   cursor: help;
 }
 
+.capability-inspector-active [data-capability-inspector-ignore='true'],
+.capability-inspector-active input,
+.capability-inspector-active textarea,
+.capability-inspector-active select,
+.capability-inspector-active option {
+  cursor: auto;
+}
+
 .capability-inspector-global {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   position: fixed;
   z-index: 1300;
   right: 18px;
