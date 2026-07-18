@@ -358,6 +358,19 @@ function workTimeProfileOptionLabel(profile) {
 
 function workTimeProfileBreakText(profile) {
   if (!profile) return "not selected";
+  const paidRaw = profile.effective_paid_break_minutes ?? profile.break_rule_paid_minutes;
+  const unpaidRaw = profile.effective_unpaid_break_minutes ?? profile.break_rule_unpaid_minutes;
+  if (
+    (paidRaw !== null && paidRaw !== undefined) ||
+    (unpaidRaw !== null && unpaidRaw !== undefined)
+  ) {
+    const paid = Number(paidRaw);
+    const unpaid = Number(unpaidRaw);
+    const paidMinutes = Number.isFinite(paid) ? paid : 0;
+    const unpaidMinutes = Number.isFinite(unpaid) ? unpaid : 0;
+    return (paidMinutes + unpaidMinutes) + " min total (" +
+      paidMinutes + " paid, " + unpaidMinutes + " unpaid)";
+  }
   return profile.break_rule_label ||
     ((profile.effective_break_minutes ?? profile.break_minutes ?? 0) + " min from Work Time Profile");
 }
@@ -493,13 +506,16 @@ export async function loadAssignmentLookups() {
 }
 
 export async function loadAssignmentWorkTimeProfiles() {
-  const result = await supabaseClient.rpc("list_work_time_profiles", {
+  const result = await supabaseClient.rpc("list_work_time_profiles_with_break_alignment", {
     p_include_inactive: true,
     p_search_text: null
   });
 
   if (result.error) throw result.error;
-  assignmentLookups.workTimeProfiles = result.data || [];
+  assignmentLookups.workTimeProfiles = (result.data || []).map(profile => ({
+    ...profile,
+    id: profile.id || profile.profile_id
+  }));
   populateWorkTimeProfileLookup();
 }
 
@@ -1074,7 +1090,7 @@ export async function saveAssignment() {
     job_role_id: optionalValue("assignmentJobRole"),
     assignment_type: $("assignmentType").value,
     shift_pattern_id: optionalValue("assignmentShiftPattern"),
-    break_rule_id: optionalValue("assignmentBreakRule"),
+    break_rule_id: existingAssignment ? existingAssignment.break_rule_id || null : null,
     work_time_profile_id: optionalValue("assignmentWorkTimeProfile"),
     shift_start_time: optionalValue("assignmentShiftStart"),
     shift_end_time: optionalValue("assignmentShiftEnd"),

@@ -163,31 +163,108 @@ const entityDefinitions = {
   },
   breakRules: {
     table: "break_rules",
+    customType: "breakRules",
     singular: "Break Rule",
     plural: "Break Rules",
-    orderBy: "break_rule_name",
+    orderBy: "rule_name",
+    viewCapabilities: [
+      "break_rules.view",
+      "break_rules.manage",
+      "reference_data.view",
+      "reference_data.manage",
+      "work_time_profiles.view",
+      "work_time_profiles.manage",
+      "settings.view"
+    ],
+    editCapabilities: [
+      "break_rules.manage",
+      "reference_data.manage",
+      "work_time_profiles.manage",
+      "settings.edit"
+    ],
     fields: [
-      { key: "break_rule_code", label: "Break Rule Code", normalise: "code", placeholder: "STANDARD-BREAK", help: "Business code; saved in uppercase." },
-      { key: "break_rule_name", label: "Break Rule Name", required: true, normalise: "title" },
-      { key: "break_minutes", label: "Break Minutes", type: "number", required: true, min: 0, defaultValue: 0 },
+      { key: "rule_name", label: "Rule Name", required: true, normalise: "title" },
+      { key: "rule_code", label: "Rule Code", normalise: "code", placeholder: "STANDARD-BREAK", help: "Business code; saved in uppercase." },
+      { key: "paid_break_minutes", label: "Paid Break Minutes", type: "number", required: true, min: 0, max: 1440, defaultValue: 0 },
+      { key: "unpaid_break_minutes", label: "Unpaid Break Minutes", type: "number", required: true, min: 0, max: 1440, defaultValue: 0 },
+      { key: "total_break_minutes", label: "Total Break Minutes", type: "number", min: 0, readOnly: true, defaultValue: 0 },
+      { key: "display_order", label: "Display Order", type: "number", min: 0, defaultValue: 0 },
+      { key: "notes", label: "Notes", type: "textarea" }
+    ],
+    columns: [
+      { key: "rule_code", label: "Code" },
+      { key: "rule_name", label: "Break Rule" },
+      { key: "paid_break_minutes", label: "Paid" },
+      { key: "unpaid_break_minutes", label: "Unpaid" },
+      { key: "total_break_minutes", label: "Total" },
+      { key: "display_order", label: "Order" },
+      { key: "notes", label: "Notes" }
+    ]
+  },
+  unsociableTimeRules: {
+    table: "unsociable_time_rules",
+    customType: "unsociableTimeRules",
+    singular: "Unsociable Time Rule",
+    plural: "Unsociable Time Rules",
+    orderBy: "rule_name",
+    viewCapabilities: [
+      "unsociable_time_rules.view",
+      "unsociable_time_rules.manage",
+      "work_time_profiles.view",
+      "work_time_profiles.manage",
+      "settings.view"
+    ],
+    editCapabilities: [
+      "unsociable_time_rules.manage",
+      "work_time_profiles.manage",
+      "settings.edit"
+    ],
+    fields: [
+      { key: "rule_name", label: "Rule Name", required: true, normalise: "title" },
+      { key: "rule_code", label: "Rule Code", normalise: "code", placeholder: "NIGHT-PREMIUM", help: "Business code; saved in uppercase." },
+      { key: "start_time", label: "Start Time", type: "time", required: true, defaultValue: "00:00" },
+      { key: "end_time", label: "End Time", type: "time", required: true, defaultValue: "00:00" },
       {
-        key: "paid_break",
-        label: "Paid Break",
+        key: "crosses_midnight",
+        label: "Crosses Midnight",
         type: "select",
         defaultValue: "false",
+        boolean: true,
+        options: [
+          { value: "false", label: "No" },
+          { value: "true", label: "Yes - overnight" }
+        ]
+      },
+      {
+        key: "full_day",
+        label: "Full Day",
+        type: "select",
+        defaultValue: "false",
+        boolean: true,
         options: [
           { value: "false", label: "No" },
           { value: "true", label: "Yes" }
         ],
-        boolean: true
+        sectionTitle: "Active days",
+        sectionHelp: "Configure company-specific unsociable time bands. Rules can overlap; a minute is counted once when any active rule applies."
       },
+      { key: "applies_monday", label: "Applies Monday", type: "select", defaultValue: "true", boolean: true, options: [{ value: "true", label: "Yes" }, { value: "false", label: "No" }] },
+      { key: "applies_tuesday", label: "Applies Tuesday", type: "select", defaultValue: "true", boolean: true, options: [{ value: "true", label: "Yes" }, { value: "false", label: "No" }] },
+      { key: "applies_wednesday", label: "Applies Wednesday", type: "select", defaultValue: "true", boolean: true, options: [{ value: "true", label: "Yes" }, { value: "false", label: "No" }] },
+      { key: "applies_thursday", label: "Applies Thursday", type: "select", defaultValue: "true", boolean: true, options: [{ value: "true", label: "Yes" }, { value: "false", label: "No" }] },
+      { key: "applies_friday", label: "Applies Friday", type: "select", defaultValue: "true", boolean: true, options: [{ value: "true", label: "Yes" }, { value: "false", label: "No" }] },
+      { key: "applies_saturday", label: "Applies Saturday", type: "select", defaultValue: "true", boolean: true, options: [{ value: "true", label: "Yes" }, { value: "false", label: "No" }] },
+      { key: "applies_sunday", label: "Applies Sunday", type: "select", defaultValue: "true", boolean: true, options: [{ value: "true", label: "Yes" }, { value: "false", label: "No" }] },
+      { key: "display_order", label: "Display Order", type: "number", min: 0, defaultValue: 0 },
       { key: "notes", label: "Notes", type: "textarea" }
     ],
     columns: [
-      { key: "break_rule_code", label: "Code" },
-      { key: "break_rule_name", label: "Break Rule" },
-      { key: "break_minutes", label: "Minutes" },
-      { key: "paid_break", label: "Paid", format: "boolean" }
+      { key: "rule_code", label: "Code" },
+      { key: "rule_name", label: "Rule" },
+      { key: "time_band", label: "Time", format: "unsociableTimeBand" },
+      { key: "active_days", label: "Days", format: "unsociableDays" },
+      { key: "display_order", label: "Order" },
+      { key: "notes", label: "Notes" }
     ]
   },
   workTimeProfiles: {
@@ -252,7 +329,21 @@ const entityDefinitions = {
       },
       { key: "paid_hours", label: "Manual Paid Hours / Final Paid Hours", type: "number", min: 0, max: 24, step: "0.25" },
       { key: "break_alignment_notes", label: "Break Alignment Notes", type: "textarea", allowEmptyString: true },
-      { key: "unsociable_hours", label: "Unsociable Hours", type: "number", min: 0, max: 24, step: "0.25", defaultValue: 0 },
+      {
+        key: "unsociable_hours_manual_override",
+        label: "Unsociable Hours Mode",
+        type: "select",
+        defaultValue: "true",
+        boolean: true,
+        options: [
+          { value: "true", label: "Manual unsociable hours" },
+          { value: "false", label: "Use calculated unsociable hours" }
+        ],
+        sectionTitle: "Unsociable alignment",
+        sectionHelp: "Suggested unsociable hours depend on the actual day worked. Future LMT can calculate day-specific values from actual dates."
+      },
+      { key: "unsociable_hours", label: "Manual / Final Unsociable Hours", type: "number", min: 0, max: 24, step: "0.25", defaultValue: 0 },
+      { key: "unsociable_alignment_notes", label: "Unsociable Alignment Notes", type: "textarea", allowEmptyString: true },
       {
         key: "custom_tag_1",
         label: "Tag 1",
@@ -273,6 +364,7 @@ const entityDefinitions = {
       { key: "effective_break_minutes", label: "Effective Break" },
       { key: "hours_summary", label: "Hours", format: "workTimeProfileHours" },
       { key: "paid_hours_manual_override", label: "Manual", format: "boolean" },
+      { key: "unsociable_summary", label: "Unsociable", format: "workTimeProfileUnsociable" },
       { key: "custom_tags", label: "Tags", format: "workTimeTags" }
     ]
   }
@@ -287,6 +379,7 @@ const lookupCache = {
 
 let currentEntityKey = "sites";
 let referenceSectionsRegistered = false;
+let workTimeProfileUnsociablePreviewRows = [];
 
 function currentDefinition() {
   return entityDefinitions[currentEntityKey];
@@ -434,6 +527,13 @@ function formatValue(record, column) {
       " | Gross " + formatReferenceHours(record.gross_hours) +
       " | Unsoc " + formatReferenceHours(record.unsociable_hours);
   }
+  if (column.format === "workTimeProfileUnsociable") {
+    return "Final " + formatReferenceHours(record.unsociable_hours) +
+      " | Suggested " + formatReferenceHours(record.calculated_unsociable_hours) +
+      " | " + (record.unsociable_hours_manual_override ? "manual" : "calculated");
+  }
+  if (column.format === "unsociableTimeBand") return unsociableTimeBandText(record);
+  if (column.format === "unsociableDays") return unsociableDaysText(record);
   if (column.format === "title") {
     return String(record[column.key] || "")
       .replace(/_/g, " ")
@@ -468,7 +568,17 @@ function normaliseWorkTimeProfileRecord(record) {
     id: workTimeProfileId(item),
     break_minutes: item.break_minutes ?? item.legacy_break_minutes ?? 0,
     paid_hours_manual_override: item.paid_hours_manual_override !== false,
+    unsociable_hours_manual_override: item.unsociable_hours_manual_override !== false,
     break_rule_label: item.break_rule_label || "",
+    break_rule_paid_minutes: item.break_rule_paid_minutes ?? item.effective_paid_break_minutes ?? 0,
+    break_rule_unpaid_minutes: item.break_rule_unpaid_minutes ?? item.effective_unpaid_break_minutes ?? 0,
+    break_rule_total_minutes: item.break_rule_total_minutes ?? item.effective_break_minutes ?? 0,
+    effective_paid_break_minutes: item.effective_paid_break_minutes ?? item.break_rule_paid_minutes ?? 0,
+    effective_unpaid_break_minutes: item.effective_unpaid_break_minutes ?? item.break_rule_unpaid_minutes ?? 0,
+    effective_break_minutes: item.effective_break_minutes ??
+      ((item.effective_paid_break_minutes ?? item.break_rule_paid_minutes ?? 0) +
+        (item.effective_unpaid_break_minutes ?? item.break_rule_unpaid_minutes ?? item.break_minutes ?? 0)),
+    calculated_unsociable_hours: item.calculated_unsociable_hours ?? null,
     legacy_break_minutes: item.legacy_break_minutes ?? item.break_minutes ?? 0
   };
 }
@@ -496,6 +606,23 @@ function createWorkTimeProfileHoursCell(record) {
   return cell;
 }
 
+function createWorkTimeProfileUnsociableCell(record) {
+  const cell = document.createElement("td");
+  const stack = document.createElement("div");
+  stack.className = "work-time-profile-hours-stack";
+  [
+    ["Final", formatReferenceHours(record.unsociable_hours)],
+    ["Suggested", formatReferenceHours(record.calculated_unsociable_hours)],
+    ["Mode", record.unsociable_hours_manual_override ? "manual" : "calculated"]
+  ].forEach(([label, value]) => {
+    const line = document.createElement("span");
+    line.textContent = label === "Mode" ? label + " " + value : label + " " + value + "h";
+    stack.appendChild(line);
+  });
+  cell.appendChild(stack);
+  return cell;
+}
+
 function createWorkTimeProfileBreakCell(record) {
   const cell = document.createElement("td");
   const stack = document.createElement("div");
@@ -503,9 +630,12 @@ function createWorkTimeProfileBreakCell(record) {
   const rule = document.createElement("strong");
   rule.textContent = workTimeProfileBreakRuleLabel(record);
   const detail = document.createElement("span");
-  detail.textContent = "Effective " + formatReferenceMinutes(record.effective_break_minutes) +
-    " | Legacy " + formatReferenceMinutes(record.legacy_break_minutes);
-  stack.append(rule, detail);
+  detail.textContent = "Paid " + formatReferenceMinutes(record.effective_paid_break_minutes) +
+    " | Unpaid " + formatReferenceMinutes(record.effective_unpaid_break_minutes) +
+    " | Total " + formatReferenceMinutes(record.effective_break_minutes);
+  const legacy = document.createElement("span");
+  legacy.textContent = "Legacy " + formatReferenceMinutes(record.legacy_break_minutes);
+  stack.append(rule, detail, legacy);
   cell.appendChild(stack);
   return cell;
 }
@@ -528,10 +658,67 @@ function isWorkTimeProfilesDefinition(definition = currentDefinition()) {
   return definition.customType === "workTimeProfiles";
 }
 
+function isBreakRulesDefinition(definition = currentDefinition()) {
+  return definition.customType === "breakRules";
+}
+
+function isUnsociableTimeRulesDefinition(definition = currentDefinition()) {
+  return definition.customType === "unsociableTimeRules";
+}
+
+function isWorkingTimeRuleDefinition(definition = currentDefinition()) {
+  return isBreakRulesDefinition(definition) || isUnsociableTimeRulesDefinition(definition);
+}
+
 function createTextCell(text) {
   const cell = document.createElement("td");
   cell.textContent = text;
   return cell;
+}
+
+const UNSOCIABLE_DAY_FIELDS = [
+  ["applies_monday", "Mon"],
+  ["applies_tuesday", "Tue"],
+  ["applies_wednesday", "Wed"],
+  ["applies_thursday", "Thu"],
+  ["applies_friday", "Fri"],
+  ["applies_saturday", "Sat"],
+  ["applies_sunday", "Sun"]
+];
+
+function unsociableDaysText(record) {
+  const days = UNSOCIABLE_DAY_FIELDS
+    .filter(([key]) => record && record[key])
+    .map(([, label]) => label);
+  return days.length === 7 ? "Mon-Sun" : days.join(", ") || "-";
+}
+
+function unsociableTimeBandText(record) {
+  if (record.full_day) return "Full day";
+  return formatReferenceTime(record.start_time) + "-" + formatReferenceTime(record.end_time) +
+    (record.crosses_midnight ? " overnight" : "");
+}
+
+function normaliseBreakRuleRecord(record) {
+  const item = record || {};
+  return {
+    ...item,
+    id: item.id || item.break_rule_id,
+    paid_break_minutes: item.paid_break_minutes ?? 0,
+    unpaid_break_minutes: item.unpaid_break_minutes ?? 0,
+    total_break_minutes: item.total_break_minutes ??
+      (Number(item.paid_break_minutes || 0) + Number(item.unpaid_break_minutes || 0)),
+    active: item.active !== false
+  };
+}
+
+function normaliseUnsociableTimeRuleRecord(record) {
+  const item = record || {};
+  return {
+    ...item,
+    id: item.id || item.rule_id,
+    active: item.active !== false
+  };
 }
 
 function createWorkTimeProfileTagsCell(record) {
@@ -596,7 +783,11 @@ async function loadReferenceLookups(definition) {
       lookupCache.workTimeProfileBreakRules = (result.data || []).map(rule => ({
         id: rule.break_rule_id,
         label: rule.break_rule_label,
-        break_minutes: rule.break_minutes,
+        break_minutes: rule.break_rule_total_minutes ?? rule.break_minutes,
+        paid_break_minutes: rule.break_rule_paid_minutes ?? rule.paid_break_minutes ?? 0,
+        unpaid_break_minutes: rule.break_rule_unpaid_minutes ?? rule.unpaid_break_minutes ??
+          (rule.paid_break ? 0 : rule.break_minutes),
+        total_break_minutes: rule.break_rule_total_minutes ?? rule.total_break_minutes ?? rule.break_minutes,
         paid_break: rule.paid_break,
         active: true
       }));
@@ -737,6 +928,8 @@ function renderReferenceFormFields() {
     container.appendChild(createWorkTimeProfileCalculationPreview());
     setupWorkTimeProfileFormBehaviour();
   }
+  if (isBreakRulesDefinition(definition)) setupBreakRuleFormBehaviour();
+  if (isUnsociableTimeRulesDefinition(definition)) setupUnsociableTimeRuleFormBehaviour();
 }
 
 function createWorkTimeProfileCalculationPreview() {
@@ -747,16 +940,19 @@ function createWorkTimeProfileCalculationPreview() {
   const heading = document.createElement("h3");
   heading.textContent = "Calculation preview";
   const help = document.createElement("p");
-  help.textContent = "Preview only. Save applies the selected manual or calculated final paid hours.";
+  help.textContent = "Preview only. Save applies the selected manual or calculated final paid and unsociable hours.";
   const grid = document.createElement("dl");
   grid.className = "work-time-profile-preview-grid";
   [
     ["Gross hours", "gross"],
     ["Break rule", "rule"],
-    ["Effective break", "break"],
-    ["Unpaid break", "unpaid"],
+    ["Paid break", "paidBreak"],
+    ["Unpaid break", "unpaidBreak"],
+    ["Total break", "break"],
     ["Suggested paid", "calculated"],
-    ["Final paid", "final"]
+    ["Final paid", "final"],
+    ["Suggested unsociable", "calculatedUnsociable"],
+    ["Final unsociable", "finalUnsociable"]
   ].forEach(([label, key]) => {
     const item = document.createElement("div");
     const term = document.createElement("dt");
@@ -767,7 +963,35 @@ function createWorkTimeProfileCalculationPreview() {
     item.append(term, detail);
     grid.appendChild(item);
   });
-  preview.append(heading, help, grid);
+
+  const unsociableHeader = document.createElement("div");
+  unsociableHeader.className = "work-time-profile-preview-actions";
+  const unsociableTitle = document.createElement("h3");
+  unsociableTitle.textContent = "Unsociable by day";
+  const refreshButton = document.createElement("button");
+  refreshButton.id = "workTimeProfileUnsociablePreviewRefresh";
+  refreshButton.className = "secondary";
+  refreshButton.type = "button";
+  refreshButton.textContent = "Refresh";
+  decorateCapabilityAction(refreshButton, {
+    actionId: "reference_data.work_time_profiles.unsociable_preview",
+    label: "Preview Work Time Profile unsociable hours",
+    area: "Reference Data",
+    requiredAny: definitionViewCapabilities(currentDefinition()),
+    actionType: "view"
+  });
+  refreshButton.addEventListener("click", () => {
+    const recordId = $("referenceRecordId") ? $("referenceRecordId").value : "";
+    void loadWorkTimeProfileUnsociablePreview(recordId);
+  });
+  unsociableHeader.append(unsociableTitle, refreshButton);
+
+  const dayPreview = document.createElement("div");
+  dayPreview.id = "workTimeProfileUnsociableDayPreview";
+  dayPreview.className = "work-time-profile-unsociable-days";
+  dayPreview.textContent = "-";
+
+  preview.append(heading, help, grid, unsociableHeader, dayPreview);
   return preview;
 }
 
@@ -786,6 +1010,12 @@ function selectedWorkTimeProfileBreakRule() {
   return (lookupCache.workTimeProfileBreakRules || []).find(rule => rule.id === id) || null;
 }
 
+function currentReferenceRecord() {
+  const recordId = $("referenceRecordId") ? $("referenceRecordId").value : "";
+  if (!recordId) return null;
+  return (referenceCache[currentEntityKey] || []).find(record => record.id === recordId) || null;
+}
+
 function numericControlValue(id) {
   const control = $(id);
   if (!control) return null;
@@ -793,6 +1023,25 @@ function numericControlValue(id) {
   if (!text) return null;
   const value = Number(text);
   return Number.isFinite(value) ? value : null;
+}
+
+function roundedHoursFromMinutes(minutes) {
+  if (minutes === null || minutes === undefined) return null;
+  const value = Number(minutes);
+  return Number.isFinite(value) ? Number((value / 60).toFixed(2)) : null;
+}
+
+function suggestedUnsociableHoursFromPreview() {
+  const rowValues = workTimeProfileUnsociablePreviewRows
+    .map(row => Number(row.calculated_unsociable_hours))
+    .filter(Number.isFinite);
+  if (rowValues.length) return Number(Math.max(...rowValues).toFixed(2));
+  const record = currentReferenceRecord();
+  if (!record || record.calculated_unsociable_hours === null || record.calculated_unsociable_hours === undefined) {
+    return null;
+  }
+  const storedValue = Number(record.calculated_unsociable_hours);
+  return Number.isFinite(storedValue) ? storedValue : null;
 }
 
 function calculateWorkTimeProfilePreviewValues() {
@@ -804,6 +1053,9 @@ function calculateWorkTimeProfilePreviewValues() {
   const manualOverride = !$("referenceField_paid_hours_manual_override") ||
     $("referenceField_paid_hours_manual_override").value !== "false";
   const manualPaidHours = numericControlValue("referenceField_paid_hours");
+  const unsociableManualOverride = !$("referenceField_unsociable_hours_manual_override") ||
+    $("referenceField_unsociable_hours_manual_override").value !== "false";
+  const manualUnsociableHours = numericControlValue("referenceField_unsociable_hours");
 
   let grossMinutes = null;
   if (start !== null && end !== null) {
@@ -812,28 +1064,33 @@ function calculateWorkTimeProfilePreviewValues() {
     grossMinutes = Math.max(adjustedEnd - start, 0);
   }
 
-  const effectiveBreakMinutes = breakRule
-    ? Math.max(0, Number(breakRule.break_minutes || 0))
+  const paidBreakMinutes = breakRule ? Math.max(0, Number(breakRule.paid_break_minutes || 0)) : 0;
+  const unpaidBreakMinutesRaw = breakRule
+    ? Math.max(0, Number(breakRule.unpaid_break_minutes || 0))
     : legacyBreakMinutes;
-  const paidBreak = Boolean(breakRule && breakRule.paid_break);
+  const effectiveBreakMinutes = paidBreakMinutes + unpaidBreakMinutesRaw;
   const unpaidBreakMinutes = grossMinutes === null
-    ? (paidBreak ? 0 : effectiveBreakMinutes)
-    : paidBreak
-      ? 0
-      : Math.min(effectiveBreakMinutes, grossMinutes);
+    ? unpaidBreakMinutesRaw
+    : Math.min(unpaidBreakMinutesRaw, grossMinutes);
   const calculatedPaidMinutes = grossMinutes === null ? null : Math.max(grossMinutes - unpaidBreakMinutes, 0);
-  const calculatedPaidHours = calculatedPaidMinutes === null ? null : Number((calculatedPaidMinutes / 60).toFixed(2));
+  const calculatedPaidHours = roundedHoursFromMinutes(calculatedPaidMinutes);
   const finalPaidHours = manualOverride ? manualPaidHours : calculatedPaidHours;
+  const calculatedUnsociableHours = suggestedUnsociableHoursFromPreview();
+  const finalUnsociableHours = unsociableManualOverride ? manualUnsociableHours : calculatedUnsociableHours;
 
   return {
     breakRule,
     manualOverride,
+    unsociableManualOverride,
     grossMinutes,
-    grossHours: grossMinutes === null ? null : Number((grossMinutes / 60).toFixed(2)),
+    grossHours: roundedHoursFromMinutes(grossMinutes),
+    paidBreakMinutes,
     effectiveBreakMinutes,
     unpaidBreakMinutes,
     calculatedPaidHours,
-    finalPaidHours
+    finalPaidHours,
+    calculatedUnsociableHours,
+    finalUnsociableHours
   };
 }
 
@@ -851,13 +1108,78 @@ function updateWorkTimeProfileCalculationPreview() {
       paidHours.value = String(values.calculatedPaidHours);
     }
   }
+  const unsociableHours = $("referenceField_unsociable_hours");
+  if (unsociableHours) {
+    unsociableHours.readOnly = values.unsociableManualOverride === false;
+    if (values.unsociableManualOverride === false && values.calculatedUnsociableHours !== null) {
+      unsociableHours.value = String(values.calculatedUnsociableHours);
+    }
+  }
 
   setPreviewText("gross", values.grossHours === null ? "-" : formatReferenceHours(values.grossHours) + "h");
   setPreviewText("rule", values.breakRule ? values.breakRule.label : "Manual break minutes");
+  setPreviewText("paidBreak", formatReferenceMinutes(values.paidBreakMinutes));
   setPreviewText("break", formatReferenceMinutes(values.effectiveBreakMinutes));
-  setPreviewText("unpaid", formatReferenceMinutes(values.unpaidBreakMinutes));
+  setPreviewText("unpaidBreak", formatReferenceMinutes(values.unpaidBreakMinutes));
   setPreviewText("calculated", values.calculatedPaidHours === null ? "-" : formatReferenceHours(values.calculatedPaidHours) + "h");
   setPreviewText("final", values.finalPaidHours === null ? "-" : formatReferenceHours(values.finalPaidHours) + "h");
+  setPreviewText(
+    "calculatedUnsociable",
+    values.calculatedUnsociableHours === null ? "-" : formatReferenceHours(values.calculatedUnsociableHours) + "h"
+  );
+  setPreviewText(
+    "finalUnsociable",
+    values.finalUnsociableHours === null ? "-" : formatReferenceHours(values.finalUnsociableHours) + "h"
+  );
+}
+
+function renderWorkTimeProfileUnsociablePreview(profileId, error) {
+  const container = $("workTimeProfileUnsociableDayPreview");
+  if (!container) return;
+  container.replaceChildren();
+
+  if (error) {
+    container.textContent = error;
+    return;
+  }
+  if (!profileId) {
+    container.textContent = "Save profile to preview by day.";
+    return;
+  }
+  if (!workTimeProfileUnsociablePreviewRows.length) {
+    container.textContent = "No day preview available.";
+    return;
+  }
+
+  workTimeProfileUnsociablePreviewRows.forEach(row => {
+    const item = document.createElement("span");
+    item.textContent = String(row.day_name || "-").slice(0, 3) + " " +
+      formatReferenceHours(row.calculated_unsociable_hours) + "h";
+    container.appendChild(item);
+  });
+}
+
+async function loadWorkTimeProfileUnsociablePreview(profileId) {
+  workTimeProfileUnsociablePreviewRows = [];
+  renderWorkTimeProfileUnsociablePreview(profileId);
+  updateWorkTimeProfileCalculationPreview();
+  if (!profileId) return;
+
+  const refreshButton = $("workTimeProfileUnsociablePreviewRefresh");
+  if (refreshButton) refreshButton.disabled = true;
+  try {
+    const result = await supabaseClient.rpc("preview_work_time_profile_unsociable_by_day", {
+      p_profile_id: profileId
+    });
+    if (result.error) throw result.error;
+    workTimeProfileUnsociablePreviewRows = result.data || [];
+    renderWorkTimeProfileUnsociablePreview(profileId);
+    updateWorkTimeProfileCalculationPreview();
+  } catch (err) {
+    renderWorkTimeProfileUnsociablePreview(profileId, err.message || "Unsociable preview could not be loaded.");
+  } finally {
+    if (refreshButton) refreshButton.disabled = false;
+  }
 }
 
 function setupWorkTimeProfileFormBehaviour() {
@@ -880,13 +1202,72 @@ function setupWorkTimeProfileFormBehaviour() {
     "referenceField_break_rule_id",
     "referenceField_break_minutes",
     "referenceField_paid_hours_manual_override",
-    "referenceField_paid_hours"
+    "referenceField_paid_hours",
+    "referenceField_unsociable_hours_manual_override",
+    "referenceField_unsociable_hours"
   ].forEach(id => {
     const control = $(id);
     if (control) control.addEventListener("input", updateWorkTimeProfileCalculationPreview);
     if (control) control.addEventListener("change", updateWorkTimeProfileCalculationPreview);
   });
   updateWorkTimeProfileCalculationPreview();
+}
+
+function syncBreakRuleTotalMinutes() {
+  const paidControl = $("referenceField_paid_break_minutes");
+  const unpaidControl = $("referenceField_unpaid_break_minutes");
+  const totalControl = $("referenceField_total_break_minutes");
+  if (!paidControl || !unpaidControl || !totalControl) return;
+  const total = Math.max(0, Number(paidControl.value || 0)) +
+    Math.max(0, Number(unpaidControl.value || 0));
+  totalControl.value = String(total);
+}
+
+function setupBreakRuleFormBehaviour() {
+  ["referenceField_paid_break_minutes", "referenceField_unpaid_break_minutes"].forEach(id => {
+    const control = $(id);
+    if (!control) return;
+    control.addEventListener("input", syncBreakRuleTotalMinutes);
+    control.addEventListener("change", syncBreakRuleTotalMinutes);
+  });
+  syncBreakRuleTotalMinutes();
+}
+
+function syncUnsociableTimeRuleFullDay() {
+  const fullDay = $("referenceField_full_day");
+  const start = $("referenceField_start_time");
+  const end = $("referenceField_end_time");
+  const crossesMidnight = $("referenceField_crosses_midnight");
+  if (!fullDay || !start || !end || !crossesMidnight) return;
+  const isFullDay = fullDay.value === "true";
+  start.readOnly = isFullDay;
+  end.readOnly = isFullDay;
+  crossesMidnight.disabled = isFullDay;
+  if (isFullDay) {
+    start.value = "00:00";
+    end.value = "00:00";
+    crossesMidnight.value = "false";
+  }
+}
+
+function setupUnsociableTimeRuleFormBehaviour() {
+  const fullDay = $("referenceField_full_day");
+  if (fullDay) fullDay.addEventListener("change", syncUnsociableTimeRuleFullDay);
+  syncUnsociableTimeRuleFullDay();
+}
+
+function referenceActionNamespace(definition = currentDefinition()) {
+  if (isWorkTimeProfilesDefinition(definition)) return "work_time_profiles";
+  if (isBreakRulesDefinition(definition)) return "break_rules";
+  if (isUnsociableTimeRulesDefinition(definition)) return "unsociable_time_rules";
+  return currentEntityKey;
+}
+
+function referenceExportLabel(definition = currentDefinition()) {
+  if (isWorkTimeProfilesDefinition(definition)) return "Work Time Profiles";
+  if (isBreakRulesDefinition(definition)) return "Break Rules";
+  if (isUnsociableTimeRulesDefinition(definition)) return "Unsociable Time Rules";
+  return definition.plural;
 }
 
 function updateReferencePageLabels() {
@@ -897,14 +1278,26 @@ function updateReferencePageLabels() {
   $("referenceCreateButton").textContent = "Create " + definition.singular;
   $("referenceCreateButton").classList.toggle("hidden", !hasReferenceDataEditAccess());
   const isWorkTimeProfiles = isWorkTimeProfilesDefinition(definition);
+  const isExportable = isWorkTimeProfiles ||
+    isBreakRulesDefinition(definition) ||
+    isUnsociableTimeRulesDefinition(definition);
   ["referenceIncludeInactiveWrapper", "referenceExportCsvButton", "referenceExportXlsxButton"].forEach(id => {
     const element = $(id);
-    if (element) element.classList.toggle("hidden", !isWorkTimeProfiles);
+    if (element) element.classList.toggle("hidden", !isExportable);
   });
+  if ($("referenceCreateButton")) {
+    decorateCapabilityAction($("referenceCreateButton"), {
+      actionId: "reference_data." + referenceActionNamespace(definition) + ".create",
+      label: "Create " + definition.singular,
+      area: "Reference Data",
+      requiredAny: definitionEditCapabilities(definition),
+      actionType: "create"
+    });
+  }
   if ($("referenceExportCsvButton")) {
     decorateCapabilityAction($("referenceExportCsvButton"), {
-      actionId: "reference_data.work_time_profiles.export_csv",
-      label: "Export Work Time Profiles",
+      actionId: "reference_data." + referenceActionNamespace(definition) + ".export_csv",
+      label: "Export " + referenceExportLabel(definition),
       area: "Reference Data",
       requiredAny: definitionViewCapabilities(definition),
       actionType: "export"
@@ -912,8 +1305,8 @@ function updateReferencePageLabels() {
   }
   if ($("referenceExportXlsxButton")) {
     decorateCapabilityAction($("referenceExportXlsxButton"), {
-      actionId: "reference_data.work_time_profiles.export_xlsx",
-      label: "Export Work Time Profiles",
+      actionId: "reference_data." + referenceActionNamespace(definition) + ".export_xlsx",
+      label: "Export " + referenceExportLabel(definition),
       area: "Reference Data",
       requiredAny: definitionViewCapabilities(definition),
       actionType: "export"
@@ -922,9 +1315,9 @@ function updateReferencePageLabels() {
   if ($("referenceSaveButton")) {
     decorateCapabilityAction($("referenceSaveButton"), {
       actionId: isWorkTimeProfiles
-        ? "reference_data.work_time_profiles.break_alignment.save"
-        : "reference_data." + currentEntityKey + ".save",
-      label: isWorkTimeProfiles ? "Save Work Time Profile break alignment" : "Save Reference Data Record",
+        ? "reference_data.work_time_profiles.working_time_alignment.save"
+        : "reference_data." + referenceActionNamespace(definition) + ".save",
+      label: isWorkTimeProfiles ? "Save Work Time Profile working time alignment" : "Save Reference Data Record",
       area: "Reference Data",
       requiredAny: definitionEditCapabilities(definition),
       actionType: "save"
@@ -977,6 +1370,75 @@ async function loadWorkTimeProfiles(requestedEntityKey, definition) {
   }
 }
 
+async function loadBreakRules(requestedEntityKey, definition) {
+  setListStatus("Loading " + definition.plural.toLowerCase() + "...");
+  $("referenceResults").replaceChildren();
+  $("referenceEmptyState").classList.add("hidden");
+
+  try {
+    const result = await supabaseClient.rpc("list_break_rules_with_paid_unpaid", {
+      p_include_inactive: includeInactiveWorkTimeProfiles(),
+      p_search_text: null
+    });
+    if (result.error) throw result.error;
+    if (requestedEntityKey !== currentEntityKey) return;
+    referenceCache[requestedEntityKey] = (result.data || []).map(normaliseBreakRuleRecord);
+    renderReferenceDataList();
+  } catch (err) {
+    if (requestedEntityKey !== currentEntityKey) return;
+    referenceCache[requestedEntityKey] = [];
+    renderReferenceDataList();
+    setListStatus(definition.plural + " could not be loaded.");
+    showToast("Break Rules load failed", err.message || "Could not load break rules.", "error");
+  }
+}
+
+async function loadUnsociableTimeRules(requestedEntityKey, definition) {
+  setListStatus("Loading " + definition.plural.toLowerCase() + "...");
+  $("referenceResults").replaceChildren();
+  $("referenceEmptyState").classList.add("hidden");
+
+  try {
+    const result = await supabaseClient.rpc("list_unsociable_time_rules", {
+      p_include_inactive: includeInactiveWorkTimeProfiles(),
+      p_search_text: null
+    });
+    if (result.error) throw result.error;
+    if (requestedEntityKey !== currentEntityKey) return;
+    referenceCache[requestedEntityKey] = (result.data || []).map(normaliseUnsociableTimeRuleRecord);
+    renderReferenceDataList();
+  } catch (err) {
+    if (requestedEntityKey !== currentEntityKey) return;
+    referenceCache[requestedEntityKey] = [];
+    renderReferenceDataList();
+    setListStatus(definition.plural + " could not be loaded.");
+    showToast("Unsociable Time Rules load failed", err.message || "Could not load unsociable time rules.", "error");
+  }
+}
+
+function breakRuleSearchText(record) {
+  return [
+    record.rule_code,
+    record.rule_name,
+    record.paid_break_minutes,
+    record.unpaid_break_minutes,
+    record.total_break_minutes,
+    record.active ? "active" : "inactive",
+    record.notes
+  ].join(" ").toLowerCase();
+}
+
+function unsociableTimeRuleSearchText(record) {
+  return [
+    record.rule_code,
+    record.rule_name,
+    unsociableTimeBandText(record),
+    unsociableDaysText(record),
+    record.active ? "active" : "inactive",
+    record.notes
+  ].join(" ").toLowerCase();
+}
+
 function workTimeProfileSearchText(record) {
   return [
     record.profile_name,
@@ -989,7 +1451,9 @@ function workTimeProfileSearchText(record) {
     record.effective_break_minutes,
     record.gross_hours,
     record.calculated_paid_hours,
+    record.calculated_unsociable_hours,
     record.paid_hours_manual_override ? "manual override manual paid hours" : "calculated paid hours",
+    record.unsociable_hours_manual_override ? "manual override manual unsociable hours" : "calculated unsociable hours",
     record.break_minutes,
     record.legacy_break_minutes,
     record.paid_hours,
@@ -1042,6 +1506,7 @@ function renderWorkTimeProfileList() {
     definition.columns.forEach(column => {
       if (column.format === "workTimeTags") row.appendChild(createWorkTimeProfileTagsCell(record));
       else if (column.format === "workTimeProfileHours") row.appendChild(createWorkTimeProfileHoursCell(record));
+      else if (column.format === "workTimeProfileUnsociable") row.appendChild(createWorkTimeProfileUnsociableCell(record));
       else if (column.key === "break_rule_label") row.appendChild(createWorkTimeProfileBreakCell(record));
       else row.appendChild(createTextCell(formatValue(record, column)));
     });
@@ -1114,12 +1579,19 @@ function workTimeProfileExportRows() {
     "Crosses Midnight": record.crosses_midnight ? "Yes" : "No",
     "break_rule_id": record.break_rule_id || "",
     "break_rule_label": record.break_rule_label || "",
+    "break_rule_paid_minutes": record.break_rule_paid_minutes ?? "",
+    "break_rule_unpaid_minutes": record.break_rule_unpaid_minutes ?? "",
+    "break_rule_total_minutes": record.break_rule_total_minutes ?? "",
     "legacy_break_minutes": record.legacy_break_minutes ?? record.break_minutes ?? "",
+    "effective_paid_break_minutes": record.effective_paid_break_minutes ?? "",
+    "effective_unpaid_break_minutes": record.effective_unpaid_break_minutes ?? "",
     "effective_break_minutes": record.effective_break_minutes ?? "",
     "gross_hours": formatReferenceHours(record.gross_hours),
     "calculated_paid_hours": formatReferenceHours(record.calculated_paid_hours),
     "paid_hours_manual_override": record.paid_hours_manual_override ? "Yes" : "No",
     "paid_hours": formatReferenceHours(record.paid_hours),
+    "calculated_unsociable_hours": formatReferenceHours(record.calculated_unsociable_hours),
+    "unsociable_hours_manual_override": record.unsociable_hours_manual_override ? "Yes" : "No",
     "unsociable_hours": formatReferenceHours(record.unsociable_hours),
     "tags": workTimeProfileTags(record).join(" | "),
     "Tag 1": record.custom_tag_1 || "",
@@ -1128,30 +1600,94 @@ function workTimeProfileExportRows() {
     "active": record.active ? "Yes" : "No",
     "Display Order": record.display_order ?? "",
     "Break Alignment Notes": record.break_alignment_notes || "",
+    "Unsociable Alignment Notes": record.unsociable_alignment_notes || "",
     "Notes": record.notes || ""
   }));
 }
 
+function filteredBreakRules() {
+  const query = $("referenceSearch").value.trim().toLowerCase();
+  return (referenceCache[currentEntityKey] || [])
+    .filter(record => !query || breakRuleSearchText(record).includes(query));
+}
+
+function filteredUnsociableTimeRules() {
+  const query = $("referenceSearch").value.trim().toLowerCase();
+  return (referenceCache[currentEntityKey] || [])
+    .filter(record => !query || unsociableTimeRuleSearchText(record).includes(query));
+}
+
+function breakRuleExportRows() {
+  return filteredBreakRules().map(record => ({
+    "Rule Code": record.rule_code || "",
+    "Rule Name": record.rule_name || "",
+    "Paid Break Minutes": record.paid_break_minutes ?? "",
+    "Unpaid Break Minutes": record.unpaid_break_minutes ?? "",
+    "Total Break Minutes": record.total_break_minutes ?? "",
+    "Active": record.active ? "Yes" : "No",
+    "Display Order": record.display_order ?? "",
+    "Notes": record.notes || ""
+  }));
+}
+
+function unsociableTimeRuleExportRows() {
+  return filteredUnsociableTimeRules().map(record => ({
+    "Rule Code": record.rule_code || "",
+    "Rule Name": record.rule_name || "",
+    "Start Time": formatReferenceTime(record.start_time),
+    "End Time": formatReferenceTime(record.end_time),
+    "Crosses Midnight": record.crosses_midnight ? "Yes" : "No",
+    "Full Day": record.full_day ? "Yes" : "No",
+    "Applies Monday": record.applies_monday ? "Yes" : "No",
+    "Applies Tuesday": record.applies_tuesday ? "Yes" : "No",
+    "Applies Wednesday": record.applies_wednesday ? "Yes" : "No",
+    "Applies Thursday": record.applies_thursday ? "Yes" : "No",
+    "Applies Friday": record.applies_friday ? "Yes" : "No",
+    "Applies Saturday": record.applies_saturday ? "Yes" : "No",
+    "Applies Sunday": record.applies_sunday ? "Yes" : "No",
+    "Active Days": unsociableDaysText(record),
+    "Active": record.active ? "Yes" : "No",
+    "Display Order": record.display_order ?? "",
+    "Notes": record.notes || ""
+  }));
+}
+
+function exportableReferenceRows() {
+  if (isWorkTimeProfilesDefinition()) return workTimeProfileExportRows();
+  if (isBreakRulesDefinition()) return breakRuleExportRows();
+  if (isUnsociableTimeRulesDefinition()) return unsociableTimeRuleExportRows();
+  return [];
+}
+
+function referenceExportBaseName() {
+  if (isWorkTimeProfilesDefinition()) return "work-time-profiles";
+  if (isBreakRulesDefinition()) return "break-rules";
+  if (isUnsociableTimeRulesDefinition()) return "unsociable-time-rules";
+  return "reference-data";
+}
+
 export function exportReferenceDataCsv() {
-  if (!isWorkTimeProfilesDefinition()) return;
-  const rows = workTimeProfileExportRows();
+  const rows = exportableReferenceRows();
   if (!rows.length) {
-    showToast("Nothing to export", "No Work Time Profiles match the current filters.", "error");
+    showToast("Nothing to export", "No " + currentDefinition().plural + " match the current filters.", "error");
     return;
   }
-  downloadCsv("work-time-profiles-" + exportDateStamp() + ".csv", rows);
-  showToast("Export started", "Work Time Profiles CSV export is being downloaded.", "success");
+  downloadCsv(referenceExportBaseName() + "-" + exportDateStamp() + ".csv", rows);
+  showToast("Export started", currentDefinition().plural + " CSV export is being downloaded.", "success");
 }
 
 export function exportReferenceDataXlsx() {
-  if (!isWorkTimeProfilesDefinition()) return;
-  const rows = workTimeProfileExportRows();
+  const rows = exportableReferenceRows();
   if (!rows.length) {
-    showToast("Nothing to export", "No Work Time Profiles match the current filters.", "error");
+    showToast("Nothing to export", "No " + currentDefinition().plural + " match the current filters.", "error");
     return;
   }
-  downloadXlsx("work-time-profiles-" + exportDateStamp() + ".xlsx", rows, "Work Time Profiles");
-  showToast("Export started", "Work Time Profiles Excel export is being downloaded.", "success");
+  downloadXlsx(
+    referenceExportBaseName() + "-" + exportDateStamp() + ".xlsx",
+    rows,
+    referenceExportLabel()
+  );
+  showToast("Export started", currentDefinition().plural + " Excel export is being downloaded.", "success");
 }
 
 export function handleReferenceSearchInput() {
@@ -1193,6 +1729,14 @@ export async function loadReferenceData() {
     await loadWorkTimeProfiles(requestedEntityKey, definition);
     return;
   }
+  if (isBreakRulesDefinition(definition)) {
+    await loadBreakRules(requestedEntityKey, definition);
+    return;
+  }
+  if (isUnsociableTimeRulesDefinition(definition)) {
+    await loadUnsociableTimeRules(requestedEntityKey, definition);
+    return;
+  }
   setListStatus("Loading " + definition.plural.toLowerCase() + "…");
   $("referenceResults").replaceChildren();
   $("referenceEmptyState").classList.add("hidden");
@@ -1226,7 +1770,12 @@ export function renderReferenceDataList() {
   }
   const records = referenceCache[currentEntityKey] || [];
   const query = $("referenceSearch").value.trim().toLowerCase();
-  const filtered = records.filter(record => !query || recordSearchText(record, definition).includes(query));
+  const filtered = records.filter(record => {
+    if (!query) return true;
+    if (isBreakRulesDefinition(definition)) return breakRuleSearchText(record).includes(query);
+    if (isUnsociableTimeRulesDefinition(definition)) return unsociableTimeRuleSearchText(record).includes(query);
+    return recordSearchText(record, definition).includes(query);
+  });
 
   const tableHead = $("referenceTableHead");
   tableHead.replaceChildren();
@@ -1275,6 +1824,23 @@ export function renderReferenceDataList() {
     editButton.type = "button";
     editButton.textContent = "Edit";
     editButton.setAttribute("aria-label", "Edit " + recordLabel);
+    if (isBreakRulesDefinition(definition)) {
+      decorateCapabilityAction(editButton, {
+        actionId: "reference_data.break_rules.edit",
+        label: "Create/Edit Break Rule",
+        area: "Reference Data",
+        requiredAny: definitionEditCapabilities(definition),
+        actionType: "edit"
+      });
+    } else if (isUnsociableTimeRulesDefinition(definition)) {
+      decorateCapabilityAction(editButton, {
+        actionId: "reference_data.unsociable_time_rules.edit",
+        label: "Create/Edit Unsociable Time Rule",
+        area: "Reference Data",
+        requiredAny: definitionEditCapabilities(definition),
+        actionType: "edit"
+      });
+    }
     editButton.addEventListener("click", () => openReferenceDataPanel(record.id));
     if (hasReferenceDataEditAccess()) actionCell.appendChild(editButton);
 
@@ -1330,6 +1896,7 @@ export function openReferenceDataPanel(recordId, options = {}) {
   if (!readOnly && !requireReferenceDataEditAccess()) return;
   if (readOnly && !requireReferenceEntityAccess(currentDefinition())) return;
 
+  workTimeProfileUnsociablePreviewRows = [];
   clearReferenceForm();
   const definition = currentDefinition();
   const record = (referenceCache[currentEntityKey] || []).find(item => item.id === recordId);
@@ -1350,12 +1917,19 @@ export function openReferenceDataPanel(recordId, options = {}) {
     $("referenceRecordActive").value = record.active === false ? "false" : "true";
     $("referencePanelTitle").textContent = readOnly ? "View " + definition.singular : "Edit " + definition.singular;
     syncDerivedCycleLength(false);
+    if (isBreakRulesDefinition(definition)) syncBreakRuleTotalMinutes();
+    if (isUnsociableTimeRulesDefinition(definition)) syncUnsociableTimeRuleFullDay();
     if (isWorkTimeProfilesDefinition(definition)) updateWorkTimeProfileCalculationPreview();
   }
 
   $("referenceDataPanel").classList.remove("hidden");
   $("referenceDataPanel").setAttribute("aria-hidden", "false");
+  if (isWorkTimeProfilesDefinition(definition)) {
+    renderWorkTimeProfileUnsociablePreview(record ? record.id : "");
+    if (record) void loadWorkTimeProfileUnsociablePreview(record.id);
+  }
   setReferencePanelReadOnly(readOnly);
+  if (!readOnly && isUnsociableTimeRulesDefinition(definition)) syncUnsociableTimeRuleFullDay();
   const firstControl = $("referenceFormFields").querySelector("input, select, textarea");
   if (firstControl) setTimeout(() => firstControl.focus(), 0);
 }
@@ -1366,6 +1940,7 @@ export function closeReferenceDataPanel() {
 }
 
 export function clearReferenceForm() {
+  workTimeProfileUnsociablePreviewRows = [];
   renderReferenceFormFields();
   const definition = currentDefinition();
   $("referenceRecordId").value = "";
@@ -1377,6 +1952,8 @@ export function clearReferenceForm() {
     const control = $("referenceField_" + field.key);
     if (field.defaultValue !== undefined) control.value = String(field.defaultValue);
   });
+  if (isBreakRulesDefinition(definition)) syncBreakRuleTotalMinutes();
+  if (isUnsociableTimeRulesDefinition(definition)) syncUnsociableTimeRuleFullDay();
   if (isWorkTimeProfilesDefinition(definition)) updateWorkTimeProfileCalculationPreview();
 }
 
@@ -1448,6 +2025,15 @@ function buildWorkTimeProfilePayload() {
   if (payload.paid_hours_manual_override && payload.paid_hours === null) {
     throw new Error("Manual paid hours is required when manual paid hours mode is selected.");
   }
+  payload.unsociable_hours_manual_override = payload.unsociable_hours_manual_override !== false;
+  if (!payload.unsociable_hours_manual_override) {
+    if (payload.calculation.calculatedUnsociableHours !== null) {
+      payload.unsociable_hours = payload.calculation.calculatedUnsociableHours;
+    }
+  }
+  if (payload.unsociable_hours_manual_override && payload.unsociable_hours === null) {
+    throw new Error("Manual unsociable hours is required when manual unsociable hours mode is selected.");
+  }
 
   if (payload.unsociable_hours > payload.paid_hours) {
     throw new Error("Unsociable hours cannot exceed paid working hours.");
@@ -1478,7 +2064,10 @@ async function saveWorkTimeProfileBreakAlignment(profileId, payload) {
     p_legacy_break_minutes: payload.break_minutes,
     p_paid_hours_manual_override: payload.paid_hours_manual_override,
     p_paid_hours: payload.paid_hours,
-    p_break_alignment_notes: payload.break_alignment_notes || null
+    p_break_alignment_notes: payload.break_alignment_notes || null,
+    p_unsociable_hours_manual_override: payload.unsociable_hours_manual_override,
+    p_unsociable_hours: payload.unsociable_hours,
+    p_unsociable_alignment_notes: payload.unsociable_alignment_notes || null
   });
   if (result.error) throw result.error;
   return result.data;
@@ -1568,23 +2157,167 @@ async function saveWorkTimeProfile() {
   }
 }
 
+function buildReferencePayloadFromFields(definition = currentDefinition()) {
+  const payload = {
+    active: $("referenceRecordActive").value === "true"
+  };
+  definition.fields.forEach(field => {
+    payload[field.key] = fieldValue(field);
+  });
+  if (Object.prototype.hasOwnProperty.call(payload, "display_order") && payload.display_order === null) {
+    payload.display_order = 0;
+  }
+  return payload;
+}
+
+async function upsertBreakRuleRecord(recordId, payload) {
+  const result = await supabaseClient.rpc("upsert_break_rule_paid_unpaid", {
+    p_break_rule_id: recordId || null,
+    p_rule_code: payload.rule_code || null,
+    p_rule_name: payload.rule_name,
+    p_paid_break_minutes: payload.paid_break_minutes || 0,
+    p_unpaid_break_minutes: payload.unpaid_break_minutes || 0,
+    p_active: payload.active,
+    p_display_order: payload.display_order,
+    p_notes: payload.notes || null
+  });
+  if (result.error) throw result.error;
+  return result.data;
+}
+
+async function upsertUnsociableTimeRuleRecord(recordId, payload) {
+  const result = await supabaseClient.rpc("upsert_unsociable_time_rule", {
+    p_rule_id: recordId || null,
+    p_rule_code: payload.rule_code || null,
+    p_rule_name: payload.rule_name,
+    p_start_time: payload.start_time || "00:00",
+    p_end_time: payload.end_time || "00:00",
+    p_crosses_midnight: payload.crosses_midnight === true,
+    p_full_day: payload.full_day === true,
+    p_applies_monday: payload.applies_monday === true,
+    p_applies_tuesday: payload.applies_tuesday === true,
+    p_applies_wednesday: payload.applies_wednesday === true,
+    p_applies_thursday: payload.applies_thursday === true,
+    p_applies_friday: payload.applies_friday === true,
+    p_applies_saturday: payload.applies_saturday === true,
+    p_applies_sunday: payload.applies_sunday === true,
+    p_active: payload.active,
+    p_display_order: payload.display_order,
+    p_notes: payload.notes || null
+  });
+  if (result.error) throw result.error;
+  return result.data;
+}
+
+async function saveWorkingTimeRule() {
+  if (!requireReferenceDataEditAccess()) return;
+
+  const entityKey = currentEntityKey;
+  const definition = currentDefinition();
+  const recordId = $("referenceRecordId").value;
+  const previousRecord = recordId
+    ? (referenceCache[entityKey] || []).find(record => record.id === recordId) || null
+    : null;
+  let payload;
+
+  try {
+    payload = buildReferencePayloadFromFields(definition);
+    if (isBreakRulesDefinition(definition)) {
+      payload.total_break_minutes =
+        Math.max(0, Number(payload.paid_break_minutes || 0)) +
+        Math.max(0, Number(payload.unpaid_break_minutes || 0));
+      if (payload.total_break_minutes <= 0) {
+        throw new Error("Break Rule requires paid and/or unpaid break minutes.");
+      }
+    }
+    if (isUnsociableTimeRulesDefinition(definition)) {
+      if (payload.full_day) {
+        payload.start_time = "00:00";
+        payload.end_time = "00:00";
+        payload.crosses_midnight = false;
+      }
+      if (!UNSOCIABLE_DAY_FIELDS.some(([key]) => payload[key])) {
+        throw new Error("Unsociable Time Rule must apply to at least one day.");
+      }
+    }
+  } catch (err) {
+    showToast(definition.singular + " not saved", err.message, "error");
+    return;
+  }
+
+  const saveButton = $("referenceSaveButton");
+  saveButton.disabled = true;
+  saveButton.textContent = "Saving...";
+
+  try {
+    const savedId = isBreakRulesDefinition(definition)
+      ? await upsertBreakRuleRecord(recordId, payload)
+      : await upsertUnsociableTimeRuleRecord(recordId, payload);
+    const auditFields = referenceAuditFields(definition);
+    const auditRecord = { ...previousRecord, ...payload, id: savedId };
+    const changes = buildFieldDiff(
+      referenceAuditRecord(previousRecord, auditFields),
+      referenceAuditRecord(auditRecord, auditFields),
+      auditFields
+    );
+    void writeAuditEvent(
+      recordId ? "reference_data.updated" : "reference_data.created",
+      definition.table,
+      savedId,
+      {
+        entity_type: entityKey,
+        entity_id: savedId,
+        display_name: payload[definition.orderBy] || definition.singular,
+        code: referenceRecordCode(payload, definition),
+        old_active: previousRecord ? previousRecord.active : null,
+        new_active: payload.active,
+        changes,
+        summary: auditDiffSummary(changes)
+      }
+    );
+
+    showToast(
+      recordId ? definition.singular + " updated" : definition.singular + " created",
+      "The reference record was saved successfully.",
+      "success"
+    );
+    closeReferenceDataPanel();
+    await loadReferenceData();
+  } catch (err) {
+    const duplicateCode = err && (
+      err.code === "23505" ||
+      /duplicate key|unique constraint|already exists/i.test(String(err.message || ""))
+    );
+    showToast(
+      definition.singular + " not saved",
+      duplicateCode
+        ? "That business code is already in use. Enter a unique code."
+        : (err.message || "Could not save this reference record."),
+      "error"
+    );
+  } finally {
+    saveButton.disabled = false;
+    saveButton.textContent = "Save Record";
+  }
+}
+
 export async function saveReferenceRecord() {
   if (!requireReferenceDataEditAccess()) return;
   if (isWorkTimeProfilesDefinition()) {
     await saveWorkTimeProfile();
     return;
   }
+  if (isWorkingTimeRuleDefinition()) {
+    await saveWorkingTimeRule();
+    return;
+  }
 
   const entityKey = currentEntityKey;
   const definition = currentDefinition();
-  const payload = {
-    active: $("referenceRecordActive").value === "true"
-  };
+  let payload;
 
   try {
-    definition.fields.forEach(field => {
-      payload[field.key] = fieldValue(field);
-    });
+    payload = buildReferencePayloadFromFields(definition);
   } catch (err) {
     showToast("Record not saved", err.message, "error");
     return;
@@ -1661,35 +2394,59 @@ export async function setReferenceRecordActive(recordId, active) {
   const definition = currentDefinition();
   const previousRecord = (referenceCache[entityKey] || [])
     .find(record => record.id === recordId) || null;
+  if (!previousRecord) {
+    showToast("Status not changed", "The selected record could not be found.", "error");
+    return;
+  }
 
   try {
-    const result = await supabaseClient
-      .from(definition.table)
-      .update({ active })
-      .eq("id", recordId)
-      .select("id, active")
-      .single();
+    let resultData;
+    if (isBreakRulesDefinition(definition)) {
+      const payload = {
+        ...previousRecord,
+        active,
+        display_order: previousRecord.display_order ?? null
+      };
+      const savedId = await upsertBreakRuleRecord(recordId, payload);
+      resultData = { id: savedId, active };
+    } else if (isUnsociableTimeRulesDefinition(definition)) {
+      const payload = {
+        ...previousRecord,
+        active,
+        display_order: previousRecord.display_order ?? null
+      };
+      const savedId = await upsertUnsociableTimeRuleRecord(recordId, payload);
+      resultData = { id: savedId, active };
+    } else {
+      const result = await supabaseClient
+        .from(definition.table)
+        .update({ active })
+        .eq("id", recordId)
+        .select("id, active")
+        .single();
 
-    if (result.error) throw result.error;
+      if (result.error) throw result.error;
+      resultData = result.data;
+    }
 
     const changes = buildFieldDiff(
       { active: previousRecord ? previousRecord.active : !active },
-      { active: result.data.active },
+      { active: resultData.active },
       ["active"]
     );
     void writeAuditEvent(
       active ? "reference_data.activated" : "reference_data.deactivated",
       definition.table,
-      result.data.id,
+      resultData.id,
       {
         entity_type: entityKey,
-        entity_id: result.data.id,
+        entity_id: resultData.id,
         display_name: previousRecord
           ? previousRecord[definition.orderBy] || definition.singular
           : definition.singular,
         code: referenceRecordCode(previousRecord, definition),
         old_active: previousRecord ? previousRecord.active : !active,
-        new_active: result.data.active,
+        new_active: resultData.active,
         changes,
         summary: auditDiffSummary(changes)
       }
