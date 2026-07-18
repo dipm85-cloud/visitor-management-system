@@ -87,7 +87,7 @@
           <span class="oh-nav-label">Legacy VMS</span>
           <span class="oh-nav-status">Temporary</span>
         </button>
-        <button id="ohPeopleNav" class="oh-nav-item" type="button" title="People">
+        <button id="ohPeopleNav" class="oh-nav-item" type="button" title="People" data-capability-action="people.workspace.open" data-capability-label="Open People Workspace" data-capability-area="People" data-capability-any="people.view people.manage" data-capability-type="view">
           <span class="oh-nav-icon" aria-hidden="true">P</span>
           <span class="oh-nav-label">People</span>
         </button>
@@ -95,7 +95,7 @@
           <span class="oh-nav-icon" aria-hidden="true">O</span>
           <span class="oh-nav-label">Organisations</span>
         </button>
-        <button id="ohWorkforceCalendarNav" class="oh-nav-item hidden" type="button" title="Workforce Calendar">
+        <button id="ohWorkforceCalendarNav" class="oh-nav-item hidden" type="button" title="Workforce Calendar" data-capability-action="workforce_calendar.open" data-capability-label="Open Workforce Calendar" data-capability-area="Workforce Calendar" data-capability-any="workforce_calendar.view workforce_calendar.manage" data-capability-type="view">
           <span class="oh-nav-icon" aria-hidden="true">W</span>
           <span class="oh-nav-label">Workforce Calendar</span>
         </button>
@@ -294,7 +294,7 @@
           </div>
           <div class="dashboard-quick-actions">
             <button id="dashboardOpenVisitorsButton" type="button">Open Visitors</button>
-            <button id="dashboardOpenPeopleButton" type="button">Open People</button>
+            <button id="dashboardOpenPeopleButton" type="button" data-capability-action="dashboard.people.open" data-capability-label="Open People From Dashboard" data-capability-area="Dashboard" data-capability-any="people.view people.manage" data-capability-type="view">Open People</button>
             <button id="dashboardOpenReferenceButton" type="button">Open Reference Data</button>
           </div>
         </section>
@@ -1348,7 +1348,7 @@
       <div class="brand-mark"><img id="brandLogoImg" alt="Logo" style="display:none;width:100%;height:100%;object-fit:contain;border-radius:12px;"><span id="brandLogoFallback">V</span></div>
       <div>
         Visitor Management<br>
-        <span style="font-size:12px;color:var(--muted);font-weight:700;">Operations Hub nextgen-ui - OHP-015</span>
+        <span style="font-size:12px;color:var(--muted);font-weight:700;">Operations Hub nextgen-ui - OHP-015A</span>
       </div>
     </div>
     <div class="button-row no-print" style="margin:0;">
@@ -1397,7 +1397,7 @@
       </div>
       <button id="terminalReturnHomeButton" class="secondary hidden" type="button">Return to Terminal Home</button>
     </section>
-  <div id="appVersionFooter" class="version-footer">Version <span id="appVersionText">OHP-015</span></div>
+  <div id="appVersionFooter" class="version-footer">Version <span id="appVersionText">OHP-015A</span></div>
 </main>
 
   <section id="signInScreen" class="screen">
@@ -3156,10 +3156,10 @@
                   <p id="personAssignmentsName">Select a person to view assignments.</p>
                 </div>
                 <div class="person-assignments-actions">
-                  <button id="assignmentCreateButton" type="button">Create Assignment</button>
+                  <button id="assignmentCreateButton" type="button" data-capability-action="assignments.create" data-capability-label="Create Assignment" data-capability-area="Assignments" data-capability-any="assignment.manage" data-capability-type="create">Create Assignment</button>
                   <button id="assignmentRefreshButton" class="secondary" type="button">Refresh</button>
-                  <button id="assignmentExportCsvButton" class="secondary" type="button">Export CSV</button>
-                  <button id="assignmentExportXlsxButton" class="secondary" type="button">Export XLSX</button>
+                  <button id="assignmentExportCsvButton" class="secondary" type="button" data-capability-action="assignments.export_csv" data-capability-label="Export Assignments CSV" data-capability-area="Assignments" data-capability-any="assignment.view assignment.manage" data-capability-type="export">Export CSV</button>
+                  <button id="assignmentExportXlsxButton" class="secondary" type="button" data-capability-action="assignments.export_xlsx" data-capability-label="Export Assignments XLSX" data-capability-area="Assignments" data-capability-any="assignment.view assignment.manage" data-capability-type="export">Export XLSX</button>
                   <button id="assignmentWorkspaceCloseButton" class="ghost" type="button">Back to People</button>
                 </div>
               </div>
@@ -3449,9 +3449,9 @@
             <h2>Actions</h2>
             <div class="workforce-calendar-action-controls">
               <button id="workforceCalendarRefreshButton" class="secondary" type="button">Refresh</button>
-              <button id="workforceCalendarPersonPrintButton" class="secondary" type="button">Person Monthly Print</button>
-              <button id="workforceCalendarExportCsv" class="secondary" type="button">Export CSV</button>
-              <button id="workforceCalendarExportXlsx" class="secondary" type="button">Export XLSX</button>
+              <button id="workforceCalendarPersonPrintButton" class="secondary" type="button" data-capability-action="workforce_calendar.person_monthly_print.open" data-capability-label="Person Monthly Print" data-capability-area="Workforce Calendar" data-capability-any="workforce_calendar.view workforce_calendar.manage" data-capability-type="print">Person Monthly Print</button>
+              <button id="workforceCalendarExportCsv" class="secondary" type="button" data-capability-action="workforce_calendar.export_csv" data-capability-label="Export Workforce Calendar CSV" data-capability-area="Workforce Calendar" data-capability-any="workforce_calendar.view workforce_calendar.manage" data-capability-type="export">Export CSV</button>
+              <button id="workforceCalendarExportXlsx" class="secondary" type="button" data-capability-action="workforce_calendar.export_xlsx" data-capability-label="Export Workforce Calendar XLSX" data-capability-area="Workforce Calendar" data-capability-any="workforce_calendar.view workforce_calendar.manage" data-capability-type="export">Export XLSX</button>
             </div>
           </div>
           <div class="workforce-calendar-toolbar-section workforce-calendar-filter-section">
@@ -3474,7 +3474,7 @@
               <h2 id="workforceCalendarGridTitle">Rota Calendar</h2>
               <p id="workforceCalendarSummary" aria-live="polite">Open Workforce Calendar to load the current week.</p>
             </div>
-            <button id="workforceCalendarFullscreenButton" class="oh-icon-button workforce-calendar-maximise" type="button" title="Full screen" aria-label="Expand calendar"></button>
+            <button id="workforceCalendarFullscreenButton" class="oh-icon-button workforce-calendar-maximise" type="button" title="Full screen" aria-label="Expand calendar" data-capability-action="workforce_calendar.fullscreen" data-capability-label="Open Workforce Calendar Full Screen" data-capability-area="Workforce Calendar" data-capability-any="workforce_calendar.view workforce_calendar.manage" data-capability-type="view"></button>
           </div>
           <div id="workforceCalendarGridWrap" class="workforce-calendar-grid-wrap" data-oh-scroll-region="operational" aria-label="Workforce rota calendar grid">
             <div id="workforceCalendarCompactLegend" class="workforce-calendar-legend hidden" aria-label="Compact status legend">
@@ -3508,8 +3508,8 @@
                   </select>
                 </label>
                 <button id="workforceCalendarFullscreenEditFilters" class="secondary" type="button">Edit filters</button>
-                <button id="workforceCalendarFullscreenExportCsv" class="secondary" type="button">Export CSV</button>
-                <button id="workforceCalendarFullscreenExportXlsx" class="secondary" type="button">Export XLSX</button>
+                <button id="workforceCalendarFullscreenExportCsv" class="secondary" type="button" data-capability-action="workforce_calendar.fullscreen_export_csv" data-capability-label="Export Full Screen Workforce Calendar CSV" data-capability-area="Workforce Calendar" data-capability-any="workforce_calendar.view workforce_calendar.manage" data-capability-type="export">Export CSV</button>
+                <button id="workforceCalendarFullscreenExportXlsx" class="secondary" type="button" data-capability-action="workforce_calendar.fullscreen_export_xlsx" data-capability-label="Export Full Screen Workforce Calendar XLSX" data-capability-area="Workforce Calendar" data-capability-any="workforce_calendar.view workforce_calendar.manage" data-capability-type="export">Export XLSX</button>
                 <button id="workforceCalendarExitFullscreen" type="button">Exit full screen</button>
               </div>
             </header>
@@ -3542,8 +3542,8 @@
                 <p id="personMonthlyRotaPrintSubtitle">Create a one-person monthly rota printout.</p>
               </div>
               <div class="monthly-rota-print-actions">
-                <button id="personMonthlyRotaPreviewButton" type="button">Preview</button>
-                <button id="personMonthlyRotaPrintButton" class="secondary" type="button" disabled>Print</button>
+                <button id="personMonthlyRotaPreviewButton" type="button" data-capability-action="workforce_calendar.person_monthly_print.preview" data-capability-label="Preview Person Monthly Rota" data-capability-area="Workforce Calendar" data-capability-any="workforce_calendar.view workforce_calendar.manage" data-capability-type="view">Preview</button>
+                <button id="personMonthlyRotaPrintButton" class="secondary" type="button" disabled data-capability-action="workforce_calendar.person_monthly_print.print" data-capability-label="Print Person Monthly Rota" data-capability-area="Workforce Calendar" data-capability-any="workforce_calendar.view workforce_calendar.manage" data-capability-type="print">Print</button>
                 <button id="personMonthlyRotaPrintCloseButton" class="ghost" type="button">Close</button>
               </div>
             </header>
@@ -5213,7 +5213,18 @@
               <h2 id="accessControlTitle">Access Control</h2>
               <p>Manage custom role presets, user role assignments and effective capability diagnostics.</p>
             </div>
-            <span id="accessControlPermissionBadge" class="access-control-mode">Read only</span>
+            <div class="access-control-heading-actions">
+              <label class="capability-inspector-toggle hidden" data-capability-inspector-control for="capabilityInspectorToggle">
+                <input id="capabilityInspectorToggle" type="checkbox" />
+                <span>Capability Inspector</span>
+              </label>
+              <span id="accessControlPermissionBadge" class="access-control-mode">Read only</span>
+            </div>
+          </div>
+
+          <div id="capabilityInspectorIndicator" class="capability-inspector-indicator hidden" role="status">
+            <strong>Capability Inspector Active</strong>
+            <span>Actions will be inspected instead of executed.</span>
           </div>
 
           <div class="access-control-migration-note">
@@ -5234,7 +5245,7 @@
                   <h3 id="accessControlRolesTitle">Role Presets</h3>
                   <p>View protected system presets and manage reusable custom presets.</p>
                 </div>
-                <button id="accessControlNewRolePresetButton" type="button">New Role Preset</button>
+                <button id="accessControlNewRolePresetButton" type="button" data-capability-action="access_control.role_presets.create" data-capability-label="New Role Preset" data-capability-area="Access Control" data-capability-any="role_presets.manage access_control.manage" data-capability-type="create">New Role Preset</button>
               </div>
               <div class="access-control-filter-bar">
                 <label for="accessControlRoleSearch">
@@ -5287,10 +5298,10 @@
                   <span>Include inactive</span>
                 </label>
                 <div class="access-control-filter-actions">
-                  <button id="accessControlUserAssignmentRefreshButton" class="secondary" type="button">Refresh</button>
+                  <button id="accessControlUserAssignmentRefreshButton" class="secondary" type="button" data-capability-action="access_control.user_role_assignments.refresh" data-capability-label="Refresh User Role Assignments" data-capability-area="Access Control" data-capability-any="user_role_assignments.view user_role_assignments.manage access_control.view access_control.manage" data-capability-type="view">Refresh</button>
                   <button id="accessControlUserAssignmentResetButton" class="secondary" type="button">Reset Filters</button>
-                  <button id="accessControlUserAssignmentExportCsvButton" class="secondary" type="button">Export CSV</button>
-                  <button id="accessControlUserAssignmentExportXlsxButton" class="secondary" type="button">Export XLSX</button>
+                  <button id="accessControlUserAssignmentExportCsvButton" class="secondary" type="button" data-capability-action="access_control.user_role_assignments.export_csv" data-capability-label="Export User Role Assignments CSV" data-capability-area="Access Control" data-capability-any="user_role_assignments.view user_role_assignments.manage access_control.view access_control.manage" data-capability-type="export">Export CSV</button>
+                  <button id="accessControlUserAssignmentExportXlsxButton" class="secondary" type="button" data-capability-action="access_control.user_role_assignments.export_xlsx" data-capability-label="Export User Role Assignments XLSX" data-capability-area="Access Control" data-capability-any="user_role_assignments.view user_role_assignments.manage access_control.view access_control.manage" data-capability-type="export">Export XLSX</button>
                 </div>
               </div>
               <div id="accessControlUserAssignmentSummary" class="access-control-result-summary"></div>
@@ -5321,7 +5332,7 @@
                   <h3 id="accessControlDiagnosticsTitle">Effective Capability Diagnostics</h3>
                   <p>Review effective capabilities for the selected user profile.</p>
                 </div>
-                <button id="accessControlDiagnosticsExportCsvButton" class="secondary" type="button">Export CSV</button>
+                <button id="accessControlDiagnosticsExportCsvButton" class="secondary" type="button" data-capability-action="access_control.diagnostics.export_csv" data-capability-label="Export Effective Capabilities CSV" data-capability-area="Access Control" data-capability-any="capabilities.diagnose user_role_assignments.view user_role_assignments.manage" data-capability-type="export">Export CSV</button>
               </div>
               <div id="accessControlDiagnosticsSelectedUser" class="access-control-diagnostics-user"></div>
               <div class="access-control-filter-bar access-control-diagnostics-filter-bar">
@@ -5345,7 +5356,7 @@
                   Test capability code
                   <input id="accessControlCapabilityTestInput" type="search" placeholder="people.view" autocomplete="off" />
                 </label>
-                <button id="accessControlCapabilityTestButton" class="secondary" type="button">Test</button>
+                <button id="accessControlCapabilityTestButton" class="secondary" type="button" data-capability-action="access_control.diagnostics.test_capability" data-capability-label="Test Capability Code" data-capability-area="Access Control" data-capability-any="capabilities.diagnose user_role_assignments.view user_role_assignments.manage" data-capability-type="view">Test</button>
                 <p id="accessControlCapabilityTestResult" aria-live="polite"></p>
               </div>
               <div id="accessControlDiagnosticsSummary" class="access-control-result-summary"></div>
@@ -5512,7 +5523,7 @@
 
   <footer class="oh-footer">
     <strong>Operations Hub</strong>
-    <span>Version <span id="ohPlatformVersion">OHP-015</span></span>
+    <span>Version <span id="ohPlatformVersion">OHP-015A</span></span>
     <span>Environment <span id="ohEnvironment">Local</span></span>
   </footer>
 </div>
@@ -5784,6 +5795,9 @@
   </div>
 </div>
 
+<div id="capabilityInspectorGlobalIndicator" class="capability-inspector-global hidden" role="status">
+  Capability Inspector Active - actions will not run
+</div>
 <div id="toastArea" class="toast-area"></div>
 
 

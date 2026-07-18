@@ -17,6 +17,7 @@ import {
 } from "./sectionNavigation.js";
 import { AppState } from "./state.js";
 import { exportDateStamp } from "./utils.js";
+import { decorateCapabilityAction } from "./capabilityInspector.js";
 
 const ROLE_PRESET_VIEW_CAPABILITIES = [
   "role_presets.view",
@@ -409,6 +410,13 @@ function renderRolePresets() {
     detailsButton.type = "button";
     detailsButton.className = "secondary";
     detailsButton.textContent = "View Details";
+    decorateCapabilityAction(detailsButton, {
+      actionId: "access_control.role_presets.view_details",
+      label: "View Role Preset Details",
+      area: "Access Control",
+      requiredAny: ["role_presets.view", "role_presets.manage", "access_control.view", "access_control.manage"],
+      actionType: "view"
+    });
     detailsButton.addEventListener("click", event => {
       openRolePresetDetails(role.role_preset_id, event.currentTarget);
     });
@@ -419,6 +427,13 @@ function renderRolePresets() {
       editButton.type = "button";
       editButton.className = "secondary";
       editButton.textContent = "Edit Custom Role";
+      decorateCapabilityAction(editButton, {
+        actionId: "access_control.role_presets.edit_custom",
+        label: "Edit Custom Role Preset",
+        area: "Access Control",
+        requiredAny: ["role_presets.manage", "access_control.manage"],
+        actionType: "edit"
+      });
       editButton.addEventListener("click", event => {
         openRolePresetForm("edit", role.role_preset_id, event.currentTarget);
       });
@@ -427,6 +442,13 @@ function renderRolePresets() {
       capabilitiesButton.type = "button";
       capabilitiesButton.className = "secondary";
       capabilitiesButton.textContent = "Manage Capabilities";
+      decorateCapabilityAction(capabilitiesButton, {
+        actionId: "access_control.role_presets.manage_capabilities",
+        label: "Manage Role Preset Capabilities",
+        area: "Access Control",
+        requiredAny: ["role_presets.manage", "access_control.manage"],
+        actionType: "manage"
+      });
       capabilitiesButton.addEventListener("click", event => {
         openManageCapabilities(role.role_preset_id, event.currentTarget);
       });
@@ -506,6 +528,13 @@ function renderUserRoleAssignments() {
       assign.type = "button";
       assign.className = "secondary";
       assign.textContent = "Assign Role Preset";
+      decorateCapabilityAction(assign, {
+        actionId: "access_control.user_role_assignments.assign",
+        label: "Assign Role Preset",
+        area: "Access Control",
+        requiredAny: ["user_role_assignments.manage", "users.manage", "access_control.manage"],
+        actionType: "manage"
+      });
       assign.addEventListener("click", event => {
         openUserRoleAssignmentPanel(assignment, event.currentTarget);
       });
@@ -516,6 +545,13 @@ function renderUserRoleAssignments() {
     capabilities.type = "button";
     capabilities.className = "secondary";
     capabilities.textContent = "View Effective Capabilities";
+    decorateCapabilityAction(capabilities, {
+      actionId: "access_control.user_role_assignments.view_effective_capabilities",
+      label: "View Effective Capabilities",
+      area: "Access Control",
+      requiredAny: ["capabilities.diagnose", "user_role_assignments.view", "user_role_assignments.manage"],
+      actionType: "view"
+    });
     capabilities.addEventListener("click", () => {
       openEffectiveCapabilitiesForUser(assignment);
     });
@@ -526,6 +562,13 @@ function renderUserRoleAssignments() {
       clear.type = "button";
       clear.className = "secondary";
       clear.textContent = "Clear Explicit Assignment";
+      decorateCapabilityAction(clear, {
+        actionId: "access_control.user_role_assignments.clear",
+        label: "Clear Explicit Role Preset Assignment",
+        area: "Access Control",
+        requiredAny: ["user_role_assignments.manage", "users.manage", "access_control.manage"],
+        actionType: "manage"
+      });
       clear.addEventListener("click", () => clearUserRoleAssignment(assignment));
       actionCell.appendChild(clear);
     }

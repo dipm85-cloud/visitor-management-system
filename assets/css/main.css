@@ -7822,6 +7822,13 @@ button.oh-section-nav-item:focus-visible,
   margin-bottom: 18px;
 }
 
+.access-control-heading-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
 .access-control-heading h2 {
   margin: 0;
   font-size: 25px;
@@ -7844,6 +7851,60 @@ button.oh-section-nav-item:focus-visible,
   font-size: 12px;
   font-weight: 800;
   white-space: nowrap;
+}
+
+.capability-inspector-toggle,
+.capability-inspector-indicator {
+  align-items: center;
+  border: 1px solid #d0d5dd;
+  background: #fff7ed;
+  color: #7c2d12;
+}
+
+.capability-inspector-toggle {
+  display: inline-flex;
+  min-height: 30px;
+  gap: 8px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.capability-inspector-toggle input {
+  width: 16px;
+  height: 16px;
+}
+
+.capability-inspector-indicator {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+}
+
+.capability-inspector-active [data-capability-action] {
+  cursor: help;
+}
+
+.capability-inspector-global {
+  position: fixed;
+  z-index: 1300;
+  right: 18px;
+  bottom: 18px;
+  max-width: min(360px, calc(100vw - 36px));
+  padding: 10px 12px;
+  border: 1px solid #fed7aa;
+  border-radius: 10px;
+  background: #fff7ed;
+  color: #7c2d12;
+  box-shadow: 0 12px 28px rgba(16, 24, 40, .18);
+  font-size: 13px;
+  font-weight: 900;
 }
 
 .access-control-migration-note {

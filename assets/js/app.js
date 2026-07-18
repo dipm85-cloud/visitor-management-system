@@ -286,6 +286,11 @@ import {
   recordFinalStartupRoute,
   recordStartupAuthEvent
 } from "./startupDebug.js";
+import {
+  initialiseCapabilityInspector,
+  resetCapabilityInspector,
+  syncCapabilityInspectorUi
+} from "./capabilityInspector.js";
 
 window.addEventListener("load", async function () {
   try {
@@ -450,6 +455,7 @@ window.addEventListener("load", async function () {
       appVersion: APP_VERSION,
       getKioskToken
     });
+    initialiseCapabilityInspector();
     configureMessages(appSettings);
     configurePrinting({
       appSettings,
@@ -601,6 +607,7 @@ window.addEventListener("load", async function () {
         syncVisitorCapabilityVisibility();
         syncVisitorHousekeepingControls();
         syncVisitorsWorkspaceCapabilities();
+        syncCapabilityInspectorUi();
       },
       shouldShowPeopleNavigation,
       enterKioskMode,
@@ -5573,6 +5580,8 @@ window.addEventListener("load", async function () {
         await getCurrentSessionAndProfile();
 
         if (event === "SIGNED_OUT") {
+          resetCapabilityInspector();
+          window.dispatchEvent(new CustomEvent("oh:session-signed-out"));
           await returnToEntryMode("auth:signed-out");
         }
       }, 0);
@@ -5588,6 +5597,7 @@ window.addEventListener("load", async function () {
     updateKioskTokenWarning();
     debugInfo.textContent = "Script loaded. Settings loaded.";
     if (startupMode !== "login") refreshCoreData();
+    syncCapabilityInspectorUi();
 
   } catch (err) {
     document.getElementById("message").textContent = "Page script error: " + err.message;

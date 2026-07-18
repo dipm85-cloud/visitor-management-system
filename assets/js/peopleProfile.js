@@ -16,6 +16,7 @@ import {
   renderLinkedIdentityContext
 } from "./identityContext.js";
 import { todayDate } from "./utils.js";
+import { decorateCapabilityAction } from "./capabilityInspector.js";
 
 const PERSON_COLUMNS = [
   "id",
@@ -532,6 +533,13 @@ function renderAssignments(content) {
   const manage = document.createElement("button");
   manage.type = "button";
   manage.textContent = "Manage Assignments";
+  decorateCapabilityAction(manage, {
+    actionId: "people.profile.assignments.manage",
+    label: "Manage Assignments",
+    area: "People Profile",
+    requiredAny: ["assignment.view", "assignment.manage"],
+    actionType: "manage"
+  });
   manage.addEventListener("click", async () => {
     const person = profileState.person;
     closePeopleProfileWorkspace();
@@ -635,6 +643,13 @@ async function renderRota(content) {
   const printMonthly = document.createElement("button");
   printMonthly.type = "button";
   printMonthly.textContent = "Print Monthly Rota";
+  decorateCapabilityAction(printMonthly, {
+    actionId: "people.profile.rota.print_monthly",
+    label: "Print Monthly Rota",
+    area: "People Profile",
+    requiredAny: ["workforce_calendar.view", "workforce_calendar.manage"],
+    actionType: "print"
+  });
   printMonthly.addEventListener("click", async () => {
     if (!profileState.person) return;
     profileState.activeSection = "rota";
@@ -644,6 +659,13 @@ async function renderRota(content) {
   openCalendar.type = "button";
   openCalendar.className = "secondary";
   openCalendar.textContent = "Open Workforce Calendar";
+  decorateCapabilityAction(openCalendar, {
+    actionId: "people.profile.rota.open_calendar",
+    label: "Open Workforce Calendar",
+    area: "People Profile",
+    requiredAny: ["workforce_calendar.view", "workforce_calendar.manage"],
+    actionType: "view"
+  });
   openCalendar.addEventListener("click", async () => {
     closePeopleProfileWorkspace();
     await openWorkforceCalendar();
@@ -1330,6 +1352,13 @@ function renderPrivacyCaseRows(content, rows) {
     open.dataset.action = "open-people-profile-privacy-case";
     open.dataset.caseId = caseId;
     open.textContent = "View Case Details";
+    decorateCapabilityAction(open, {
+      actionId: "people.profile.privacy.view_case",
+      label: "View Privacy Case Details",
+      area: "People Profile",
+      requiredAny: ["privacy.case.view", "privacy.case.manage", "privacy.view", "privacy.manage", "gdpr.view", "gdpr.manage"],
+      actionType: "view"
+    });
     open.addEventListener("click", async event => {
       event.preventDefault();
       event.stopPropagation();
@@ -1352,6 +1381,13 @@ function renderPrivacyCaseRows(content, rows) {
     module.type = "button";
     module.className = "secondary";
     module.textContent = "Open Privacy Module";
+    decorateCapabilityAction(module, {
+      actionId: "people.profile.privacy.open_module",
+      label: "Open Privacy Module",
+      area: "People Profile",
+      requiredAny: ["privacy.view", "privacy.manage", "privacy.case.view", "privacy.case.manage", "gdpr.view", "gdpr.manage"],
+      actionType: "view"
+    });
     module.addEventListener("click", event => {
       event.preventDefault();
       event.stopPropagation();
@@ -1622,6 +1658,44 @@ function moduleActionLabel(sourceType) {
   return "Open Full Module";
 }
 
+function linkedRecordCapabilityMetadata(record, label, actionType = "view") {
+  const type = normaliseSourceType(record && record.linked_source_type);
+  if (type === "visit_log" || type === "planned_visits") {
+    return {
+      actionId: "people.profile.visits." + actionType,
+      label,
+      area: "People Profile",
+      requiredAny: ["visitor.view", "visitor.history.view", "visitor.edit", "visitor.export"],
+      actionType
+    };
+  }
+  if (type === "document_evidence" || type === "agreement_evidence") {
+    return {
+      actionId: "people.profile.documents." + actionType,
+      label,
+      area: "People Profile",
+      requiredAny: ["agreements.view", "agreements.manage", "document_signoff.manage", "audit.view", "module_configuration.manage"],
+      actionType
+    };
+  }
+  if (type === "privacy_cases") {
+    return {
+      actionId: "people.profile.privacy." + actionType,
+      label,
+      area: "People Profile",
+      requiredAny: ["privacy.case.view", "privacy.case.manage", "privacy.view", "privacy.manage", "gdpr.view", "gdpr.manage"],
+      actionType
+    };
+  }
+  return {
+    actionId: "people.profile.linked_record." + actionType,
+    label,
+    area: "People Profile",
+    requiredAny: ["identity_resolution.view", "identity_resolution.manage"],
+    actionType
+  };
+}
+
 function renderLinkedRows(content, rows, emptyTitle, emptyDescription, options = {}) {
   if (!rows.length) {
     content.appendChild(createWorkspaceEmpty(emptyTitle, emptyDescription));
@@ -1648,6 +1722,7 @@ function renderLinkedRows(content, rows, emptyTitle, emptyDescription, options =
     const open = document.createElement("button");
     open.type = "button";
     open.textContent = options.primaryLabel || "View Details";
+    decorateCapabilityAction(open, linkedRecordCapabilityMetadata(record, open.textContent, "view"));
     if (typeof options.decoratePrimaryButton === "function") {
       options.decoratePrimaryButton(open, record);
     }
@@ -1665,6 +1740,7 @@ function renderLinkedRows(content, rows, emptyTitle, emptyDescription, options =
       module.type = "button";
       module.className = "secondary";
       module.textContent = options.moduleLabel || moduleActionLabel(record.linked_source_type);
+      decorateCapabilityAction(module, linkedRecordCapabilityMetadata(record, module.textContent, "module"));
       module.addEventListener("click", () => openLinkedRecordModule(record));
       actions.appendChild(module);
     }
@@ -1740,6 +1816,13 @@ async function renderDocuments(content) {
         const open = document.createElement("button");
         open.type = "button";
         open.textContent = "Open Evidence";
+        decorateCapabilityAction(open, {
+          actionId: "people.profile.documents.open_evidence",
+          label: "Open Document Evidence",
+          area: "People Profile",
+          requiredAny: ["agreements.view", "agreements.manage", "document_signoff.manage", "audit.view", "module_configuration.manage"],
+          actionType: "view"
+        });
         open.addEventListener("click", event => {
           void openDocumentEvidenceInContext(item, event.currentTarget);
         });
@@ -1748,6 +1831,13 @@ async function renderDocuments(content) {
         module.type = "button";
         module.className = "secondary";
         module.textContent = "Open Document Sign-off Module";
+        decorateCapabilityAction(module, {
+          actionId: "people.profile.documents.open_module",
+          label: "Open Document Sign-off Module",
+          area: "People Profile",
+          requiredAny: ["agreements.view", "agreements.manage", "document_signoff.manage", "audit.view", "module_configuration.manage"],
+          actionType: "view"
+        });
         module.addEventListener("click", () => {
           closePeopleProfileWorkspace();
           window.dispatchEvent(new CustomEvent("oh:linked-source-record-requested", {

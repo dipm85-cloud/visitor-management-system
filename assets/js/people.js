@@ -19,6 +19,7 @@ import {
   titleCaseText
 } from "./utils.js";
 import { openPeopleProfileWorkspace } from "./peopleProfile.js";
+import { decorateCapabilityAction } from "./capabilityInspector.js";
 
 const PERSON_COLUMNS = [
   "id",
@@ -192,6 +193,13 @@ export function renderPeopleList() {
     viewButton.type = "button";
     viewButton.textContent = "Open Profile";
     viewButton.setAttribute("aria-label", "Open profile workspace for " + person.display_name);
+    decorateCapabilityAction(viewButton, {
+      actionId: "people.profile.open",
+      label: "Open People Profile",
+      area: "People",
+      requiredAny: ["people.view", "people.manage"],
+      actionType: "view"
+    });
     viewButton.addEventListener("click", () => {
       openPeopleProfileWorkspace(person.id, person);
     });
@@ -212,6 +220,13 @@ export function renderPeopleList() {
     assignmentsButton.type = "button";
     assignmentsButton.textContent = "Assignments";
     assignmentsButton.setAttribute("aria-label", "View assignments for " + person.display_name);
+    decorateCapabilityAction(assignmentsButton, {
+      actionId: "people.assignments.open",
+      label: "Open Person Assignments",
+      area: "People",
+      requiredAny: ["assignment.view", "assignment.manage"],
+      actionType: "view"
+    });
     assignmentsButton.addEventListener("click", () => {
       selectPersonForAssignments(person.id, person.display_name, person.external_person_number);
     });

@@ -10,6 +10,7 @@ import {
   assignmentBlockingMessage,
   classifyAssignmentConflict
 } from "./assignmentConflicts.js";
+import { decorateCapabilityAction } from "./capabilityInspector.js";
 
 const ASSIGNMENT_COLUMNS = [
   "id",
@@ -778,6 +779,13 @@ export function renderAssignmentList() {
       editButton.type = "button";
       editButton.textContent = "Edit";
       editButton.setAttribute("aria-label", "Edit assignment");
+      decorateCapabilityAction(editButton, {
+        actionId: "assignments.edit",
+        label: "Edit Assignment",
+        area: "Assignments",
+        requiredAny: ["assignment.manage"],
+        actionType: "edit"
+      });
       editButton.addEventListener("click", () => openAssignmentEditor(assignment.id));
       actionGroup.appendChild(editButton);
 
@@ -786,6 +794,13 @@ export function renderAssignmentList() {
         endButton.className = "secondary";
         endButton.type = "button";
         endButton.textContent = "End Assignment";
+        decorateCapabilityAction(endButton, {
+          actionId: "assignments.end",
+          label: "End Assignment",
+          area: "Assignments",
+          requiredAny: ["assignment.manage"],
+          actionType: "edit"
+        });
         endButton.addEventListener("click", event => {
           openEndAssignmentDialog(assignment.id, event.currentTarget);
         });
@@ -795,6 +810,13 @@ export function renderAssignmentList() {
         reactivateButton.className = "secondary";
         reactivateButton.type = "button";
         reactivateButton.textContent = "Reactivate";
+        decorateCapabilityAction(reactivateButton, {
+          actionId: "assignments.reactivate",
+          label: "Reactivate Assignment",
+          area: "Assignments",
+          requiredAny: ["assignment.manage"],
+          actionType: "edit"
+        });
         const reactivationClassification = classifyCandidateAssignment(
           { ...assignment, active: true, assignment_end_date: null },
           assignmentsCache
