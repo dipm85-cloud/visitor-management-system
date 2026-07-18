@@ -558,9 +558,29 @@ function renderHistorySearchSummary() {
 }
 
 function historyCountsLabel(message) {
-  return String(message.acknowledgement_count || 0) + " ack / " +
-    String(message.action_completed_count || 0) + " action / " +
-    String(message.auto_completed_count || 0) + " auto";
+  return "Ack: " + String(message.acknowledgement_count || 0) + " / " +
+    "Action: " + String(message.action_completed_count || 0) + " / " +
+    "Auto: " + String(message.auto_completed_count || 0) + " / " +
+    "Expected: " + (message.expected_recipient_count == null ? "Unknown" : String(message.expected_recipient_count));
+}
+
+function compactDateTime(value) {
+  if (!value) return "Not set";
+  const timestamp = new Date(value);
+  if (Number.isNaN(timestamp.getTime())) return "Not set";
+  return timestamp.toLocaleString([], {
+    year: "2-digit",
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+
+function messagePreview(value) {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  if (!text) return "No body text";
+  return text.length > 180 ? text.slice(0, 177) + "..." : text;
 }
 
 function renderHistoryTableRow(message) {
@@ -568,23 +588,18 @@ function renderHistoryTableRow(message) {
   const mode = messageModeLabel(message);
   const status = deliveryStatusLabel(message.delivery_status);
   row.innerHTML =
-    "<td>" + safe(formatDateTime(message.sent_at)) + "</td>" +
-    "<td class='admin-message-history-title-cell'><span class='access-control-table-primary'>" + safe(message.title || "System Message") + "</span><span class='access-control-table-secondary'>" + safe(message.message_id || "") + "</span></td>" +
-    "<td>" + safe(messageTypeLabel(message.message_type)) + "</td>" +
-    "<td>" + safe(targetScopeLabel(message)) + "</td>" +
-    "<td>" + safe(message.sent_by_name || "System") + "</td>" +
-    "<td><span class='admin-message-history-badge" + badgeClassForMessage(message) + "'>" + safe(mode) + "</span></td>" +
-    "<td>" + safe(historyActionLabel(message)) + "</td>" +
-    "<td>" + safe(formatDateTime(message.required_action_deadline_at)) + "</td>" +
-    "<td>" + safe(formatDateTime(message.expires_at)) + "</td>" +
-    "<td>" + safe(status) + "</td>" +
-    "<td>" + safe(historyCountsLabel(message)) + "</td>" +
-    "<td>" + safe(message.expected_recipient_count == null ? "Unknown" : String(message.expected_recipient_count)) + "</td>";
+    "<td class='admin-message-history-sent-cell'>" + safe(compactDateTime(message.sent_at)) + "</td>" +
+    "<td class='admin-message-history-message-cell'><span class='access-control-table-primary'>" + safe(message.title || "System Message") + "</span><span class='admin-message-history-preview'>" + safe(messagePreview(message.body)) + "</span></td>" +
+    "<td class='admin-message-history-badge-cell'><span class='admin-message-history-badge'>" + safe(messageTypeLabel(message.message_type)) + "</span><span class='admin-message-history-badge" + badgeClassForMessage(message) + "'>" + safe(mode) + "</span></td>" +
+    "<td class='admin-message-history-target-cell'><span class='access-control-table-primary'>" + safe(targetScopeLabel(message)) + "</span><span class='access-control-table-secondary'>" + safe(message.target_scope === "all_connected" ? "All connected" : "Selected user") + "</span></td>" +
+    "<td class='admin-message-history-status-cell'>" + safe(status) + "</td>" +
+    "<td class='admin-message-history-counts-cell'>" + safe(historyCountsLabel(message)) + "</td>";
   const detailCell = document.createElement("td");
+  detailCell.className = "admin-message-history-actions-cell";
   const detail = document.createElement("button");
   detail.type = "button";
   detail.className = "secondary";
-  detail.textContent = "Detail";
+  detail.textContent = "View Details";
   decorateCapabilityAction(detail, {
     actionId: "admin_presence.history.message_detail.open",
     label: "Open Message Detail",
@@ -603,22 +618,19 @@ function renderHistoryCard(message) {
   card.className = "oh-result-card";
   card.innerHTML =
     "<div class='oh-result-card-header'><div><span class='oh-result-card-title'>" + safe(message.title || "System Message") + "</span><span class='oh-result-card-meta'>" + safe(formatDateTime(message.sent_at)) + " - " + safe(messageTypeLabel(message.message_type)) + "</span></div><span class='admin-message-history-badge" + badgeClassForMessage(message) + "'>" + safe(messageModeLabel(message)) + "</span></div>" +
+    "<p class='admin-message-history-preview'>" + safe(messagePreview(message.body)) + "</p>" +
     "<div class='oh-result-card-fields'>" +
       "<div class='oh-result-card-field'><span>Target</span><strong>" + safe(targetScopeLabel(message)) + "</strong></div>" +
-      "<div class='oh-result-card-field'><span>Sent by</span><strong>" + safe(message.sent_by_name || "System") + "</strong></div>" +
-      "<div class='oh-result-card-field'><span>Action</span><strong>" + safe(historyActionLabel(message)) + "</strong></div>" +
-      "<div class='oh-result-card-field'><span>Deadline</span><strong>" + safe(formatDateTime(message.required_action_deadline_at)) + "</strong></div>" +
-      "<div class='oh-result-card-field'><span>Expiry</span><strong>" + safe(formatDateTime(message.expires_at)) + "</strong></div>" +
+      "<div class='oh-result-card-field'><span>Type / Mode</span><strong>" + safe(messageTypeLabel(message.message_type)) + " / " + safe(messageModeLabel(message)) + "</strong></div>" +
       "<div class='oh-result-card-field'><span>Status</span><strong>" + safe(deliveryStatusLabel(message.delivery_status)) + "</strong></div>" +
       "<div class='oh-result-card-field'><span>Counts</span><strong>" + safe(historyCountsLabel(message)) + "</strong></div>" +
-      "<div class='oh-result-card-field'><span>Expected</span><strong>" + safe(message.expected_recipient_count == null ? "Unknown" : String(message.expected_recipient_count)) + "</strong></div>" +
     "</div>";
   const actions = document.createElement("div");
   actions.className = "oh-result-card-actions";
   const detail = document.createElement("button");
   detail.type = "button";
   detail.className = "secondary";
-  detail.textContent = "Detail";
+  detail.textContent = "View Details";
   decorateCapabilityAction(detail, {
     actionId: "admin_presence.history.message_detail.open",
     label: "Open Message Detail",
@@ -641,7 +653,7 @@ function renderFullMessageHistory() {
   if (!messageHistorySearchResults.length) {
     if (body) {
       const row = document.createElement("tr");
-      row.innerHTML = "<td colspan='13'>No matching system messages.</td>";
+      row.innerHTML = "<td colspan='7'>No matching system messages.</td>";
       body.appendChild(row);
     }
     if (cards) cards.innerHTML = "<div class='people-empty-state'>No matching system messages.</div>";
