@@ -373,17 +373,17 @@ const entityDefinitions = {
       },
       {
         key: "unsociable_hours_manual_override",
-        label: "Unsociable Hours Mode",
+        label: "Paid Unsociable Hours Mode",
         type: "select",
         defaultValue: "true",
         boolean: true,
         options: [
-          { value: "true", label: "Manual unsociable hours" },
-          { value: "false", label: "Use calculated unsociable hours" }
+          { value: "true", label: "Manual paid unsociable hours" },
+          { value: "false", label: "Use suggested paid unsociable hours" }
         ],
-        help: "Calculated mode uses the selected Unsociable Rule Set."
+        help: "Calculated mode uses the selected Unsociable Rule Set and caps payable unsociable time by final paid hours."
       },
-      { key: "unsociable_hours", label: "Manual / Final Unsociable Hours", type: "number", min: 0, max: 24, step: "0.25", defaultValue: 0 },
+      { key: "unsociable_hours", label: "Manual / Final Paid Unsociable Hours", type: "number", min: 0, max: 24, step: "0.25", defaultValue: 0 },
       { key: "unsociable_alignment_notes", label: "Unsociable Alignment Notes", type: "textarea", allowEmptyString: true },
       {
         key: "custom_tag_1",
@@ -403,7 +403,7 @@ const entityDefinitions = {
       { key: "break_rule_label", label: "Break Rule" },
       { key: "hours_summary", label: "Paid Hours", format: "workTimeProfileHours" },
       { key: "unsociable_rule_set_summary", label: "Unsociable Rule Set", format: "workTimeProfileRuleSet" },
-      { key: "unsociable_summary", label: "Unsociable Hours", format: "workTimeProfileUnsociable" },
+      { key: "unsociable_summary", label: "Paid Unsociable", format: "workTimeProfileUnsociable" },
       { key: "custom_tags", label: "Tags", format: "workTimeTags" }
     ]
   }
@@ -695,7 +695,7 @@ function createWorkTimeProfileHoursCell(record) {
 function createWorkTimeProfileUnsociableCell(record) {
   const { cell, stack } = createCompactStackCell();
   appendCompactLine(stack, "Final", formatReferenceHours(record.unsociable_hours) + "h", { strong: true });
-  appendCompactLine(stack, "Suggested", formatReferenceHours(record.calculated_unsociable_hours) + "h");
+  appendCompactLine(stack, "Suggested paid", formatReferenceHours(record.calculated_unsociable_hours) + "h");
   appendCompactLine(stack, "Mode", record.unsociable_hours_manual_override ? "manual" : "calculated");
   return cell;
 }
@@ -1156,7 +1156,7 @@ function createWorkTimeProfileCalculationPreview() {
   const heading = document.createElement("h3");
   heading.textContent = "Calculation preview";
   const help = document.createElement("p");
-  help.textContent = "Preview only. Save applies the selected manual or calculated final paid and unsociable hours.";
+  help.textContent = "Suggested paid unsociable hours are capped by final paid hours, so unpaid breaks are not counted as payable unsociable time.";
   const grid = document.createElement("dl");
   grid.className = "work-time-profile-preview-grid";
   [
@@ -1167,8 +1167,8 @@ function createWorkTimeProfileCalculationPreview() {
     ["Total break", "break"],
     ["Suggested paid", "calculated"],
     ["Final paid", "final"],
-    ["Suggested unsociable", "calculatedUnsociable"],
-    ["Final unsociable", "finalUnsociable"]
+    ["Suggested paid unsociable", "calculatedUnsociable"],
+    ["Final paid unsociable", "finalUnsociable"]
   ].forEach(([label, key]) => {
     const item = document.createElement("div");
     const term = document.createElement("dt");
@@ -1183,7 +1183,7 @@ function createWorkTimeProfileCalculationPreview() {
   const unsociableHeader = document.createElement("div");
   unsociableHeader.className = "work-time-profile-preview-actions";
   const unsociableTitle = document.createElement("h3");
-  unsociableTitle.textContent = "Unsociable by day";
+  unsociableTitle.textContent = "Unsociable rule-window preview";
   const refreshButton = document.createElement("button");
   refreshButton.id = "workTimeProfileUnsociablePreviewRefresh";
   refreshButton.className = "secondary";
@@ -1191,7 +1191,7 @@ function createWorkTimeProfileCalculationPreview() {
   refreshButton.textContent = "Refresh";
   decorateCapabilityAction(refreshButton, {
     actionId: "reference_data.work_time_profiles.unsociable_preview",
-    label: "Preview Work Time Profile unsociable hours",
+    label: "Preview Work Time Profile paid unsociable hours",
     area: "Reference Data",
     requiredAny: definitionViewCapabilities(currentDefinition()),
     actionType: "view"
@@ -1253,7 +1253,7 @@ function roundedHoursFromMinutes(minutes) {
   return Number.isFinite(value) ? Number((value / 60).toFixed(2)) : null;
 }
 
-function suggestedUnsociableHoursFromPreview() {
+function rawSuggestedUnsociableHoursFromPreview() {
   const selectedRuleSet = selectedWorkTimeProfileUnsociableRuleSet();
   if (!selectedRuleSet) return 0;
   const rowValues = workTimeProfileUnsociablePreviewRows
@@ -1300,7 +1300,12 @@ function calculateWorkTimeProfilePreviewValues() {
   const calculatedPaidMinutes = grossMinutes === null ? null : Math.max(grossMinutes - unpaidBreakMinutes, 0);
   const calculatedPaidHours = roundedHoursFromMinutes(calculatedPaidMinutes);
   const finalPaidHours = manualOverride ? manualPaidHours : calculatedPaidHours;
-  const calculatedUnsociableHours = suggestedUnsociableHoursFromPreview();
+  const rawCalculatedUnsociableHours = rawSuggestedUnsociableHoursFromPreview();
+  const calculatedUnsociableHours = rawCalculatedUnsociableHours === null
+    ? null
+    : finalPaidHours === null
+      ? rawCalculatedUnsociableHours
+      : Math.min(rawCalculatedUnsociableHours, finalPaidHours);
   const finalUnsociableHours = unsociableManualOverride ? manualUnsociableHours : calculatedUnsociableHours;
 
   return {
@@ -1315,6 +1320,7 @@ function calculateWorkTimeProfilePreviewValues() {
     unpaidBreakMinutes,
     calculatedPaidHours,
     finalPaidHours,
+    rawCalculatedUnsociableHours,
     calculatedUnsociableHours,
     finalUnsociableHours
   };
@@ -1376,7 +1382,7 @@ function renderWorkTimeProfileUnsociablePreview(profileId, error) {
   }
   if (!profileId) {
     container.textContent = selectedWorkTimeProfileUnsociableRuleSet()
-      ? "Suggested unsociable hours depend on the actual day worked."
+      ? "Suggested paid unsociable hours depend on the actual day worked."
       : "No unsociable rule set selected.";
     return;
   }
@@ -1388,13 +1394,18 @@ function renderWorkTimeProfileUnsociablePreview(profileId, error) {
   const selectedRuleSet = selectedWorkTimeProfileUnsociableRuleSet();
   const heading = document.createElement("strong");
   heading.textContent = (selectedRuleSet ? selectedRuleSet.rule_set_name : "Selected rule set") +
-    ": suggested unsociable hours depend on the actual day worked.";
+    ": suggested paid unsociable hours depend on the actual day worked.";
   container.appendChild(heading);
 
+  const values = calculateWorkTimeProfilePreviewValues();
   workTimeProfileUnsociablePreviewRows.forEach(row => {
+    const rowHours = Number(row.calculated_unsociable_hours);
+    const displayHours = Number.isFinite(rowHours) && values.finalPaidHours !== null
+      ? Math.min(rowHours, values.finalPaidHours)
+      : row.calculated_unsociable_hours;
     const item = document.createElement("span");
     item.textContent = String(row.day_name || "-").slice(0, 3) + " " +
-      formatReferenceHours(row.calculated_unsociable_hours) + "h";
+      formatReferenceHours(displayHours) + "h";
     container.appendChild(item);
   });
 }
@@ -1951,9 +1962,9 @@ function workTimeProfileExportRows() {
     "unsociable_rule_set_code": record.unsociable_rule_set_code || "",
     "unsociable_rule_set_name": record.unsociable_rule_set_name || "",
     "unsociable_rule_set_summary": record.unsociable_rule_set_summary || "",
-    "calculated_unsociable_hours": formatReferenceHours(record.calculated_unsociable_hours),
+    "suggested_paid_unsociable_hours": formatReferenceHours(record.calculated_unsociable_hours),
     "unsociable_hours_manual_override": record.unsociable_hours_manual_override ? "Yes" : "No",
-    "unsociable_hours": formatReferenceHours(record.unsociable_hours),
+    "final_paid_unsociable_hours": formatReferenceHours(record.unsociable_hours),
     "tags": workTimeProfileTags(record).join(" | "),
     "Tag 1": record.custom_tag_1 || "",
     "Tag 2": record.custom_tag_2 || "",
@@ -2459,11 +2470,11 @@ function buildWorkTimeProfilePayload() {
     }
   }
   if (payload.unsociable_hours_manual_override && payload.unsociable_hours === null) {
-    throw new Error("Manual unsociable hours is required when manual unsociable hours mode is selected.");
+    throw new Error("Manual paid unsociable hours is required when manual mode is selected.");
   }
 
   if (payload.unsociable_hours > payload.paid_hours) {
-    throw new Error("Unsociable hours cannot exceed paid working hours.");
+    throw new Error("Final paid unsociable hours cannot exceed final paid working hours.");
   }
   if (
     payload.start_time &&

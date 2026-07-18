@@ -3663,3 +3663,569 @@ select
   (select count(*) from public.unsociable_time_rule_sets) as rule_sets,
   (select count(*) from public.unsociable_time_rules) as rules,
   (select count(*) from public.work_time_profiles where unsociable_rule_set_id is not null) as profiles_with_unsociable_rule_set;
+
+-- ============================================================
+-- OHP-013B.3 Corrective Follow-up: Paid Unsociable Hours Calculation
+-- ============================================================
+
+-- ============================================================
+-- Operations Hub - OHP-013B.3 Patch
+-- Paid Unsociable Hours Calculation Fix
+--
+-- Purpose:
+-- - Fix unsociable-hours calculation so it does not exceed paid hours.
+-- - Unsociable window overlap may be 8h, but payable unsociable hours
+--   must be capped by final/calculated paid hours after unpaid breaks.
+--
+-- Example:
+-- - Shift 22:00-06:00 = 8.00 gross hours
+-- - 30 min unpaid break = 7.50 paid hours
+-- - Unsociable policy 22:00-06:00 = 8.00 window hours
+-- - Suggested paid unsociable hours = 7.50
+--
+-- Safety:
+-- - No schema changes required.
+-- - Existing manual paid_hours and unsociable_hours are preserved.
+-- - Only calculated/suggested unsociable hours are corrected.
+-- ============================================================
+
+-- ------------------------------------------------------------
+-- 1. Replace v3 calculation: selected Unsociable Rule Set only,
+--    with payable unsociable hours capped by final paid hours.
+-- ------------------------------------------------------------
+
+create or replace function public.calculate_work_time_profile_values_v3(
+  p_start_time time,
+  p_end_time time,
+  p_crosses_midnight boolean default false,
+  p_break_rule_id uuid default null,
+  p_break_minutes integer default null,
+  p_paid_hours_manual_override boolean default true,
+  p_manual_paid_hours numeric default null,
+  p_unsociable_hours_manual_override boolean default true,
+  p_manual_unsociable_hours numeric default null,
+  p_iso_dow integer default 1,
+  p_unsociable_rule_set_id uuid default null
+)
+returns table (
+  gross_minutes integer,
+  gross_hours numeric,
+  break_rule_id uuid,
+  paid_break_minutes integer,
+  unpaid_break_minutes integer,
+  effective_break_minutes integer,
+  unpaid_break_minutes_for_pay integer,
+  calculated_paid_minutes integer,
+  calculated_paid_hours numeric,
+  unsociable_rule_set_id uuid,
+  calculated_unsociable_minutes integer,
+  calculated_unsociable_hours numeric,
+  final_paid_hours numeric,
+  final_unsociable_hours numeric
+)
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  v_start_ts timestamp;
+  v_end_ts timestamp;
+  v_gross_minutes integer;
+  v_paid_break_minutes integer := 0;
+  v_unpaid_break_minutes integer := greatest(coalesce(p_break_minutes, 0), 0);
+  v_effective_break_minutes integer;
+  v_calculated_paid_minutes integer;
+  v_calculated_paid_hours numeric;
+  v_final_paid_hours numeric;
+  v_final_paid_minutes integer;
+  v_unsociable_window_minutes integer;
+  v_payable_unsociable_minutes integer;
+  v_payable_unsociable_hours numeric;
+begin
+  if p_break_rule_id is not null then
+    select
+      greatest(coalesce(br.paid_break_minutes, case when coalesce(br.paid_break, false) then br.break_minutes else 0 end, 0), 0),
+      greatest(coalesce(br.unpaid_break_minutes, case when coalesce(br.paid_break, false) then 0 else br.break_minutes end, 0), 0)
+    into
+      v_paid_break_minutes,
+      v_unpaid_break_minutes
+    from public.break_rules br
+    where br.id = p_break_rule_id;
+
+    if not found then
+      v_paid_break_minutes := 0;
+      v_unpaid_break_minutes := greatest(coalesce(p_break_minutes, 0), 0);
+    end if;
+  end if;
+
+  v_effective_break_minutes := v_paid_break_minutes + v_unpaid_break_minutes;
+
+  if p_start_time is null or p_end_time is null then
+    return query
+    select
+      null::integer,
+      null::numeric,
+      p_break_rule_id,
+      v_paid_break_minutes,
+      v_unpaid_break_minutes,
+      v_effective_break_minutes,
+      v_unpaid_break_minutes,
+      null::integer,
+      null::numeric,
+      p_unsociable_rule_set_id,
+      null::integer,
+      null::numeric,
+      p_manual_paid_hours,
+      p_manual_unsociable_hours;
+    return;
+  end if;
+
+  v_start_ts := timestamp '2000-01-01' + p_start_time;
+  v_end_ts := timestamp '2000-01-01' + p_end_time;
+
+  if coalesce(p_crosses_midnight, false) is true
+     or p_end_time < p_start_time then
+    v_end_ts := v_end_ts + interval '1 day';
+  end if;
+
+  v_gross_minutes := greatest(
+    round(extract(epoch from (v_end_ts - v_start_ts)) / 60)::integer,
+    0
+  );
+
+  v_unpaid_break_minutes := least(v_unpaid_break_minutes, v_gross_minutes);
+  v_calculated_paid_minutes := greatest(v_gross_minutes - v_unpaid_break_minutes, 0);
+  v_calculated_paid_hours := round((v_calculated_paid_minutes::numeric / 60), 2);
+
+  v_final_paid_hours := case
+    when coalesce(p_paid_hours_manual_override, true) is true
+      then coalesce(p_manual_paid_hours, v_calculated_paid_hours)
+    else v_calculated_paid_hours
+  end;
+
+  v_final_paid_minutes := greatest(
+    coalesce(round(v_final_paid_hours * 60)::integer, v_calculated_paid_minutes),
+    0
+  );
+
+  -- This is the gross unsociable window overlap before unpaid-break/pay capping.
+  v_unsociable_window_minutes := public.calculate_unsociable_minutes_for_shift_v2(
+    p_start_time,
+    p_end_time,
+    coalesce(p_crosses_midnight, false),
+    p_iso_dow,
+    p_unsociable_rule_set_id
+  );
+
+  -- For payroll/LMT, suggested unsociable hours must be payable time.
+  -- Therefore it cannot exceed final paid minutes.
+  v_payable_unsociable_minutes := least(
+    greatest(coalesce(v_unsociable_window_minutes, 0), 0),
+    v_final_paid_minutes
+  );
+
+  v_payable_unsociable_hours := round((v_payable_unsociable_minutes::numeric / 60), 2);
+
+  return query
+  select
+    v_gross_minutes,
+    round((v_gross_minutes::numeric / 60), 2),
+    p_break_rule_id,
+    v_paid_break_minutes,
+    v_unpaid_break_minutes,
+    v_effective_break_minutes,
+    v_unpaid_break_minutes,
+    v_calculated_paid_minutes,
+    v_calculated_paid_hours,
+    p_unsociable_rule_set_id,
+    v_payable_unsociable_minutes,
+    v_payable_unsociable_hours,
+    v_final_paid_hours,
+    case
+      when coalesce(p_unsociable_hours_manual_override, true) is true
+        then p_manual_unsociable_hours
+      else v_payable_unsociable_hours
+    end;
+end;
+$$;
+
+grant execute on function public.calculate_work_time_profile_values_v3(
+  time,
+  time,
+  boolean,
+  uuid,
+  integer,
+  boolean,
+  numeric,
+  boolean,
+  numeric,
+  integer,
+  uuid
+) to authenticated;
+
+-- ------------------------------------------------------------
+-- 2. Replace v2 calculation for compatibility.
+--    This keeps older callers safe by also capping suggested
+--    unsociable hours by paid hours.
+-- ------------------------------------------------------------
+
+create or replace function public.calculate_work_time_profile_values_v2(
+  p_start_time time,
+  p_end_time time,
+  p_crosses_midnight boolean default false,
+  p_break_rule_id uuid default null,
+  p_break_minutes integer default null,
+  p_paid_hours_manual_override boolean default true,
+  p_manual_paid_hours numeric default null,
+  p_unsociable_hours_manual_override boolean default true,
+  p_manual_unsociable_hours numeric default null,
+  p_iso_dow integer default 1
+)
+returns table (
+  gross_minutes integer,
+  gross_hours numeric,
+  break_rule_id uuid,
+  paid_break_minutes integer,
+  unpaid_break_minutes integer,
+  effective_break_minutes integer,
+  unpaid_break_minutes_for_pay integer,
+  calculated_paid_minutes integer,
+  calculated_paid_hours numeric,
+  calculated_unsociable_minutes integer,
+  calculated_unsociable_hours numeric,
+  final_paid_hours numeric,
+  final_unsociable_hours numeric
+)
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  v_start_ts timestamp;
+  v_end_ts timestamp;
+  v_gross_minutes integer;
+  v_paid_break_minutes integer := 0;
+  v_unpaid_break_minutes integer := greatest(coalesce(p_break_minutes, 0), 0);
+  v_effective_break_minutes integer;
+  v_calculated_paid_minutes integer;
+  v_calculated_paid_hours numeric;
+  v_final_paid_hours numeric;
+  v_final_paid_minutes integer;
+  v_unsociable_window_minutes integer;
+  v_payable_unsociable_minutes integer;
+  v_payable_unsociable_hours numeric;
+begin
+  if p_break_rule_id is not null then
+    select
+      greatest(coalesce(br.paid_break_minutes, case when coalesce(br.paid_break, false) then br.break_minutes else 0 end, 0), 0),
+      greatest(coalesce(br.unpaid_break_minutes, case when coalesce(br.paid_break, false) then 0 else br.break_minutes end, 0), 0)
+    into
+      v_paid_break_minutes,
+      v_unpaid_break_minutes
+    from public.break_rules br
+    where br.id = p_break_rule_id;
+
+    if not found then
+      v_paid_break_minutes := 0;
+      v_unpaid_break_minutes := greatest(coalesce(p_break_minutes, 0), 0);
+    end if;
+  end if;
+
+  v_effective_break_minutes := v_paid_break_minutes + v_unpaid_break_minutes;
+
+  if p_start_time is null or p_end_time is null then
+    return query
+    select
+      null::integer,
+      null::numeric,
+      p_break_rule_id,
+      v_paid_break_minutes,
+      v_unpaid_break_minutes,
+      v_effective_break_minutes,
+      v_unpaid_break_minutes,
+      null::integer,
+      null::numeric,
+      null::integer,
+      null::numeric,
+      p_manual_paid_hours,
+      p_manual_unsociable_hours;
+    return;
+  end if;
+
+  v_start_ts := timestamp '2000-01-01' + p_start_time;
+  v_end_ts := timestamp '2000-01-01' + p_end_time;
+
+  if coalesce(p_crosses_midnight, false) is true
+     or p_end_time < p_start_time then
+    v_end_ts := v_end_ts + interval '1 day';
+  end if;
+
+  v_gross_minutes := greatest(
+    round(extract(epoch from (v_end_ts - v_start_ts)) / 60)::integer,
+    0
+  );
+
+  v_unpaid_break_minutes := least(v_unpaid_break_minutes, v_gross_minutes);
+  v_calculated_paid_minutes := greatest(v_gross_minutes - v_unpaid_break_minutes, 0);
+  v_calculated_paid_hours := round((v_calculated_paid_minutes::numeric / 60), 2);
+
+  v_final_paid_hours := case
+    when coalesce(p_paid_hours_manual_override, true) is true
+      then coalesce(p_manual_paid_hours, v_calculated_paid_hours)
+    else v_calculated_paid_hours
+  end;
+
+  v_final_paid_minutes := greatest(
+    coalesce(round(v_final_paid_hours * 60)::integer, v_calculated_paid_minutes),
+    0
+  );
+
+  v_unsociable_window_minutes := public.calculate_unsociable_minutes_for_shift(
+    p_start_time,
+    p_end_time,
+    coalesce(p_crosses_midnight, false),
+    p_iso_dow
+  );
+
+  v_payable_unsociable_minutes := least(
+    greatest(coalesce(v_unsociable_window_minutes, 0), 0),
+    v_final_paid_minutes
+  );
+
+  v_payable_unsociable_hours := round((v_payable_unsociable_minutes::numeric / 60), 2);
+
+  return query
+  select
+    v_gross_minutes,
+    round((v_gross_minutes::numeric / 60), 2),
+    p_break_rule_id,
+    v_paid_break_minutes,
+    v_unpaid_break_minutes,
+    v_effective_break_minutes,
+    v_unpaid_break_minutes,
+    v_calculated_paid_minutes,
+    v_calculated_paid_hours,
+    v_payable_unsociable_minutes,
+    v_payable_unsociable_hours,
+    v_final_paid_hours,
+    case
+      when coalesce(p_unsociable_hours_manual_override, true) is true
+        then p_manual_unsociable_hours
+      else v_payable_unsociable_hours
+    end;
+end;
+$$;
+
+grant execute on function public.calculate_work_time_profile_values_v2(
+  time,
+  time,
+  boolean,
+  uuid,
+  integer,
+  boolean,
+  numeric,
+  boolean,
+  numeric,
+  integer
+) to authenticated;
+
+-- ------------------------------------------------------------
+-- 3. Recreate trigger to ensure Work Time Profile suggestions
+--    use the corrected v3 calculation.
+-- ------------------------------------------------------------
+
+create or replace function public.apply_work_time_profile_break_alignment()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_calc record;
+begin
+  select *
+  into v_calc
+  from public.calculate_work_time_profile_values_v3(
+    new.start_time,
+    new.end_time,
+    coalesce(new.crosses_midnight, false),
+    new.break_rule_id,
+    new.break_minutes,
+    coalesce(new.paid_hours_manual_override, true),
+    new.paid_hours,
+    coalesce(new.unsociable_hours_manual_override, true),
+    new.unsociable_hours,
+    1,
+    new.unsociable_rule_set_id
+  );
+
+  new.gross_hours := v_calc.gross_hours;
+  new.effective_paid_break_minutes := v_calc.paid_break_minutes;
+  new.effective_unpaid_break_minutes := v_calc.unpaid_break_minutes;
+  new.effective_break_minutes := v_calc.effective_break_minutes;
+  new.calculated_paid_hours := v_calc.calculated_paid_hours;
+  new.calculated_unsociable_hours := v_calc.calculated_unsociable_hours;
+
+  if coalesce(new.paid_hours_manual_override, true) is false then
+    new.paid_hours := v_calc.calculated_paid_hours;
+  elsif new.paid_hours is null then
+    new.paid_hours := v_calc.calculated_paid_hours;
+  end if;
+
+  if coalesce(new.unsociable_hours_manual_override, true) is false then
+    new.unsociable_hours := v_calc.calculated_unsociable_hours;
+  elsif new.unsociable_hours is null then
+    new.unsociable_hours := v_calc.calculated_unsociable_hours;
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_work_time_profiles_break_alignment
+on public.work_time_profiles;
+
+create trigger trg_work_time_profiles_break_alignment
+before insert or update of
+  start_time,
+  end_time,
+  crosses_midnight,
+  break_rule_id,
+  break_minutes,
+  paid_hours_manual_override,
+  paid_hours,
+  unsociable_rule_set_id,
+  unsociable_hours_manual_override,
+  unsociable_hours
+on public.work_time_profiles
+for each row
+execute function public.apply_work_time_profile_break_alignment();
+
+-- ------------------------------------------------------------
+-- 4. Replace preview by day so it also shows payable/capped
+--    unsociable hours, not raw rule-window overlap.
+-- ------------------------------------------------------------
+
+drop function if exists public.preview_work_time_profile_unsociable_by_day(uuid);
+
+create or replace function public.preview_work_time_profile_unsociable_by_day(
+  p_profile_id uuid
+)
+returns table (
+  iso_dow integer,
+  day_name text,
+  unsociable_rule_set_id uuid,
+  unsociable_rule_set_name text,
+  calculated_unsociable_minutes integer,
+  calculated_unsociable_hours numeric
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_profile record;
+begin
+  if not public.can_view_work_time_profile_alignment() then
+    raise exception 'You do not have permission to preview unsociable hours';
+  end if;
+
+  select
+    wtp.start_time,
+    wtp.end_time,
+    wtp.crosses_midnight,
+    wtp.break_rule_id,
+    wtp.break_minutes,
+    wtp.paid_hours_manual_override,
+    wtp.paid_hours,
+    wtp.unsociable_hours_manual_override,
+    wtp.unsociable_hours,
+    wtp.unsociable_rule_set_id,
+    rs.rule_set_name
+  into v_profile
+  from public.work_time_profiles wtp
+  left join public.unsociable_time_rule_sets rs
+    on rs.id = wtp.unsociable_rule_set_id
+  where wtp.id = p_profile_id;
+
+  if not found then
+    raise exception 'Work Time Profile was not found';
+  end if;
+
+  return query
+  with days as (
+    select *
+    from (
+      values
+        (1, 'Monday'),
+        (2, 'Tuesday'),
+        (3, 'Wednesday'),
+        (4, 'Thursday'),
+        (5, 'Friday'),
+        (6, 'Saturday'),
+        (7, 'Sunday')
+    ) as d(iso_dow, day_name)
+  ),
+  calc as (
+    select
+      d.iso_dow,
+      d.day_name,
+      v.calculated_unsociable_minutes,
+      v.calculated_unsociable_hours
+    from days d
+    cross join lateral public.calculate_work_time_profile_values_v3(
+      v_profile.start_time,
+      v_profile.end_time,
+      coalesce(v_profile.crosses_midnight, false),
+      v_profile.break_rule_id,
+      v_profile.break_minutes,
+      coalesce(v_profile.paid_hours_manual_override, true),
+      v_profile.paid_hours,
+      coalesce(v_profile.unsociable_hours_manual_override, true),
+      v_profile.unsociable_hours,
+      d.iso_dow,
+      v_profile.unsociable_rule_set_id
+    ) v
+  )
+  select
+    c.iso_dow,
+    c.day_name,
+    v_profile.unsociable_rule_set_id,
+    v_profile.rule_set_name,
+    c.calculated_unsociable_minutes,
+    c.calculated_unsociable_hours
+  from calc c
+  order by c.iso_dow;
+end;
+$$;
+
+grant execute on function public.preview_work_time_profile_unsociable_by_day(uuid) to authenticated;
+
+-- ------------------------------------------------------------
+-- 5. Recalculate stored suggestions on existing Work Time Profiles.
+--    Manual final values are preserved.
+-- ------------------------------------------------------------
+
+update public.work_time_profiles
+set
+  paid_hours_manual_override = coalesce(paid_hours_manual_override, true),
+  unsociable_hours_manual_override = coalesce(unsociable_hours_manual_override, true)
+where true;
+
+-- ------------------------------------------------------------
+-- 6. Verification
+-- ------------------------------------------------------------
+
+notify pgrst, 'reload schema';
+
+select
+  'OHP-013B.3 patch - paid unsociable hours calculation fixed' as result,
+  (
+    select count(*)
+    from public.work_time_profiles
+    where calculated_unsociable_hours is not null
+      and paid_hours is not null
+      and calculated_unsociable_hours > paid_hours
+  ) as profiles_where_suggested_unsociable_exceeds_final_paid_hours;
