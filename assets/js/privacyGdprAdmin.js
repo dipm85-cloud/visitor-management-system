@@ -103,6 +103,7 @@ let privacyGdprSearchGroups = [];
 let privacyGdprSearchDetailsPanelController = null;
 let privacyGdprCaseFormPanelController = null;
 let privacyGdprCaseEventPanelController = null;
+let privacyGdprCaseReturnContext = null;
 let privacyGdprSearchSequence = 0;
 let privacyGdprHasSearched = false;
 let privacyGdprEvidencePackGroups = [];
@@ -131,9 +132,41 @@ function ensurePrivacyGdprSearchDetailsPanelController() {
     reset() {
       const body = $("privacyGdprSearchDetailsBody");
       if (body) body.replaceChildren();
+    },
+    onClose(closeSettings) {
+      handlePrivacyCaseDetailsClose(closeSettings);
     }
   });
   return privacyGdprSearchDetailsPanelController;
+}
+
+function setPrivacyCaseDetailsReturnContext(returnContext) {
+  privacyGdprCaseReturnContext = returnContext && returnContext.returnTo
+    ? { ...returnContext }
+    : null;
+  const closeTop = $("privacyGdprSearchDetailsClose");
+  const closeBottom = $("privacyGdprSearchDetailsCloseBottom");
+  const label = privacyGdprCaseReturnContext && privacyGdprCaseReturnContext.returnTo === "peopleProfile"
+    ? "Back to Profile"
+    : "Close";
+  if (closeTop) closeTop.textContent = label;
+  if (closeBottom) closeBottom.textContent = label;
+}
+
+function handlePrivacyCaseDetailsClose(closeSettings = {}) {
+  const returnContext = privacyGdprCaseReturnContext;
+  setPrivacyCaseDetailsReturnContext(null);
+  if (
+    returnContext &&
+    returnContext.returnTo === "peopleProfile" &&
+    returnContext.personId &&
+    !document.body.classList.contains("people-profile-workspace-open") &&
+    closeSettings.reason
+  ) {
+    window.dispatchEvent(new CustomEvent("oh:people-profile-return-requested", {
+      detail: returnContext
+    }));
+  }
 }
 
 function handlePrivacyDetailOpenError(error) {
@@ -143,6 +176,27 @@ function handlePrivacyDetailOpenError(error) {
     error && error.message ? error.message : "The privacy detail view could not be opened.",
     "error"
   );
+}
+
+function openPrivacyCaseInContextErrorPanel(error, trigger) {
+  console.warn("People Profile in-context privacy case detail failed.", error);
+  const controller = ensurePrivacyGdprSearchDetailsPanelController();
+  const title = $("privacyGdprSearchDetailsTitle");
+  const eyebrow = $("privacyGdprSearchDetailsEyebrow");
+  const body = $("privacyGdprSearchDetailsBody");
+  if (title) title.textContent = "Privacy case detail failed";
+  if (eyebrow) eyebrow.textContent = "People Profile Privacy";
+  if (body) {
+    body.replaceChildren();
+    const unavailable = document.createElement("div");
+    unavailable.className = "privacy-gdpr-unavailable";
+    unavailable.textContent = "Privacy case detail failed while loading People Profile in-context case details.";
+    body.appendChild(unavailable);
+    const reason = document.createElement("p");
+    reason.textContent = "Reason: " + (error && error.message ? error.message : "Unknown error.");
+    body.appendChild(reason);
+  }
+  if (controller) controller.open({ trigger });
 }
 
 function openPrivacyCaseDetailsFromClick(caseRecord, event) {
@@ -310,7 +364,7 @@ const ANONYMISATION_RULES = [
     legacyWorkflowRequired: "Yes",
     readiness: ["Legacy execution required", "Manual review required"],
     subjectFields: ["requester_name", "requester_contact", "identity verification details where present"],
-    retainedFields: ["case_reference", "request_type", "status", "priority", "received/due/completed dates", "decision metadata where required"],
+    retainedFields: ["case_reference", "request_type", "status", "received/due/completed dates", "decision metadata where required"],
     reviewNotes: "Case records remain read-only in Operations Hub and must not be marked completed by this workflow."
   },
   {
@@ -666,10 +720,7 @@ function createCaseRow(row) {
   summary.textContent = textOrDash(caseType(row)) + " - " + textOrDash(caseStatus(row));
   title.append(name, summary);
 
-  const badge = document.createElement("span");
-  badge.className = "privacy-gdpr-badge";
-  badge.textContent = textOrDash(row.priority || "normal");
-  heading.append(title, badge);
+  heading.appendChild(title);
 
   const meta = document.createElement("dl");
   meta.className = "privacy-gdpr-meta";
@@ -711,64 +762,73 @@ function currentCaseFilters() {
   };
 }
 
+function caseValue(row, keys) {
+  const source = row || {};
+  for (const key of keys || []) {
+    const value = source[key];
+    if (String(value == null ? "" : value).trim()) return value;
+  }
+  return "";
+}
+
 function caseType(row) {
-  return textValue(row && (row.case_type || row.request_type || row.type));
+  return textValue(caseValue(row, ["case_type", "request_type", "type"]));
 }
 
 function caseStatus(row) {
-  return textValue(row && row.status);
+  return textValue(caseValue(row, ["case_status", "status", "workflow_status"]));
 }
 
 function caseSubjectName(row) {
-  return textValue(row && (row.subject_name || row.requester_name || row.data_subject_name));
+  return textValue(caseValue(row, ["subject_name", "data_subject_name", "requester_name", "display_name"]));
 }
 
 function caseSubjectCompany(row) {
-  return textValue(row && (row.subject_company || row.company));
+  return textValue(caseValue(row, ["subject_company", "data_subject_company", "company", "requester_company"]));
 }
 
 function caseSubjectEmail(row) {
-  return textValue(row && (row.subject_email || row.requester_email));
+  return textValue(caseValue(row, ["subject_email", "data_subject_email", "requester_email", "email"]));
 }
 
 function caseSubjectReference(row) {
-  return textValue(row && (row.subject_reference || row.external_reference || row.reference));
+  return textValue(caseValue(row, ["subject_reference", "data_subject_reference", "external_reference", "reference"]));
 }
 
 function caseSearchText(row) {
-  return textValue(row && (row.search_text || row.subject_search_text || row.requester_contact));
+  return textValue(caseValue(row, ["search_text", "subject_search_text", "requester_contact", "subject_summary"]));
 }
 
 function caseReason(row) {
-  return textValue(row && (row.reason || row.request_reason));
+  return textValue(caseValue(row, ["reason", "request_reason", "case_reason"]));
 }
 
 function caseNotes(row) {
-  return textValue(row && (row.notes || row.internal_notes));
+  return textValue(caseValue(row, ["notes", "internal_notes", "case_notes"]));
 }
 
 function caseOutcome(row) {
-  return textValue(row && (row.outcome_summary || row.decision || row.decision_reason));
+  return textValue(caseValue(row, ["outcome_summary", "decision", "decision_reason", "outcome"]));
 }
 
 function caseLegacyReference(row) {
-  return textValue(row && (row.legacy_reference || row.legacy_case_reference));
+  return textValue(caseValue(row, ["legacy_reference", "legacy_case_reference"]));
 }
 
 function caseReceivedDate(row) {
-  return textValue(row && (row.request_received_date || row.request_received_at || row.received_at || row.created_at));
+  return textValue(caseValue(row, ["request_received_date", "request_received_at", "received_at", "created_at"]));
 }
 
 function caseDueDate(row) {
-  return textValue(row && row.due_date);
+  return textValue(caseValue(row, ["due_date", "deadline_at", "target_date"]));
 }
 
 function caseCompletedDate(row) {
-  return textValue(row && (row.completed_date || row.completed_at));
+  return textValue(caseValue(row, ["completed_date", "completed_at", "closed_at"]));
 }
 
 function caseCreatedDate(row) {
-  return textValue(row && row.created_at);
+  return textValue(caseValue(row, ["created_at"]));
 }
 
 function matchesCaseFilter(row, filters) {
@@ -785,7 +845,6 @@ function matchesCaseFilter(row, filters) {
     "case_type",
     "request_type",
     "status",
-    "priority",
     "subject_name",
     "subject_company",
     "subject_email",
@@ -806,17 +865,6 @@ function matchesCaseFilter(row, filters) {
 function filteredPrivacyCases() {
   const filters = currentCaseFilters();
   return privacyGdprCases.filter(row => row && matchesCaseFilter(row, filters));
-}
-
-function caseRpcFilters() {
-  const filters = currentCaseFilters();
-  return {
-    p_search_text: filters.searchText || null,
-    p_status: filters.status && filters.status !== "all" ? filters.status : null,
-    p_case_type: filters.type && filters.type !== "all" ? filters.type : null,
-    p_from_date: filters.fromDate || null,
-    p_to_date: filters.toDate || null
-  };
 }
 
 async function rpcWithFallback(name, params, fallback) {
@@ -1339,7 +1387,6 @@ function privacyCaseExportRows() {
     "Case Reference": row.case_reference || "",
     "Case Type": caseType(row),
     "Status": caseStatus(row),
-    "Priority": row.priority || "",
     "Subject Name": caseSubjectName(row),
     "Subject Company": caseSubjectCompany(row),
     "Subject Email": caseSubjectEmail(row),
@@ -3032,13 +3079,16 @@ async function loadPrivacyCaseTimeline(caseRecord) {
   return Array.isArray(result.data) ? result.data : [];
 }
 
-function renderPrivacyCaseDetailsPanel(caseRecord, notes, timelineError) {
-  const title = $("privacyGdprSearchDetailsTitle");
-  const eyebrow = $("privacyGdprSearchDetailsEyebrow");
-  const body = $("privacyGdprSearchDetailsBody");
-  if (title) title.textContent = textOrDash(caseRecord.case_reference);
-  if (eyebrow) eyebrow.textContent = "Privacy Case";
-  if (!body) return;
+export function renderPrivacyCaseDetail(caseDetail, container, options = {}) {
+  const settings = options || {};
+  const detail = caseDetail && caseDetail.caseRecord ? caseDetail : {
+    caseRecord: caseDetail,
+    notes: settings.notes || null,
+    timelineError: settings.timelineError || null
+  };
+  const caseRecord = detail.caseRecord;
+  const body = container;
+  if (!body || !caseRecord) return;
 
   body.replaceChildren();
   const summary = document.createElement("div");
@@ -3050,7 +3100,6 @@ function renderPrivacyCaseDetailsPanel(caseRecord, notes, timelineError) {
     recordField("Case reference", caseRecord.case_reference, true),
     recordField("Case type", caseType(caseRecord), true),
     recordField("Status", caseStatus(caseRecord), true),
-    recordField("Priority", caseRecord.priority || "normal"),
     recordField("Received", formatDate(caseReceivedDate(caseRecord) || caseCreatedDate(caseRecord)), true),
     recordField("Due date", caseDueDate(caseRecord)),
     recordField("Completed", formatDate(caseCompletedDate(caseRecord))),
@@ -3074,24 +3123,38 @@ function renderPrivacyCaseDetailsPanel(caseRecord, notes, timelineError) {
   ]);
   appendPrivacyCaseAdvancedDetails(body, caseRecord);
 
-  if (timelineError) {
+  if (detail.timelineError) {
     const unavailable = document.createElement("div");
     unavailable.className = "privacy-gdpr-unavailable";
     unavailable.textContent = "Timeline evidence could not be loaded under current permissions.";
+    if (detail.timelineError && detail.timelineError.message) {
+      unavailable.title = detail.timelineError.message;
+    }
     body.appendChild(unavailable);
   } else {
-    appendPrivacyTimeline(body, createPrivacyCaseTimelineItems(caseRecord, notes));
+    appendPrivacyTimeline(body, createPrivacyCaseTimelineItems(caseRecord, detail.notes));
   }
-  const identityContextHost = document.createElement("div");
-  identityContextHost.className = "linked-identity-context-slot";
-  body.appendChild(identityContextHost);
-  renderLinkedIdentityContext(identityContextHost, {
-    sourceType: "privacy_cases",
-    sourceRecordId: caseRecord.id,
-    sourceLabel: privacyCaseIdentityReviewLabel(caseRecord) || caseRecord.case_reference || "Privacy case"
-  });
-  appendPrivacyCaseWorkspaceActions(body, caseRecord);
+  if (!settings.skipIdentityContext) {
+    const identityContextHost = document.createElement("div");
+    identityContextHost.className = "linked-identity-context-slot";
+    body.appendChild(identityContextHost);
+    renderLinkedIdentityContext(identityContextHost, {
+      sourceType: "privacy_cases",
+      sourceRecordId: caseRecord.id,
+      sourceLabel: privacyCaseIdentityReviewLabel(caseRecord) || caseRecord.case_reference || "Privacy case"
+    });
+  }
+  if (!settings.skipWorkspaceActions) appendPrivacyCaseWorkspaceActions(body, caseRecord);
   appendPrivacyCaseLegacyBridge(body);
+}
+
+function renderPrivacyCaseDetailsPanel(caseRecord, notes, timelineError, options = {}) {
+  const title = $("privacyGdprSearchDetailsTitle");
+  const eyebrow = $("privacyGdprSearchDetailsEyebrow");
+  const body = $("privacyGdprSearchDetailsBody");
+  if (title) title.textContent = textOrDash(caseRecord.case_reference);
+  if (eyebrow) eyebrow.textContent = "Privacy Case";
+  renderPrivacyCaseDetail({ caseRecord, notes, timelineError }, body, options);
 }
 
 function appendPrivacyCaseAdvancedDetails(parent, caseRecord) {
@@ -3129,13 +3192,16 @@ function appendPrivacyCaseAdvancedDetails(parent, caseRecord) {
   parent.appendChild(details);
 }
 
-async function openPrivacyCaseDetails(caseRecord, trigger) {
+async function openPrivacyCaseDetails(caseRecord, trigger, options = {}) {
   if (!canViewPrivacyCaseDetails()) {
     showToast("Case details unavailable", "You do not have permission to view Privacy / Data Governance details.", "error");
     return;
   }
-  showAdministrationWorkspace();
-  setAdministrationSection("privacyGdpr");
+  const settings = options || {};
+  if (!settings.preserveWorkspace) {
+    showAdministrationWorkspace();
+    setAdministrationSection("privacyGdpr");
+  }
   const controller = ensurePrivacyGdprSearchDetailsPanelController();
   if (!controller || !caseRecord) {
     showToast("Case details unavailable", "The privacy case detail panel is not available.", "error");
@@ -3143,50 +3209,108 @@ async function openPrivacyCaseDetails(caseRecord, trigger) {
   }
   if (caseRecord.id) privacyGdprActiveCaseId = caseRecord.id;
   try {
-    renderPrivacyCaseDetailsPanel(caseRecord, null, false);
+    renderPrivacyCaseDetailsPanel(caseRecord, null, false, settings);
     controller.open({ trigger });
+    setPrivacyCaseDetailsReturnContext(settings.returnContext);
   } catch (error) {
+    setPrivacyCaseDetailsReturnContext(null);
     handlePrivacyDetailOpenError(error);
     return;
   }
   try {
     const notes = await loadPrivacyCaseTimeline(caseRecord);
-    renderPrivacyCaseDetailsPanel(caseRecord, notes, false);
+    renderPrivacyCaseDetailsPanel(caseRecord, notes, false, settings);
   } catch (error) {
+    console.warn("Privacy case timeline unavailable.", error);
     showToast("Case timeline unavailable", error && error.message ? error.message : "The case timeline could not be loaded.", "error");
-    renderPrivacyCaseDetailsPanel(caseRecord, null, true);
+    renderPrivacyCaseDetailsPanel(caseRecord, null, true, settings);
   }
 }
 
-export async function openPrivacyCaseRecordById(caseId, trigger) {
+async function loadPrivacyCaseRecordById(caseId) {
+  const id = String(caseId || "").trim();
+  if (!id) return null;
+  const result = await supabaseClient
+    .from("privacy_cases")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+  if (result.error) {
+    console.error("Privacy case query failed.", result.error);
+    throw result.error;
+  }
+  return result.data || null;
+}
+
+export async function loadPrivacyCaseDetail(caseId) {
+  const id = String(caseId || "").trim();
+  if (!id) {
+    throw new Error("The case id was missing.");
+  }
+  const caseRecord = await loadPrivacyCaseRecordById(id);
+  if (!caseRecord) {
+    throw new Error("Privacy case could not be found or you do not have permission to view it.");
+  }
+  try {
+    const notes = await loadPrivacyCaseTimeline(caseRecord);
+    return { caseRecord, notes, timelineError: null };
+  } catch (error) {
+    return { caseRecord, notes: null, timelineError: error };
+  }
+}
+
+export async function openPrivacyCaseRecordById(caseId, trigger, options = {}) {
   if (!canViewPrivacyCaseDetails()) {
     showToast("Case details unavailable", "You do not have permission to view Privacy / Data Governance details.", "error");
     return;
   }
   const id = String(caseId || "").trim();
-  if (!id) return;
-  showAdministrationWorkspace();
-  setAdministrationSection("privacyGdpr");
-  selectPrivacyGdprSection("cases", { focus: false, resetScroll: false });
+  if (!id) {
+    showToast("Case unavailable", "Privacy case could not be opened because the case id was missing.", "error");
+    return;
+  }
+  const settings = options || {};
+  if (!settings.preserveWorkspace) {
+    showAdministrationWorkspace();
+    setAdministrationSection("privacyGdpr");
+    selectPrivacyGdprSection("cases", { focus: false, resetScroll: false });
+  }
   try {
-    const result = await supabaseClient
-      .from("privacy_cases")
-      .select("id, case_reference, case_type, status, priority, subject_name, subject_company, subject_email, subject_reference, search_text, request_received_date, due_date, reason, notes, outcome_summary, legacy_reference, identity_verified, identity_verification_method, decision, decision_reason, completed_at, metadata, created_at, updated_at")
-      .eq("id", id)
-      .maybeSingle();
-    if (result.error) throw result.error;
-    if (!result.data) {
-      showToast("Case unavailable", "The privacy case could not be opened under current permissions.", "error");
+    const caseRecord = await loadPrivacyCaseRecordById(id);
+    if (!caseRecord) {
+      showToast("Case unavailable", "Privacy case could not be found or you do not have permission to view it.", "error");
       return;
     }
-    await openPrivacyCaseDetails(result.data, trigger);
+    await openPrivacyCaseDetails(caseRecord, trigger, settings);
   } catch (error) {
+    if (settings.preserveWorkspace) {
+      openPrivacyCaseInContextErrorPanel(error, trigger);
+    }
+    console.error("Privacy case could not be opened.", error);
     showToast(
       "Case unavailable",
       error && error.message ? error.message : "The privacy case could not be opened.",
       "error"
     );
   }
+}
+
+export async function openPrivacyCaseDetailOverlay(caseId, options = {}) {
+  const settings = options || {};
+  return openPrivacyCaseRecordById(caseId, settings.trigger || null, {
+    preserveWorkspace: true,
+    skipIdentityContext: settings.skipIdentityContext !== false,
+    skipWorkspaceActions: settings.skipWorkspaceActions !== false,
+    returnContext: settings.returnContext || null
+  });
+}
+
+export async function openPrivacyCaseRecordInContext(caseId, trigger, returnContext = {}) {
+  // OHP-014A: People Profile privacy case details must use the schema-safe privacy case loader.
+  await openPrivacyCaseDetailOverlay(caseId, {
+    trigger,
+    returnContext
+  });
 }
 
 function openSearchResultDetails(record, trigger) {
@@ -3719,11 +3843,12 @@ function registerPrivacyGdprSections() {
 }
 
 async function loadPrivacyGdprCases() {
-  const result = await rpcWithFallback("list_privacy_cases", caseRpcFilters(), async () => {
-    const fallback = await supabaseClient.rpc("superuser_list_gdpr_cases");
-    if (fallback.error) throw fallback.error;
-    return fallback;
-  });
+  const result = await supabaseClient
+    .from("privacy_cases")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(500);
+  if (result.error) throw result.error;
   privacyGdprCases = Array.isArray(result.data) ? result.data : [];
   privacyGdprCasesLoaded = true;
 }
@@ -3823,6 +3948,9 @@ export function initialisePrivacyGdprAdministration(dependencies) {
     reset() {
       const body = $("privacyGdprSearchDetailsBody");
       if (body) body.replaceChildren();
+    },
+    onClose(closeSettings) {
+      handlePrivacyCaseDetailsClose(closeSettings);
     }
   });
   privacyGdprCaseFormPanelController = createSidePanelController({

@@ -5,8 +5,11 @@ import { hasAnyCapability, hasCapability } from "./capabilities.js";
 import { selectPersonForAssignments } from "./assignments.js";
 import {
   buildExpectedWorkGrid,
+  openPersonMonthlyRotaPrint,
   openWorkforceCalendar
 } from "./workforceCalendar.js";
+import { openDocumentSignoffEvidenceById } from "./documentSignoffs.js";
+import { openPrivacyCaseRecordById } from "./privacyGdprAdmin.js";
 import {
   canViewLinkedIdentityContext,
   friendlyIdentitySourceType,
@@ -83,6 +86,43 @@ const VISIT_EVIDENCE_SOURCE_TYPES = new Set(["visit_log", "visitor_history"]);
 const PLANNED_VISIT_EVIDENCE_SOURCE_TYPES = new Set(["planned_visits", "planned_visit"]);
 const PERSON_DOCUMENT_CONTEXT_SOURCE_TYPES = ["people", "person", "people_record", "person_record"];
 const documentEvidenceSearchCache = new Map();
+
+const VISIT_LOG_DETAIL_COLUMNS = [
+  "id",
+  "planned_visit_id",
+  "visitor_name",
+  "company",
+  "visit_reason",
+  "vehicle_plate",
+  "onsite_contact",
+  "security_pass_id",
+  "privacy_notice_version",
+  "privacy_notice_accepted_at",
+  "sign_in_time",
+  "sign_out_time",
+  "visit_status",
+  "visit_origin",
+  "signed_out_automatically",
+  "automatic_sign_out_reason"
+].join(", ");
+
+const PLANNED_VISIT_DETAIL_COLUMNS = [
+  "id",
+  "visitor_name",
+  "company",
+  "host_id",
+  "visit_date",
+  "expected_time",
+  "visit_reason",
+  "vehicle_plate",
+  "onsite_contact",
+  "security_pass_id",
+  "notes",
+  "status",
+  "created_by",
+  "modified_by",
+  "modified_at"
+].join(", ");
 
 function hasPeopleAccess() {
   return hasAnyCapability(["people.view", "people.manage"]);
@@ -279,6 +319,64 @@ function ensureOverlay() {
   });
 
   return overlay;
+}
+
+function ensureContextPanel() {
+  let panel = document.getElementById("peopleProfileContextPanelBackdrop");
+  if (panel) return panel;
+
+  panel = document.createElement("div");
+  panel.id = "peopleProfileContextPanelBackdrop";
+  panel.className = "people-profile-context-backdrop hidden";
+  panel.innerHTML =
+    "<aside class=\"people-profile-context-panel\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"peopleProfileContextTitle\" tabindex=\"-1\">" +
+      "<header class=\"people-profile-context-header\">" +
+        "<div><p id=\"peopleProfileContextEyebrow\" class=\"oh-app-eyebrow\">Profile detail</p><h3 id=\"peopleProfileContextTitle\">Details</h3></div>" +
+        "<button id=\"peopleProfileContextClose\" class=\"ghost\" type=\"button\">Back to Profile</button>" +
+      "</header>" +
+      "<div id=\"peopleProfileContextBody\" class=\"people-profile-context-body\"></div>" +
+    "</aside>";
+  document.body.appendChild(panel);
+  document.getElementById("peopleProfileContextClose").addEventListener("click", closeProfileContextPanel);
+  panel.addEventListener("click", event => {
+    if (event.target === event.currentTarget) closeProfileContextPanel();
+  });
+  return panel;
+}
+
+function closeProfileContextPanel() {
+  const panel = document.getElementById("peopleProfileContextPanelBackdrop");
+  if (panel) panel.classList.add("hidden");
+  document.body.classList.remove("people-profile-context-open");
+  const content = document.getElementById("peopleProfileContent");
+  if (content) content.focus({ preventScroll: true });
+}
+
+function openProfileContextPanel(settings) {
+  const options = settings || {};
+  const panel = ensureContextPanel();
+  const title = document.getElementById("peopleProfileContextTitle");
+  const eyebrow = document.getElementById("peopleProfileContextEyebrow");
+  const body = document.getElementById("peopleProfileContextBody");
+  if (title) title.textContent = options.title || "Details";
+  if (eyebrow) eyebrow.textContent = options.eyebrow || "Profile detail";
+  if (body) {
+    body.replaceChildren();
+    if (options.content instanceof Node) body.appendChild(options.content);
+  }
+  panel.classList.remove("hidden");
+  document.body.classList.add("people-profile-context-open");
+  const panelBody = panel.querySelector(".people-profile-context-panel");
+  if (panelBody) panelBody.focus({ preventScroll: true });
+}
+
+function detailList(fields) {
+  const dl = document.createElement("dl");
+  dl.className = "people-profile-context-list";
+  (fields || []).filter(([, value]) => String(value == null ? "" : value).trim()).forEach(([label, value]) => {
+    dl.appendChild(createDetailItem(label, value));
+  });
+  return dl;
 }
 
 function createMetaChip(text, tone) {
@@ -534,6 +632,14 @@ async function ensureRotaData() {
 async function renderRota(content) {
   const actions = document.createElement("div");
   actions.className = "people-profile-action-row";
+  const printMonthly = document.createElement("button");
+  printMonthly.type = "button";
+  printMonthly.textContent = "Print Monthly Rota";
+  printMonthly.addEventListener("click", async () => {
+    if (!profileState.person) return;
+    profileState.activeSection = "rota";
+    await openPersonMonthlyRotaPrint(profileState.person.id);
+  });
   const openCalendar = document.createElement("button");
   openCalendar.type = "button";
   openCalendar.className = "secondary";
@@ -542,7 +648,7 @@ async function renderRota(content) {
     closePeopleProfileWorkspace();
     await openWorkforceCalendar();
   });
-  actions.appendChild(openCalendar);
+  actions.append(printMonthly, openCalendar);
 
   const loading = createWorkspaceEmpty("Loading rota snapshot", "Checking expected-work context for the next 7 days.");
   content.append(actions, loading);
@@ -950,7 +1056,573 @@ function sourceSummaryLine(record) {
   return parts.filter(Boolean).map(textOrDash).join(" | ");
 }
 
-function renderLinkedRows(content, rows, emptyTitle, emptyDescription) {
+function isPrivacyCaseSourceType(value) {
+  const sourceType = normaliseSourceType(value);
+  return sourceType === "privacy_cases" || sourceType === "privacy_case";
+}
+
+function firstNonBlank(values) {
+  return (values || []).find(value => String(value || "").trim()) || "";
+}
+
+function privacyCaseIdFromLinkedRecord(record) {
+  const summary = summaryObject(record && record.linked_source_summary);
+  if (isPrivacyCaseSourceType(record && record.linked_source_type)) {
+    return firstNonBlank([
+      record && record.linked_source_record_id,
+      record && record.source_record_id,
+      record && record.privacy_case_id,
+      record && record.case_id,
+      summary.source_record_id,
+      summary.linked_source_record_id,
+      summary.privacy_case_id,
+      summary.privacy_cases_id,
+      summary.case_id,
+      summary.case_record_id,
+      summary.record_id,
+      summary.id
+    ]);
+  }
+  return firstNonBlank([
+    summary.privacy_case_id,
+    summary.privacy_cases_id,
+    summary.case_id,
+    summary.case_record_id,
+    record && record.privacy_case_id,
+    record && record.case_id
+  ]);
+}
+
+function peopleProfilePrivacyCaseField(caseRecord, keys) {
+  const source = caseRecord || {};
+  for (const key of keys || []) {
+    const value = source[key];
+    if (String(value == null ? "" : value).trim()) return value;
+  }
+  return "";
+}
+
+async function loadPeopleProfilePrivacyCaseRecord(caseId) {
+  const id = String(caseId || "").trim();
+  if (!id) throw new Error("The case id was missing.");
+  const result = await supabaseClient
+    .from("privacy_cases")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+  if (result.error) {
+    console.error("People Profile privacy case query failed.", result.error);
+    throw result.error;
+  }
+  return result.data || null;
+}
+
+function createPeopleProfilePrivacyCaseDetailContent(caseRecord, sourceRecord) {
+  const sourceSummary = summaryObject(sourceRecord && sourceRecord.linked_source_summary);
+  const container = document.createElement("div");
+  container.className = "people-profile-context-stack";
+
+  const reference = peopleProfilePrivacyCaseField(caseRecord, ["case_reference", "reference", "id"]);
+  const intro = document.createElement("p");
+  intro.className = "people-profile-context-summary";
+  intro.textContent = reference
+    ? "Privacy case " + reference + " opened from confirmed People Profile context."
+    : "Privacy case details opened from confirmed People Profile context.";
+  container.appendChild(intro);
+
+  container.appendChild(detailList([
+    ["Case reference", reference],
+    ["Case type", peopleProfilePrivacyCaseField(caseRecord, ["case_type", "request_type", "type"])],
+    ["Status", peopleProfilePrivacyCaseField(caseRecord, ["case_status", "status", "workflow_status"])],
+    ["Subject", peopleProfilePrivacyCaseField(caseRecord, ["subject_name", "data_subject_name", "requester_name"])],
+    ["Subject email", peopleProfilePrivacyCaseField(caseRecord, ["subject_email", "email", "requester_email"])],
+    ["Received", peopleProfilePrivacyCaseField(caseRecord, ["received_at", "request_received_at", "request_received_date", "created_at"])],
+    ["Due", peopleProfilePrivacyCaseField(caseRecord, ["due_at", "due_date"])],
+    ["Closed", peopleProfilePrivacyCaseField(caseRecord, ["closed_at", "closed_date", "completed_at", "completed_date"])],
+    ["Notes / reason", peopleProfilePrivacyCaseField(caseRecord, ["notes", "reason", "outcome_summary"])],
+    ["Technical case id", caseRecord && caseRecord.id]
+  ]));
+
+  const sourceFields = detailList([
+    ["Linked source label", sourceRecord && sourceRecord.linked_source_label],
+    ["Linked context", sourceRecord && (sourceRecord.link_context_label || sourceRecord.canonical_label || sourceRecord.link_reference)],
+    ["Summary case reference", sourceSummary.case_reference || sourceSummary.reference],
+    ["Summary subject", sourceSummary.subject_summary || sourceSummary.subject_name || sourceSummary.person_display_name || sourceSummary.display_name],
+    ["Summary status", sourceSummary.case_status || sourceSummary.status || sourceSummary.workflow_status],
+    ["Summary received", sourceSummary.received_at || sourceSummary.request_received_at || sourceSummary.request_received_date || sourceSummary.created_at]
+  ]);
+  if (sourceFields.childElementCount) {
+    const sourceIntro = document.createElement("p");
+    sourceIntro.className = "people-profile-context-summary";
+    sourceIntro.textContent = "Confirmed identity-linked source context.";
+    container.append(sourceIntro, sourceFields);
+  }
+
+  const actions = document.createElement("div");
+  actions.className = "people-profile-record-actions";
+  const close = document.createElement("button");
+  close.type = "button";
+  close.className = "secondary";
+  close.textContent = "Close";
+  close.addEventListener("click", closeProfileContextPanel);
+  actions.appendChild(close);
+  const openModule = document.createElement("button");
+  openModule.type = "button";
+  openModule.className = "secondary";
+  openModule.textContent = "Open Privacy Module";
+  openModule.addEventListener("click", event => {
+    event.preventDefault();
+    event.stopPropagation();
+    void openPrivacyModuleFromProfileCaseId(caseRecord && caseRecord.id, event.currentTarget);
+  });
+  actions.appendChild(openModule);
+  container.appendChild(actions);
+
+  return container;
+}
+
+async function openPeopleProfilePrivacyCaseDetail(caseId, sourceRecord, trigger) {
+  const id = String(caseId || "").trim();
+  try {
+    if (!id) {
+      showToast("Privacy case could not be opened", "The case id was missing.", "error");
+      return;
+    }
+    const loading = createWorkspaceEmpty("Loading privacy case", "Opening the privacy case detail from People Profile context.");
+    openProfileContextPanel({
+      eyebrow: "Privacy case",
+      title: "Privacy Case Details",
+      content: loading
+    });
+    const caseRecord = await loadPeopleProfilePrivacyCaseRecord(id);
+    if (!caseRecord) {
+      showToast(
+        "Privacy case could not be opened",
+        "Privacy case could not be found or you do not have permission to view it.",
+        "error"
+      );
+      openProfileContextPanel({
+        eyebrow: "Privacy case",
+        title: "Privacy Case Details",
+        content: createWorkspaceEmpty(
+          "Privacy case unavailable",
+          "Privacy case could not be found or you do not have permission to view it."
+        )
+      });
+      return;
+    }
+    openProfileContextPanel({
+      eyebrow: "Privacy case",
+      title: peopleProfilePrivacyCaseField(caseRecord, ["case_reference", "reference"]) || "Privacy Case Details",
+      content: createPeopleProfilePrivacyCaseDetailContent(caseRecord, sourceRecord)
+    });
+  } catch (error) {
+    console.error("People Profile privacy case detail failed.", error);
+    showToast(
+      "Privacy case could not be displayed",
+      error && error.message ? error.message : "The case detail could not be displayed.",
+      "error"
+    );
+  }
+}
+
+async function openPrivacyModuleFromProfileCaseId(caseId, trigger) {
+  const id = String(caseId || "").trim();
+  if (!id) {
+    showToast("Privacy case could not be opened", "The case id was missing.", "error");
+    return;
+  }
+  if (typeof openPrivacyCaseRecordById !== "function") {
+    showToast("Privacy case could not be opened", "The Privacy module opener is unavailable.", "error");
+    return;
+  }
+  const personId = profileState.person && profileState.person.id;
+  try {
+    closeProfileContextPanel();
+    closePeopleProfileWorkspace();
+    await openPrivacyCaseRecordById(id, trigger, {
+      returnContext: {
+        returnTo: "peopleProfile",
+        personId,
+        activeSection: "privacy"
+      }
+    });
+  } catch (error) {
+    showToast(
+      "Privacy case could not be opened",
+      error && error.message ? error.message : "The Privacy module could not open this case.",
+      "error"
+    );
+  }
+}
+
+function privacyCaseSummaryValue(record, keys) {
+  const summary = summaryObject(record && record.linked_source_summary);
+  for (const key of keys) {
+    const value = summary[key] || record && record[key];
+    if (String(value || "").trim()) return value;
+  }
+  return "";
+}
+
+function privacyCaseTitle(record) {
+  return privacyCaseSummaryValue(record, [
+    "case_reference",
+    "reference",
+    "case_number",
+    "request_reference",
+    "title"
+  ]) || record.linked_source_label || "Privacy case";
+}
+
+function privacyCaseMetaLine(record) {
+  return [
+    privacyCaseSummaryValue(record, ["case_type", "request_type", "type"]),
+    privacyCaseSummaryValue(record, ["status", "case_status", "workflow_status"]),
+    privacyCaseSummaryValue(record, ["request_received_date", "received_at", "request_date", "created_at"]),
+    privacyCaseSummaryValue(record, ["subject_summary", "subject_name", "person_display_name", "display_name"])
+  ].filter(Boolean).map(textOrDash).join(" | ") || "Confirmed identity-linked privacy case.";
+}
+
+function renderPrivacyCaseRows(content, rows) {
+  if (!rows.length) {
+    content.appendChild(createWorkspaceEmpty(
+      "No confirmed privacy cases",
+      "No privacy/SAR case context is linked to this person by confirmed identity metadata."
+    ));
+    return;
+  }
+
+  const list = document.createElement("div");
+  list.className = "people-profile-record-list";
+  rows.slice(0, 8).forEach(record => {
+    const caseId = privacyCaseIdFromLinkedRecord(record);
+    const article = document.createElement("article");
+    article.className = "people-profile-record";
+
+    const heading = document.createElement("div");
+    heading.className = "people-profile-record-heading";
+    const title = document.createElement("strong");
+    title.textContent = privacyCaseTitle(record);
+    heading.append(
+      title,
+      createMetaChip(privacyCaseSummaryValue(record, ["case_type", "request_type", "type"]) || "Privacy case"),
+      createMetaChip(privacyCaseSummaryValue(record, ["status", "case_status", "workflow_status"]) || "Linked")
+    );
+
+    const meta = document.createElement("p");
+    meta.textContent = privacyCaseMetaLine(record);
+    article.append(heading, meta);
+    article.appendChild(detailList([
+      ["Case reference", privacyCaseSummaryValue(record, ["case_reference", "reference", "case_number", "request_reference"])],
+      ["Case type", privacyCaseSummaryValue(record, ["case_type", "request_type", "type"])],
+      ["Status", privacyCaseSummaryValue(record, ["status", "case_status", "workflow_status"])],
+      ["Received", privacyCaseSummaryValue(record, ["request_received_date", "received_at", "request_date", "created_at"])],
+      ["Subject summary", privacyCaseSummaryValue(record, ["subject_summary", "subject_name", "person_display_name", "display_name"])],
+      ["Linked context", record.link_context_label || record.linked_source_label || record.canonical_label || record.link_reference]
+    ]));
+
+    const actions = document.createElement("div");
+    actions.className = "people-profile-record-actions";
+    const open = document.createElement("button");
+    open.type = "button";
+    open.className = "people-profile-privacy-case-action";
+    open.dataset.action = "open-people-profile-privacy-case";
+    open.dataset.caseId = caseId;
+    open.textContent = "View Case Details";
+    open.addEventListener("click", async event => {
+      event.preventDefault();
+      event.stopPropagation();
+      const button = event.currentTarget;
+      const resolvedCaseId = privacyCaseIdFromLinkedRecord(record);
+      button.dataset.caseId = resolvedCaseId;
+      const originalText = button.textContent;
+      button.textContent = "Opening...";
+      button.disabled = true;
+      try {
+        await openPeopleProfilePrivacyCaseDetail(resolvedCaseId, record, button);
+      } finally {
+        button.textContent = originalText;
+        button.disabled = false;
+      }
+    });
+    actions.appendChild(open);
+
+    const module = document.createElement("button");
+    module.type = "button";
+    module.className = "secondary";
+    module.textContent = "Open Privacy Module";
+    module.addEventListener("click", event => {
+      event.preventDefault();
+      event.stopPropagation();
+      void openPrivacyModuleFromProfileCaseId(privacyCaseIdFromLinkedRecord(record), event.currentTarget);
+    });
+    actions.appendChild(module);
+
+    article.appendChild(actions);
+    list.appendChild(article);
+  });
+  content.appendChild(list);
+}
+
+function firstFieldValue(record, keys) {
+  const source = record || {};
+  for (const key of keys) {
+    const value = source[key];
+    if (value != null && String(value).trim()) return value;
+  }
+  return "";
+}
+
+function visitRecordDate(record) {
+  if (record.visit_date) return String(record.visit_date).slice(0, 10);
+  if (record.sign_in_time) return String(record.sign_in_time).slice(0, 10);
+  return "";
+}
+
+function visitRecordStatus(record) {
+  if (record.sign_out_time) return "signed_out";
+  if (record.sign_in_time) return record.visit_status || "signed_in";
+  const status = record.visit_status || record.status || "";
+  return status === "pending" ? "planned" : status;
+}
+
+function visitStatusLabel(status) {
+  const value = String(status || "").trim().toLowerCase();
+  if (value === "signed_in") return "Signed In";
+  if (value === "signed_out") return "Signed Out";
+  if (value === "planned" || value === "pending") return "Planned";
+  if (value === "no_show") return "No-show";
+  if (!value) return "";
+  return value.replace(/_/g, " ").replace(/\b\w/g, letter => letter.toUpperCase());
+}
+
+function visitOriginLabel(record) {
+  const origin = String(record.visit_origin || "").trim().toLowerCase();
+  if (origin === "walk_in") return "Walk-in";
+  if (origin === "planned") return "Planned";
+  if (record.planned_visit_id || record.visit_date) return "Planned";
+  if (record.sign_in_time) return "Walk-in";
+  return "";
+}
+
+function formatVisitTime(value) {
+  return value ? String(value).slice(0, 5) : "";
+}
+
+function formatDateTimeIfPresent(value) {
+  return value ? formatDateTime(value) : "";
+}
+
+function visitContextTitle(linkedRecord, visitRecord) {
+  return firstFieldValue(visitRecord, ["visitor_name", "subject_name", "display_name"]) ||
+    linkedRecord.linked_source_label ||
+    "Visit details";
+}
+
+function createVisitContextContent(linkedRecord, visitRecord, settings = {}) {
+  const summary = summaryObject(linkedRecord.linked_source_summary);
+  const data = { ...summary, ...(visitRecord || {}) };
+  const loaded = settings.loaded === true;
+  const container = document.createElement("div");
+  container.className = "people-profile-context-stack";
+
+  const intro = document.createElement("p");
+  intro.className = "people-profile-context-summary";
+  intro.textContent = loaded
+    ? "Full visitor history details loaded from the confirmed identity-linked source record."
+    : "Confirmed identity-linked source record. Full visitor history details could not be loaded, so the safe link summary is shown.";
+  container.appendChild(intro);
+
+  if (settings.warning) {
+    const warning = document.createElement("p");
+    warning.className = "people-profile-context-summary";
+    warning.textContent = settings.warning;
+    container.appendChild(warning);
+  }
+
+  container.appendChild(detailList([
+    ["Visitor", firstFieldValue(data, ["visitor_name", "subject_name", "person_display_name", "display_name"])],
+    ["Company", firstFieldValue(data, ["company", "subject_company"])],
+    ["Host / onsite contact", firstFieldValue(data, ["onsite_contact", "host_name", "host_display_name", "host_id"])],
+    ["Visit date", firstFieldValue(data, ["visit_date"]) || visitRecordDate(data)],
+    ["Expected time", formatVisitTime(firstFieldValue(data, ["expected_time", "expected_arrival_time"]))],
+    ["Sign-in time", formatDateTimeIfPresent(firstFieldValue(data, ["sign_in_time", "signed_in_at"]))],
+    ["Sign-out time", formatDateTimeIfPresent(firstFieldValue(data, ["sign_out_time", "signed_out_at"]))],
+    ["Current status", visitStatusLabel(visitRecordStatus(data)) || firstFieldValue(data, ["status", "visit_status"])],
+    ["Origin", visitOriginLabel(data) || firstFieldValue(data, ["visit_origin", "origin"])],
+    ["Reason / notes", firstFieldValue(data, ["visit_reason", "notes", "comments", "reason"])],
+    ["Vehicle registration", firstFieldValue(data, ["vehicle_plate", "vehicle_registration", "vehicle_reg"])],
+    ["Security pass ID", firstFieldValue(data, ["security_pass_id", "pass_id", "badge_number"])],
+    ["Privacy notice accepted", data.privacy_notice_accepted_at
+      ? formatDateTime(data.privacy_notice_accepted_at) + (data.privacy_notice_version ? " (" + data.privacy_notice_version + ")" : "")
+      : ""],
+    ["Automatic sign-out", data.signed_out_automatically
+      ? "Yes" + (data.automatic_sign_out_reason ? " - " + data.automatic_sign_out_reason : "")
+      : ""],
+    ["Document / agreement", firstFieldValue(data, ["agreement_name", "agreement_title", "document", "evidence_document_title"])],
+    ["Signed document at", formatDateTimeIfPresent(firstFieldValue(data, ["signed_at", "accepted_at"]))],
+    ["Created by", firstFieldValue(data, ["created_by"])],
+    ["Modified by", firstFieldValue(data, ["modified_by"])],
+    ["Created", formatDateTimeIfPresent(firstFieldValue(data, ["created_at"]))],
+    ["Updated", formatDateTimeIfPresent(firstFieldValue(data, ["modified_at", "updated_at"]))],
+    ["Confirmed identity", linkedRecord.canonical_label || linkedRecord.link_reference]
+  ]));
+
+  container.appendChild(detailList([
+    ["Source", friendlyIdentitySourceType(linkedRecord.linked_source_type)],
+    ["Source label", linkedRecord.linked_source_label],
+    ["Source record ID", linkedRecord.linked_source_record_id || data.id],
+    ["Planned visit ID", firstFieldValue(data, ["planned_visit_id"])],
+    ["History record type", firstFieldValue(data, ["history_record_type"])]
+  ]));
+
+  return container;
+}
+
+async function loadVisitRecordForContext(linkedRecord) {
+  const sourceType = normaliseSourceType(linkedRecord.linked_source_type);
+  const sourceRecordId = String(linkedRecord.linked_source_record_id || "").trim();
+  if (!sourceRecordId) return null;
+
+  if (sourceType === "visit_log") {
+    const logResult = await supabaseClient
+      .from("visit_log")
+      .select(VISIT_LOG_DETAIL_COLUMNS)
+      .eq("id", sourceRecordId)
+      .maybeSingle();
+    if (logResult.error) throw logResult.error;
+    if (!logResult.data) return null;
+
+    let record = {
+      ...logResult.data,
+      visit_date: visitRecordDate(logResult.data),
+      history_record_type: "visit_log"
+    };
+    if (record.planned_visit_id) {
+      const plannedResult = await supabaseClient
+        .from("planned_visits")
+        .select(PLANNED_VISIT_DETAIL_COLUMNS)
+        .eq("id", record.planned_visit_id)
+        .maybeSingle();
+      if (!plannedResult.error && plannedResult.data) {
+        record = {
+          ...plannedResult.data,
+          ...record,
+          visit_date: plannedResult.data.visit_date || record.visit_date,
+          expected_time: plannedResult.data.expected_time || record.expected_time,
+          notes: plannedResult.data.notes || record.notes,
+          history_record_type: "visit_log"
+        };
+      }
+    }
+    return record;
+  }
+
+  if (sourceType === "planned_visits") {
+    const plannedResult = await supabaseClient
+      .from("planned_visits")
+      .select(PLANNED_VISIT_DETAIL_COLUMNS)
+      .eq("id", sourceRecordId)
+      .maybeSingle();
+    if (plannedResult.error) throw plannedResult.error;
+    return plannedResult.data
+      ? {
+        ...plannedResult.data,
+        planned_visit_id: plannedResult.data.id,
+        visit_origin: "planned",
+        history_record_type: "planned_visit"
+      }
+      : null;
+  }
+
+  return null;
+}
+
+async function openVisitRecordInContext(record) {
+  const sourceType = normaliseSourceType(record.linked_source_type);
+  if (sourceType !== "visit_log" && sourceType !== "planned_visits") {
+    openLinkedRecordInContext(record);
+    return;
+  }
+
+  openProfileContextPanel({
+    eyebrow: friendlyIdentitySourceType(record.linked_source_type),
+    title: record.linked_source_label || "Visit details",
+    content: createWorkspaceEmpty("Loading visit details", "Opening the confirmed visitor history source record.")
+  });
+
+  try {
+    const visitRecord = await loadVisitRecordForContext(record);
+    openProfileContextPanel({
+      eyebrow: friendlyIdentitySourceType(record.linked_source_type),
+      title: visitContextTitle(record, visitRecord || summaryObject(record.linked_source_summary)),
+      content: createVisitContextContent(record, visitRecord, { loaded: Boolean(visitRecord) })
+    });
+    if (!visitRecord) {
+      showToast("Visit details limited", "The linked visit source record could not be found under current permissions.", "error");
+    }
+  } catch (error) {
+    showToast(
+      "Visit details limited",
+      error && error.message ? error.message : "The linked visit source record could not be loaded.",
+      "error"
+    );
+    openProfileContextPanel({
+      eyebrow: friendlyIdentitySourceType(record.linked_source_type),
+      title: record.linked_source_label || "Visit details",
+      content: createVisitContextContent(record, null, {
+        loaded: false,
+        warning: "The full source record could not be loaded under current permissions."
+      })
+    });
+  }
+}
+
+function openLinkedRecordInContext(record) {
+  const summary = summaryObject(record.linked_source_summary);
+  const container = document.createElement("div");
+  container.className = "people-profile-context-stack";
+  const intro = document.createElement("p");
+  intro.className = "people-profile-context-summary";
+  intro.textContent = sourceSummaryLine(record) || "Confirmed identity-linked source record.";
+  container.appendChild(intro);
+  container.appendChild(detailList([
+    ["Source", friendlyIdentitySourceType(record.linked_source_type)],
+    ["Label", record.linked_source_label],
+    ["Visitor / subject", summary.visitor_name || summary.subject_name || summary.display_name],
+    ["Company", summary.company || summary.subject_company],
+    ["Date", summary.visit_date || summary.sign_in_time || summary.signed_at || summary.request_received_date],
+    ["Status", summary.status || summary.visit_status || summary.case_type],
+    ["Confirmed identity", record.canonical_label || record.link_reference]
+  ]));
+  openProfileContextPanel({
+    eyebrow: friendlyIdentitySourceType(record.linked_source_type),
+    title: record.linked_source_label || "Linked source details",
+    content: container
+  });
+}
+
+function openLinkedRecordModule(record) {
+  closePeopleProfileWorkspace();
+  window.dispatchEvent(new CustomEvent("oh:linked-source-record-requested", {
+    detail: {
+      sourceType: record.linked_source_type,
+      sourceRecordId: record.linked_source_record_id
+    }
+  }));
+}
+
+function moduleActionLabel(sourceType) {
+  const type = normaliseSourceType(sourceType);
+  if (type === "visit_log") return "Open Visitor History Module";
+  if (type === "planned_visits") return "Open Planned Visits Module";
+  if (type === "privacy_cases") return "Open Privacy Module";
+  if (type === "document_evidence" || type === "agreement_evidence") return "Open Document Sign-off Module";
+  return "Open Full Module";
+}
+
+function renderLinkedRows(content, rows, emptyTitle, emptyDescription, options = {}) {
   if (!rows.length) {
     content.appendChild(createWorkspaceEmpty(emptyTitle, emptyDescription));
     return;
@@ -975,25 +1647,34 @@ function renderLinkedRows(content, rows, emptyTitle, emptyDescription) {
     actions.className = "people-profile-record-actions";
     const open = document.createElement("button");
     open.type = "button";
-    open.className = "secondary";
-    open.textContent = "Open Source";
-    open.addEventListener("click", () => {
-      closePeopleProfileWorkspace();
-      window.dispatchEvent(new CustomEvent("oh:linked-source-record-requested", {
-        detail: {
-          sourceType: record.linked_source_type,
-          sourceRecordId: record.linked_source_record_id
-        }
-      }));
+    open.textContent = options.primaryLabel || "View Details";
+    if (typeof options.decoratePrimaryButton === "function") {
+      options.decoratePrimaryButton(open, record);
+    }
+    open.addEventListener("click", event => {
+      if (options.primaryActionStopsPropagation) event.stopPropagation();
+      if (typeof options.primaryAction === "function") {
+        options.primaryAction(record, event.currentTarget);
+      } else {
+        openLinkedRecordInContext(record);
+      }
     });
     actions.appendChild(open);
+    if (options.showModuleAction !== false) {
+      const module = document.createElement("button");
+      module.type = "button";
+      module.className = "secondary";
+      module.textContent = options.moduleLabel || moduleActionLabel(record.linked_source_type);
+      module.addEventListener("click", () => openLinkedRecordModule(record));
+      actions.appendChild(module);
+    }
     item.appendChild(actions);
     list.appendChild(item);
   });
   content.appendChild(list);
 }
 
-async function renderLinkedSection(content, contextKey, sourceTypes, emptyTitle, emptyDescription) {
+async function renderLinkedSection(content, contextKey, sourceTypes, emptyTitle, emptyDescription, options = {}) {
   if (!canViewLinkedIdentityContext()) {
     content.appendChild(createWorkspaceEmpty(
       "Confirmed identity context unavailable",
@@ -1007,7 +1688,7 @@ async function renderLinkedSection(content, contextKey, sourceTypes, emptyTitle,
   try {
     const rows = await loadLinkedContext(contextKey, sourceTypes);
     content.replaceChildren();
-    renderLinkedRows(content, rows, emptyTitle, emptyDescription);
+    renderLinkedRows(content, rows, emptyTitle, emptyDescription, options);
   } catch (error) {
     showToast("Linked context unavailable", error.message || "Could not load confirmed identity links.", "error");
     content.replaceChildren(createWorkspaceEmpty(
@@ -1058,9 +1739,16 @@ async function renderDocuments(content) {
         actions.className = "people-profile-record-actions";
         const open = document.createElement("button");
         open.type = "button";
-        open.className = "secondary";
         open.textContent = "Open Evidence";
-        open.addEventListener("click", () => {
+        open.addEventListener("click", event => {
+          void openDocumentEvidenceInContext(item, event.currentTarget);
+        });
+        actions.appendChild(open);
+        const module = document.createElement("button");
+        module.type = "button";
+        module.className = "secondary";
+        module.textContent = "Open Document Sign-off Module";
+        module.addEventListener("click", () => {
           closePeopleProfileWorkspace();
           window.dispatchEvent(new CustomEvent("oh:linked-source-record-requested", {
             detail: {
@@ -1069,7 +1757,7 @@ async function renderDocuments(content) {
             }
           }));
         });
-        actions.appendChild(open);
+        actions.appendChild(module);
         article.appendChild(actions);
       }
 
@@ -1082,6 +1770,15 @@ async function renderDocuments(content) {
       "Document evidence unavailable",
       "Linked document evidence could not be loaded under current permissions."
     ));
+  }
+}
+
+async function openDocumentEvidenceInContext(item, trigger) {
+  if (!item || !item.sourceRecordId) return;
+  try {
+    await openDocumentSignoffEvidenceById(item.sourceRecordId, trigger);
+  } catch (error) {
+    showToast("Evidence unavailable", error.message || "Could not open document evidence.", "error");
   }
 }
 
@@ -1105,13 +1802,27 @@ function renderIdentity(content) {
 }
 
 async function renderPrivacy(content) {
-  await renderLinkedSection(
-    content,
-    "privacy",
-    ["privacy_cases", "privacy_case"],
-    "No confirmed privacy cases",
-    "No privacy/SAR case context is linked to this person by confirmed identity metadata."
-  );
+  if (!canViewLinkedIdentityContext()) {
+    content.appendChild(createWorkspaceEmpty(
+      "Confirmed identity context unavailable",
+      "This section only uses confirmed identity links and is hidden by current identity permissions."
+    ));
+    return;
+  }
+
+  const loading = createWorkspaceEmpty("Loading privacy cases", "Checking reviewed identity-linked privacy case context.");
+  content.appendChild(loading);
+  try {
+    const rows = await loadLinkedContext("privacy", ["privacy_cases", "privacy_case"]);
+    content.replaceChildren();
+    renderPrivacyCaseRows(content, rows);
+  } catch (error) {
+    showToast("Privacy cases unavailable", error.message || "Could not load confirmed privacy case links.", "error");
+    content.replaceChildren(createWorkspaceEmpty(
+      "Privacy cases unavailable",
+      "Confirmed privacy case context could not be loaded under current permissions."
+    ));
+  }
 }
 
 async function renderActiveSection() {
@@ -1129,7 +1840,13 @@ async function renderActiveSection() {
       "visits",
       ["visit_log", "visitor_history", "planned_visits", "planned_visit"],
       "No confirmed visits",
-      "No visitor records are linked to this person by confirmed identity metadata."
+      "No visitor records are linked to this person by confirmed identity metadata.",
+      {
+        primaryLabel: "View Details",
+        primaryAction(record) {
+          void openVisitRecordInContext(record);
+        }
+      }
     );
   } else if (profileState.activeSection === "documents") {
     await renderDocuments(content);
@@ -1261,6 +1978,16 @@ export function closePeopleProfileWorkspace() {
 }
 
 document.addEventListener("keydown", event => {
+  const contextPanel = document.getElementById("peopleProfileContextPanelBackdrop");
+  if (
+    event.key === "Escape" &&
+    contextPanel &&
+    !contextPanel.classList.contains("hidden")
+  ) {
+    event.preventDefault();
+    closeProfileContextPanel();
+    return;
+  }
   if (event.key !== "Escape" || !profileState.open) return;
   const modal = document.querySelector(".modal-backdrop.active, .visitors-panel-backdrop:not(.hidden)");
   if (modal) return;

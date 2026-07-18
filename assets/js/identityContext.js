@@ -59,6 +59,15 @@ function textOrDash(value) {
   return text || "-";
 }
 
+function firstSourceValue(source, keys) {
+  const record = source || {};
+  for (const key of keys || []) {
+    const value = record[key];
+    if (String(value == null ? "" : value).trim()) return value;
+  }
+  return null;
+}
+
 function formatDate(value) {
   if (!value) return "-";
   const date = new Date(value);
@@ -459,19 +468,20 @@ async function lookupSourceRecordSummary(sourceType, sourceRecordId) {
     if (type === "privacy_cases") {
       const result = await supabaseClient
         .from("privacy_cases")
-        .select("id, case_reference, case_type, status, subject_name, subject_company, subject_reference, search_text, request_received_date")
+        .select("*")
         .eq("id", id)
         .maybeSingle();
-      if (result.error || !result.data) return null;
+      if (result.error) throw result.error;
+      if (!result.data) return null;
       return {
-        case_reference: result.data.case_reference || null,
-        case_type: result.data.case_type || null,
-        status: result.data.status || null,
-        subject_name: result.data.subject_name || null,
-        company: result.data.subject_company || null,
-        subject_reference: result.data.subject_reference || null,
-        search_text: result.data.search_text || null,
-        request_received_date: result.data.request_received_date || null
+        case_reference: firstSourceValue(result.data, ["case_reference", "reference", "id"]),
+        case_type: firstSourceValue(result.data, ["case_type", "request_type", "type"]),
+        status: firstSourceValue(result.data, ["case_status", "status", "workflow_status"]),
+        subject_name: firstSourceValue(result.data, ["subject_name", "data_subject_name", "requester_name"]),
+        company: firstSourceValue(result.data, ["subject_company", "data_subject_company", "company", "requester_company"]),
+        subject_reference: firstSourceValue(result.data, ["subject_reference", "data_subject_reference", "external_reference", "reference"]),
+        search_text: firstSourceValue(result.data, ["search_text", "subject_search_text", "requester_contact", "subject_summary"]),
+        request_received_date: firstSourceValue(result.data, ["request_received_date", "request_received_at", "received_at", "created_at"])
       };
     }
 

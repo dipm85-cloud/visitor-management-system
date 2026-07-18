@@ -1426,6 +1426,28 @@ async function openMonthlyPrintOverlay() {
   overlay.focus({ preventScroll: true });
 }
 
+export async function openPersonMonthlyRotaPrint(personId) {
+  const selectedPersonId = String(personId || "").trim();
+  if (!selectedPersonId) {
+    showToast("Person required", "Open a person profile before printing a monthly rota.", "error");
+    return;
+  }
+  await openMonthlyPrintOverlay();
+  if ($("personMonthlyRotaPersonSearch")) $("personMonthlyRotaPersonSearch").value = "";
+  if ($("personMonthlyRotaMonth")) $("personMonthlyRotaMonth").value = currentMonthValue();
+  renderMonthlyPrintPeopleOptions();
+  if ($("personMonthlyRotaPersonSelect")) {
+    $("personMonthlyRotaPersonSelect").value = selectedPersonId;
+  }
+  monthlyPrintState.lastPreview = null;
+  if ($("personMonthlyRotaPrintButton")) $("personMonthlyRotaPrintButton").disabled = true;
+  if ($("personMonthlyRotaPrintStatus")) {
+    const person = calendarState.people.find(item => item.id === selectedPersonId);
+    $("personMonthlyRotaPrintStatus").textContent = (person ? person.display_name : "Selected person") +
+      " is selected. Preview the current month before printing.";
+  }
+}
+
 function closeMonthlyPrintOverlay() {
   const overlay = $("personMonthlyRotaPrintOverlay");
   if (overlay) overlay.classList.add("hidden");

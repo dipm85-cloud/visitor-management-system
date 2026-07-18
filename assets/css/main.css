@@ -10658,6 +10658,11 @@ body.people-profile-workspace-open .visitors-panel-backdrop:not(.hidden) {
   z-index: 2147482400;
 }
 
+body.people-profile-workspace-open .monthly-rota-print-overlay:not(.hidden),
+body.people-profile-workspace-open .modal-backdrop.priority-modal.active {
+  z-index: 2147482500;
+}
+
 .people-profile-shell {
   display: flex;
   flex: 1 1 auto;
@@ -10793,6 +10798,105 @@ body.people-profile-workspace-open .visitors-panel-backdrop:not(.hidden) {
   overflow: auto;
   background: #ffffff;
   overscroll-behavior: contain;
+}
+
+.people-profile-context-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2147482450;
+  display: flex;
+  justify-content: flex-end;
+  padding: 10px;
+  background: rgba(15, 23, 42, .38);
+}
+
+.people-profile-context-backdrop.hidden {
+  display: none !important;
+}
+
+body.people-profile-context-open {
+  overflow: hidden !important;
+}
+
+.people-profile-context-panel {
+  display: flex;
+  flex-direction: column;
+  width: min(560px, 100%);
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--oh-shell-border, #d0d7de);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 24px 60px rgba(16, 24, 40, .24);
+}
+
+.people-profile-context-header {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--oh-shell-border, #d0d7de);
+  background: #f8fafc;
+}
+
+.people-profile-context-header h3 {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.people-profile-context-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 14px;
+  overflow: auto;
+}
+
+.people-profile-context-stack {
+  display: grid;
+  gap: 12px;
+}
+
+.people-profile-context-summary {
+  margin: 0;
+  padding: 12px;
+  border: 1px solid #e4e7ec;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #344054;
+  line-height: 1.45;
+}
+
+.people-profile-context-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.people-profile-context-list > div {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid #e4e7ec;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.people-profile-context-list dt {
+  color: #667085;
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.people-profile-context-list dd {
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
+  color: #101828;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.35;
 }
 
 .people-profile-summary-grid {
