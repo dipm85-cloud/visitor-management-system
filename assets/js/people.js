@@ -18,6 +18,7 @@ import {
   normaliseEmail,
   titleCaseText
 } from "./utils.js";
+import { openPeopleProfileWorkspace } from "./peopleProfile.js";
 
 const PERSON_COLUMNS = [
   "id",
@@ -189,12 +190,22 @@ export function renderPeopleList() {
     const viewButton = document.createElement("button");
     viewButton.className = "ghost";
     viewButton.type = "button";
-    viewButton.textContent = "View Record";
-    viewButton.setAttribute("aria-label", "View record for " + person.display_name);
+    viewButton.textContent = "Open Profile";
+    viewButton.setAttribute("aria-label", "Open profile workspace for " + person.display_name);
     viewButton.addEventListener("click", () => {
-      openPeopleDetailPanel(person.id);
+      openPeopleProfileWorkspace(person.id, person);
     });
     actionCell.appendChild(viewButton);
+
+    const recordButton = document.createElement("button");
+    recordButton.className = "ghost";
+    recordButton.type = "button";
+    recordButton.textContent = "View Record";
+    recordButton.setAttribute("aria-label", "View record for " + person.display_name);
+    recordButton.addEventListener("click", () => {
+      openPeopleDetailPanel(person.id);
+    });
+    actionCell.appendChild(recordButton);
 
     const assignmentsButton = document.createElement("button");
     assignmentsButton.className = "ghost";

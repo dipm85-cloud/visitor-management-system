@@ -133,6 +133,7 @@ let selectedPersonId = null;
 let selectedPersonName = "";
 let selectedPersonReference = "";
 let assignmentsLoadedSuccessfully = false;
+let assignmentReturnContext = null;
 let assignmentEditorTrigger = null;
 let assignmentEndTrigger = null;
 let assignmentPendingEnd = null;
@@ -525,10 +526,15 @@ function ensureAssignmentPanelRoot() {
 function openAssignmentWorkspace() {
   const section = ensureAssignmentWorkspaceRoot();
   if (!section) return;
+  const closeButton = $("assignmentWorkspaceCloseButton");
+  if (closeButton) {
+    closeButton.textContent = assignmentReturnContext && assignmentReturnContext.returnTo === "peopleProfile"
+      ? "Back to Profile"
+      : "Back to People";
+  }
   section.classList.remove("hidden");
   document.body.classList.add("assignment-workspace-open");
   setTimeout(() => {
-    const closeButton = $("assignmentWorkspaceCloseButton");
     if (closeButton) closeButton.focus({ preventScroll: true });
   }, 0);
 }
@@ -538,6 +544,15 @@ export function closeAssignmentWorkspace() {
   if (section) section.classList.add("hidden");
   document.body.classList.remove("assignment-workspace-open");
   closeAssignmentEditor();
+  const returnContext = assignmentReturnContext;
+  assignmentReturnContext = null;
+  const closeButton = $("assignmentWorkspaceCloseButton");
+  if (closeButton) closeButton.textContent = "Back to People";
+  if (returnContext && returnContext.returnTo === "peopleProfile" && returnContext.personId) {
+    window.dispatchEvent(new CustomEvent("oh:people-profile-return-requested", {
+      detail: returnContext
+    }));
+  }
 }
 
 function handleAssignmentWorkspaceKeydown(event) {
@@ -612,12 +627,13 @@ export function confirmAssignmentConflictOverride() {
   closeAssignmentOverrideDialog(reason);
 }
 
-export async function selectPersonForAssignments(personId, displayName, externalPersonNumber) {
+export async function selectPersonForAssignments(personId, displayName, externalPersonNumber, options = {}) {
   if (!requireAssignmentViewAccess()) return;
 
   selectedPersonId = personId;
   selectedPersonName = displayName || "Selected person";
   selectedPersonReference = externalPersonNumber || "";
+  assignmentReturnContext = options.returnContext ? { ...options.returnContext } : null;
   assignmentsLoadedSuccessfully = false;
   $("personAssignmentsName").textContent = selectedPersonName +
     (selectedPersonReference ? " | " + selectedPersonReference : "");

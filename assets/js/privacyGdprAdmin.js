@@ -115,6 +115,51 @@ let privacyGdprAnonymisationHasPreview = false;
 let privacyGdprAnonymisationSequence = 0;
 let privacyGdprAnonymisationReviewPayload = null;
 
+function ensurePrivacyGdprSearchDetailsPanelController() {
+  if (privacyGdprSearchDetailsPanelController) return privacyGdprSearchDetailsPanelController;
+  const backdrop = $("privacyGdprSearchDetailsPanelBackdrop");
+  if (backdrop && backdrop.parentElement !== document.body) document.body.appendChild(backdrop);
+  if (!$("privacyGdprSearchDetailsPanelBackdrop") || !$("privacyGdprSearchDetailsPanel")) return null;
+  privacyGdprSearchDetailsPanelController = createSidePanelController({
+    backdrop: "privacyGdprSearchDetailsPanelBackdrop",
+    panel: "privacyGdprSearchDetailsPanel",
+    title: "privacyGdprSearchDetailsTitle",
+    closeTriggers: [
+      "privacyGdprSearchDetailsClose",
+      "privacyGdprSearchDetailsCloseBottom"
+    ],
+    reset() {
+      const body = $("privacyGdprSearchDetailsBody");
+      if (body) body.replaceChildren();
+    }
+  });
+  return privacyGdprSearchDetailsPanelController;
+}
+
+function handlePrivacyDetailOpenError(error) {
+  console.warn("Privacy detail open failed.", error);
+  showToast(
+    "Case details unavailable",
+    error && error.message ? error.message : "The privacy detail view could not be opened.",
+    "error"
+  );
+}
+
+function openPrivacyCaseDetailsFromClick(caseRecord, event) {
+  if (event) event.preventDefault();
+  const trigger = event && event.currentTarget;
+  void openPrivacyCaseDetails(caseRecord, trigger).catch(handlePrivacyDetailOpenError);
+}
+
+function openSearchResultDetailsFromClick(record, event) {
+  if (event) event.preventDefault();
+  try {
+    openSearchResultDetails(record, event && event.currentTarget);
+  } catch (error) {
+    handlePrivacyDetailOpenError(error);
+  }
+}
+
 const SOURCE_SEARCH_CONFIG = {
   planned_visits: {
     sectionId: "planned-visits",
@@ -649,7 +694,7 @@ function createCaseRow(row) {
   detailButton.type = "button";
   detailButton.className = "secondary";
   detailButton.textContent = "View Details";
-  detailButton.addEventListener("click", event => openPrivacyCaseDetails(row, event.currentTarget));
+  detailButton.addEventListener("click", event => openPrivacyCaseDetailsFromClick(row, event));
   actions.appendChild(detailButton);
 
   item.append(heading, meta, actions);
@@ -912,7 +957,7 @@ function createCaseWorkspaceRow(row) {
   action.type = "button";
   action.className = "secondary";
   action.textContent = "View Details";
-  action.addEventListener("click", event => openPrivacyCaseDetails(row, event.currentTarget));
+  action.addEventListener("click", event => openPrivacyCaseDetailsFromClick(row, event));
   actions.append(action);
 
   item.append(primary, meta, actions);
@@ -1625,7 +1670,7 @@ function createResultGroupElement(group) {
     action.type = "button";
     action.className = "secondary";
     action.textContent = "View Details";
-    action.addEventListener("click", event => openSearchResultDetails(record, event.currentTarget));
+    action.addEventListener("click", event => openSearchResultDetailsFromClick(record, event));
 
     row.append(primary, source, date, action);
     list.appendChild(row);
@@ -2219,7 +2264,8 @@ function appendRuleDetailSection(parent, title, items) {
 }
 
 function openAnonymisationRuleDetails(rule, trigger) {
-  if (!privacyGdprSearchDetailsPanelController || !rule) return;
+  const controller = ensurePrivacyGdprSearchDetailsPanelController();
+  if (!controller || !rule) return;
   const title = $("privacyGdprSearchDetailsTitle");
   const eyebrow = $("privacyGdprSearchDetailsEyebrow");
   const body = $("privacyGdprSearchDetailsBody");
@@ -2243,7 +2289,7 @@ function openAnonymisationRuleDetails(rule, trigger) {
     appendRuleDetailSection(body, "Subject fields", rule.subjectFields);
     appendRuleDetailSection(body, "Retained fields", rule.retainedFields);
   }
-  privacyGdprSearchDetailsPanelController.open({ trigger });
+  controller.open({ trigger });
 }
 
 function openAnonymisationPreviewFromRules() {
@@ -3054,17 +3100,16 @@ function appendPrivacyCaseAdvancedDetails(parent, caseRecord) {
   details.className = "oh-detail-advanced identity-resolution-request-details identity-resolution-request-advanced";
   const summary = document.createElement("summary");
   summary.textContent = "Advanced / Technical Details";
-  const meta = document.createElement("dl");
-  meta.className = "identity-resolution-meta-grid";
-  [
+  const fields = [
     ["Case record ID", caseRecord.id],
     ["Legacy reference", caseLegacyReference(caseRecord)],
     ["Created", formatDate(caseCreatedDate(caseRecord))],
     ["Updated", formatDate(caseRecord.updated_at)]
-  ].filter(([, value]) => value != null && String(value).trim()).forEach(([label, value]) => {
-    meta.appendChild(recordField(label, value, true));
-  });
-  details.append(summary, meta);
+  ]
+    .filter(([, value]) => value != null && String(value).trim())
+    .map(([label, value]) => recordField(label, value, true));
+  details.appendChild(summary);
+  appendDetailsList(details, fields);
   if (caseRecord.id) {
     const copy = document.createElement("button");
     copy.type = "button";
@@ -3089,9 +3134,21 @@ async function openPrivacyCaseDetails(caseRecord, trigger) {
     showToast("Case details unavailable", "You do not have permission to view Privacy / Data Governance details.", "error");
     return;
   }
-  if (!privacyGdprSearchDetailsPanelController || !caseRecord) return;
-  renderPrivacyCaseDetailsPanel(caseRecord, null, false);
-  privacyGdprSearchDetailsPanelController.open({ trigger });
+  showAdministrationWorkspace();
+  setAdministrationSection("privacyGdpr");
+  const controller = ensurePrivacyGdprSearchDetailsPanelController();
+  if (!controller || !caseRecord) {
+    showToast("Case details unavailable", "The privacy case detail panel is not available.", "error");
+    return;
+  }
+  if (caseRecord.id) privacyGdprActiveCaseId = caseRecord.id;
+  try {
+    renderPrivacyCaseDetailsPanel(caseRecord, null, false);
+    controller.open({ trigger });
+  } catch (error) {
+    handlePrivacyDetailOpenError(error);
+    return;
+  }
   try {
     const notes = await loadPrivacyCaseTimeline(caseRecord);
     renderPrivacyCaseDetailsPanel(caseRecord, notes, false);
@@ -3133,7 +3190,10 @@ export async function openPrivacyCaseRecordById(caseId, trigger) {
 }
 
 function openSearchResultDetails(record, trigger) {
-  if (!privacyGdprSearchDetailsPanelController) return;
+  const controller = ensurePrivacyGdprSearchDetailsPanelController();
+  if (!controller) return;
+  showAdministrationWorkspace();
+  setAdministrationSection("privacyGdpr");
   const title = $("privacyGdprSearchDetailsTitle");
   const eyebrow = $("privacyGdprSearchDetailsEyebrow");
   const body = $("privacyGdprSearchDetailsBody");
@@ -3148,7 +3208,7 @@ function openSearchResultDetails(record, trigger) {
     appendDetailsList(body, record.fields || []);
     appendSearchResultIdentityReviewAction(body, record);
   }
-  privacyGdprSearchDetailsPanelController.open({ trigger });
+  controller.open({ trigger });
 }
 
 async function searchPrivacyDataSubject() {
