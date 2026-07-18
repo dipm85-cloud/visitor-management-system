@@ -41,6 +41,9 @@ const compatibilityCapabilitiesByRole = {
     "gdpr.manage",
     "privacy.view",
     "privacy.manage",
+    "online_users.view",
+    "admin_system_messages.send",
+    "admin_system_messages.view",
     "visitor.housekeeping.run",
     "devices.view",
     "devices.manage"

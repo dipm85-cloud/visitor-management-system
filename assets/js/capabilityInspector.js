@@ -46,6 +46,7 @@ function actionMetadataFromElement(element) {
   const actionId = data.capabilityAction || data.navAction || data.module || element.id || "";
   return {
     actionId: actionId || "unregistered.app_action",
+    registered: Boolean(data.capabilityAction || data.navAction || data.module),
     label: readableActionLabel(element, actionId),
     area: data.capabilityArea || inferActionArea(element),
     requiredAny: parseCapabilities(data.capabilityAny),
@@ -73,7 +74,7 @@ function evaluateCapabilities(metadata) {
   const all = metadata.requiredAll || [];
   const anyAllowed = any.length ? hasAnyCapability(any) : true;
   const allAllowed = all.length ? all.every(code => hasCapability(code)) : true;
-  const registered = any.length > 0 || all.length > 0;
+  const registered = metadata.registered || any.length > 0 || all.length > 0;
   return {
     registered,
     allowed: registered ? anyAllowed && allAllowed : false,
@@ -89,7 +90,11 @@ function sourceForCapability(code) {
 
 function capabilitySourceSummary(metadata) {
   const codes = [...metadata.requiredAny, ...metadata.requiredAll];
-  if (!codes.length) return "Source: metadata missing";
+  if (!codes.length) {
+    return metadata.registered
+      ? "Source: no capability gate declared"
+      : "Source: metadata missing";
+  }
   return codes.map(code => code + " = " + sourceForCapability(code)).join("; ");
 }
 
@@ -196,7 +201,7 @@ function inspectAction(element) {
   const required = [
     metadata.requiredAny.length ? "Any: " + metadata.requiredAny.join(" or ") : "",
     metadata.requiredAll.length ? "All: " + metadata.requiredAll.join(" and ") : ""
-  ].filter(Boolean).join("; ");
+  ].filter(Boolean).join("; ") || "No specific capability required";
 
   const body = evaluation.registered
     ? "Action: " + metadata.label +

@@ -291,6 +291,13 @@ import {
   resetCapabilityInspector,
   syncCapabilityInspectorUi
 } from "./capabilityInspector.js";
+import {
+  initialiseAdminPresence,
+  resetAdminPresence,
+  startAdminPresenceSession,
+  stopAdminPresenceSession,
+  syncAdminPresenceUi
+} from "./adminPresence.js";
 
 window.addEventListener("load", async function () {
   try {
@@ -456,6 +463,7 @@ window.addEventListener("load", async function () {
       getKioskToken
     });
     initialiseCapabilityInspector();
+    initialiseAdminPresence();
     configureMessages(appSettings);
     configurePrinting({
       appSettings,
@@ -608,6 +616,7 @@ window.addEventListener("load", async function () {
         syncVisitorHousekeepingControls();
         syncVisitorsWorkspaceCapabilities();
         syncCapabilityInspectorUi();
+        syncAdminPresenceUi();
       },
       shouldShowPeopleNavigation,
       enterKioskMode,
@@ -1083,6 +1092,7 @@ window.addEventListener("load", async function () {
         await verifyClient.auth.signOut();
       }
 
+      await stopAdminPresenceSession();
       await logoutStaff();
     }
 
@@ -5581,13 +5591,17 @@ window.addEventListener("load", async function () {
 
         if (event === "SIGNED_OUT") {
           resetCapabilityInspector();
+          resetAdminPresence();
           window.dispatchEvent(new CustomEvent("oh:session-signed-out"));
           await returnToEntryMode("auth:signed-out");
+        } else {
+          startAdminPresenceSession();
         }
       }, 0);
     });
 
     await getCurrentSessionAndProfile();
+    startAdminPresenceSession();
     const startupMode = await resolveStartupMode();
     recordFinalStartupRoute(startupMode);
     if (startupMode === "workspace") await enterWorkspaceMode("startup");
@@ -5598,6 +5612,7 @@ window.addEventListener("load", async function () {
     debugInfo.textContent = "Script loaded. Settings loaded.";
     if (startupMode !== "login") refreshCoreData();
     syncCapabilityInspectorUi();
+    syncAdminPresenceUi();
 
   } catch (err) {
     document.getElementById("message").textContent = "Page script error: " + err.message;

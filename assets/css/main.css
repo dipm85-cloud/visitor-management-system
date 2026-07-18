@@ -7986,6 +7986,142 @@ button.oh-section-nav-item:focus-visible,
   line-height: 1.45;
 }
 
+.admin-presence-heading,
+.admin-presence-card-heading,
+.admin-presence-actions {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.admin-presence-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.admin-presence-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(280px, .85fr);
+  gap: 16px;
+}
+
+.admin-presence-card {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--oh-shell-border);
+  border-radius: 8px;
+  background: var(--oh-shell-surface);
+}
+
+.admin-presence-card h4,
+.admin-presence-card p {
+  margin: 0;
+}
+
+.admin-presence-card p,
+.admin-presence-message-target,
+.admin-system-message-sender {
+  color: var(--oh-shell-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.admin-presence-card-heading {
+  margin-bottom: 12px;
+}
+
+.admin-presence-card-heading input {
+  min-width: min(240px, 100%);
+}
+
+.admin-presence-session-list,
+.admin-presence-history-list {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-presence-session-card,
+.admin-presence-history-item {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #e4e7ec;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.admin-presence-session-card {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.admin-presence-session-title,
+.admin-presence-history-item > div {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.admin-presence-session-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--oh-shell-muted);
+  font-size: 12px;
+  grid-column: 1 / -1;
+}
+
+.admin-presence-current-user,
+.admin-system-message-type {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 2px 8px;
+  border: 1px solid #b9cadf;
+  border-radius: 999px;
+  background: #f3f7fb;
+  color: #344054;
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: capitalize;
+}
+
+.admin-presence-history-item span {
+  color: var(--oh-shell-muted);
+  font-size: 12px;
+  text-transform: capitalize;
+}
+
+.admin-presence-message-modal,
+.admin-system-message-modal {
+  max-width: min(680px, calc(100vw - 28px));
+}
+
+.admin-system-message-body {
+  margin: 12px 0 0;
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+@media (max-width: 900px) {
+  .admin-presence-heading,
+  .admin-presence-card-heading,
+  .admin-presence-session-card {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .admin-presence-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-presence-actions {
+    justify-content: flex-start;
+  }
+}
+
 .access-control-filter-bar {
   display: grid;
   grid-template-columns: minmax(220px, 1.2fr) minmax(150px, auto) minmax(240px, auto);

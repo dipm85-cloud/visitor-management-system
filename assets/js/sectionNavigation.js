@@ -48,7 +48,13 @@ function normaliseSection(section) {
     visibility: settings.visibility,
     default: settings.default === true,
     hideWhenEmpty: settings.hideWhenEmpty === true,
-    visibleContentSelector: settings.visibleContentSelector || ""
+    visibleContentSelector: settings.visibleContentSelector || "",
+    capabilityAction: settings.capabilityAction || "",
+    capabilityLabel: settings.capabilityLabel || "",
+    capabilityArea: settings.capabilityArea || "",
+    capabilityAny: Array.isArray(settings.capabilityAny) ? settings.capabilityAny : [],
+    capabilityAll: Array.isArray(settings.capabilityAll) ? settings.capabilityAll : [],
+    capabilityType: settings.capabilityType || ""
   };
 }
 
@@ -205,6 +211,14 @@ function createButton(section) {
   button.dataset.ohSectionNavItem = section.id;
   button.title = section.fullTitle || section.title;
   button.setAttribute("aria-label", section.fullTitle || section.title);
+  if (section.capabilityAction) {
+    button.dataset.capabilityAction = section.capabilityAction;
+    button.dataset.capabilityLabel = section.capabilityLabel || section.fullTitle || section.title;
+    button.dataset.capabilityArea = section.capabilityArea || "Section Navigation";
+    if (section.capabilityAny.length) button.dataset.capabilityAny = section.capabilityAny.join(" ");
+    if (section.capabilityAll.length) button.dataset.capabilityAll = section.capabilityAll.join(" ");
+    if (section.capabilityType) button.dataset.capabilityType = section.capabilityType;
+  }
 
   const icon = document.createElement("span");
   icon.className = "oh-section-nav-icon";

@@ -18,6 +18,11 @@ import {
 import { AppState } from "./state.js";
 import { exportDateStamp } from "./utils.js";
 import { decorateCapabilityAction } from "./capabilityInspector.js";
+import {
+  canViewAdminPresence,
+  refreshAdminPresenceWorkspace,
+  syncAdminPresenceUi
+} from "./adminPresence.js";
 
 const ROLE_PRESET_VIEW_CAPABILITIES = [
   "role_presets.view",
@@ -57,6 +62,16 @@ const USER_ROLE_ASSIGNMENT_MANAGE_CAPABILITIES = [
   "settings.edit"
 ];
 
+const ADMIN_PRESENCE_CAPABILITIES = [
+  "online_users.view",
+  "admin_system_messages.view",
+  "admin_system_messages.send",
+  "access_control.manage",
+  "users.manage",
+  "module_configuration.manage",
+  "settings.view"
+];
+
 let accessControlData = {
   rolePresets: [],
   capabilities: [],
@@ -93,6 +108,14 @@ function hasActiveProfile() {
 }
 
 function hasAccessControlAccess() {
+  return hasActiveProfile() && (
+    hasAnyCapability(ROLE_PRESET_VIEW_CAPABILITIES) ||
+    hasAnyCapability(USER_ROLE_ASSIGNMENT_VIEW_CAPABILITIES) ||
+    hasAnyCapability(ADMIN_PRESENCE_CAPABILITIES)
+  );
+}
+
+function hasAccessControlDataAccess() {
   return hasActiveProfile() && (
     hasAnyCapability(ROLE_PRESET_VIEW_CAPABILITIES) ||
     hasAnyCapability(USER_ROLE_ASSIGNMENT_VIEW_CAPABILITIES)
@@ -205,6 +228,7 @@ export function syncAccessControlVisibility() {
     setAdministrationSection("access");
   }
   syncAccessControlPermissionUi();
+  syncAdminPresenceUi();
 }
 
 function syncAccessControlPermissionUi() {
@@ -1868,6 +1892,10 @@ function testSelectedUserCapability() {
 
 export async function loadAccessControl() {
   if (!requireAccessControlAccess()) return;
+  if (!hasAccessControlDataAccess()) {
+    refreshAdminPresenceWorkspace();
+    return;
+  }
   $("accessControlStatus").textContent = "Loading...";
   $("accessControlRefreshButton").disabled = true;
   $("accessControlRolePresetRefreshButton").disabled = true;
@@ -1978,8 +2006,13 @@ export async function openAccessControlWorkspace() {
   showAdministrationWorkspace();
   setAdministrationSection("access");
   refreshSectionNavigator("access-control");
-  showAccessControlView("roles");
-  await loadAccessControl();
+  if (hasAccessControlDataAccess()) {
+    showAccessControlView("roles");
+    await loadAccessControl();
+  } else if (canViewAdminPresence()) {
+    showAccessControlView("presence");
+    refreshAdminPresenceWorkspace();
+  }
 }
 
 function registerAccessControlSections() {
@@ -2022,6 +2055,20 @@ function registerAccessControlSections() {
       icon: "G",
       target: "accessControlGroupsView",
       order: 50
+    },
+    {
+      id: "presence",
+      title: "Online Users",
+      fullTitle: "Online Users / System Messages",
+      icon: "OU",
+      target: "adminPresenceSection",
+      order: 60,
+      visibility: canViewAdminPresence,
+      capabilityAction: "admin_presence.section.open",
+      capabilityLabel: "Online Users / System Messages",
+      capabilityArea: "Access Control",
+      capabilityAny: ADMIN_PRESENCE_CAPABILITIES,
+      capabilityType: "view"
     }
   ], {
     content: "accessControlWorkspaceContent",
@@ -2038,6 +2085,7 @@ export function initialiseAccessControl() {
 
   registerAccessControlSections();
   syncAccessControlVisibility();
+  syncAdminPresenceUi();
   $("administrationAccessControlNav").addEventListener("click", openAccessControlWorkspace);
   $("accessControlRefreshButton").addEventListener("click", loadAccessControl);
   $("accessControlRolePresetRefreshButton").addEventListener("click", loadAccessControl);

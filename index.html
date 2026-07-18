@@ -113,7 +113,7 @@
           <span class="oh-nav-label">Reports</span>
         </button>
         <div id="ohAdministrationGroup" class="oh-nav-group" data-oh-nav-group="administration">
-          <button id="ohAdministrationNav" class="oh-nav-item oh-nav-group-toggle" type="button" title="Administration" aria-expanded="false" aria-controls="ohAdministrationChildren" data-nav-action="navigation.administration.open" data-capability-action="navigation.administration.open" data-capability-label="Administration" data-capability-area="Navigation" data-capability-any="settings.view settings.edit module_configuration.view module_configuration.manage visitor.housekeeping.run devices.view devices.manage document_signoff.manage agreements.manage gdpr.view gdpr.manage privacy.view privacy.manage identity_resolution.view identity_resolution.manage audit.view access_control.view access_control.manage" data-capability-type="navigation">
+          <button id="ohAdministrationNav" class="oh-nav-item oh-nav-group-toggle" type="button" title="Administration" aria-expanded="false" aria-controls="ohAdministrationChildren" data-nav-action="navigation.administration.open" data-capability-action="navigation.administration.open" data-capability-label="Administration" data-capability-area="Navigation" data-capability-any="settings.view settings.edit module_configuration.view module_configuration.manage visitor.housekeeping.run devices.view devices.manage document_signoff.manage agreements.manage gdpr.view gdpr.manage privacy.view privacy.manage identity_resolution.view identity_resolution.manage audit.view access_control.view access_control.manage online_users.view admin_system_messages.view admin_system_messages.send" data-capability-type="navigation">
             <span class="oh-nav-icon" aria-hidden="true">A</span>
             <span class="oh-nav-label">Administration</span>
             <span class="oh-nav-caret" aria-hidden="true">›</span>
@@ -125,7 +125,7 @@
             <button id="administrationPrivacyGdprNav" class="oh-nav-child-item hidden" type="button" title="Privacy / Data Governance" data-nav-action="navigation.privacy_gdpr.open" data-capability-action="navigation.privacy_gdpr.open" data-capability-label="Privacy / Data Governance" data-capability-area="Navigation" data-capability-any="privacy.case.view privacy.case.manage privacy.view privacy.manage gdpr.view gdpr.manage" data-capability-type="navigation">Privacy / Data Governance</button>
             <button id="administrationSharedTerminalsNav" class="oh-nav-child-item hidden" type="button" title="Shared Terminals" data-nav-action="navigation.shared_terminals.open" data-capability-action="navigation.shared_terminals.open" data-capability-label="Shared Terminals" data-capability-area="Navigation" data-capability-any="devices.view devices.manage" data-capability-type="navigation">Shared Terminals</button>
             <button id="administrationModuleConfigurationNav" class="oh-nav-child-item hidden" type="button" title="Module Configuration" data-nav-action="navigation.module_configuration.open" data-capability-action="navigation.module_configuration.open" data-capability-label="Module Configuration" data-capability-area="Navigation" data-capability-any="module_configuration.view module_configuration.manage settings.view settings.edit" data-capability-type="navigation">Module Configuration</button>
-            <button id="administrationAccessControlNav" class="oh-nav-child-item hidden" type="button" title="Access Control" data-nav-action="navigation.access_control.open" data-capability-action="navigation.access_control.open" data-capability-label="Access Control" data-capability-area="Navigation" data-capability-any="access_control.view access_control.manage role_presets.view user_role_assignments.view" data-capability-type="navigation">Access Control</button>
+            <button id="administrationAccessControlNav" class="oh-nav-child-item hidden" type="button" title="Access Control" data-nav-action="navigation.access_control.open" data-capability-action="navigation.access_control.open" data-capability-label="Access Control" data-capability-area="Navigation" data-capability-any="access_control.view access_control.manage role_presets.view user_role_assignments.view online_users.view admin_system_messages.view admin_system_messages.send" data-capability-type="navigation">Access Control</button>
           </div>
         </div>
       </nav>
@@ -1352,7 +1352,7 @@
       <div class="brand-mark"><img id="brandLogoImg" alt="Logo" style="display:none;width:100%;height:100%;object-fit:contain;border-radius:12px;"><span id="brandLogoFallback">V</span></div>
       <div>
         Visitor Management<br>
-        <span style="font-size:12px;color:var(--muted);font-weight:700;">Operations Hub nextgen-ui - OHP-015A</span>
+        <span style="font-size:12px;color:var(--muted);font-weight:700;">Operations Hub nextgen-ui - OHP-016</span>
       </div>
     </div>
     <div class="button-row no-print" style="margin:0;">
@@ -1401,7 +1401,7 @@
       </div>
       <button id="terminalReturnHomeButton" class="secondary hidden" type="button">Return to Terminal Home</button>
     </section>
-  <div id="appVersionFooter" class="version-footer">Version <span id="appVersionText">OHP-015A</span></div>
+  <div id="appVersionFooter" class="version-footer">Version <span id="appVersionText">OHP-016</span></div>
 </main>
 
   <section id="signInScreen" class="screen">
@@ -5426,6 +5426,46 @@
               </div>
             </section>
 
+            <section id="adminPresenceSection" class="access-control-view admin-presence-section hidden" data-access-control-panel="presence" aria-labelledby="adminPresenceTitle">
+              <div class="access-control-section-heading admin-presence-heading">
+                <div>
+                  <h3 id="adminPresenceTitle">Online Users / System Messages</h3>
+                  <p>Probably online sessions based on recent app heartbeat activity.</p>
+                </div>
+                <div class="admin-presence-actions">
+                  <button id="adminPresenceRefreshButton" class="secondary" type="button" data-capability-action="admin_presence.online_users.refresh" data-capability-label="Refresh Online Users" data-capability-area="Online Users / System Messages" data-capability-any="online_users.view admin_system_messages.view admin_system_messages.send access_control.manage users.manage module_configuration.manage settings.view" data-capability-type="view">Refresh</button>
+                  <button id="adminPresenceSendAllButton" type="button" data-capability-action="admin_presence.send_all_connected" data-capability-label="Send to All Connected" data-capability-area="Online Users / System Messages" data-capability-any="admin_system_messages.send access_control.manage users.manage module_configuration.manage settings.edit" data-capability-type="send">Send to All Connected</button>
+                </div>
+              </div>
+
+              <div class="admin-presence-grid">
+                <section class="admin-presence-card" aria-labelledby="adminPresenceOnlineTitle">
+                  <div class="admin-presence-card-heading">
+                    <div>
+                      <h4 id="adminPresenceOnlineTitle">Probably online</h4>
+                      <p id="adminPresenceOnlineSummary">No probably online sessions found.</p>
+                    </div>
+                    <label for="adminPresenceSearch">
+                      <span class="sr-only">Search online users</span>
+                      <input id="adminPresenceSearch" type="search" autocomplete="off" placeholder="Search user or workspace" />
+                    </label>
+                  </div>
+                  <div id="adminPresenceOnlineList" class="admin-presence-session-list" aria-live="polite"></div>
+                </section>
+
+                <section id="adminPresenceMessageHistoryCard" class="admin-presence-card" aria-labelledby="adminPresenceHistoryTitle">
+                  <div class="admin-presence-card-heading">
+                    <div>
+                      <h4 id="adminPresenceHistoryTitle">Recent system messages</h4>
+                      <p>One-way admin messages sent from Operations Hub.</p>
+                    </div>
+                    <button id="adminPresenceMessageHistoryRefreshButton" class="secondary" type="button" data-capability-action="admin_presence.message_history.refresh" data-capability-label="View System Message History" data-capability-area="Online Users / System Messages" data-capability-any="admin_system_messages.view admin_system_messages.send access_control.manage users.manage module_configuration.manage settings.view" data-capability-type="view">Refresh</button>
+                  </div>
+                  <div id="adminPresenceMessageHistoryList" class="admin-presence-history-list" aria-live="polite"></div>
+                </section>
+              </div>
+            </section>
+
           </div>
 
           <aside id="rolePresetCapabilityPanel" class="reference-data-panel access-control-role-panel hidden" aria-labelledby="rolePresetCapabilityPanelTitle" aria-hidden="true" data-oh-side-panel>
@@ -5527,7 +5567,7 @@
 
   <footer class="oh-footer">
     <strong>Operations Hub</strong>
-    <span>Version <span id="ohPlatformVersion">OHP-015A</span></span>
+    <span>Version <span id="ohPlatformVersion">OHP-016</span></span>
     <span>Environment <span id="ohEnvironment">Local</span></span>
   </footer>
 </div>
@@ -5802,6 +5842,73 @@
 <div id="capabilityInspectorGlobalIndicator" class="capability-inspector-global hidden" role="status">
   <strong>Capability Inspector Active</strong>
   <span>Actions will be inspected instead of executed.</span>
+</div>
+
+<div id="adminPresenceMessageModalBackdrop" class="modal-backdrop">
+  <div class="modal admin-presence-message-modal" role="dialog" aria-modal="true" aria-labelledby="adminPresenceMessageModalTitle">
+    <div class="modal-header">
+      <h2 id="adminPresenceMessageModalTitle">Send System Message</h2>
+      <button id="adminPresenceMessageModalClose" class="ghost" type="button" data-capability-inspector-ignore="true">Close</button>
+    </div>
+    <p class="admin-presence-message-target">Recipient: <strong id="adminPresenceMessageTarget">Selected user</strong></p>
+    <p id="adminPresenceMessageRecipientCount" class="row-meta"></p>
+    <div class="settings-grid">
+      <label for="adminPresenceMessageType">Message type
+        <select id="adminPresenceMessageType">
+          <option value="info">Info</option>
+          <option value="warning">Warning</option>
+          <option value="maintenance">Maintenance</option>
+          <option value="access_update">Access update</option>
+          <option value="refresh_required">Refresh required</option>
+        </select>
+      </label>
+      <label for="adminPresenceActionHint">Action hint
+        <select id="adminPresenceActionHint">
+          <option value="acknowledge_only">Acknowledge only</option>
+          <option value="refresh_now">Refresh now</option>
+          <option value="sign_out_now">Sign out now</option>
+          <option value="sign_out_and_back_in">Sign out and back in</option>
+          <option value="none">None</option>
+        </select>
+      </label>
+      <label for="adminPresenceExpiresMinutes">Expiry minutes
+        <input id="adminPresenceExpiresMinutes" type="number" min="5" max="1440" step="5" value="60" />
+      </label>
+    </div>
+    <label for="adminPresenceMessageTitle">Title
+      <input id="adminPresenceMessageTitle" autocomplete="off" maxlength="120" />
+    </label>
+    <label for="adminPresenceMessageBody">Body
+      <textarea id="adminPresenceMessageBody" rows="5" maxlength="1000"></textarea>
+    </label>
+    <label id="adminPresenceSendAllConfirmRow" class="access-control-check-option hidden" for="adminPresenceSendAllConfirm">
+      <input id="adminPresenceSendAllConfirm" type="checkbox" />
+      <span>Send this system message to all currently connected users.</span>
+    </label>
+    <div class="button-row" style="margin-top:16px;">
+      <button id="adminPresenceMessageSendButton" type="button" data-capability-action="admin_presence.system_message.send" data-capability-label="Send System Message" data-capability-area="Online Users / System Messages" data-capability-any="admin_system_messages.send access_control.manage users.manage module_configuration.manage settings.edit" data-capability-type="send">Send</button>
+      <button id="adminPresenceMessageCancelButton" class="secondary" type="button" data-capability-inspector-ignore="true">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div id="adminSystemMessageModalBackdrop" class="modal-backdrop priority-modal">
+  <div class="modal admin-system-message-modal" role="dialog" aria-modal="true" aria-labelledby="adminSystemMessageTitle">
+    <div class="modal-header">
+      <div>
+        <p class="oh-app-eyebrow">System Message</p>
+        <h2 id="adminSystemMessageTitle">System Message</h2>
+      </div>
+      <span id="adminSystemMessageType" class="admin-system-message-type">info</span>
+    </div>
+    <p class="admin-system-message-sender">Sent by Admin / System</p>
+    <p id="adminSystemMessageBody" class="admin-system-message-body"></p>
+    <div class="button-row" style="margin-top:16px;">
+      <button id="adminSystemMessageAcknowledgeButton" type="button" data-capability-action="admin_presence.system_message.acknowledge" data-capability-label="Acknowledge System Message" data-capability-area="Online Users / System Messages" data-capability-type="acknowledge">Acknowledge</button>
+      <button id="adminSystemMessageActionButton" class="secondary hidden" type="button">Refresh now</button>
+      <button id="adminSystemMessageCloseButton" class="ghost" type="button" data-capability-inspector-ignore="true">Later / Acknowledge</button>
+    </div>
+  </div>
 </div>
 <div id="toastArea" class="toast-area"></div>
 

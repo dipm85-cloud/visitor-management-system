@@ -165,6 +165,12 @@ function setActiveApp(appName) {
   if (workspaceCue) {
     workspaceCue.textContent = "Operations Hub / " + (labels[appName] || "Workspace");
   }
+  window.dispatchEvent(new CustomEvent("oh:workspace-changed", {
+    detail: {
+      appName,
+      workspace: labels[appName] || "Workspace"
+    }
+  }));
 }
 
 function setNavItemCapabilityVisibility(item, visible) {
@@ -208,7 +214,10 @@ export function shouldShowAdministrationNavigation() {
     "identity_resolution.manage",
     "audit.view",
     "access_control.view",
-    "access_control.manage"
+    "access_control.manage",
+    "online_users.view",
+    "admin_system_messages.view",
+    "admin_system_messages.send"
   ]);
 }
 
