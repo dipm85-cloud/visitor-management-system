@@ -4229,3 +4229,165 @@ select
       and paid_hours is not null
       and calculated_unsociable_hours > paid_hours
   ) as profiles_where_suggested_unsociable_exceeds_final_paid_hours;
+
+-- ============================================================
+-- OHP-013B.3 Corrective Follow-up: Weekend Full-Day Unsociable Rules
+-- ============================================================
+
+create or replace function public.calculate_unsociable_minutes_for_shift_v2(
+  p_start_time time,
+  p_end_time time,
+  p_crosses_midnight boolean default false,
+  p_iso_dow integer default 1,
+  p_unsociable_rule_set_id uuid default null
+)
+returns integer
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  v_iso_dow integer := least(greatest(coalesce(p_iso_dow, 1), 1), 7);
+  v_start_date date := date '2024-01-01';
+  v_start_ts timestamp;
+  v_end_ts timestamp;
+  v_minute_ts timestamp;
+  v_time time;
+  v_current_dow integer;
+  v_previous_dow integer;
+  v_minutes integer := 0;
+begin
+  if p_start_time is null or p_end_time is null then
+    return null;
+  end if;
+
+  if p_unsociable_rule_set_id is null then
+    return 0;
+  end if;
+
+  v_start_date := v_start_date + (v_iso_dow - 1);
+
+  v_start_ts := v_start_date + p_start_time;
+  v_end_ts := v_start_date + p_end_time;
+
+  if coalesce(p_crosses_midnight, false) is true
+     or p_end_time < p_start_time then
+    v_end_ts := v_end_ts + interval '1 day';
+  end if;
+
+  if v_end_ts <= v_start_ts then
+    return 0;
+  end if;
+
+  for v_minute_ts in
+    select generate_series(v_start_ts, v_end_ts - interval '1 minute', interval '1 minute')
+  loop
+    v_time := v_minute_ts::time;
+    v_current_dow := extract(isodow from v_minute_ts)::integer;
+    v_previous_dow := case when v_current_dow = 1 then 7 else v_current_dow - 1 end;
+
+    if exists (
+      select 1
+      from public.unsociable_time_rule_set_rules rsr
+      join public.unsociable_time_rules r
+        on r.id = rsr.rule_id
+      where rsr.rule_set_id = p_unsociable_rule_set_id
+        and r.active is true
+        and (
+          (
+            r.full_day is true
+            and (
+              case v_current_dow
+                when 1 then r.applies_monday
+                when 2 then r.applies_tuesday
+                when 3 then r.applies_wednesday
+                when 4 then r.applies_thursday
+                when 5 then r.applies_friday
+                when 6 then r.applies_saturday
+                when 7 then r.applies_sunday
+                else false
+              end
+              or (
+                (coalesce(p_crosses_midnight, false) is true or p_end_time < p_start_time)
+                and case v_iso_dow
+                  when 1 then r.applies_monday
+                  when 2 then r.applies_tuesday
+                  when 3 then r.applies_wednesday
+                  when 4 then r.applies_thursday
+                  when 5 then r.applies_friday
+                  when 6 then r.applies_saturday
+                  when 7 then r.applies_sunday
+                  else false
+                end
+              )
+            )
+          )
+          or
+          (
+            r.full_day is false
+            and coalesce(r.crosses_midnight, false) is false
+            and r.start_time < r.end_time
+            and v_time >= r.start_time
+            and v_time < r.end_time
+            and case v_current_dow
+              when 1 then r.applies_monday
+              when 2 then r.applies_tuesday
+              when 3 then r.applies_wednesday
+              when 4 then r.applies_thursday
+              when 5 then r.applies_friday
+              when 6 then r.applies_saturday
+              when 7 then r.applies_sunday
+              else false
+            end
+          )
+          or
+          (
+            r.full_day is false
+            and coalesce(r.crosses_midnight, false) is true
+            and (
+              (
+                v_time >= r.start_time
+                and case v_current_dow
+                  when 1 then r.applies_monday
+                  when 2 then r.applies_tuesday
+                  when 3 then r.applies_wednesday
+                  when 4 then r.applies_thursday
+                  when 5 then r.applies_friday
+                  when 6 then r.applies_saturday
+                  when 7 then r.applies_sunday
+                  else false
+                end
+              )
+              or
+              (
+                v_time < r.end_time
+                and case v_previous_dow
+                  when 1 then r.applies_monday
+                  when 2 then r.applies_tuesday
+                  when 3 then r.applies_wednesday
+                  when 4 then r.applies_thursday
+                  when 5 then r.applies_friday
+                  when 6 then r.applies_saturday
+                  when 7 then r.applies_sunday
+                  else false
+                end
+              )
+            )
+          )
+        )
+      limit 1
+    ) then
+      v_minutes := v_minutes + 1;
+    end if;
+  end loop;
+
+  return v_minutes;
+end;
+$$;
+
+grant execute on function public.calculate_unsociable_minutes_for_shift_v2(time, time, boolean, integer, uuid) to authenticated;
+
+notify pgrst, 'reload schema';
+
+select 'OHP-013B.3 patch - weekend full-day unsociable rules fixed' as result;

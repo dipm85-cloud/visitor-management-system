@@ -245,6 +245,7 @@ const entityDefinitions = {
           { value: "false", label: "No" },
           { value: "true", label: "Yes" }
         ],
+        help: "Use Full day for whole-day premiums such as Sunday or weekend rules.",
         sectionTitle: "Active days",
         sectionHelp: "Configure company-specific unsociable time bands. Rules can overlap; a minute is counted once when any active rule applies."
       },
@@ -1380,14 +1381,10 @@ function renderWorkTimeProfileUnsociablePreview(profileId, error) {
     container.textContent = error;
     return;
   }
-  if (!profileId) {
+  if (!workTimeProfileUnsociablePreviewRows.length) {
     container.textContent = selectedWorkTimeProfileUnsociableRuleSet()
       ? "Suggested paid unsociable hours depend on the actual day worked."
       : "No unsociable rule set selected.";
-    return;
-  }
-  if (!workTimeProfileUnsociablePreviewRows.length) {
-    container.textContent = "No day preview available.";
     return;
   }
 
@@ -1410,18 +1407,6 @@ function renderWorkTimeProfileUnsociablePreview(profileId, error) {
   });
 }
 
-function workTimeProfileFormMatchesRecord(record, ruleSetId) {
-  if (!record) return false;
-  const startControl = $("referenceField_start_time");
-  const endControl = $("referenceField_end_time");
-  return String(record.unsociable_rule_set_id || "") === String(ruleSetId || "") &&
-    formatReferenceTime(record.start_time) === formatReferenceTime(startControl ? startControl.value : "") &&
-    formatReferenceTime(record.end_time) === formatReferenceTime(endControl ? endControl.value : "") &&
-    Boolean(record.crosses_midnight) === Boolean(
-      $("referenceField_crosses_midnight") && $("referenceField_crosses_midnight").value === "true"
-    );
-}
-
 async function loadWorkTimeProfileUnsociablePreview(profileId) {
   workTimeProfileUnsociablePreviewRows = [];
   renderWorkTimeProfileUnsociablePreview(profileId);
@@ -1436,53 +1421,45 @@ async function loadWorkTimeProfileUnsociablePreview(profileId) {
   const refreshButton = $("workTimeProfileUnsociablePreviewRefresh");
   if (refreshButton) refreshButton.disabled = true;
   try {
-    if (profileId && workTimeProfileFormMatchesRecord(currentReferenceRecord(), ruleSet.id)) {
-      const result = await supabaseClient.rpc("preview_work_time_profile_unsociable_by_day", {
-        p_profile_id: profileId
-      });
-      if (result.error) throw result.error;
-      workTimeProfileUnsociablePreviewRows = result.data || [];
-    } else {
-      const days = [
-        [1, "Monday"],
-        [2, "Tuesday"],
-        [3, "Wednesday"],
-        [4, "Thursday"],
-        [5, "Friday"],
-        [6, "Saturday"],
-        [7, "Sunday"]
-      ];
-      const results = await Promise.all(days.map(([isoDow, dayName]) =>
-        supabaseClient.rpc("calculate_work_time_profile_values_v3", {
-          p_start_time: $("referenceField_start_time") ? $("referenceField_start_time").value || null : null,
-          p_end_time: $("referenceField_end_time") ? $("referenceField_end_time").value || null : null,
-          p_crosses_midnight: $("referenceField_crosses_midnight") &&
-            $("referenceField_crosses_midnight").value === "true",
-          p_break_rule_id: $("referenceField_break_rule_id") ? $("referenceField_break_rule_id").value || null : null,
-          p_break_minutes: numericControlValue("referenceField_break_minutes"),
-          p_paid_hours_manual_override: $("referenceField_paid_hours_manual_override") ?
-            $("referenceField_paid_hours_manual_override").value !== "false" : true,
-          p_manual_paid_hours: numericControlValue("referenceField_paid_hours"),
-          p_unsociable_hours_manual_override: $("referenceField_unsociable_hours_manual_override") ?
-            $("referenceField_unsociable_hours_manual_override").value !== "false" : true,
-          p_manual_unsociable_hours: numericControlValue("referenceField_unsociable_hours"),
-          p_iso_dow: isoDow,
-          p_unsociable_rule_set_id: ruleSet.id
-        }).then(result => {
-          if (result.error) throw result.error;
-          const row = Array.isArray(result.data) ? result.data[0] : result.data;
-          return {
-            iso_dow: isoDow,
-            day_name: dayName,
-            unsociable_rule_set_id: ruleSet.id,
-            unsociable_rule_set_name: ruleSet.rule_set_name,
-            calculated_unsociable_minutes: row ? row.calculated_unsociable_minutes : 0,
-            calculated_unsociable_hours: row ? row.calculated_unsociable_hours : 0
-          };
-        })
-      ));
-      workTimeProfileUnsociablePreviewRows = results;
-    }
+    const days = [
+      [1, "Monday"],
+      [2, "Tuesday"],
+      [3, "Wednesday"],
+      [4, "Thursday"],
+      [5, "Friday"],
+      [6, "Saturday"],
+      [7, "Sunday"]
+    ];
+    const results = await Promise.all(days.map(([isoDow, dayName]) =>
+      supabaseClient.rpc("calculate_work_time_profile_values_v3", {
+        p_start_time: $("referenceField_start_time") ? $("referenceField_start_time").value || null : null,
+        p_end_time: $("referenceField_end_time") ? $("referenceField_end_time").value || null : null,
+        p_crosses_midnight: $("referenceField_crosses_midnight") &&
+          $("referenceField_crosses_midnight").value === "true",
+        p_break_rule_id: $("referenceField_break_rule_id") ? $("referenceField_break_rule_id").value || null : null,
+        p_break_minutes: numericControlValue("referenceField_break_minutes"),
+        p_paid_hours_manual_override: $("referenceField_paid_hours_manual_override") ?
+          $("referenceField_paid_hours_manual_override").value !== "false" : true,
+        p_manual_paid_hours: numericControlValue("referenceField_paid_hours"),
+        p_unsociable_hours_manual_override: $("referenceField_unsociable_hours_manual_override") ?
+          $("referenceField_unsociable_hours_manual_override").value !== "false" : true,
+        p_manual_unsociable_hours: numericControlValue("referenceField_unsociable_hours"),
+        p_iso_dow: isoDow,
+        p_unsociable_rule_set_id: ruleSet.id
+      }).then(result => {
+        if (result.error) throw result.error;
+        const row = Array.isArray(result.data) ? result.data[0] : result.data;
+        return {
+          iso_dow: isoDow,
+          day_name: dayName,
+          unsociable_rule_set_id: ruleSet.id,
+          unsociable_rule_set_name: ruleSet.rule_set_name,
+          calculated_unsociable_minutes: row ? row.calculated_unsociable_minutes : 0,
+          calculated_unsociable_hours: row ? row.calculated_unsociable_hours : 0
+        };
+      })
+    ));
+    workTimeProfileUnsociablePreviewRows = results;
     renderWorkTimeProfileUnsociablePreview(profileId);
     updateWorkTimeProfileCalculationPreview();
   } catch (err) {
