@@ -1352,7 +1352,7 @@
       <div class="brand-mark"><img id="brandLogoImg" alt="Logo" style="display:none;width:100%;height:100%;object-fit:contain;border-radius:12px;"><span id="brandLogoFallback">V</span></div>
       <div>
         Visitor Management<br>
-        <span style="font-size:12px;color:var(--muted);font-weight:700;">Operations Hub nextgen-ui - OHP-016A</span>
+        <span style="font-size:12px;color:var(--muted);font-weight:700;">Operations Hub nextgen-ui - OHP-016B</span>
       </div>
     </div>
     <div class="button-row no-print" style="margin:0;">
@@ -1401,7 +1401,7 @@
       </div>
       <button id="terminalReturnHomeButton" class="secondary hidden" type="button">Return to Terminal Home</button>
     </section>
-  <div id="appVersionFooter" class="version-footer">Version <span id="appVersionText">OHP-016A</span></div>
+  <div id="appVersionFooter" class="version-footer">Version <span id="appVersionText">OHP-016B</span></div>
 </main>
 
   <section id="signInScreen" class="screen">
@@ -5470,6 +5470,116 @@
                   <div id="adminPresenceMessageHistoryList" class="admin-presence-history-list" aria-live="polite"></div>
                 </section>
 
+                <section id="adminPresenceMessageHistoryWorkspace" class="admin-presence-card is-wide admin-message-history-workspace" aria-labelledby="adminPresenceMessageHistoryWorkspaceTitle">
+                  <div class="admin-presence-card-heading">
+                    <div>
+                      <h4 id="adminPresenceMessageHistoryWorkspaceTitle">System Message History</h4>
+                      <p id="adminPresenceHistorySearchSummary">No system message history loaded.</p>
+                    </div>
+                    <div class="admin-presence-card-tools">
+                      <button id="adminPresenceHistoryApplyButton" type="button" data-capability-action="admin_presence.history.apply_filters" data-capability-label="Apply Message History Filters" data-capability-area="Online Users / System Messages" data-capability-any="admin_system_messages.view admin_system_messages.send access_control.manage users.manage module_configuration.manage settings.view" data-capability-type="filter">Apply Filters</button>
+                      <button id="adminPresenceHistoryResetButton" class="secondary" type="button" data-capability-action="admin_presence.history.reset_filters" data-capability-label="Reset Message History Filters" data-capability-area="Online Users / System Messages" data-capability-any="admin_system_messages.view admin_system_messages.send access_control.manage users.manage module_configuration.manage settings.view" data-capability-type="filter">Reset</button>
+                      <button id="adminPresenceHistoryRefreshWorkspaceButton" class="secondary" type="button" data-capability-action="admin_presence.history.refresh" data-capability-label="Refresh System Message History" data-capability-area="Online Users / System Messages" data-capability-any="admin_system_messages.view admin_system_messages.send access_control.manage users.manage module_configuration.manage settings.view" data-capability-type="view">Refresh</button>
+                      <button id="adminPresenceHistoryExportCsvButton" class="secondary" type="button" data-capability-action="admin_presence.history.export_csv" data-capability-label="Export System Message History CSV" data-capability-area="Online Users / System Messages" data-capability-any="admin_system_messages.view admin_system_messages.send access_control.manage users.manage module_configuration.manage settings.view" data-capability-type="export">Export CSV</button>
+                      <button id="adminPresenceHistoryExportXlsxButton" class="secondary" type="button" data-capability-action="admin_presence.history.export_xlsx" data-capability-label="Export System Message History XLSX" data-capability-area="Online Users / System Messages" data-capability-any="admin_system_messages.view admin_system_messages.send access_control.manage users.manage module_configuration.manage settings.view" data-capability-type="export">Export XLSX</button>
+                    </div>
+                  </div>
+
+                  <div class="oh-responsive-filter-grid admin-message-history-filters" role="search" aria-label="System message history filters">
+                    <label for="adminPresenceHistorySearchText">Search
+                      <input id="adminPresenceHistorySearchText" type="search" autocomplete="off" placeholder="Title, body, sender, target, UUID" />
+                    </label>
+                    <label for="adminPresenceHistorySentFrom">Sent from
+                      <input id="adminPresenceHistorySentFrom" type="date" />
+                    </label>
+                    <label for="adminPresenceHistorySentTo">Sent to
+                      <input id="adminPresenceHistorySentTo" type="date" />
+                    </label>
+                    <label for="adminPresenceHistoryTargetScope">Target scope
+                      <select id="adminPresenceHistoryTargetScope">
+                        <option value="">All</option>
+                        <option value="profile">Selected user</option>
+                        <option value="all_connected">All connected</option>
+                      </select>
+                    </label>
+                    <label for="adminPresenceHistoryMessageType">Message type
+                      <select id="adminPresenceHistoryMessageType">
+                        <option value="">All</option>
+                        <option value="info">Info</option>
+                        <option value="warning">Warning</option>
+                        <option value="maintenance">Maintenance</option>
+                        <option value="access_update">Access update</option>
+                        <option value="refresh_required">Refresh required</option>
+                      </select>
+                    </label>
+                    <label for="adminPresenceHistoryMessageMode">Message mode
+                      <select id="adminPresenceHistoryMessageMode">
+                        <option value="all">All</option>
+                        <option value="advisory">Advisory</option>
+                        <option value="required">Required</option>
+                        <option value="forced">Forced</option>
+                      </select>
+                    </label>
+                    <label for="adminPresenceHistoryActionFilter">Required action
+                      <select id="adminPresenceHistoryActionFilter">
+                        <option value="">All</option>
+                        <option value="acknowledge_only">Acknowledge only</option>
+                        <option value="refresh_required">Refresh required</option>
+                        <option value="sign_out_required">Sign out required</option>
+                        <option value="sign_out_and_back_in_required">Sign out and back in required</option>
+                      </select>
+                    </label>
+                    <label for="adminPresenceHistoryStatusFilter">Status
+                      <select id="adminPresenceHistoryStatusFilter">
+                        <option value="all">All</option>
+                        <option value="none">No acknowledgement</option>
+                        <option value="any">Any acknowledgement</option>
+                        <option value="action_completed">Action completed</option>
+                        <option value="auto_completed">Auto completed</option>
+                        <option value="overdue_forced">Overdue forced</option>
+                      </select>
+                    </label>
+                    <label for="adminPresenceHistoryLimit">Rows
+                      <select id="adminPresenceHistoryLimit">
+                        <option value="50">50</option>
+                        <option value="100" selected>100</option>
+                        <option value="200">200</option>
+                        <option value="500">500</option>
+                      </select>
+                    </label>
+                  </div>
+
+                  <div class="admin-message-history-pager" aria-label="System message history pagination">
+                    <button id="adminPresenceHistoryPreviousButton" class="secondary" type="button" data-capability-action="admin_presence.history.previous_page" data-capability-label="Previous Message History Page" data-capability-area="Online Users / System Messages" data-capability-any="admin_system_messages.view admin_system_messages.send access_control.manage users.manage module_configuration.manage settings.view" data-capability-type="view">Previous</button>
+                    <span id="adminPresenceHistoryPageSummary">Page 1</span>
+                    <button id="adminPresenceHistoryNextButton" class="secondary" type="button" data-capability-action="admin_presence.history.next_page" data-capability-label="Next Message History Page" data-capability-area="Online Users / System Messages" data-capability-any="admin_system_messages.view admin_system_messages.send access_control.manage users.manage module_configuration.manage settings.view" data-capability-type="view">Next</button>
+                  </div>
+
+                  <div class="oh-responsive-table-wrap admin-message-history-table-wrap">
+                    <table class="access-control-table oh-responsive-table admin-message-history-table">
+                      <thead>
+                        <tr>
+                          <th>Sent</th>
+                          <th>Title</th>
+                          <th>Type</th>
+                          <th>Target</th>
+                          <th>Sent by</th>
+                          <th>Mode</th>
+                          <th>Action</th>
+                          <th>Deadline</th>
+                          <th>Expiry</th>
+                          <th>Status</th>
+                          <th>Counts</th>
+                          <th>Expected</th>
+                          <th>Detail</th>
+                        </tr>
+                      </thead>
+                      <tbody id="adminPresenceHistoryResultsBody"></tbody>
+                    </table>
+                  </div>
+                  <div id="adminPresenceHistoryResultCards" class="oh-result-card-list admin-message-history-cards"></div>
+                </section>
+
                 <section id="adminPresenceSessionSecurityCard" class="admin-presence-card is-wide" aria-labelledby="adminPresenceSessionSecurityTitle">
                   <div class="admin-presence-card-heading">
                     <div>
@@ -5617,7 +5727,7 @@
 
   <footer class="oh-footer">
     <strong>Operations Hub</strong>
-    <span>Version <span id="ohPlatformVersion">OHP-016A</span></span>
+    <span>Version <span id="ohPlatformVersion">OHP-016B</span></span>
     <span>Environment <span id="ohEnvironment">Local</span></span>
   </footer>
 </div>
@@ -5982,6 +6092,33 @@
       <button id="adminSystemMessageActionButton" class="secondary hidden" type="button">Refresh now</button>
       <button id="adminSystemMessageCloseButton" class="ghost" type="button" data-capability-inspector-ignore="true">Later / Acknowledge</button>
     </div>
+  </div>
+</div>
+
+<div id="adminPresenceHistoryDetailModalBackdrop" class="modal-backdrop priority-modal">
+  <div class="modal admin-message-history-detail-modal" role="dialog" aria-modal="true" aria-labelledby="adminPresenceHistoryDetailTitle">
+    <div class="modal-header">
+      <div>
+        <p class="oh-app-eyebrow">System Message History</p>
+        <h2 id="adminPresenceHistoryDetailTitle">Message Detail</h2>
+      </div>
+      <button id="adminPresenceHistoryDetailCloseButton" class="ghost" type="button" data-capability-inspector-ignore="true">Close</button>
+    </div>
+    <div id="adminPresenceHistoryDetailBody" class="admin-message-history-detail-body"></div>
+    <details class="admin-message-history-technical-detail">
+      <summary>Technical reference</summary>
+      <dl id="adminPresenceHistoryTechnicalDetail" class="admin-message-history-detail-list"></dl>
+    </details>
+    <section class="admin-message-history-ack-section" aria-labelledby="adminPresenceHistoryAckTitle">
+      <div class="admin-presence-card-heading">
+        <div>
+          <h3 id="adminPresenceHistoryAckTitle">Acknowledgement / action detail</h3>
+          <p id="adminPresenceHistoryAckSummary">No acknowledgement detail loaded.</p>
+        </div>
+        <button id="adminPresenceHistoryAckRefreshButton" class="secondary" type="button" data-capability-action="admin_presence.history.ack_detail.refresh" data-capability-label="View Acknowledgement Detail" data-capability-area="Online Users / System Messages" data-capability-any="admin_system_messages.view admin_system_messages.send access_control.manage users.manage module_configuration.manage settings.view" data-capability-type="view">Refresh</button>
+      </div>
+      <div id="adminPresenceHistoryAckList" class="admin-message-history-ack-list"></div>
+    </section>
   </div>
 </div>
 

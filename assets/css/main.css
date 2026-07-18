@@ -8062,6 +8062,122 @@ button.oh-section-nav-item:focus-visible,
   grid-column: 1 / -1;
 }
 
+.admin-message-history-workspace {
+  display: grid;
+  gap: 14px;
+}
+
+.admin-message-history-filters {
+  --oh-filter-control-min-width: 180px;
+}
+
+.admin-message-history-pager {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--oh-shell-muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.admin-message-history-table {
+  --oh-responsive-table-min-width: 1320px;
+}
+
+.admin-message-history-table .admin-message-history-title-cell {
+  max-width: 260px;
+}
+
+.admin-message-history-table button {
+  white-space: nowrap;
+}
+
+.admin-message-history-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 2px 8px;
+  border: 1px solid #d0d5dd;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #344054;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.admin-message-history-badge.is-forced,
+.admin-message-history-badge.is-overdue {
+  border-color: #fda29b;
+  background: #fff1f0;
+  color: #b42318;
+}
+
+.admin-message-history-badge.is-required {
+  border-color: #fedf89;
+  background: #fffaeb;
+  color: #93370d;
+}
+
+.admin-message-history-badge.is-complete {
+  border-color: #abefc6;
+  background: #ecfdf3;
+  color: #067647;
+}
+
+.admin-message-history-detail-modal {
+  width: min(960px, calc(100vw - 28px));
+}
+
+.admin-message-history-detail-body,
+.admin-message-history-ack-list {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-message-history-detail-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 14px;
+  margin: 0;
+}
+
+.admin-message-history-detail-list dt {
+  color: var(--oh-shell-muted);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.admin-message-history-detail-list dd {
+  margin: 3px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.admin-message-history-message-body {
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--oh-shell-border);
+  border-radius: 8px;
+  background: #f8fafc;
+  white-space: pre-wrap;
+}
+
+.admin-message-history-technical-detail,
+.admin-message-history-ack-section {
+  margin-top: 16px;
+}
+
+.admin-message-history-ack-item {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #e4e7ec;
+  border-radius: 8px;
+  background: #fff;
+}
+
 .admin-presence-session-list,
 .admin-presence-history-list {
   display: grid;
@@ -8164,6 +8280,22 @@ button.oh-section-nav-item:focus-visible,
 
   .admin-presence-card-tools {
     justify-content: flex-start;
+  }
+
+  .admin-message-history-pager {
+    justify-content: flex-start;
+  }
+
+  .admin-message-history-table-wrap {
+    display: none;
+  }
+
+  .admin-message-history-cards {
+    display: grid;
+  }
+
+  .admin-message-history-detail-list {
+    grid-template-columns: 1fr;
   }
 }
 
