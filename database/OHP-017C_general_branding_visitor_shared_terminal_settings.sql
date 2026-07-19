@@ -851,3 +851,223 @@ select
   (select count(*) from public.application_setting_definitions where category_code = 'branding') as branding_settings,
   (select count(*) from public.application_setting_definitions where category_code = 'visitors') as visitor_settings,
   (select count(*) from public.application_setting_definitions where category_code = 'shared_terminal') as shared_terminal_settings;
+
+-- ------------------------------------------------------------
+-- 9. Commercial branding follow-up settings
+-- ------------------------------------------------------------
+
+insert into public.application_setting_definitions (
+  setting_key,
+  category_code,
+  setting_name,
+  description,
+  value_type,
+  default_value,
+  allowed_values,
+  validation_json,
+  locked_by_system,
+  sensitive,
+  active,
+  display_order,
+  ui_component,
+  help_text
+)
+values
+  (
+    'branding.header_logo_display_mode',
+    'branding',
+    'Header logo display mode',
+    'Controls how the logo and product name are displayed in the app header.',
+    'select',
+    to_jsonb('logo_and_name'::text),
+    jsonb_build_array('logo_and_name', 'logo_only', 'name_only', 'default_mark_and_name'),
+    '{}'::jsonb,
+    false,
+    false,
+    true,
+    100,
+    'select',
+    'Choose whether the header shows the company logo, product name, or default app mark.'
+  ),
+  (
+    'branding.header_logo_size',
+    'branding',
+    'Header logo size',
+    'Controls the displayed size of the app header logo.',
+    'select',
+    to_jsonb('medium'::text),
+    jsonb_build_array('small', 'medium', 'large'),
+    '{}'::jsonb,
+    false,
+    false,
+    true,
+    110,
+    'select',
+    'Useful because company logos vary in shape and proportions.'
+  ),
+  (
+    'branding.favicon_url',
+    'branding',
+    'Favicon URL',
+    'Browser tab / installed app icon URL where supported.',
+    'text',
+    to_jsonb(''::text),
+    null,
+    '{}'::jsonb,
+    false,
+    false,
+    true,
+    120,
+    'url',
+    'Optional. Falls back to the default app icon if blank.'
+  ),
+  (
+    'branding.print_logo_url',
+    'branding',
+    'Print / document logo URL',
+    'Logo used for printable outputs and generated documents where supported.',
+    'text',
+    to_jsonb(''::text),
+    null,
+    '{}'::jsonb,
+    false,
+    false,
+    true,
+    130,
+    'url',
+    'Optional. Falls back to the main logo URL if blank.'
+  ),
+  (
+    'branding.public_screen_background_mode',
+    'branding',
+    'Public screen background mode',
+    'Controls background style for public-facing screens such as Shared Terminal / kiosk.',
+    'select',
+    to_jsonb('inherit_app'::text),
+    jsonb_build_array('inherit_app', 'default', 'solid_colour', 'image'),
+    '{}'::jsonb,
+    false,
+    false,
+    true,
+    140,
+    'select',
+    'Use a different background for visitor-facing screens if required.'
+  ),
+  (
+    'branding.public_screen_background_color',
+    'branding',
+    'Public screen background colour',
+    'Background colour used for public-facing screens when public screen background mode is solid colour.',
+    'text',
+    to_jsonb('#f8fafc'::text),
+    null,
+    jsonb_build_object('format', 'hex_colour'),
+    false,
+    false,
+    true,
+    150,
+    'colour',
+    'Used for Shared Terminal / kiosk screens where supported.'
+  ),
+  (
+    'branding.public_screen_background_image_url',
+    'branding',
+    'Public screen background image URL',
+    'Background image URL used for public-facing screens when public screen background mode is image.',
+    'text',
+    to_jsonb(''::text),
+    null,
+    '{}'::jsonb,
+    false,
+    false,
+    true,
+    160,
+    'url',
+    'Useful for branded visitor/kiosk experiences.'
+  ),
+  (
+    'branding.public_screen_background_opacity',
+    'branding',
+    'Public screen background opacity',
+    'Opacity for public-screen background image overlays where supported.',
+    'numeric',
+    to_jsonb(0.25::numeric),
+    null,
+    jsonb_build_object('min', 0, 'max', 1, 'step', 0.05),
+    false,
+    false,
+    true,
+    170,
+    'number',
+    'Value between 0 and 1. Keep public screens readable.'
+  ),
+  (
+    'branding.corner_style',
+    'branding',
+    'Corner style',
+    'Controls the general roundness of cards, buttons, panels, and selected UI elements where supported.',
+    'select',
+    to_jsonb('standard'::text),
+    jsonb_build_array('standard', 'rounded', 'square'),
+    '{}'::jsonb,
+    false,
+    false,
+    true,
+    180,
+    'select',
+    'Small visual style choice that can make the app feel more aligned with a company brand.'
+  )
+on conflict (setting_key) do update
+set
+  category_code = excluded.category_code,
+  setting_name = excluded.setting_name,
+  description = excluded.description,
+  value_type = excluded.value_type,
+  default_value = excluded.default_value,
+  allowed_values = excluded.allowed_values,
+  validation_json = excluded.validation_json,
+  locked_by_system = excluded.locked_by_system,
+  sensitive = excluded.sensitive,
+  active = excluded.active,
+  display_order = excluded.display_order,
+  ui_component = excluded.ui_component,
+  help_text = excluded.help_text;
+
+insert into public.application_setting_values (
+  setting_key,
+  setting_value,
+  updated_by
+)
+select
+  d.setting_key,
+  d.default_value,
+  auth.uid()
+from public.application_setting_definitions d
+where d.setting_key in (
+  'branding.header_logo_display_mode',
+  'branding.header_logo_size',
+  'branding.favicon_url',
+  'branding.print_logo_url',
+  'branding.public_screen_background_mode',
+  'branding.public_screen_background_color',
+  'branding.public_screen_background_image_url',
+  'branding.public_screen_background_opacity',
+  'branding.corner_style'
+)
+on conflict (setting_key) do nothing;
+
+notify pgrst, 'reload schema';
+
+select
+  'OHP-017C patch - additional commercial branding settings installed' as result,
+  (select count(*) from public.application_setting_definitions where setting_key in (
+    'branding.header_logo_display_mode',
+    'branding.header_logo_size',
+    'branding.favicon_url',
+    'branding.print_logo_url',
+    'branding.public_screen_background_mode',
+    'branding.public_screen_background_color',
+    'branding.public_screen_background_image_url',
+    'branding.public_screen_background_opacity',
+    'branding.corner_style'
+  )) as additional_branding_settings_verified;

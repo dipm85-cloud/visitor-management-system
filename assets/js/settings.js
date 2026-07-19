@@ -10,6 +10,9 @@ import {
   getCachedApplicationSettingValue,
   loadApplicationSettingsForRuntime
 } from "./applicationSettingsService.js";
+import {
+  applyBrandingTheme
+} from "./brandingThemeService.js";
 
 let appSettings;
 let appVersion;
@@ -141,55 +144,6 @@ function cachedAppSetting(key, fallback) {
   return getCachedApplicationSettingValue(key, fallback);
 }
 
-function setBrandText(appSettings) {
-  const brandText = document.querySelector(".brand div:last-child");
-  if (!brandText) return;
-  brandText.replaceChildren();
-  brandText.append(document.createTextNode(appSettings.companyName || "Visitor Management"));
-  brandText.appendChild(document.createElement("br"));
-  const version = document.createElement("span");
-  version.style.fontSize = "12px";
-  version.style.color = "var(--muted)";
-  version.style.fontWeight = "700";
-  version.textContent = "Operations Hub nextgen-ui - " + APP_BUILD_LABEL;
-  brandText.appendChild(version);
-}
-
-function applyApplicationIdentity() {
-  const productName = appSettings.productName || "Operations Hub";
-  const productSubtitle = appSettings.productSubtitle || "Operational workspace";
-  const product = document.querySelector(".oh-product-name");
-  if (product) {
-    const name = product.querySelector("strong");
-    const subtitle = product.querySelector("span");
-    if (name) name.textContent = productName;
-    if (subtitle) subtitle.textContent = productSubtitle;
-  }
-  document.title = productName + " - " + APP_BUILD_LABEL;
-
-  let chip = $("ohEnvironmentChip");
-  if (!chip) {
-    chip = document.createElement("span");
-    chip.id = "ohEnvironmentChip";
-    chip.className = "oh-environment-chip hidden";
-    const actions = document.querySelector(".oh-header-actions");
-    const settings = $("ohSettingsShortcut");
-    if (actions) actions.insertBefore(chip, settings || actions.firstChild);
-  }
-  const label = String(appSettings.environmentLabel || "").trim();
-  chip.textContent = label;
-  chip.classList.toggle("hidden", !(appSettings.showEnvironmentLabel && label));
-}
-
-function applySharedTerminalSettings() {
-  const title = $("terminalHomeTitle");
-  if (title) title.textContent = appSettings.sharedTerminalHomeTitle || "How can we help?";
-  const subtitle = document.querySelector(".terminal-home-hero > p:last-child");
-  if (subtitle) subtitle.textContent = appSettings.sharedTerminalHomeSubtitle || "Select an available workflow below.";
-  const staffLogin = $("kioskStaffLoginButton");
-  if (staffLogin) staffLogin.classList.toggle("hidden", appSettings.sharedTerminalShowStaffLoginButton === false);
-}
-
 function overlayApplicationSettings(settings) {
   const put = (legacyKey, appKey, fallback) => {
     const value = cachedAppSetting(appKey, undefined);
@@ -211,6 +165,15 @@ function overlayApplicationSettings(settings) {
   put("background_opacity", "branding.background_opacity", settings.background_opacity == null ? 0.18 : settings.background_opacity);
   put("branding_theme_mode", "branding.theme_mode", "system");
   put("branding_background_mode", "branding.background_mode", "default");
+  put("branding_header_logo_display_mode", "branding.header_logo_display_mode", "logo_and_name");
+  put("branding_header_logo_size", "branding.header_logo_size", "medium");
+  put("branding_favicon_url", "branding.favicon_url", null);
+  put("branding_print_logo_url", "branding.print_logo_url", null);
+  put("branding_public_screen_background_mode", "branding.public_screen_background_mode", "inherit_app");
+  put("branding_public_screen_background_color", "branding.public_screen_background_color", "#f8fafc");
+  put("branding_public_screen_background_image_url", "branding.public_screen_background_image_url", null);
+  put("branding_public_screen_background_opacity", "branding.public_screen_background_opacity", 0.25);
+  put("branding_corner_style", "branding.corner_style", "standard");
 
   put("sign_in_confirmation_message", "visitors.sign_in_confirmation_message", settings.sign_in_confirmation_message);
   put("walk_in_confirmation_message", "visitors.sign_in_confirmation_message", settings.walk_in_confirmation_message);
@@ -314,35 +277,9 @@ export async function loadSystemSettings() {
   appSettings.sharedTerminalHomeTitle = String(settings.shared_terminal_home_title || appSettings.sharedTerminalHomeTitle);
   appSettings.sharedTerminalHomeSubtitle = String(settings.shared_terminal_home_subtitle || appSettings.sharedTerminalHomeSubtitle);
   appSettings.sharedTerminalShowStaffLoginButton = settings.shared_terminal_show_staff_login_button !== false && settings.shared_terminal_show_staff_login_button !== "false";
-  setBrandText(appSettings);
-  applyApplicationIdentity();
-  applySharedTerminalSettings();
-
-  if (settings.primary_colour) {
-    appSettings.primaryColour = String(settings.primary_colour);
-    document.documentElement.style.setProperty("--brand", appSettings.primaryColour);
-  }
-
-  if (settings.accent_colour) {
-    appSettings.accentColour = String(settings.accent_colour);
-    document.documentElement.style.setProperty("--accent", appSettings.accentColour);
-  }
-
-  appSettings.logoUrl = settings.logo_url || null;
-  appSettings.themeMode = String(settings.branding_theme_mode || appSettings.themeMode);
-  appSettings.backgroundMode = String(settings.branding_background_mode || appSettings.backgroundMode);
-  appSettings.backgroundUrl = appSettings.backgroundMode === "image" ? (settings.background_url || null) : null;
-  appSettings.backgroundOpacity =
-    settings.background_opacity == null ? appSettings.backgroundOpacity : Number(settings.background_opacity);
-  appSettings.logoTransparentBackground =
-    settings.logo_transparent_background == null
-      ? appSettings.logoTransparentBackground
-      : settings.logo_transparent_background === true || settings.logo_transparent_background === "true";
-  appSettings.pageBackgroundColour =
-    settings.page_background_colour == null ? appSettings.pageBackgroundColour : String(settings.page_background_colour);
+  applyBrandingTheme(appSettings, settings);
 
   dependencies.setLastSettingsRefreshAt(new Date());
-  applyBrandAssets();
   if ($("settingCurrentAppVersion")) $("settingCurrentAppVersion").value = settingValue("current_app_version", appSettings.currentAppVersion || appVersion);
   if ($("settingOutdatedDeviceWarning")) $("settingOutdatedDeviceWarning").value = boolString(!!settingValue("outdated_device_warning_enabled", true));
   if ($("settingEmailDeliveryEnabled")) $("settingEmailDeliveryEnabled").value = boolString(!!settingValue("email_delivery_enabled", appSettings.emailDeliveryEnabled || false));
@@ -364,46 +301,7 @@ export async function loadSystemSettings() {
 }
 
 export function applyBrandAssets() {
-  document.documentElement.style.setProperty("--brand", appSettings.primaryColour || "#1f4f8f");
-  document.documentElement.style.setProperty("--accent", appSettings.accentColour || "#18a999");
-
-  const logoImg = $("brandLogoImg");
-  const logoFallback = $("brandLogoFallback");
-  const brandMark = document.querySelector(".brand-mark");
-
-  if (logoImg && logoFallback) {
-    if (appSettings.logoUrl) {
-      logoImg.src = appSettings.logoUrl;
-      logoImg.style.display = "block";
-      logoFallback.style.display = "none";
-    } else {
-      logoImg.removeAttribute("src");
-      logoImg.style.display = "none";
-      logoFallback.style.display = "block";
-    }
-  }
-
-  if (brandMark) {
-    brandMark.classList.toggle("transparent-logo", !!appSettings.logoTransparentBackground);
-  }
-
-  document.body.style.backgroundColor = appSettings.pageBackgroundColour || "#eef3f8";
-  document.body.style.backgroundImage = "";
-  document.body.style.backgroundSize = "";
-  document.body.style.backgroundPosition = "";
-
-  if (appSettings.backgroundUrl) {
-    document.body.style.backgroundImage =
-      "linear-gradient(rgba(238,243,248," + (1 - appSettings.backgroundOpacity) + "), rgba(248,251,255," + (1 - appSettings.backgroundOpacity) + ")), url('" + appSettings.backgroundUrl + "')";
-    document.body.style.backgroundSize = "cover";
-    document.body.style.backgroundPosition = "center";
-  } else if (appSettings.backgroundMode === "solid_colour") {
-    document.body.style.backgroundImage = "none";
-  } else {
-    document.body.style.backgroundImage =
-      "radial-gradient(circle at top left, rgba(31,79,143,.18), transparent 32%), linear-gradient(135deg, " +
-      (appSettings.pageBackgroundColour || "#eef3f8") + " 0%, #f8fbff 100%)";
-  }
+  applyBrandingTheme(appSettings, AppState.systemSettingsRaw || {});
 }
 
 export function settingValue(key, fallback) {

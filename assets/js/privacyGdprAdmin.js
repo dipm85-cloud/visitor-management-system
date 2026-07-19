@@ -8,6 +8,7 @@ import { refreshSectionNavigator, registerModuleSections, selectModuleSection } 
 import { showAdministrationWorkspace } from "./shell.js";
 import { AppState } from "./state.js";
 import { loadSystemSettings, settingValue } from "./settings.js";
+import { getPrintLogoUrl } from "./brandingThemeService.js";
 import { openIdentityReviewRequestFromContext } from "./identityResolutionAdmin.js";
 import { renderLinkedIdentityContext } from "./identityContext.js";
 
@@ -2541,7 +2542,7 @@ function printEvidencePackPreview() {
     kicker: "Operations Hub / Privacy",
     companyName: settingValue("company_name", "Operations Hub"),
     siteName: settingValue("site_name", settingValue("default_site_name", "")),
-    logoUrl: settingValue("logo_url", ""),
+    logoUrl: getPrintLogoUrl() || settingValue("logo_url", ""),
     generatedAt: new Date(data.generated_at).toLocaleString(),
     orientation: "portrait",
     contextFields: [

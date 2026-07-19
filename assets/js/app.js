@@ -143,6 +143,7 @@ import {
   exportToExcel,
   normaliseAuditExportRows
 } from "./exports.js";
+import { getPrintLogoUrl } from "./brandingThemeService.js";
 import {
   configurePrinting,
   printPlannedList
@@ -2017,7 +2018,7 @@ window.addEventListener("load", async function () {
     }
 
     function evidenceHtml(record) {
-      const logoUrl = appSettings.logoUrl || "";
+      const logoUrl = getPrintLogoUrl(appSettings);
       const showLogo = !!settingValue("agreement_print_show_logo", true) && logoUrl;
       const header = safe(settingValue("agreement_print_header", "Visitor Agreement / Induction Evidence"));
       const companyName = safe(settingValue("agreement_print_company_name", appSettings.companyName || "Visitor Management"));

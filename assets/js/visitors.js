@@ -27,6 +27,7 @@ import {
   buildDailyPlannedVisitorPrintHtml,
   openPrintDocument
 } from "./printing.js";
+import { getPrintLogoUrl } from "./brandingThemeService.js";
 import {
   refreshSectionNavigator,
   registerModuleSections,
@@ -1335,7 +1336,7 @@ async function printDailyPlannedVisitorList() {
     printedBy,
     companyName: settingValue("company_name", "Visitor Management"),
     siteName: settingValue("site_name", settingValue("default_site_name", "")),
-    logoUrl: settingValue("logo_url", "")
+    logoUrl: getPrintLogoUrl() || settingValue("logo_url", "")
   });
   if (!openPrintDocument(html)) {
     showToast("Print window blocked", "Allow pop-ups for this site, then try again.", "error");

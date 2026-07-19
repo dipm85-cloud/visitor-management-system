@@ -18,6 +18,11 @@ import {
   updateApplicationSetting
 } from "./applicationSettingsService.js";
 import {
+  brandingImplementationStatus,
+  getCurrentBranding,
+  isHexColour
+} from "./brandingThemeService.js";
+import {
   MODULE_SETTINGS_AREA_IDS,
   SETTINGS_OWNERSHIP_AREAS,
   settingsAreaById,
@@ -427,6 +432,116 @@ function readSettingControlValue(setting) {
   return String(control.value || "");
 }
 
+function brandingSettingValue(settingKey, fallback) {
+  const setting = settings.find(item => item.setting_key === settingKey);
+  const control = setting ? $(settingInputId(setting.setting_key)) : null;
+  if (control) {
+    if (setting.value_type === "boolean") return control.checked;
+    if (setting.value_type === "integer") return Number.parseInt(control.value, 10);
+    if (setting.value_type === "numeric") return Number(control.value);
+    return String(control.value || "");
+  }
+  return setting ? jsonValue(setting.setting_value) : fallback;
+}
+
+function brandingPreviewLogo(container, logoUrl, transparent) {
+  container.replaceChildren();
+  container.classList.toggle("transparent", !!transparent && !!logoUrl);
+  if (!logoUrl) {
+    container.textContent = "OH";
+    return;
+  }
+  const img = document.createElement("img");
+  img.alt = "";
+  img.src = logoUrl;
+  img.addEventListener("error", () => {
+    container.replaceChildren();
+    container.classList.remove("transparent");
+    container.textContent = "OH";
+  });
+  container.appendChild(img);
+}
+
+function renderBrandingPreview() {
+  const root = $("brandingPreviewRoot");
+  if (!root) return;
+  root.classList.toggle("hidden", activeSectionId !== "branding");
+  if (activeSectionId !== "branding") {
+    root.replaceChildren();
+    return;
+  }
+
+  const current = getCurrentBranding();
+  const productName = String(brandingSettingValue("application.product_name", current.productName || "Operations Hub") || "Operations Hub");
+  const productSubtitle = String(brandingSettingValue("application.product_subtitle", current.productSubtitle || "Operational workspace") || "Operational workspace");
+  const logoUrl = String(brandingSettingValue("branding.logo_url", current.logoUrl || "") || "");
+  const printLogoUrl = String(brandingSettingValue("branding.print_logo_url", current.printLogoUrl || "") || "");
+  const displayMode = String(brandingSettingValue("branding.header_logo_display_mode", current.headerLogoDisplayMode || "logo_and_name") || "logo_and_name");
+  const transparent = brandingSettingValue("branding.logo_transparent_background", current.logoTransparentBackground) === true ||
+    brandingSettingValue("branding.logo_transparent_background", current.logoTransparentBackground) === "true";
+
+  root.replaceChildren();
+  const preview = document.createElement("section");
+  preview.className = "branding-preview";
+  preview.setAttribute("aria-label", "Branding preview");
+
+  const appSurface = document.createElement("article");
+  appSurface.className = "branding-preview-surface";
+  const header = document.createElement("div");
+  header.className = "branding-preview-header";
+  const logo = document.createElement("div");
+  logo.className = "branding-preview-logo";
+  const title = document.createElement("div");
+  title.className = "branding-preview-title";
+  const titleStrong = document.createElement("strong");
+  titleStrong.textContent = productName;
+  const subtitle = document.createElement("span");
+  subtitle.textContent = productSubtitle;
+  title.append(titleStrong, subtitle);
+  if (displayMode !== "name_only") {
+    brandingPreviewLogo(logo, displayMode === "default_mark_and_name" ? "" : logoUrl, transparent);
+    header.appendChild(logo);
+  }
+  if (displayMode !== "logo_only") header.appendChild(title);
+  appSurface.appendChild(header);
+
+  const row = document.createElement("div");
+  row.className = "branding-preview-row";
+  const button = document.createElement("span");
+  button.className = "branding-preview-button";
+  button.textContent = "Primary action";
+  const accent = document.createElement("span");
+  accent.className = "branding-preview-accent";
+  accent.textContent = "Accent chip";
+  const nav = document.createElement("span");
+  nav.className = "branding-preview-nav";
+  nav.textContent = "Active navigation";
+  row.append(button, accent, nav);
+  const card = document.createElement("div");
+  card.className = "branding-preview-card";
+  const cardTitle = document.createElement("strong");
+  cardTitle.textContent = "Sample branded card";
+  const cardBody = document.createElement("span");
+  cardBody.textContent = "Surface, radius, text and muted colour preview.";
+  card.append(cardTitle, cardBody);
+  appSurface.append(row, card);
+
+  const publicSurface = document.createElement("article");
+  publicSurface.className = "branding-preview-surface branding-preview-public";
+  const publicTitle = document.createElement("strong");
+  publicTitle.textContent = "Shared Terminal / public screen";
+  const publicBody = document.createElement("span");
+  publicBody.textContent = "Uses public screen background settings where configured.";
+  const printText = document.createElement("span");
+  printText.textContent = printLogoUrl
+    ? "Print logo configured for supported print outputs."
+    : "Print logo falls back to main logo or OH mark.";
+  publicSurface.append(publicTitle, publicBody, printText);
+
+  preview.append(appSurface, publicSurface);
+  root.appendChild(preview);
+}
+
 function settingActionId(setting, suffix) {
   return "application_settings." + String(setting.category_code || "setting") + "." +
     String(setting.setting_key || "setting").replace(/[^a-z0-9]+/gi, "_") + "." + suffix;
@@ -497,12 +612,25 @@ function renderRegistry(filterCategory, targetId = "applicationSettingsRegistry"
             ? "Editable"
             : "Read only";
       summary.append(name, description, meta);
+      const implementationStatus = brandingImplementationStatus(setting.setting_key);
+      if (implementationStatus) {
+        const status = document.createElement("span");
+        status.className = "application-settings-card-status is-" +
+          (implementationStatus.label === "Applied" ? "applied" : "partial");
+        status.textContent = implementationStatus.label;
+        status.title = implementationStatus.detail;
+        summary.appendChild(status);
+      }
 
       const field = document.createElement("label");
       field.className = "application-settings-control";
       const label = document.createElement("span");
       label.textContent = setting.setting_key;
       const control = createSettingControl(setting);
+      if (setting.category_code === "branding") {
+        control.addEventListener("input", renderBrandingPreview);
+        control.addEventListener("change", renderBrandingPreview);
+      }
       field.append(label, control);
 
       const save = document.createElement("button");
@@ -870,6 +998,7 @@ function renderActiveSection() {
   } else {
     selectPanel("registry");
     renderRegistry(definition.category);
+    renderBrandingPreview();
     renderRegistryBridgeActions(activeSectionId);
   }
 
@@ -936,6 +1065,10 @@ async function saveApplicationSetting(settingKey) {
   const setting = settings.find(item => item.setting_key === settingKey);
   if (!setting || setting.locked_by_system || setting.sensitive) return;
   const value = readSettingControlValue(setting);
+  if (setting.ui_component === "colour" && value && !isHexColour(value)) {
+    showToast("Setting not saved", "Use a valid hex colour such as #2563eb.", "error");
+    return;
+  }
   try {
     await updateApplicationSetting(settingKey, value);
     showToast("Setting saved", "The application setting was updated.", "success");

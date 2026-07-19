@@ -2,6 +2,7 @@ import { AppState } from "./state.js";
 import { showMessage } from "./messages.js";
 import { printEscape, formatPrintDate, formatPrintTime } from "./utils.js";
 import { buildOperationsPrintDocument } from "./platformUi.js";
+import { getPrintLogoUrl } from "./brandingThemeService.js";
 
 let appSettings;
 let printingDependencies;
@@ -38,7 +39,7 @@ export function buildCompactPlannedPrintHtml(rows, selectedDate, printedBy) {
     subtitle: "Security morning printout",
     kicker: "Operations Hub / Visitors",
     companyName,
-    logoUrl: appSettings.logoUrl || "",
+    logoUrl: getPrintLogoUrl(appSettings),
     generatedAt,
     orientation: "landscape",
     contextFields: [

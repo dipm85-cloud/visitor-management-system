@@ -10,6 +10,7 @@ import {
   isClearDuplicateAssignment,
   isLikelyRotaConflictAssignment
 } from "./assignmentConflicts.js";
+import { getCurrentBranding, getPrintLogoUrl } from "./brandingThemeService.js";
 
 const DISPLAY_MODE_KEY = "oh_workforce_calendar_display_mode";
 const MAX_RANGE_DAYS = 31;
@@ -915,6 +916,8 @@ function renderMonthlyPrintNotes(model, page) {
 }
 
 function monthlyPrintBranding() {
+  const branding = getCurrentBranding();
+  const printLogo = getPrintLogoUrl();
   const brandText = document.querySelector(".brand div:last-child");
   const logoImg = $("brandLogoImg");
   const companyName = brandText
@@ -924,8 +927,8 @@ function monthlyPrintBranding() {
     logoImg.getAttribute("src") &&
     logoImg.style.display !== "none";
   return {
-    companyName: companyName || "Operations Hub",
-    logoUrl: logoVisible ? logoImg.getAttribute("src") : ""
+    companyName: branding.companyName || companyName || "Operations Hub",
+    logoUrl: printLogo || (logoVisible ? logoImg.getAttribute("src") : "")
   };
 }
 
