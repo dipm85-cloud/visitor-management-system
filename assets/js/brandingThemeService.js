@@ -45,6 +45,23 @@ let currentBranding = { ...DEFAULT_BRANDING };
 let defaultFaviconHref = null;
 let systemThemeQuery = null;
 let systemThemeListenerBound = false;
+let lifecycleListenersBound = false;
+let isApplyingBrandingTheme = false;
+let lifecycleReapplyQueued = false;
+let lastAppSettingsRef = null;
+let lastSettingsSnapshot = {};
+let lastBodyClassName = null;
+let lastHtmlClassName = null;
+
+const BRANDING_THEME_GUARD_STYLE_ID = "oh-branding-theme-guard";
+const BRANDING_THEME_GUARD_CSS = [
+  "html, body { text-size-adjust: 100%; -webkit-text-size-adjust: 100%; }",
+  "body .operations-hub { font-size: var(--oh-font-size-base, 14px); line-height: var(--oh-line-height-base, 1.45); }",
+  "body .oh-navigation, body .application-settings-section { font-size: var(--oh-font-size-base, 14px); line-height: var(--oh-line-height-base, 1.45); }",
+  "body .oh-nav-item, body .oh-nav-child-item, body .application-settings-nav button { line-height: var(--oh-line-height-control, 1.25); }",
+  "body .application-settings-control input, body .application-settings-control select, body .application-settings-control textarea { line-height: var(--oh-line-height-control, 1.25); }"
+].join("\n");
+const brandingDiagnosticsLogged = new Set();
 
 function textValue(value, fallback = "") {
   const text = value == null ? "" : String(value).trim();
@@ -140,6 +157,67 @@ function setToken(name, value) {
   document.documentElement.style.setProperty(name, value);
 }
 
+function warnOnce(key, message) {
+  if (brandingDiagnosticsLogged.has(key) || typeof console === "undefined") return;
+  brandingDiagnosticsLogged.add(key);
+  console.warn("[BrandingTheme] " + message);
+}
+
+function ensureBrandingThemeGuardStyle() {
+  const styles = Array.from(document.querySelectorAll("style#" + BRANDING_THEME_GUARD_STYLE_ID));
+  let style = styles[0];
+  if (!style) {
+    style = document.createElement("style");
+    style.id = BRANDING_THEME_GUARD_STYLE_ID;
+    style.dataset.ohOwned = "branding-theme";
+    document.head.appendChild(style);
+  }
+  if (styles.length > 1) {
+    warnOnce("guard-style-duplicates", "Duplicate branding typography guard style tags were found and consolidated.");
+    styles.slice(1).forEach(extraStyle => extraStyle.remove());
+  }
+  if (style.textContent !== BRANDING_THEME_GUARD_CSS) style.textContent = BRANDING_THEME_GUARD_CSS;
+}
+
+function runBrandingDiagnostics() {
+  const shell = document.getElementById("operationsHubShell");
+  if (shell && !shell.classList.contains("operations-hub")) {
+    warnOnce("missing-shell-class", "Operations Hub shell is missing the operations-hub class.");
+  }
+  if (lastBodyClassName && !document.body.className) {
+    warnOnce("body-class-cleared", "Body classes were cleared after branding had been applied.");
+  }
+  if (lastHtmlClassName && !document.documentElement.className) {
+    warnOnce("html-class-cleared", "Document element classes were cleared after branding had been applied.");
+  }
+  lastBodyClassName = document.body.className;
+  lastHtmlClassName = document.documentElement.className;
+}
+
+function queueLifecycleBrandingReapply() {
+  if (lifecycleReapplyQueued || isApplyingBrandingTheme || !lastAppSettingsRef) return;
+  lifecycleReapplyQueued = true;
+  const run = () => {
+    lifecycleReapplyQueued = false;
+    if (isApplyingBrandingTheme || !lastAppSettingsRef) return;
+    applyBrandingTheme(lastAppSettingsRef, lastSettingsSnapshot);
+  };
+  if (typeof window.requestAnimationFrame === "function") {
+    window.requestAnimationFrame(run);
+  } else {
+    window.setTimeout(run, 0);
+  }
+}
+
+function bindBrandingLifecycleReapply() {
+  if (lifecycleListenersBound) return;
+  window.addEventListener("focus", queueLifecycleBrandingReapply);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") queueLifecycleBrandingReapply();
+  });
+  lifecycleListenersBound = true;
+}
+
 function effectiveThemeMode(mode) {
   if (mode === "light" || mode === "dark") return mode;
   if (!systemThemeQuery && window.matchMedia) {
@@ -212,6 +290,7 @@ function applyCornerTokens(cornerStyle) {
   setToken("--oh-radius-base", radii.base);
   setToken("--oh-radius-card", radii.card);
   setToken("--oh-radius-button", radii.button);
+  document.documentElement.dataset.ohCornerStyle = cornerStyle;
 }
 
 function backgroundCss(branding, publicScreen = false) {
@@ -243,10 +322,8 @@ function applyBackgroundTokens(branding) {
   setToken("--oh-branded-public-background", publicBackground);
   setToken("--oh-branded-public-background-size", branding.publicScreenBackgroundMode === "image" ? "cover" : "auto");
   setToken("--oh-branded-app-background-size", branding.backgroundMode === "image" ? "cover" : "auto");
-  document.body.style.backgroundColor = branding.backgroundColor;
-  document.body.style.backgroundImage = branding.backgroundMode === "default" ? "" : appBackground;
-  document.body.style.backgroundSize = branding.backgroundMode === "image" ? "cover" : "";
-  document.body.style.backgroundPosition = branding.backgroundMode === "image" ? "center" : "";
+  document.body.dataset.ohBrandingBackgroundMode = branding.backgroundMode;
+  document.body.dataset.ohPublicBrandingBackgroundMode = branding.publicScreenBackgroundMode;
 }
 
 function updateDefaultFavicon() {
@@ -458,22 +535,33 @@ export function syncBrandingToAppSettings(appSettings, branding) {
 }
 
 export function applyBrandingTheme(appSettings, settings = {}) {
-  const branding = brandingFromSettings(settings, appSettings);
-  syncBrandingToAppSettings(appSettings, branding);
-  currentBranding = { ...branding };
-  bindSystemThemeListener();
-  applyThemeTokens(branding);
-  applyCornerTokens(branding.cornerStyle);
-  applyBackgroundTokens(branding);
-  applyProductText(appSettings, branding);
-  applyHeaderLogo(branding);
-  applyLegacyVmsLogo(branding);
-  applyFavicon(branding);
-  applySharedTerminalText(appSettings);
-  window.dispatchEvent(new CustomEvent("oh:branding-theme-applied", {
-    detail: { branding: { ...branding } }
-  }));
-  return branding;
+  if (isApplyingBrandingTheme) return { ...currentBranding };
+  isApplyingBrandingTheme = true;
+  try {
+    lastAppSettingsRef = appSettings;
+    lastSettingsSnapshot = settings && typeof settings === "object" ? { ...settings } : {};
+    const branding = brandingFromSettings(settings, appSettings);
+    syncBrandingToAppSettings(appSettings, branding);
+    currentBranding = { ...branding };
+    bindSystemThemeListener();
+    bindBrandingLifecycleReapply();
+    ensureBrandingThemeGuardStyle();
+    applyThemeTokens(branding);
+    applyCornerTokens(branding.cornerStyle);
+    applyBackgroundTokens(branding);
+    applyProductText(appSettings, branding);
+    applyHeaderLogo(branding);
+    applyLegacyVmsLogo(branding);
+    applyFavicon(branding);
+    applySharedTerminalText(appSettings);
+    runBrandingDiagnostics();
+    window.dispatchEvent(new CustomEvent("oh:branding-theme-applied", {
+      detail: { branding: { ...branding } }
+    }));
+    return branding;
+  } finally {
+    isApplyingBrandingTheme = false;
+  }
 }
 
 export function getCurrentBranding() {
