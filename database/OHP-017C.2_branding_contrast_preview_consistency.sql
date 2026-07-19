@@ -75,6 +75,23 @@ from public.application_setting_definitions d
 where d.setting_key = 'branding.brand_contrast_mode'
 on conflict (setting_key) do nothing;
 
+update public.application_setting_definitions
+set
+  default_value = to_jsonb('#475569'::text),
+  help_text = 'Use a hex colour value, for example #475569.'
+where setting_key = 'branding.primary_color';
+
+update public.application_setting_values
+set
+  setting_value = to_jsonb('#475569'::text),
+  updated_at = now(),
+  updated_by = auth.uid()
+where setting_key = 'branding.primary_color'
+  and setting_value in (
+    to_jsonb('#2563eb'::text),
+    to_jsonb('#1f4f8f'::text)
+  );
+
 notify pgrst, 'reload schema';
 
 select

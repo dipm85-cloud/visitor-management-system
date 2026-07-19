@@ -226,7 +226,7 @@ values
     'Primary colour',
     'Primary brand colour used for key UI accents where supported.',
     'text',
-    to_jsonb('#2563eb'::text),
+    to_jsonb('#475569'::text),
     null,
     jsonb_build_object('format', 'hex_colour'),
     false,
@@ -234,7 +234,7 @@ values
     true,
     40,
     'colour',
-    'Use a hex colour value, for example #2563eb.'
+    'Use a hex colour value, for example #475569.'
   ),
   (
     'branding.accent_color',

@@ -10,7 +10,7 @@ const DEFAULT_BRANDING = Object.freeze({
   headerLogoSize: "medium",
   faviconUrl: null,
   printLogoUrl: null,
-  primaryColour: "#1f4f8f",
+  primaryColour: "#475569",
   accentColour: "#18a999",
   brandContrastMode: "auto",
   themeMode: "system",
@@ -345,7 +345,7 @@ function backgroundCss(branding, publicScreen = false) {
     return "linear-gradient(rgba(248,250,252," + overlay + "), rgba(248,250,252," + overlay + ")), " + cssUrl(imageUrl);
   }
   if (mode === "default" && publicScreen) {
-    return "radial-gradient(circle at top, rgba(47,111,173,.10), transparent 42%), #f5f7fa";
+    return "radial-gradient(circle at top, rgba(71,85,105,.10), transparent 42%), #f5f7fa";
   }
   return "radial-gradient(circle at top left, rgba(" + rgbString(branding.primaryColour) + ", .08), transparent 32%), linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)";
 }

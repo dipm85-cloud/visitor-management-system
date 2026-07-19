@@ -1,6 +1,6 @@
 :root {
-  --brand: #1f4f8f;
-  --brand-dark: #173b6d;
+  --brand: #475569;
+  --brand-dark: #334155;
   --accent: #18a999;
   --danger: #dc2626;
   --warning: #f59e0b;
@@ -42,7 +42,7 @@ body {
   line-height: var(--oh-line-height-base);
   color: var(--text);
   background:
-    radial-gradient(circle at top left, rgba(31,79,143,.18), transparent 32%),
+    radial-gradient(circle at top left, rgba(71,85,105,.18), transparent 32%),
     linear-gradient(135deg, #eef3f8 0%, #f8fbff 100%);
 }
 
@@ -61,7 +61,7 @@ button {
   transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
 }
 
-button:hover { transform: translateY(-1px); box-shadow: 0 10px 22px rgba(31,79,143,.18); }
+button:hover { transform: translateY(-1px); box-shadow: 0 10px 22px rgba(71,85,105,.18); }
 button:disabled { background: #9aa7b7; cursor: not-allowed; transform: none; box-shadow: none; }
 
 button.secondary { background: #475467; color: #ffffff; }
@@ -81,7 +81,7 @@ input, textarea, select {
 
 input:focus, textarea:focus, select:focus {
   border-color: var(--oh-brand-primary, var(--brand));
-  box-shadow: 0 0 0 4px var(--oh-focus-ring, rgba(31,79,143,.1));
+  box-shadow: 0 0 0 4px var(--oh-focus-ring, rgba(71,85,105,.1));
 }
 
 textarea { min-height: 86px; resize: vertical; }
@@ -405,7 +405,7 @@ textarea { min-height: 86px; resize: vertical; }
   line-height:1.35;
 }
 
-.settings-section.kiosk .settings-icon { background: linear-gradient(135deg, #1f4f8f, #18a999); }
+.settings-section.kiosk .settings-icon { background: linear-gradient(135deg, #475569, #18a999); }
 .settings-section.messages .settings-icon { background: linear-gradient(135deg, #7c3aed, #ec4899); }
 .settings-section.branding .settings-icon { background: linear-gradient(135deg, #f59e0b, #ef4444); }
 .settings-section.rules .settings-icon { background: linear-gradient(135deg, #0f766e, #22c55e); }
@@ -1190,7 +1190,7 @@ body.kiosk-mode .results-scroll {
   line-height:1.35;
 }
 
-.settings-section.kiosk .settings-icon { background: linear-gradient(135deg, #1f4f8f, #18a999); }
+.settings-section.kiosk .settings-icon { background: linear-gradient(135deg, #475569, #18a999); }
 .settings-section.messages .settings-icon { background: linear-gradient(135deg, #7c3aed, #ec4899); }
 .settings-section.branding .settings-icon { background: linear-gradient(135deg, #f59e0b, #ef4444); }
 .settings-section.rules .settings-icon { background: linear-gradient(135deg, #0f766e, #22c55e); }
@@ -4803,9 +4803,9 @@ body.document-signoff-overlay-open {
   --oh-footer-height: 34px;
   --oh-nav-width: 240px;
   --oh-nav-rail-width: 72px;
-  --oh-brand-primary: #1f4f8f;
-  --oh-brand-primary-strong: #173b6d;
-  --oh-brand-primary-soft: rgba(31, 79, 143, .12);
+  --oh-brand-primary: #475569;
+  --oh-brand-primary-strong: #334155;
+  --oh-brand-primary-soft: rgba(71, 85, 105, .12);
   --oh-brand-primary-contrast: #ffffff;
   --oh-brand-accent: #18a999;
   --oh-brand-accent-strong: #127f73;
@@ -4821,14 +4821,14 @@ body.document-signoff-overlay-open {
   --oh-nav-active-background: var(--oh-brand-primary);
   --oh-nav-active-text: var(--oh-brand-primary-contrast);
   --oh-nav-active-icon-background: rgba(255, 255, 255, .18);
-  --oh-nav-hover-background: rgba(31, 79, 143, .08);
-  --oh-focus-ring: rgba(31, 79, 143, .28);
+  --oh-nav-hover-background: rgba(71, 85, 105, .08);
+  --oh-focus-ring: rgba(71, 85, 105, .28);
   --oh-toast-accent: var(--oh-brand-accent);
   --oh-radius-base: 8px;
   --oh-radius-card: 8px;
   --oh-radius-button: 10px;
   --oh-branded-app-background:
-    radial-gradient(circle at top left, rgba(31, 79, 143, .09), transparent 32%),
+    radial-gradient(circle at top left, rgba(71, 85, 105, .09), transparent 32%),
     linear-gradient(135deg, #eef3f8 0%, #f8fbff 100%);
   --oh-branded-public-background:
     radial-gradient(circle at top, rgba(47, 111, 173, .12), transparent 42%),
@@ -4842,7 +4842,7 @@ body.document-signoff-overlay-open {
   --oh-shell-text: #1d2939;
   --oh-shell-muted: #667085;
   --oh-shell-active: #e8eef7;
-  --oh-shell-focus: #2f6fad;
+  --oh-shell-focus: #475569;
 }
 
 .operations-hub {
@@ -6584,7 +6584,7 @@ button.oh-section-nav-item:focus-visible,
 .dashboard-kpi-button:hover,
 .dashboard-kpi-button:focus-visible {
   border-color: var(--oh-shell-focus);
-  box-shadow: 0 0 0 3px rgba(31, 79, 143, .14);
+  box-shadow: 0 0 0 3px rgba(71, 85, 105, .14);
   outline: none;
 }
 
@@ -11800,9 +11800,9 @@ body.assignment-workspace-open .modal-backdrop.active {
 }
 
 .form-requirements-area-selector button.active {
-  border-color: #1f4f8f;
-  background: #f0f6ff;
-  color: #123b6d;
+  border-color: #475569;
+  background: #f1f5f9;
+  color: #334155;
 }
 
 .application-settings-registry {

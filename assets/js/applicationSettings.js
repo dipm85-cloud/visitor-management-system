@@ -438,7 +438,7 @@ function createSettingControl(setting) {
   } else if (component === "colour") {
     control = document.createElement("input");
     control.type = "color";
-    control.value = /^#[0-9a-f]{6}$/i.test(String(value || "")) ? String(value) : "#2563eb";
+    control.value = /^#[0-9a-f]{6}$/i.test(String(value || "")) ? String(value) : "#475569";
   } else if (component === "url") {
     control = document.createElement("input");
     control.type = "url";
@@ -555,7 +555,7 @@ function renderBrandingPreview() {
   const logoUrl = String(brandingSettingValue("branding.logo_url", current.logoUrl || "") || "");
   const printLogoUrl = String(brandingSettingValue("branding.print_logo_url", current.printLogoUrl || "") || "");
   const displayMode = String(brandingSettingValue("branding.header_logo_display_mode", current.headerLogoDisplayMode || "logo_and_name") || "logo_and_name");
-  const primaryColour = brandingPreviewColour("branding.primary_color", current.primaryColour || "#1f4f8f");
+  const primaryColour = brandingPreviewColour("branding.primary_color", current.primaryColour || "#475569");
   const accentColour = brandingPreviewColour("branding.accent_color", current.accentColour || "#18a999");
   const contrastMode = String(brandingSettingValue("branding.brand_contrast_mode", current.brandContrastMode || "auto") || "auto");
   const primaryContrast = brandedContrastColour(primaryColour, contrastMode);
@@ -1197,7 +1197,7 @@ async function saveApplicationSetting(settingKey) {
   if (!setting || setting.locked_by_system || setting.sensitive) return;
   const value = readSettingControlValue(setting);
   if (setting.ui_component === "colour" && value && !isHexColour(value)) {
-    showToast("Setting not saved", "Use a valid hex colour such as #2563eb.", "error");
+    showToast("Setting not saved", "Use a valid hex colour such as #475569.", "error");
     return;
   }
   try {

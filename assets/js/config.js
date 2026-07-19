@@ -17,7 +17,7 @@ const DEFAULT_APP_SETTINGS = Object.freeze({
     productSubtitle: "Operational workspace",
     environmentLabel: "",
     showEnvironmentLabel: false,
-    primaryColour: "#1f4f8f",
+    primaryColour: "#475569",
     accentColour: "#18a999",
     brandContrastMode: "auto",
     themeMode: "system",
