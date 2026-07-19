@@ -9,6 +9,13 @@ import {
   loadFormRequirements,
   resetFormRequirementsCache
 } from "./formRequirements.js";
+import {
+  MODULE_SETTINGS_AREA_IDS,
+  SETTINGS_OWNERSHIP_AREAS,
+  settingsAreaById,
+  settingsStatusCopy,
+  settingsStatusLabel
+} from "./settingsOwnershipMap.js";
 
 const APPLICATION_SETTINGS_VIEW_CAPABILITIES = [
   "application_settings.view",
@@ -19,12 +26,41 @@ const APPLICATION_SETTINGS_VIEW_CAPABILITIES = [
   "settings.edit",
   "module_configuration.view",
   "module_configuration.manage",
+  "visitor.view",
+  "devices.view",
+  "devices.manage",
+  "agreements.view",
+  "agreements.manage",
+  "document_signoff.manage",
+  "people.view",
+  "people.manage",
+  "work_time_profiles.view",
+  "work_time_profiles.manage",
+  "workforce_calendar.manage",
+  "session_security_settings.view",
+  "session_security_settings.manage",
+  "online_users.view",
+  "admin_system_messages.view",
+  "admin_system_messages.send",
+  "admin_system_messages.force_action",
+  "access_control.view",
+  "capabilities.diagnose",
   "access_control.manage"
 ];
 const APPLICATION_SETTINGS_MANAGE_CAPABILITIES = [
   "application_settings.manage",
   "settings.edit",
   "module_configuration.manage",
+  "access_control.manage"
+];
+const APPLICATION_SETTINGS_REGISTRY_VIEW_CAPABILITIES = [
+  "application_settings.view",
+  "application_settings.manage",
+  "settings.view",
+  "settings.edit",
+  "module_configuration.view",
+  "module_configuration.manage",
+  "access_control.view",
   "access_control.manage"
 ];
 const FIELD_REQUIREMENT_VIEW_CAPABILITIES = [
@@ -51,30 +87,35 @@ const FIELD_REQUIREMENT_MANAGE_CAPABILITIES = [
   "access_control.manage"
 ];
 
+const SECTION_CATEGORY_BY_ID = Object.freeze({
+  shared_terminal: "visitors",
+  people_assignments: "people_assignments",
+  session_security: "session_security",
+  future_lmt: "modules"
+});
+
+function sectionFromOwnershipArea(area) {
+  return {
+    id: area.id,
+    title: area.label,
+    description: area.description,
+    category: SECTION_CATEGORY_BY_ID[area.id] || area.id,
+    bridge: area.deepLinksToExistingPanel && !area.opensEmbeddedPanel ? area.id : "",
+    status: area.status,
+    area
+  };
+}
+
 const SECTION_DEFINITIONS = [
-  { id: "overview", title: "Overview", description: "A map of settings areas and migration status.", status: "Native in Application Settings" },
-  { id: "general", title: "General", description: "Product name, platform defaults and application-level behaviour.", category: "general", status: "Native in Application Settings" },
-  { id: "branding", title: "Branding", description: "Brand identity and appearance settings.", category: "branding", status: "Legacy-linked" },
-  { id: "modules", title: "Modules", description: "Module-level settings and form requirements.", category: "modules", status: "Native in Application Settings" },
-  { id: "visitors", title: "Visitors", description: "Visitor module settings, Form Requirements and legacy VMS configuration.", category: "visitors", bridge: "visitors", status: "Partially migrated" },
-  { id: "shared_terminal", title: "Shared Terminal", description: "Trusted terminal and kiosk-device administration.", category: "visitors", bridge: "shared_terminal", status: "Linked to existing module settings" },
-  { id: "documents", title: "Documents / Sign-off", description: "Document sign-off settings and compliance controls.", category: "documents", bridge: "documents", status: "Linked to existing module settings" },
-  { id: "people_assignments", title: "People & Assignments", description: "Assignment Form Requirements and people-policy settings.", category: "people_assignments", status: "Partially migrated" },
-  { id: "working_time", title: "Working Time", description: "Work Time Profiles, Break Rules and Unsociable Time rules.", category: "working_time", bridge: "working_time", status: "Linked to existing module settings" },
-  { id: "session_security", title: "Session Security", description: "Staff inactivity, forced actions and Shared Terminal timeout settings.", category: "session_security", bridge: "session_security", status: "Native / embedded" },
-  { id: "notifications", title: "Notifications", description: "Online users, system messages and system message history.", category: "notifications", bridge: "notifications", status: "Linked to existing module settings" },
-  { id: "advanced", title: "Advanced / Technical", description: "Controlled technical settings and diagnostics.", category: "advanced", status: "Partially migrated" }
+  { id: "overview", title: "Overview", description: "A map of settings areas and migration status.", status: "native" },
+  ...SETTINGS_OWNERSHIP_AREAS
+    .filter(area => area.id !== "future_lmt")
+    .map(sectionFromOwnershipArea)
 ];
 
-const MODULE_SETTING_CARDS = [
-  { sectionId: "visitors", title: "Visitors", status: "Partially migrated", description: "Form Requirements live here. Complex visitor settings remain linked to the existing VMS settings area." },
-  { sectionId: "people_assignments", title: "People & Assignments", status: "Native here", description: "Assignment Form Requirements are managed from Application Settings." },
-  { sectionId: "working_time", title: "Working Time", status: "Linked to existing module settings", description: "Open Work Time Profiles, Break Rules, Unsociable Time Rules and Rule Sets." },
-  { sectionId: "documents", title: "Documents / Sign-off", status: "Linked / partial", description: "Document sign-off settings remain in the specialist document area while migration continues." },
-  { sectionId: "session_security", title: "Session Security", status: "Native / embedded", description: "Open the existing Session Security settings panel from the central hub." },
-  { sectionId: "notifications", title: "Notifications", status: "Linked to System Messages", description: "Open Online Users, System Messages and Message History." },
-  { sectionId: "future_lmt", title: "Future LMT", status: "Future", description: "Labour management rules will be added after the settings foundation settles." }
-];
+const MODULE_SETTING_CARDS = MODULE_SETTINGS_AREA_IDS
+  .map(settingsAreaById)
+  .filter(Boolean);
 
 let dependencies = {};
 let initialised = false;
@@ -96,12 +137,48 @@ function canManageApplicationSettings() {
   return hasAnyCapability(APPLICATION_SETTINGS_MANAGE_CAPABILITIES);
 }
 
+function canViewApplicationSettingsRegistry() {
+  return hasAnyCapability(APPLICATION_SETTINGS_REGISTRY_VIEW_CAPABILITIES);
+}
+
 function canViewFieldRequirements() {
   return hasAnyCapability(FIELD_REQUIREMENT_VIEW_CAPABILITIES);
 }
 
 function canManageFieldRequirements() {
   return hasAnyCapability(FIELD_REQUIREMENT_MANAGE_CAPABILITIES);
+}
+
+function canViewSettingsArea(area) {
+  if (!area) return true;
+  return hasAnyCapability(area.viewCapabilities || APPLICATION_SETTINGS_VIEW_CAPABILITIES);
+}
+
+function canOpenSettingsSection(sectionId) {
+  const area = settingsAreaById(sectionId);
+  return !area || canViewSettingsArea(area);
+}
+
+function statusBadge(status) {
+  const meta = document.createElement("span");
+  meta.className = "application-settings-card-status status-" + String(status || "linked").replace(/_/g, "-");
+  meta.textContent = settingsStatusLabel(status);
+  return meta;
+}
+
+function primaryActionLabel(area) {
+  if (!area) return "Open";
+  if (area.status === "future") return "Coming later";
+  if (area.id === "branding") return "Open Legacy Branding Settings";
+  if (area.id === "visitors") return "Open Visitor Settings / Form Requirements";
+  if (area.id === "people_assignments") return "Open Form Requirements";
+  if (area.id === "working_time") return "Open Working Time Settings";
+  if (area.id === "documents") return "Open Sign-off Settings";
+  if (area.id === "session_security") return "Open Session Security";
+  if (area.id === "notifications") return "Open Notifications";
+  if (area.id === "advanced") return "Open Diagnostics";
+  if (area.id === "shared_terminal") return "Open Shared Terminals";
+  return "Open";
 }
 
 function setStatus(message, type) {
@@ -170,18 +247,18 @@ function renderSectionNavigation() {
   if (!nav) return;
   nav.replaceChildren();
 
-  SECTION_DEFINITIONS.forEach(section => {
+  SECTION_DEFINITIONS.filter(section => section.id === "overview" || canViewSettingsArea(section.area)).forEach(section => {
     const button = document.createElement("button");
     button.type = "button";
     button.textContent = section.title;
     button.className = section.id === activeSectionId ? "active" : "";
     button.addEventListener("click", () => openApplicationSettingsSection(section.id));
     decorateCapabilityAction(button, {
-      actionId: "application_settings.category.view",
-      label: "View Application Settings category",
+      actionId: "application_settings.section." + section.id + ".open",
+      label: "Open Application Settings section",
       area: "Application Settings",
-      requiredAny: APPLICATION_SETTINGS_VIEW_CAPABILITIES,
-      actionType: "view"
+      requiredAny: section.area ? section.area.viewCapabilities : APPLICATION_SETTINGS_VIEW_CAPABILITIES,
+      actionType: "navigation"
     });
     nav.appendChild(button);
   });
@@ -192,28 +269,32 @@ function renderOverview() {
   if (!container) return;
   container.replaceChildren();
 
-  SECTION_DEFINITIONS.filter(section => section.id !== "overview").forEach(section => {
+  SETTINGS_OWNERSHIP_AREAS.filter(canViewSettingsArea).forEach(area => {
+    const section = sectionDefinition(area.id);
     const relatedSettings = settings.filter(item => item.category_code === section.category);
     const card = document.createElement("article");
     card.className = "application-settings-card";
 
     const title = document.createElement("h4");
-    title.textContent = section.title;
+    title.textContent = area.label;
     const description = document.createElement("p");
-    description.textContent = section.description;
-    const meta = document.createElement("span");
-    meta.className = "application-settings-card-status";
-    meta.textContent = section.status || (relatedSettings.length ? relatedSettings.length + " registry setting(s)" : "Prepared");
+    description.textContent = area.description;
+    const meta = statusBadge(area.status);
+    meta.title = settingsStatusCopy(area.status);
     const button = document.createElement("button");
     button.type = "button";
-    button.textContent = "Open";
-    button.addEventListener("click", () => openApplicationSettingsSection(section.id));
+    button.textContent = primaryActionLabel(area);
+    button.disabled = area.status === "future";
+    if (area.status !== "future") {
+      button.addEventListener("click", () => openApplicationSettingsSection(area.id));
+    }
     decorateCapabilityAction(button, {
-      actionId: "application_settings.category.view",
-      label: "View Application Settings category",
+      actionId: "application_settings.section." + area.id + ".open",
+      label: "Open " + area.label + " settings",
       area: "Application Settings",
-      requiredAny: APPLICATION_SETTINGS_VIEW_CAPABILITIES,
-      actionType: "view"
+      requiredAny: area.viewCapabilities,
+      notes: relatedSettings.length ? relatedSettings.length + " registry setting(s)" : settingsStatusCopy(area.status),
+      actionType: "navigation"
     });
 
     card.append(title, description, meta, button);
@@ -226,38 +307,28 @@ function renderModulesPanel() {
   if (!container) return;
   container.replaceChildren();
 
-  MODULE_SETTING_CARDS.forEach(cardDefinition => {
+  MODULE_SETTING_CARDS.filter(canViewSettingsArea).forEach(cardDefinition => {
     const card = document.createElement("article");
     card.className = "application-settings-card";
     const title = document.createElement("h4");
-    title.textContent = cardDefinition.title;
+    title.textContent = cardDefinition.label;
     const description = document.createElement("p");
     description.textContent = cardDefinition.description;
-    const status = document.createElement("span");
-    status.className = "application-settings-card-status";
-    status.textContent = cardDefinition.status;
+    const status = statusBadge(cardDefinition.status);
+    status.title = settingsStatusCopy(cardDefinition.status);
     const button = document.createElement("button");
     button.type = "button";
-    button.textContent = cardDefinition.sectionId === "future_lmt" ? "Not yet available" : "Open";
-    button.disabled = cardDefinition.sectionId === "future_lmt";
-    if (cardDefinition.sectionId !== "future_lmt") {
-      button.addEventListener("click", () => openApplicationSettingsSection(cardDefinition.sectionId));
+    button.textContent = primaryActionLabel(cardDefinition);
+    button.disabled = cardDefinition.status === "future";
+    if (cardDefinition.status !== "future") {
+      button.addEventListener("click", () => openApplicationSettingsSection(cardDefinition.id));
     }
     decorateCapabilityAction(button, {
-      actionId: "application_settings.modules.open",
-      label: cardDefinition.title === "People & Assignments"
-        ? "Open People & Assignments settings"
-        : cardDefinition.title === "Visitors"
-          ? "Open Visitors settings bridge"
-          : cardDefinition.title === "Working Time"
-            ? "Open Working Time settings"
-            : cardDefinition.title === "Session Security"
-              ? "Open Session Security settings"
-              : cardDefinition.title === "Notifications"
-                ? "Open Notifications settings"
-                : "Open Modules settings",
+      actionId: "application_settings.modules." + cardDefinition.id + ".open",
+      label: primaryActionLabel(cardDefinition),
       area: "Application Settings",
-      requiredAny: APPLICATION_SETTINGS_VIEW_CAPABILITIES,
+      requiredAny: cardDefinition.viewCapabilities,
+      notes: settingsStatusCopy(cardDefinition.status),
       actionType: "navigation"
     });
     card.append(title, description, status, button);
@@ -501,37 +572,145 @@ function renderFieldRequirements() {
 function bridgeActionsFor(sectionId) {
   if (sectionId === "visitors") {
     return [
-      ["Visitor Walk-ins Form Requirements", "application_settings.visitors.walk_ins.form_requirements.open", "Open Form Requirements", () => openFormRequirementsArea("visitor_walk_ins")],
-      ["Planned Visits Form Requirements", "application_settings.visitors.planned.form_requirements.open", "Open Form Requirements", () => openFormRequirementsArea("planned_visits")],
-      ["Open Visitor Settings", "application_settings.visitors.legacy.open", "Open legacy Visitor Settings link", () => dependencies.openLegacySettings?.()],
-      ["Open Legacy VMS Settings", "application_settings.visitors.vms.open", "Open legacy VMS Settings link", () => dependencies.openLegacySettings?.()]
+      {
+        label: "Visitor Walk-ins Form Requirements",
+        actionId: "application_settings.visitors.walk_ins.form_requirements.open",
+        capabilityLabel: "Open Form Requirements",
+        description: "Manage required fields for visitor walk-in forms.",
+        requiredAny: FIELD_REQUIREMENT_VIEW_CAPABILITIES,
+        handler: () => openFormRequirementsArea("visitor_walk_ins")
+      },
+      {
+        label: "Planned Visits Form Requirements",
+        actionId: "application_settings.visitors.planned.form_requirements.open",
+        capabilityLabel: "Open Form Requirements",
+        description: "Manage required fields for planned visit forms.",
+        requiredAny: FIELD_REQUIREMENT_VIEW_CAPABILITIES,
+        handler: () => openFormRequirementsArea("planned_visits")
+      },
+      {
+        label: "Open Visitor Settings",
+        actionId: "application_settings.visitors.legacy.open",
+        capabilityLabel: "Open Visitor settings bridge",
+        description: "Open the existing visitor settings area while migration continues.",
+        requiredAny: settingsAreaById("visitors").viewCapabilities,
+        handler: () => dependencies.openLegacySettings?.()
+      },
+      {
+        label: "Open Legacy VMS Settings",
+        actionId: "application_settings.visitors.vms.open",
+        capabilityLabel: "Open legacy VMS settings",
+        description: "Open the legacy VMS settings area.",
+        requiredAny: ["settings.view", "settings.edit", "visitor.view"],
+        handler: () => dependencies.openLegacySettings?.()
+      }
     ];
   }
+  if (sectionId === "branding") {
+    return [{
+      label: "Open Legacy Branding Settings",
+      actionId: "application_settings.branding.legacy.open",
+      capabilityLabel: "Open Branding legacy bridge",
+      description: "Logo, theme and background still open in legacy VMS settings.",
+      requiredAny: settingsAreaById("branding").viewCapabilities,
+      handler: () => dependencies.openLegacySettings?.()
+    }];
+  }
   if (sectionId === "shared_terminal") {
-    return [["Open Shared Terminals", "application_settings.shared_terminal.open", "Open Shared Terminal settings", () => dependencies.openSharedTerminals?.()]];
+    return [{
+      label: "Open Shared Terminals",
+      actionId: "application_settings.shared_terminal.open",
+      capabilityLabel: "Open Shared Terminal settings",
+      description: "Open the existing Shared Terminals administration panel.",
+      requiredAny: settingsAreaById("shared_terminal").viewCapabilities,
+      handler: () => dependencies.openSharedTerminals?.()
+    }];
   }
   if (sectionId === "documents") {
-    return [["Open Document Sign-off Settings", "application_settings.documents.open", "Open Document Sign-off settings", () => dependencies.openDocuments?.()]];
+    return [{
+      label: "Open Document Sign-off Settings",
+      actionId: "application_settings.documents.open",
+      capabilityLabel: "Open Document Sign-off settings",
+      description: "Open the existing document and sign-off settings panel.",
+      requiredAny: settingsAreaById("documents").viewCapabilities,
+      handler: () => dependencies.openDocuments?.()
+    }];
   }
   if (sectionId === "working_time") {
     return [
-      ["Work Time Profiles", "application_settings.working_time.profiles.open", "Open Working Time settings", () => dependencies.openWorkingTimeEntity?.("workTimeProfiles")],
-      ["Break Rules", "application_settings.working_time.break_rules.open", "Open Working Time settings", () => dependencies.openWorkingTimeEntity?.("breakRules")],
-      ["Unsociable Time Rules", "application_settings.working_time.unsociable_rules.open", "Open Working Time settings", () => dependencies.openWorkingTimeEntity?.("unsociableTimeRules")],
-      ["Unsociable Rule Sets", "application_settings.working_time.unsociable_sets.open", "Open Working Time settings", () => dependencies.openWorkingTimeEntity?.("unsociableRuleSets")]
+      {
+        label: "Work Time Profiles",
+        actionId: "application_settings.working_time.profiles.open",
+        capabilityLabel: "Open Work Time Profiles",
+        description: "Open the existing Work Time Profiles settings.",
+        requiredAny: settingsAreaById("working_time").viewCapabilities,
+        handler: () => dependencies.openWorkingTimeEntity?.("workTimeProfiles")
+      },
+      {
+        label: "Break Rules",
+        actionId: "application_settings.working_time.break_rules.open",
+        capabilityLabel: "Open Break Rules",
+        description: "Open the existing Break Rules settings.",
+        requiredAny: settingsAreaById("working_time").viewCapabilities,
+        handler: () => dependencies.openWorkingTimeEntity?.("breakRules")
+      },
+      {
+        label: "Unsociable Time Rules",
+        actionId: "application_settings.working_time.unsociable_rules.open",
+        capabilityLabel: "Open Unsociable Time Rules",
+        description: "Open the existing Unsociable Time Rules settings.",
+        requiredAny: settingsAreaById("working_time").viewCapabilities,
+        handler: () => dependencies.openWorkingTimeEntity?.("unsociableTimeRules")
+      },
+      {
+        label: "Unsociable Rule Sets",
+        actionId: "application_settings.working_time.unsociable_sets.open",
+        capabilityLabel: "Open Unsociable Rule Sets",
+        description: "Open the existing Unsociable Rule Sets settings.",
+        requiredAny: settingsAreaById("working_time").viewCapabilities,
+        handler: () => dependencies.openWorkingTimeEntity?.("unsociableRuleSets")
+      }
     ];
   }
   if (sectionId === "session_security") {
-    return [["Open Session Security", "application_settings.session_security.open", "Open Session Security settings", () => dependencies.openSessionSecurity?.()]];
+    return [{
+      label: "Open Session Security",
+      actionId: "application_settings.session_security.open",
+      capabilityLabel: "Open Session Security settings",
+      description: "Open the existing Session Security settings card.",
+      requiredAny: settingsAreaById("session_security").viewCapabilities,
+      handler: () => dependencies.openSessionSecurity?.()
+    }];
   }
   if (sectionId === "notifications") {
     return [
-      ["Online Users / System Messages", "application_settings.notifications.online.open", "Open Notification settings/history", () => dependencies.openNotifications?.("presence")],
-      ["System Message History", "application_settings.notifications.history.open", "Open Notification settings/history", () => dependencies.openNotifications?.("history")]
+      {
+        label: "Online Users / System Messages",
+        actionId: "application_settings.notifications.online.open",
+        capabilityLabel: "Open Notification settings",
+        description: "Open Online Users and System Messages.",
+        requiredAny: settingsAreaById("notifications").viewCapabilities,
+        handler: () => dependencies.openNotifications?.("presence")
+      },
+      {
+        label: "System Message History",
+        actionId: "application_settings.notifications.history.open",
+        capabilityLabel: "Open System Message History",
+        description: "Open the existing message history panel.",
+        requiredAny: settingsAreaById("notifications").viewCapabilities,
+        handler: () => dependencies.openNotifications?.("history")
+      }
     ];
   }
-  if (sectionId === "modules") {
-    return [["Open Module Configuration", "application_settings.modules.open", "Open Module Configuration", () => dependencies.openModuleConfiguration?.()]];
+  if (sectionId === "advanced") {
+    return [{
+      label: "Open Access Control / Diagnostics",
+      actionId: "application_settings.advanced.diagnostics.open",
+      capabilityLabel: "Open Access Control / Diagnostics settings",
+      description: "Open the existing Access Control diagnostics workspace.",
+      requiredAny: settingsAreaById("advanced").viewCapabilities,
+      handler: () => dependencies.openAccessControlDiagnostics?.()
+    }];
   }
   return [];
 }
@@ -546,24 +725,23 @@ function renderBridge(sectionId) {
   if (!container) return;
   container.replaceChildren();
 
-  bridgeActionsFor(sectionId).forEach(([label, actionId, capabilityLabel, handler]) => {
+  bridgeActionsFor(sectionId).filter(action => hasAnyCapability(action.requiredAny || APPLICATION_SETTINGS_VIEW_CAPABILITIES)).forEach(action => {
     const card = document.createElement("article");
     card.className = "application-settings-card";
     const h4 = document.createElement("h4");
-    h4.textContent = label;
+    h4.textContent = action.label;
     const p = document.createElement("p");
-    p.textContent = definition.status === "Legacy-backed"
-      ? "This area is still managed in the existing legacy-backed workspace."
-      : "This opens the existing specialist settings workspace.";
+    p.textContent = action.description || settingsStatusCopy(definition.status);
     const button = document.createElement("button");
     button.type = "button";
     button.textContent = "Open";
-    button.addEventListener("click", handler);
+    button.addEventListener("click", action.handler);
     decorateCapabilityAction(button, {
-      actionId,
-      label: capabilityLabel,
+      actionId: action.actionId,
+      label: action.capabilityLabel,
       area: "Application Settings",
-      requiredAny: APPLICATION_SETTINGS_VIEW_CAPABILITIES,
+      requiredAny: action.requiredAny || APPLICATION_SETTINGS_VIEW_CAPABILITIES,
+      notes: settingsStatusCopy(definition.status),
       actionType: "navigation"
     });
     card.append(h4, p, button);
@@ -603,6 +781,14 @@ function renderActiveSection() {
 
 async function loadApplicationSettingsData() {
   if (!canViewApplicationSettings()) return;
+  if (!canViewApplicationSettingsRegistry()) {
+    categories = [];
+    settings = [];
+    settingsLoaded = true;
+    setStatus("");
+    renderActiveSection();
+    return;
+  }
   setStatus("Loading settings...", "info");
   try {
     const [categoryResult, settingsResult] = await Promise.all([
@@ -723,7 +909,18 @@ export async function openApplicationSettingsSection(sectionId) {
     showToast("You do not have permission", "Application Settings requires application_settings.view or an equivalent settings capability.", "error");
     return;
   }
-  activeSectionId = sectionId || "overview";
+  const nextSectionId = sectionId === "future_lmt" ? "modules" : (sectionId || "overview");
+  if (!canOpenSettingsSection(nextSectionId)) {
+    const area = settingsAreaById(nextSectionId);
+    showToast(
+      "You do not have permission",
+      (area ? area.label : "This settings area") + " is not available for your current capabilities.",
+      "error"
+    );
+    activeSectionId = "overview";
+  } else {
+    activeSectionId = nextSectionId;
+  }
   renderActiveSection();
   if (!settingsLoaded) await loadApplicationSettingsData();
   if (activeSectionId === "people_assignments") await loadFieldRequirements();
@@ -774,8 +971,9 @@ export function initialiseApplicationSettings(options = {}) {
   const revertRequirements = $("formRequirementsRevertButton");
   if (revertRequirements) revertRequirements.addEventListener("click", revertFormRequirementChanges);
 
-  window.addEventListener("oh:application-settings-requested", () => {
-    void openApplicationSettingsWorkspace();
+  window.addEventListener("oh:application-settings-requested", event => {
+    const detail = event.detail || {};
+    void openApplicationSettingsWorkspace(detail.sectionId || detail.section || "overview");
   });
   window.addEventListener("oh:capabilities-changed", syncApplicationSettingsVisibility);
   syncApplicationSettingsVisibility();

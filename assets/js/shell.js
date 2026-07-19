@@ -222,6 +222,7 @@ export function shouldShowAdministrationNavigation() {
     "audit.view",
     "access_control.view",
     "access_control.manage",
+    "capabilities.diagnose",
     "online_users.view",
     "admin_system_messages.view",
     "admin_system_messages.send",

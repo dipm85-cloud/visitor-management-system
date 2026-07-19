@@ -275,7 +275,9 @@ export function initialiseModuleConfigurationFramework() {
   initialised = true;
   $("administrationModuleConfigurationNav").addEventListener(
     "click",
-    () => openModuleConfigurationAdministration()
+    () => window.dispatchEvent(new CustomEvent("oh:application-settings-requested", {
+      detail: { sectionId: "modules" }
+    }))
   );
   $("moduleConfigurationBackButton").addEventListener("click", showModuleCatalogue);
   window.addEventListener(

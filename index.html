@@ -56,7 +56,7 @@
         <button id="ohAccountLogout" type="button" role="menuitem">Log Out</button>
         <button id="ohAccountAbout" type="button" role="menuitem">About Operations Hub</button>
       </div>
-      <button id="ohSettingsShortcut" class="oh-header-action no-print" type="button" title="Open Application Settings" data-capability-action="application_settings.open" data-capability-label="Open Application Settings" data-capability-area="Application Settings" data-capability-any="application_settings.view application_settings.manage form_requirements.view form_requirements.manage settings.view settings.edit module_configuration.view module_configuration.manage access_control.manage" data-capability-type="navigation">
+      <button id="ohSettingsShortcut" class="oh-header-action no-print" type="button" title="Open Application Settings" data-capability-action="application_settings.open" data-capability-label="Open Application Settings" data-capability-area="Application Settings" data-capability-any="application_settings.view application_settings.manage form_requirements.view form_requirements.manage settings.view settings.edit module_configuration.view module_configuration.manage visitor.view devices.view devices.manage agreements.view agreements.manage document_signoff.manage people.view people.manage work_time_profiles.view work_time_profiles.manage workforce_calendar.manage session_security_settings.view session_security_settings.manage online_users.view admin_system_messages.view admin_system_messages.send admin_system_messages.force_action access_control.view access_control.manage capabilities.diagnose" data-capability-type="navigation">
         <span aria-hidden="true">⚙</span>
         <span class="oh-action-label">Settings</span>
       </button>
@@ -113,19 +113,19 @@
           <span class="oh-nav-label">Reports</span>
         </button>
         <div id="ohAdministrationGroup" class="oh-nav-group" data-oh-nav-group="administration">
-          <button id="ohAdministrationNav" class="oh-nav-item oh-nav-group-toggle" type="button" title="Administration" aria-expanded="false" aria-controls="ohAdministrationChildren" data-nav-action="navigation.administration.open" data-capability-action="navigation.administration.open" data-capability-label="Administration" data-capability-area="Navigation" data-capability-any="application_settings.view application_settings.manage form_requirements.view form_requirements.manage assignment_field_requirements.view assignment_field_requirements.manage settings.view settings.edit module_configuration.view module_configuration.manage visitor.housekeeping.run devices.view devices.manage document_signoff.manage agreements.manage gdpr.view gdpr.manage privacy.view privacy.manage identity_resolution.view identity_resolution.manage audit.view access_control.view access_control.manage online_users.view admin_system_messages.view admin_system_messages.send admin_system_messages.force_action session_security_settings.view session_security_settings.manage" data-capability-type="navigation">
+          <button id="ohAdministrationNav" class="oh-nav-item oh-nav-group-toggle" type="button" title="Administration" aria-expanded="false" aria-controls="ohAdministrationChildren" data-nav-action="navigation.administration.open" data-capability-action="navigation.administration.open" data-capability-label="Administration" data-capability-area="Navigation" data-capability-any="application_settings.view application_settings.manage form_requirements.view form_requirements.manage assignment_field_requirements.view assignment_field_requirements.manage settings.view settings.edit module_configuration.view module_configuration.manage visitor.housekeeping.run devices.view devices.manage document_signoff.manage agreements.manage gdpr.view gdpr.manage privacy.view privacy.manage identity_resolution.view identity_resolution.manage audit.view access_control.view access_control.manage capabilities.diagnose online_users.view admin_system_messages.view admin_system_messages.send admin_system_messages.force_action session_security_settings.view session_security_settings.manage" data-capability-type="navigation">
             <span class="oh-nav-icon" aria-hidden="true">A</span>
             <span class="oh-nav-label">Administration</span>
             <span class="oh-nav-caret" aria-hidden="true">›</span>
           </button>
           <div id="ohAdministrationChildren" class="oh-nav-children" aria-label="Administration areas">
-            <button id="administrationApplicationSettingsNav" class="oh-nav-child-item hidden" type="button" title="Application Settings" data-nav-action="navigation.application_settings.open" data-capability-action="application_settings.open" data-capability-label="Open Application Settings" data-capability-area="Navigation" data-capability-any="application_settings.view application_settings.manage form_requirements.view form_requirements.manage settings.view settings.edit module_configuration.view module_configuration.manage access_control.manage" data-capability-type="navigation">Application Settings</button>
+            <button id="administrationApplicationSettingsNav" class="oh-nav-child-item hidden" type="button" title="Application Settings" data-nav-action="navigation.application_settings.open" data-capability-action="application_settings.open" data-capability-label="Open Application Settings" data-capability-area="Navigation" data-capability-any="application_settings.view application_settings.manage form_requirements.view form_requirements.manage settings.view settings.edit module_configuration.view module_configuration.manage visitor.view devices.view devices.manage agreements.view agreements.manage document_signoff.manage people.view people.manage work_time_profiles.view work_time_profiles.manage workforce_calendar.manage session_security_settings.view session_security_settings.manage online_users.view admin_system_messages.view admin_system_messages.send admin_system_messages.force_action access_control.view access_control.manage capabilities.diagnose" data-capability-type="navigation">Application Settings</button>
             <button id="administrationReferenceNav" class="oh-nav-child-item active" type="button" aria-current="page" title="Reference Data" data-nav-action="navigation.reference_data.open" data-capability-action="navigation.reference_data.open" data-capability-label="Reference Data" data-capability-area="Navigation" data-capability-any="reference_data.view reference_data.manage settings.view settings.edit" data-capability-type="navigation">Reference Data</button>
             <button id="administrationIdentityResolutionNav" class="oh-nav-child-item hidden" type="button" title="Identity Resolution" data-nav-action="navigation.identity_resolution.open" data-capability-action="navigation.identity_resolution.open" data-capability-label="Identity Resolution" data-capability-area="Navigation" data-capability-any="identity_resolution.view identity_resolution.manage" data-capability-type="navigation">Identity Resolution</button>
             <button id="administrationDocumentSignoffsNav" class="oh-nav-child-item hidden" type="button" title="Document Sign-offs" data-nav-action="navigation.document_signoffs.open" data-capability-action="navigation.document_signoffs.open" data-capability-label="Document Sign-offs" data-capability-area="Navigation" data-capability-any="agreements.view agreements.manage document_signoff.manage" data-capability-type="navigation">Document Sign-offs</button>
             <button id="administrationPrivacyGdprNav" class="oh-nav-child-item hidden" type="button" title="Privacy / Data Governance" data-nav-action="navigation.privacy_gdpr.open" data-capability-action="navigation.privacy_gdpr.open" data-capability-label="Privacy / Data Governance" data-capability-area="Navigation" data-capability-any="privacy.case.view privacy.case.manage privacy.view privacy.manage gdpr.view gdpr.manage" data-capability-type="navigation">Privacy / Data Governance</button>
             <button id="administrationSharedTerminalsNav" class="oh-nav-child-item hidden" type="button" title="Shared Terminals" data-nav-action="navigation.shared_terminals.open" data-capability-action="navigation.shared_terminals.open" data-capability-label="Shared Terminals" data-capability-area="Navigation" data-capability-any="devices.view devices.manage" data-capability-type="navigation">Shared Terminals</button>
-            <button id="administrationModuleConfigurationNav" class="oh-nav-child-item hidden" type="button" title="Module Configuration" data-nav-action="navigation.module_configuration.open" data-capability-action="navigation.module_configuration.open" data-capability-label="Module Configuration" data-capability-area="Navigation" data-capability-any="module_configuration.view module_configuration.manage settings.view settings.edit" data-capability-type="navigation">Module Configuration</button>
+            <button id="administrationModuleConfigurationNav" class="oh-nav-child-item hidden" type="button" title="Module settings are managed in Application Settings" data-nav-action="navigation.module_configuration.open" data-capability-action="application_settings.modules.shortcut.open" data-capability-label="Open Application Settings Modules" data-capability-area="Navigation" data-capability-any="application_settings.view application_settings.manage module_configuration.view module_configuration.manage settings.view settings.edit" data-capability-type="navigation">Module Settings</button>
             <button id="administrationAccessControlNav" class="oh-nav-child-item hidden" type="button" title="Access Control" data-nav-action="navigation.access_control.open" data-capability-action="navigation.access_control.open" data-capability-label="Access Control" data-capability-area="Navigation" data-capability-any="access_control.view access_control.manage role_presets.view user_role_assignments.view online_users.view admin_system_messages.view admin_system_messages.send admin_system_messages.force_action session_security_settings.view session_security_settings.manage" data-capability-type="navigation">Access Control</button>
           </div>
         </div>
@@ -1353,7 +1353,7 @@
       <div class="brand-mark"><img id="brandLogoImg" alt="Logo" style="display:none;width:100%;height:100%;object-fit:contain;border-radius:12px;"><span id="brandLogoFallback">V</span></div>
       <div>
         Visitor Management<br>
-        <span style="font-size:12px;color:var(--muted);font-weight:700;">Operations Hub nextgen-ui - OHP-017A</span>
+        <span style="font-size:12px;color:var(--muted);font-weight:700;">Operations Hub nextgen-ui - OHP-017B</span>
       </div>
     </div>
     <div class="button-row no-print" style="margin:0;">
@@ -1402,7 +1402,7 @@
       </div>
       <button id="terminalReturnHomeButton" class="secondary hidden" type="button">Return to Terminal Home</button>
     </section>
-  <div id="appVersionFooter" class="version-footer">Version <span id="appVersionText">OHP-017A</span></div>
+  <div id="appVersionFooter" class="version-footer">Version <span id="appVersionText">OHP-017B</span></div>
 </main>
 
   <section id="signInScreen" class="screen">
@@ -5220,7 +5220,7 @@
             </div>
             <div class="application-settings-heading-actions">
               <span id="applicationSettingsModeBadge" class="access-control-mode">Read only</span>
-              <button id="applicationSettingsRefreshButton" class="secondary" type="button" data-capability-action="application_settings.refresh" data-capability-label="Refresh Application Settings" data-capability-area="Application Settings" data-capability-any="application_settings.view application_settings.manage settings.view settings.edit module_configuration.view module_configuration.manage access_control.manage" data-capability-type="view">Refresh</button>
+              <button id="applicationSettingsRefreshButton" class="secondary" type="button" data-capability-action="application_settings.refresh" data-capability-label="Refresh Application Settings" data-capability-area="Application Settings" data-capability-any="application_settings.view application_settings.manage form_requirements.view form_requirements.manage settings.view settings.edit module_configuration.view module_configuration.manage visitor.view devices.view devices.manage agreements.view agreements.manage document_signoff.manage people.view people.manage work_time_profiles.view work_time_profiles.manage workforce_calendar.manage session_security_settings.view session_security_settings.manage online_users.view admin_system_messages.view admin_system_messages.send admin_system_messages.force_action access_control.view access_control.manage capabilities.diagnose" data-capability-type="view">Refresh</button>
             </div>
           </div>
 
@@ -5824,7 +5824,7 @@
 
   <footer class="oh-footer">
     <strong>Operations Hub</strong>
-    <span>Version <span id="ohPlatformVersion">OHP-017A</span></span>
+    <span>Version <span id="ohPlatformVersion">OHP-017B</span></span>
     <span>Environment <span id="ohEnvironment">Local</span></span>
   </footer>
 </div>

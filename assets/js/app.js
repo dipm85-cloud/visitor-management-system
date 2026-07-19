@@ -272,7 +272,6 @@ import {
 import {
   finaliseModuleConfigurationRegistrations,
   initialiseModuleConfigurationFramework,
-  openModuleConfigurationAdministration,
   syncModuleConfigurationVisibility
 } from "./moduleConfiguration.js";
 import { registerInitialModuleConfigurations } from "./moduleConfigurations.js";
@@ -586,10 +585,15 @@ window.addEventListener("load", async function () {
       }, 80);
     }
 
+    async function openAccessControlDiagnosticsBridge() {
+      await openAccessControlWorkspace();
+      showAccessControlView("diagnostics");
+    }
+
     initialiseApplicationSettings({
       openLegacySettings: openExistingSettingsArea,
       openDocuments: () => openDocumentSignoffLegacyVms("document-signoffs-management"),
-      openModuleConfiguration: () => openModuleConfigurationAdministration(),
+      openAccessControlDiagnostics: openAccessControlDiagnosticsBridge,
       openNotifications: openAdminPresenceSettings,
       openSessionSecurity: openSessionSecuritySettingsBridge,
       openSharedTerminals: openSharedTerminalAdministration,
@@ -5225,6 +5229,36 @@ window.addEventListener("load", async function () {
     if ($("ohAdministrationNav")) {
       $("ohAdministrationNav").addEventListener("click", () => {
         if (hasAnyCapability([
+          "application_settings.view",
+          "application_settings.manage",
+          "form_requirements.view",
+          "form_requirements.manage",
+          "settings.view",
+          "settings.edit",
+          "module_configuration.view",
+          "module_configuration.manage",
+          "devices.view",
+          "devices.manage",
+          "agreements.view",
+          "agreements.manage",
+          "document_signoff.manage",
+          "work_time_profiles.view",
+          "work_time_profiles.manage",
+          "workforce_calendar.manage",
+          "session_security_settings.view",
+          "session_security_settings.manage",
+          "online_users.view",
+          "admin_system_messages.view",
+          "admin_system_messages.send",
+          "admin_system_messages.force_action",
+          "access_control.view",
+          "access_control.manage",
+          "capabilities.diagnose"
+        ])) {
+          openApplicationSettingsWorkspace();
+          return;
+        }
+        if (hasAnyCapability([
           "devices.view",
           "devices.manage"
         ])) {
@@ -5232,22 +5266,11 @@ window.addEventListener("load", async function () {
           return;
         }
         if (hasAnyCapability([
-          "application_settings.view",
-          "application_settings.manage",
-          "form_requirements.view",
-          "form_requirements.manage",
-          "settings.view",
-          "settings.edit"
-        ])) {
-          openApplicationSettingsWorkspace();
-          return;
-        }
-        if (hasAnyCapability([
           "module_configuration.view",
           "module_configuration.manage",
           "visitor.housekeeping.run"
         ])) {
-          openModuleConfigurationAdministration();
+          openApplicationSettingsWorkspace("modules");
           return;
         }
         if (hasAnyCapability([
