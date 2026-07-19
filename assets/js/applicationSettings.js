@@ -142,6 +142,29 @@ let requirementDraft = new Map();
 let requirementsDirty = false;
 let activeSectionId = "overview";
 
+const BRANDING_THEME_RESET_KEYS = Object.freeze([
+  "branding.theme_mode",
+  "branding.primary_color",
+  "branding.accent_color",
+  "branding.background_mode",
+  "branding.background_color",
+  "branding.background_gradient_start_color",
+  "branding.background_gradient_end_color",
+  "branding.background_gradient_direction",
+  "branding.background_gradient_strength",
+  "branding.background_image_url",
+  "branding.background_opacity",
+  "branding.public_screen_background_mode",
+  "branding.public_screen_background_color",
+  "branding.public_screen_gradient_start_color",
+  "branding.public_screen_gradient_end_color",
+  "branding.public_screen_gradient_direction",
+  "branding.public_screen_gradient_strength",
+  "branding.public_screen_background_image_url",
+  "branding.public_screen_background_opacity",
+  "branding.corner_style"
+]);
+
 function canViewApplicationSettings() {
   return hasAnyCapability(APPLICATION_SETTINGS_VIEW_CAPABILITIES);
 }
@@ -462,6 +485,18 @@ function brandingPreviewLogo(container, logoUrl, transparent) {
   container.appendChild(img);
 }
 
+function brandingPreviewBackground(mode, fallbackBackground, prefix) {
+  if (mode === "gradient") {
+    const start = String(brandingSettingValue(prefix + "gradient_start_color", "#f8fafc") || "#f8fafc");
+    const end = String(brandingSettingValue(prefix + "gradient_end_color", "#e2e8f0") || "#e2e8f0");
+    const direction = String(brandingSettingValue(prefix + "gradient_direction", "135deg") || "135deg");
+    const strength = String(brandingSettingValue(prefix + "gradient_strength", "subtle") || "subtle");
+    const overlay = strength === "medium" ? 0.62 : 0.78;
+    return "linear-gradient(" + direction + ", rgba(255,255,255," + overlay + "), rgba(255,255,255," + (overlay - 0.08) + ")), linear-gradient(" + direction + ", " + start + " 0%, " + end + " 100%)";
+  }
+  return fallbackBackground;
+}
+
 function renderBrandingPreview() {
   const root = $("brandingPreviewRoot");
   if (!root) return;
@@ -477,6 +512,10 @@ function renderBrandingPreview() {
   const logoUrl = String(brandingSettingValue("branding.logo_url", current.logoUrl || "") || "");
   const printLogoUrl = String(brandingSettingValue("branding.print_logo_url", current.printLogoUrl || "") || "");
   const displayMode = String(brandingSettingValue("branding.header_logo_display_mode", current.headerLogoDisplayMode || "logo_and_name") || "logo_and_name");
+  const appBackgroundMode = String(brandingSettingValue("branding.background_mode", current.backgroundMode || "default") || "default");
+  const appGradientStrength = String(brandingSettingValue("branding.background_gradient_strength", current.backgroundGradientStrength || "subtle") || "subtle");
+  const publicBackgroundMode = String(brandingSettingValue("branding.public_screen_background_mode", current.publicScreenBackgroundMode || "inherit_app") || "inherit_app");
+  const publicGradientStrength = String(brandingSettingValue("branding.public_screen_gradient_strength", current.publicScreenGradientStrength || "subtle") || "subtle");
   const transparent = brandingSettingValue("branding.logo_transparent_background", current.logoTransparentBackground) === true ||
     brandingSettingValue("branding.logo_transparent_background", current.logoTransparentBackground) === "true";
 
@@ -484,6 +523,7 @@ function renderBrandingPreview() {
   const preview = document.createElement("section");
   preview.className = "branding-preview";
   preview.setAttribute("aria-label", "Branding preview");
+  preview.style.background = brandingPreviewBackground(appBackgroundMode, "", "branding.background_");
 
   const appSurface = document.createElement("article");
   appSurface.className = "branding-preview-surface";
@@ -522,16 +562,19 @@ function renderBrandingPreview() {
   const cardTitle = document.createElement("strong");
   cardTitle.textContent = "Sample branded card";
   const cardBody = document.createElement("span");
-  cardBody.textContent = "Surface, radius, text and muted colour preview.";
+  cardBody.textContent = "App background mode: " + appBackgroundMode.replace(/_/g, " ") +
+    (appBackgroundMode === "gradient" ? " (" + appGradientStrength + ")" : "");
   card.append(cardTitle, cardBody);
   appSurface.append(row, card);
 
   const publicSurface = document.createElement("article");
   publicSurface.className = "branding-preview-surface branding-preview-public";
+  publicSurface.style.background = brandingPreviewBackground(publicBackgroundMode, "", "branding.public_screen_");
   const publicTitle = document.createElement("strong");
   publicTitle.textContent = "Shared Terminal / public screen";
   const publicBody = document.createElement("span");
-  publicBody.textContent = "Uses public screen background settings where configured.";
+  publicBody.textContent = "Public background mode: " + publicBackgroundMode.replace(/_/g, " ") +
+    (publicBackgroundMode === "gradient" ? " (" + publicGradientStrength + ")" : "");
   const printText = document.createElement("span");
   printText.textContent = printLogoUrl
     ? "Print logo configured for supported print outputs."
@@ -576,20 +619,39 @@ function renderRegistry(filterCategory, targetId = "applicationSettingsRegistry"
     count.textContent = items.length + " platform-defined setting" + (items.length === 1 ? "" : "s");
     const headingText = document.createElement("div");
     headingText.append(title, count);
+    const headingActions = document.createElement("div");
+    headingActions.className = "application-settings-heading-actions";
+    if (categoryCode === "branding") {
+      const resetTheme = document.createElement("button");
+      resetTheme.type = "button";
+      resetTheme.className = "secondary";
+      resetTheme.textContent = "Reset Theme Colours";
+      resetTheme.disabled = !canManageApplicationSettings();
+      resetTheme.addEventListener("click", resetBrandingThemeColours);
+      decorateCapabilityAction(resetTheme, {
+        actionId: "application_settings.branding.reset_theme_colours",
+        label: "Reset theme colours",
+        area: "Application Settings",
+        requiredAny: APPLICATION_SETTINGS_MANAGE_CAPABILITIES,
+        actionType: "reset"
+      });
+      headingActions.appendChild(resetTheme);
+    }
     const resetCategory = document.createElement("button");
     resetCategory.type = "button";
     resetCategory.className = "secondary";
-    resetCategory.textContent = "Reset Category";
+    resetCategory.textContent = categoryCode === "branding" ? "Reset All Branding" : "Reset Category";
     resetCategory.disabled = !canManageApplicationSettings() || !items.some(canResetSetting);
     resetCategory.addEventListener("click", () => resetApplicationSettingsCategory(categoryCode));
     decorateCapabilityAction(resetCategory, {
       actionId: "application_settings." + categoryCode + ".reset_defaults",
-      label: "Reset " + categoryLabel(categoryCode) + " defaults",
+      label: categoryCode === "branding" ? "Reset all branding" : "Reset " + categoryLabel(categoryCode) + " defaults",
       area: "Application Settings",
       requiredAny: APPLICATION_SETTINGS_MANAGE_CAPABILITIES,
       actionType: "reset"
     });
-    heading.append(headingText, resetCategory);
+    headingActions.appendChild(resetCategory);
+    heading.append(headingText, headingActions);
     group.appendChild(heading);
 
     items.forEach(setting => {
@@ -1107,6 +1169,21 @@ async function resetApplicationSettingsCategory(categoryCode) {
     await loadApplicationSettingsData();
   } catch (err) {
     showToast("Settings not reset", err.message || "Could not reset this settings category.", "error");
+  }
+}
+
+async function resetBrandingThemeColours() {
+  if (!canManageApplicationSettings()) {
+    showToast("Theme colours not reset", "Application Settings manage capability is required.", "error");
+    return;
+  }
+  if (!window.confirm("Reset theme colours, backgrounds and corner style to defaults? Logos, favicon, print logo and header logo settings will be preserved.")) return;
+  try {
+    await Promise.all(BRANDING_THEME_RESET_KEYS.map(settingKey => resetApplicationSettingToDefault(settingKey)));
+    showToast("Theme colours reset", "Theme colours, backgrounds and corner style were restored to defaults. Logo settings were preserved.", "success");
+    await loadApplicationSettingsData();
+  } catch (err) {
+    showToast("Theme colours not reset", err.message || "Could not reset theme colour settings.", "error");
   }
 }
 

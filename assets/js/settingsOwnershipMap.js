@@ -47,7 +47,7 @@ export const SETTINGS_OWNERSHIP_AREAS = Object.freeze([
     deepLinksToExistingPanel: true,
     migrationRisk: "Medium",
     futureMilestone: "OHP-017C",
-    notes: "Application Settings owns commercial branding values and applies shell, logo, favicon, print-logo, public-screen background and radius tokens; legacy branding remains fallback during rollout."
+    notes: "Application Settings owns commercial branding values and applies shell, subtle gradients, logo, favicon, print-logo, public-screen background and radius tokens; theme colour reset preserves logos while legacy branding remains fallback during rollout."
   },
   {
     id: "modules",

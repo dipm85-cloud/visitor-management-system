@@ -1071,3 +1071,219 @@ select
     'branding.public_screen_background_opacity',
     'branding.corner_style'
   )) as additional_branding_settings_verified;
+
+-- ------------------------------------------------------------
+-- 10. Subtle gradient branding follow-up settings
+-- ------------------------------------------------------------
+
+update public.application_setting_definitions
+set
+  allowed_values = jsonb_build_array('default', 'solid_colour', 'gradient', 'image'),
+  help_text = 'Default uses the normal app background. Gradient is recommended for subtle branded backgrounds. Image mode uses the configured background image URL.'
+where setting_key = 'branding.background_mode';
+
+update public.application_setting_definitions
+set
+  allowed_values = jsonb_build_array('inherit_app', 'default', 'solid_colour', 'gradient', 'image'),
+  help_text = 'Use inherit app, default terminal background, a subtle gradient, solid colour, or image for visitor-facing screens.'
+where setting_key = 'branding.public_screen_background_mode';
+
+insert into public.application_setting_definitions (
+  setting_key,
+  category_code,
+  setting_name,
+  description,
+  value_type,
+  default_value,
+  allowed_values,
+  validation_json,
+  locked_by_system,
+  sensitive,
+  active,
+  display_order,
+  ui_component,
+  help_text
+)
+values
+  (
+    'branding.background_gradient_start_color',
+    'branding',
+    'Background gradient start colour',
+    'First colour used for the subtle application background gradient.',
+    'text',
+    to_jsonb('#f8fafc'::text),
+    null,
+    jsonb_build_object('format', 'hex_colour'),
+    false,
+    false,
+    true,
+    72,
+    'colour',
+    'Use a very light/subtle colour. The background should support the app, not distract from it.'
+  ),
+  (
+    'branding.background_gradient_end_color',
+    'branding',
+    'Background gradient end colour',
+    'Second colour used for the subtle application background gradient.',
+    'text',
+    to_jsonb('#e2e8f0'::text),
+    null,
+    jsonb_build_object('format', 'hex_colour'),
+    false,
+    false,
+    true,
+    74,
+    'colour',
+    'Use a soft colour close to the start colour for a professional subtle gradient.'
+  ),
+  (
+    'branding.background_gradient_direction',
+    'branding',
+    'Background gradient direction',
+    'Direction used for the application background gradient.',
+    'select',
+    to_jsonb('135deg'::text),
+    jsonb_build_array('90deg', '135deg', '180deg', '225deg'),
+    '{}'::jsonb,
+    false,
+    false,
+    true,
+    76,
+    'select',
+    'Controls the subtle gradient direction.'
+  ),
+  (
+    'branding.background_gradient_strength',
+    'branding',
+    'Background gradient strength',
+    'Controls how visible the application background gradient should be.',
+    'select',
+    to_jsonb('subtle'::text),
+    jsonb_build_array('subtle', 'medium'),
+    '{}'::jsonb,
+    false,
+    false,
+    true,
+    78,
+    'select',
+    'Subtle is recommended. Medium should still avoid drawing focus away from the app.'
+  ),
+  (
+    'branding.public_screen_gradient_start_color',
+    'branding',
+    'Public screen gradient start colour',
+    'First colour used for the subtle Shared Terminal / kiosk background gradient.',
+    'text',
+    to_jsonb('#f8fafc'::text),
+    null,
+    jsonb_build_object('format', 'hex_colour'),
+    false,
+    false,
+    true,
+    162,
+    'colour',
+    'Use for visitor-facing screens. Keep subtle and readable.'
+  ),
+  (
+    'branding.public_screen_gradient_end_color',
+    'branding',
+    'Public screen gradient end colour',
+    'Second colour used for the subtle Shared Terminal / kiosk background gradient.',
+    'text',
+    to_jsonb('#e2e8f0'::text),
+    null,
+    jsonb_build_object('format', 'hex_colour'),
+    false,
+    false,
+    true,
+    164,
+    'colour',
+    'Use for visitor-facing screens. Keep subtle and readable.'
+  ),
+  (
+    'branding.public_screen_gradient_direction',
+    'branding',
+    'Public screen gradient direction',
+    'Direction used for the Shared Terminal / kiosk background gradient.',
+    'select',
+    to_jsonb('135deg'::text),
+    jsonb_build_array('90deg', '135deg', '180deg', '225deg'),
+    '{}'::jsonb,
+    false,
+    false,
+    true,
+    166,
+    'select',
+    'Controls the subtle public-screen gradient direction.'
+  ),
+  (
+    'branding.public_screen_gradient_strength',
+    'branding',
+    'Public screen gradient strength',
+    'Controls how visible the Shared Terminal / kiosk background gradient should be.',
+    'select',
+    to_jsonb('subtle'::text),
+    jsonb_build_array('subtle', 'medium'),
+    '{}'::jsonb,
+    false,
+    false,
+    true,
+    168,
+    'select',
+    'Subtle is recommended for visitor-facing screens.'
+  )
+on conflict (setting_key) do update
+set
+  category_code = excluded.category_code,
+  setting_name = excluded.setting_name,
+  description = excluded.description,
+  value_type = excluded.value_type,
+  default_value = excluded.default_value,
+  allowed_values = excluded.allowed_values,
+  validation_json = excluded.validation_json,
+  locked_by_system = excluded.locked_by_system,
+  sensitive = excluded.sensitive,
+  active = excluded.active,
+  display_order = excluded.display_order,
+  ui_component = excluded.ui_component,
+  help_text = excluded.help_text;
+
+insert into public.application_setting_values (
+  setting_key,
+  setting_value,
+  updated_by
+)
+select
+  d.setting_key,
+  d.default_value,
+  auth.uid()
+from public.application_setting_definitions d
+where d.setting_key in (
+  'branding.background_gradient_start_color',
+  'branding.background_gradient_end_color',
+  'branding.background_gradient_direction',
+  'branding.background_gradient_strength',
+  'branding.public_screen_gradient_start_color',
+  'branding.public_screen_gradient_end_color',
+  'branding.public_screen_gradient_direction',
+  'branding.public_screen_gradient_strength'
+)
+on conflict (setting_key) do nothing;
+
+notify pgrst, 'reload schema';
+
+select
+  'OHP-017C patch - branding gradient settings installed' as result,
+  (select allowed_values from public.application_setting_definitions where setting_key = 'branding.background_mode') as app_background_modes,
+  (select allowed_values from public.application_setting_definitions where setting_key = 'branding.public_screen_background_mode') as public_background_modes,
+  (select count(*) from public.application_setting_definitions where setting_key in (
+    'branding.background_gradient_start_color',
+    'branding.background_gradient_end_color',
+    'branding.background_gradient_direction',
+    'branding.background_gradient_strength',
+    'branding.public_screen_gradient_start_color',
+    'branding.public_screen_gradient_end_color',
+    'branding.public_screen_gradient_direction',
+    'branding.public_screen_gradient_strength'
+  )) as gradient_settings_verified;

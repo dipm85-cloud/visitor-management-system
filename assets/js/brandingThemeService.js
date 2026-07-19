@@ -15,10 +15,18 @@ const DEFAULT_BRANDING = Object.freeze({
   themeMode: "system",
   backgroundMode: "default",
   backgroundColor: "#eef3f8",
+  backgroundGradientStartColor: "#f8fafc",
+  backgroundGradientEndColor: "#e2e8f0",
+  backgroundGradientDirection: "135deg",
+  backgroundGradientStrength: "subtle",
   backgroundImageUrl: null,
   backgroundOpacity: 0.18,
   publicScreenBackgroundMode: "inherit_app",
   publicScreenBackgroundColor: "#f8fafc",
+  publicScreenGradientStartColor: "#f8fafc",
+  publicScreenGradientEndColor: "#e2e8f0",
+  publicScreenGradientDirection: "135deg",
+  publicScreenGradientStrength: "subtle",
   publicScreenBackgroundImageUrl: null,
   publicScreenBackgroundOpacity: 0.25,
   cornerStyle: "standard"
@@ -27,9 +35,11 @@ const DEFAULT_BRANDING = Object.freeze({
 const HEADER_DISPLAY_MODES = new Set(["logo_and_name", "logo_only", "name_only", "default_mark_and_name"]);
 const HEADER_LOGO_SIZES = new Set(["small", "medium", "large"]);
 const THEME_MODES = new Set(["system", "light", "dark"]);
-const BACKGROUND_MODES = new Set(["default", "solid_colour", "image"]);
-const PUBLIC_BACKGROUND_MODES = new Set(["inherit_app", "default", "solid_colour", "image"]);
+const BACKGROUND_MODES = new Set(["default", "solid_colour", "gradient", "image"]);
+const PUBLIC_BACKGROUND_MODES = new Set(["inherit_app", "default", "solid_colour", "gradient", "image"]);
 const CORNER_STYLES = new Set(["standard", "rounded", "square"]);
+const GRADIENT_DIRECTIONS = new Set(["90deg", "135deg", "180deg", "225deg"]);
+const GRADIENT_STRENGTHS = new Set(["subtle", "medium"]);
 
 let currentBranding = { ...DEFAULT_BRANDING };
 let defaultFaviconHref = null;
@@ -120,6 +130,12 @@ function softColour(hex, alpha = 0.12) {
   return "rgba(" + rgbString(hex) + ", " + alpha + ")";
 }
 
+function subtleGradient(direction, startColor, endColor, strength = "subtle") {
+  const overlay = strength === "medium" ? 0.62 : 0.78;
+  return "linear-gradient(" + direction + ", rgba(255,255,255," + overlay + "), rgba(255,255,255," + (overlay - 0.08) + ")), " +
+    "linear-gradient(" + direction + ", " + startColor + " 0%, " + endColor + " 100%)";
+}
+
 function setToken(name, value) {
   document.documentElement.style.setProperty(name, value);
 }
@@ -203,14 +219,21 @@ function backgroundCss(branding, publicScreen = false) {
   const color = publicScreen ? branding.publicScreenBackgroundColor : branding.backgroundColor;
   const imageUrl = publicScreen ? branding.publicScreenBackgroundImageUrl : branding.backgroundImageUrl;
   const opacity = publicScreen ? branding.publicScreenBackgroundOpacity : branding.backgroundOpacity;
+  const gradientStart = publicScreen ? branding.publicScreenGradientStartColor : branding.backgroundGradientStartColor;
+  const gradientEnd = publicScreen ? branding.publicScreenGradientEndColor : branding.backgroundGradientEndColor;
+  const gradientDirection = publicScreen ? branding.publicScreenGradientDirection : branding.backgroundGradientDirection;
+  const gradientStrength = publicScreen ? branding.publicScreenGradientStrength : branding.backgroundGradientStrength;
   if (mode === "inherit_app" && publicScreen) return "var(--oh-branded-app-background)";
   if (mode === "solid_colour") return color;
+  if (mode === "gradient") return subtleGradient(gradientDirection, gradientStart, gradientEnd, gradientStrength);
   if (mode === "image" && imageUrl) {
     const overlay = Math.max(0, Math.min(1, 1 - opacity));
     return "linear-gradient(rgba(248,250,252," + overlay + "), rgba(248,250,252," + overlay + ")), " + cssUrl(imageUrl);
   }
-  if (mode === "default") return "";
-  return "radial-gradient(circle at top left, rgba(" + rgbString(branding.primaryColour) + ", .14), transparent 32%), linear-gradient(135deg, " + color + " 0%, #f8fbff 100%)";
+  if (mode === "default" && publicScreen) {
+    return "radial-gradient(circle at top, rgba(47,111,173,.10), transparent 42%), #f5f7fa";
+  }
+  return "radial-gradient(circle at top left, rgba(" + rgbString(branding.primaryColour) + ", .08), transparent 32%), linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)";
 }
 
 function applyBackgroundTokens(branding) {
@@ -382,10 +405,18 @@ export function brandingFromSettings(settings = {}, appSettings = {}) {
     themeMode: allowed(settings.branding_theme_mode, THEME_MODES, DEFAULT_BRANDING.themeMode),
     backgroundMode: allowed(settings.branding_background_mode, BACKGROUND_MODES, DEFAULT_BRANDING.backgroundMode),
     backgroundColor: colourValue(settings.page_background_colour, appSettings.pageBackgroundColour || DEFAULT_BRANDING.backgroundColor),
+    backgroundGradientStartColor: colourValue(settings.branding_background_gradient_start_color, DEFAULT_BRANDING.backgroundGradientStartColor),
+    backgroundGradientEndColor: colourValue(settings.branding_background_gradient_end_color, DEFAULT_BRANDING.backgroundGradientEndColor),
+    backgroundGradientDirection: allowed(settings.branding_background_gradient_direction, GRADIENT_DIRECTIONS, DEFAULT_BRANDING.backgroundGradientDirection),
+    backgroundGradientStrength: allowed(settings.branding_background_gradient_strength, GRADIENT_STRENGTHS, DEFAULT_BRANDING.backgroundGradientStrength),
     backgroundImageUrl: optionalUrl(settings.background_url),
     backgroundOpacity: numberValue(settings.background_opacity, DEFAULT_BRANDING.backgroundOpacity, 0, 1),
     publicScreenBackgroundMode: allowed(settings.branding_public_screen_background_mode, PUBLIC_BACKGROUND_MODES, DEFAULT_BRANDING.publicScreenBackgroundMode),
     publicScreenBackgroundColor: colourValue(settings.branding_public_screen_background_color, DEFAULT_BRANDING.publicScreenBackgroundColor),
+    publicScreenGradientStartColor: colourValue(settings.branding_public_screen_gradient_start_color, DEFAULT_BRANDING.publicScreenGradientStartColor),
+    publicScreenGradientEndColor: colourValue(settings.branding_public_screen_gradient_end_color, DEFAULT_BRANDING.publicScreenGradientEndColor),
+    publicScreenGradientDirection: allowed(settings.branding_public_screen_gradient_direction, GRADIENT_DIRECTIONS, DEFAULT_BRANDING.publicScreenGradientDirection),
+    publicScreenGradientStrength: allowed(settings.branding_public_screen_gradient_strength, GRADIENT_STRENGTHS, DEFAULT_BRANDING.publicScreenGradientStrength),
     publicScreenBackgroundImageUrl: optionalUrl(settings.branding_public_screen_background_image_url),
     publicScreenBackgroundOpacity: numberValue(settings.branding_public_screen_background_opacity, DEFAULT_BRANDING.publicScreenBackgroundOpacity, 0, 1),
     cornerStyle: allowed(settings.branding_corner_style, CORNER_STYLES, DEFAULT_BRANDING.cornerStyle)
@@ -406,12 +437,20 @@ export function syncBrandingToAppSettings(appSettings, branding) {
     accentColour: branding.accentColour,
     themeMode: branding.themeMode,
     backgroundMode: branding.backgroundMode,
+    backgroundGradientStartColor: branding.backgroundGradientStartColor,
+    backgroundGradientEndColor: branding.backgroundGradientEndColor,
+    backgroundGradientDirection: branding.backgroundGradientDirection,
+    backgroundGradientStrength: branding.backgroundGradientStrength,
     backgroundUrl: branding.backgroundImageUrl,
     backgroundOpacity: branding.backgroundOpacity,
     logoTransparentBackground: branding.logoTransparentBackground,
     pageBackgroundColour: branding.backgroundColor,
     publicScreenBackgroundMode: branding.publicScreenBackgroundMode,
     publicScreenBackgroundColor: branding.publicScreenBackgroundColor,
+    publicScreenGradientStartColor: branding.publicScreenGradientStartColor,
+    publicScreenGradientEndColor: branding.publicScreenGradientEndColor,
+    publicScreenGradientDirection: branding.publicScreenGradientDirection,
+    publicScreenGradientStrength: branding.publicScreenGradientStrength,
     publicScreenBackgroundImageUrl: branding.publicScreenBackgroundImageUrl,
     publicScreenBackgroundOpacity: branding.publicScreenBackgroundOpacity,
     cornerStyle: branding.cornerStyle
@@ -455,6 +494,10 @@ export function brandingImplementationStatus(settingKey) {
     "branding.accent_color": ["Applied", "Secondary highlights, chips and toast accent tokens."],
     "branding.background_mode": ["Applied", "Controls app background mode."],
     "branding.background_color": ["Applied", "Visible shell/workspace background for solid colour mode."],
+    "branding.background_gradient_start_color": ["Applied", "Used for subtle app gradient mode."],
+    "branding.background_gradient_end_color": ["Applied", "Used for subtle app gradient mode."],
+    "branding.background_gradient_direction": ["Applied", "Controls subtle app gradient direction."],
+    "branding.background_gradient_strength": ["Applied", "Controls subtle or medium app gradient visibility."],
     "branding.background_image_url": ["Applied", "Used for app background image mode when set."],
     "branding.background_opacity": ["Applied", "Controls app background image overlay opacity."],
     "branding.header_logo_display_mode": ["Applied", "Controls header logo/name visibility."],
@@ -463,6 +506,10 @@ export function brandingImplementationStatus(settingKey) {
     "branding.print_logo_url": ["Applied", "Used by supported print outputs, with main logo fallback."],
     "branding.public_screen_background_mode": ["Applied", "Controls Shared Terminal and visitor kiosk backgrounds."],
     "branding.public_screen_background_color": ["Applied", "Used for public solid colour mode."],
+    "branding.public_screen_gradient_start_color": ["Applied", "Used for subtle public-screen gradient mode."],
+    "branding.public_screen_gradient_end_color": ["Applied", "Used for subtle public-screen gradient mode."],
+    "branding.public_screen_gradient_direction": ["Applied", "Controls subtle public-screen gradient direction."],
+    "branding.public_screen_gradient_strength": ["Applied", "Controls subtle or medium public-screen gradient visibility."],
     "branding.public_screen_background_image_url": ["Applied", "Used for public image mode when set."],
     "branding.public_screen_background_opacity": ["Applied", "Controls public image overlay opacity."],
     "branding.corner_style": ["Applied", "Controls shared radius tokens for cards, buttons, panels and inputs."]

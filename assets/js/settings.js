@@ -161,6 +161,10 @@ function overlayApplicationSettings(settings) {
   put("primary_colour", "branding.primary_color", settings.primary_colour || "#1f4f8f");
   put("accent_colour", "branding.accent_color", settings.accent_colour || "#18a999");
   put("page_background_colour", "branding.background_color", settings.page_background_colour || "#eef3f8");
+  put("branding_background_gradient_start_color", "branding.background_gradient_start_color", "#f8fafc");
+  put("branding_background_gradient_end_color", "branding.background_gradient_end_color", "#e2e8f0");
+  put("branding_background_gradient_direction", "branding.background_gradient_direction", "135deg");
+  put("branding_background_gradient_strength", "branding.background_gradient_strength", "subtle");
   put("background_url", "branding.background_image_url", settings.background_url || null);
   put("background_opacity", "branding.background_opacity", settings.background_opacity == null ? 0.18 : settings.background_opacity);
   put("branding_theme_mode", "branding.theme_mode", "system");
@@ -171,6 +175,10 @@ function overlayApplicationSettings(settings) {
   put("branding_print_logo_url", "branding.print_logo_url", null);
   put("branding_public_screen_background_mode", "branding.public_screen_background_mode", "inherit_app");
   put("branding_public_screen_background_color", "branding.public_screen_background_color", "#f8fafc");
+  put("branding_public_screen_gradient_start_color", "branding.public_screen_gradient_start_color", "#f8fafc");
+  put("branding_public_screen_gradient_end_color", "branding.public_screen_gradient_end_color", "#e2e8f0");
+  put("branding_public_screen_gradient_direction", "branding.public_screen_gradient_direction", "135deg");
+  put("branding_public_screen_gradient_strength", "branding.public_screen_gradient_strength", "subtle");
   put("branding_public_screen_background_image_url", "branding.public_screen_background_image_url", null);
   put("branding_public_screen_background_opacity", "branding.public_screen_background_opacity", 0.25);
   put("branding_corner_style", "branding.corner_style", "standard");
