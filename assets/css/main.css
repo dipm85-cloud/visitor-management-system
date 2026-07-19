@@ -591,7 +591,22 @@ textarea { min-height: 86px; resize: vertical; }
 
 .toast.error { border-left-color: var(--danger); }
 .toast-title { font-weight: 900; margin-bottom: 4px; }
-.toast-body { color: var(--oh-app-text-muted, var(--muted)); line-height: 1.35; }
+.toast-body {
+  color: var(--oh-app-text-muted, var(--muted));
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.toast.capability-inspector-toast {
+  max-height: min(70vh, 520px);
+  overflow-y: auto;
+  border-left-color: #475569;
+}
+.toast.capability-inspector-toast .toast-title {
+  color: var(--oh-app-text-strong, var(--text));
+}
+.toast.capability-inspector-toast .toast-body {
+  white-space: pre-line;
+}
 .toast-close {
   background: transparent;
   color: var(--muted);

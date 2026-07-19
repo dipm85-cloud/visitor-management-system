@@ -33,7 +33,16 @@ function isLowValueAutoToast(title, body, type) {
     && !/saved|created|deleted|updated|failed|error|cannot|could not|blocked|warning|missing/.test(text);
 }
 
-export function showToast(title, body, type) {
+export function closeToastGroup(groupId) {
+  if (!groupId) return;
+  const area = $("toastArea");
+  if (!area) return;
+  Array.from(area.children).forEach(toast => {
+    if (toast && toast.dataset && toast.dataset.toastGroup === groupId) toast.remove();
+  });
+}
+
+export function showToast(title, body, type, options = {}) {
   // Staff/admin messages use toasts. Kiosk visitor messages still use the centre modal.
   const area = $("toastArea");
   if (!area) return;
@@ -41,14 +50,21 @@ export function showToast(title, body, type) {
   const toastType = type || "success";
   if (isLowValueAutoToast(title, body, toastType)) return;
 
-  const key = toastType + "|" + String(title || "") + "|" + String(body || "");
-  const nowMs = Date.now();
-  const previous = recentToastKeys.get(key) || 0;
-  if (nowMs - previous < 2500) return;
-  recentToastKeys.set(key, nowMs);
+  if (options.groupId) {
+    closeToastGroup(options.groupId);
+  }
+
+  if (!options.groupId) {
+    const key = toastType + "|" + String(title || "") + "|" + String(body || "");
+    const nowMs = Date.now();
+    const previous = recentToastKeys.get(key) || 0;
+    if (nowMs - previous < 2500) return;
+    recentToastKeys.set(key, nowMs);
+  }
 
   const toast = document.createElement("div");
-  toast.className = "toast " + toastType;
+  toast.className = "toast " + toastType + (options.className ? " " + options.className : "");
+  if (options.groupId) toast.dataset.toastGroup = options.groupId;
   toast.setAttribute("role", toastType === "error" ? "alert" : "status");
   toast.setAttribute(
     "aria-live",
@@ -72,9 +88,13 @@ export function showToast(title, body, type) {
   toast.appendChild(close);
   area.appendChild(toast);
 
-  setTimeout(function () {
-    toast.remove();
-  }, appSettings.confirmationAutoCloseMs);
+  if (!options.sticky) {
+    setTimeout(function () {
+      toast.remove();
+    }, appSettings.confirmationAutoCloseMs);
+  }
+
+  return toast;
 }
 
 export function showKioskConfirmation(title, body) {

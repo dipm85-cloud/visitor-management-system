@@ -1,6 +1,6 @@
 import { AppState } from "./state.js";
 import { hasAnyCapability, hasCapability } from "./capabilities.js";
-import { showToast } from "./messages.js";
+import { closeToastGroup, showToast } from "./messages.js";
 import { writeAuditEvent } from "./audit.js";
 
 const INSPECTOR_ACCESS_CAPABILITIES = [
@@ -11,6 +11,7 @@ const INSPECTOR_ACCESS_CAPABILITIES = [
 ];
 const SESSION_KEY = "oh_capability_inspector_enabled";
 const AUTO_DISABLE_MS = 12 * 60 * 1000;
+const INSPECTOR_TOAST_GROUP = "capability-inspector";
 
 let inspectorInitialised = false;
 let inspectorEnabled = false;
@@ -157,6 +158,10 @@ function clearInspectorTimer() {
   inspectorTimer = null;
 }
 
+function closeInspectorToast() {
+  closeToastGroup(INSPECTOR_TOAST_GROUP);
+}
+
 async function setInspectorEnabled(enabled, options = {}) {
   const nextEnabled = Boolean(enabled);
   if (nextEnabled && !canUseCapabilityInspector()) {
@@ -188,6 +193,7 @@ async function setInspectorEnabled(enabled, options = {}) {
     await auditInspectorEvent("capability_inspector.enabled", { reason: options.reason || "manual" });
   } else {
     sessionStorage.removeItem(SESSION_KEY);
+    closeInspectorToast();
     showToast("Capability Inspector off", "Actions will run normally.", "info");
     await auditInspectorEvent("capability_inspector.disabled", { reason: options.reason || "manual" });
   }
@@ -205,18 +211,25 @@ function inspectAction(element) {
 
   const body = evaluation.registered
     ? "Action: " + metadata.label +
-      " | Area: " + metadata.area +
-      " | Required: " + required +
-      " | Current user: " + (evaluation.allowed ? "Allowed" : "Not allowed") +
-      " | " + capabilitySourceSummary(metadata)
+      "\nArea: " + metadata.area +
+      "\nRequired: " + required +
+      "\nResult: " + (evaluation.allowed ? "Allowed" : "Not allowed") +
+      "\n" + capabilitySourceSummary(metadata)
     : "Action: " + metadata.label +
-      " | Area: " + metadata.area +
-      " | No capability metadata has been declared for this action yet.";
+      "\nArea: " + metadata.area +
+      "\nResult: Not allowed" +
+      "\nSource: metadata missing" +
+      "\nNo capability metadata has been declared for this action yet.";
 
   showToast(
     evaluation.registered ? "Capability required" : "Capability metadata missing",
     body,
-    evaluation.allowed ? "info" : "warning"
+    evaluation.allowed ? "info" : "warning",
+    {
+      className: "capability-inspector-toast",
+      groupId: INSPECTOR_TOAST_GROUP,
+      sticky: true
+    }
   );
 
   void auditInspectorEvent("capability_inspector.action_inspected", {
@@ -300,6 +313,7 @@ export function resetCapabilityInspector() {
   inspectorEnabled = false;
   effectiveCapabilitySources = new Map();
   sessionStorage.removeItem(SESSION_KEY);
+  closeInspectorToast();
   setInspectorVisualState();
 }
 
