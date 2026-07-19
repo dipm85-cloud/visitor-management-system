@@ -466,9 +466,9 @@ function registerReferenceDataSections() {
     })),
     {
       content: "referenceDataWorkspaceContent",
-      title: "Reference Data",
-      label: "Reference Data section navigation",
-      toggleLabel: "Reference Data section",
+      title: "Reference / Configuration Data",
+      label: "Reference / Configuration Data section navigation",
+      toggleLabel: "Reference / Configuration Data section",
       defaultSection: "sites",
       filterOnly: true,
       onSelect: sectionId => {
@@ -535,7 +535,7 @@ function hasReferenceDataEditAccess() {
 
 function requireReferenceDataAccess() {
   if (hasReferenceDataAccess()) return true;
-  showToast("You do not have permission", "Reference Data requires an authorised reference capability.", "error");
+  showToast("You do not have permission", "Reference / Configuration Data requires an authorised reference capability.", "error");
   return false;
 }
 
@@ -547,7 +547,7 @@ function requireReferenceEntityAccess(definition) {
 
 function requireReferenceDataEditAccess() {
   if (hasReferenceDataEditAccess()) return true;
-  showToast("You do not have permission", "This action requires a manage capability for this reference data.", "error");
+  showToast("You do not have permission", "This action requires a manage capability for this reference/configuration data.", "error");
   return false;
 }
 
@@ -994,7 +994,7 @@ function createFieldControl(field) {
     decorateCapabilityAction(control, {
       actionId: "reference_data.unsociable_time_rules.day_application_mode",
       label: "Set Unsociable Time Rule Day Application Mode",
-      area: "Reference Data",
+      area: "Reference / Configuration Data",
       requiredAny: definitionEditCapabilities(currentDefinition()),
       actionType: "edit"
     });
@@ -1003,7 +1003,7 @@ function createFieldControl(field) {
     decorateCapabilityAction(control, {
       actionId: "reference_data.work_time_profiles.unsociable_rule_set.select",
       label: "Select Unsociable Rule Set on Work Time Profile",
-      area: "Reference Data",
+      area: "Reference / Configuration Data",
       requiredAny: definitionEditCapabilities(currentDefinition()),
       actionType: "edit"
     });
@@ -1098,7 +1098,7 @@ function createUnsociableRuleSetRulePicker() {
   decorateCapabilityAction(section, {
     actionId: "reference_data.unsociable_rule_sets.rules.view",
     label: "View Unsociable Rule Set Rules",
-    area: "Reference Data",
+    area: "Reference / Configuration Data",
     requiredAny: definitionViewCapabilities(currentDefinition()),
     actionType: "view"
   });
@@ -1223,7 +1223,7 @@ function createWorkTimeProfileCalculationPreview() {
   decorateCapabilityAction(refreshButton, {
     actionId: "reference_data.work_time_profiles.unsociable_preview",
     label: "Preview Work Time Profile unsociable hours",
-    area: "Reference Data",
+    area: "Reference / Configuration Data",
     requiredAny: [
       "work_time_profiles.view",
       "work_time_profiles.manage"
@@ -1621,7 +1621,7 @@ function updateReferencePageLabels() {
     decorateCapabilityAction($("referenceCreateButton"), {
       actionId: "reference_data." + referenceActionNamespace(definition) + ".create",
       label: "Create " + definition.singular,
-      area: "Reference Data",
+      area: "Reference / Configuration Data",
       requiredAny: definitionEditCapabilities(definition),
       actionType: "create"
     });
@@ -1630,7 +1630,7 @@ function updateReferencePageLabels() {
     decorateCapabilityAction($("referenceExportCsvButton"), {
       actionId: "reference_data." + referenceActionNamespace(definition) + ".export_csv",
       label: "Export " + referenceExportLabel(definition),
-      area: "Reference Data",
+      area: "Reference / Configuration Data",
       requiredAny: definitionViewCapabilities(definition),
       actionType: "export"
     });
@@ -1639,7 +1639,7 @@ function updateReferencePageLabels() {
     decorateCapabilityAction($("referenceExportXlsxButton"), {
       actionId: "reference_data." + referenceActionNamespace(definition) + ".export_xlsx",
       label: "Export " + referenceExportLabel(definition),
-      area: "Reference Data",
+      area: "Reference / Configuration Data",
       requiredAny: definitionViewCapabilities(definition),
       actionType: "export"
     });
@@ -1661,8 +1661,8 @@ function updateReferencePageLabels() {
           ? "Save Unsociable Rule Set"
           : isUnsociableRules
             ? "Save Unsociable Time Rule"
-            : "Save Reference Data Record",
-      area: "Reference Data",
+            : "Save Reference / Configuration Data Record",
+      area: "Reference / Configuration Data",
       requiredAny: definitionEditCapabilities(definition),
       actionType: "save"
     });
@@ -1913,7 +1913,7 @@ function renderWorkTimeProfileList() {
       decorateCapabilityAction(editButton, {
         actionId: "reference_data.work_time_profiles.break_alignment.edit",
         label: "Edit Work Time Profile break alignment",
-        area: "Reference Data",
+        area: "Reference / Configuration Data",
         requiredAny: definitionEditCapabilities(definition),
         actionType: "edit"
       });
@@ -1928,7 +1928,7 @@ function renderWorkTimeProfileList() {
       decorateCapabilityAction(viewButton, {
         actionId: "reference_data.work_time_profiles.break_alignment.view",
         label: "View Work Time Profile break alignment",
-        area: "Reference Data",
+        area: "Reference / Configuration Data",
         requiredAny: definitionViewCapabilities(definition),
         actionType: "view"
       });
@@ -2171,7 +2171,7 @@ export async function loadReferenceData() {
     referenceCache[requestedEntityKey] = [];
     renderReferenceDataList();
     setListStatus(definition.plural + " could not be loaded.");
-    showToast("Reference data load failed", err.message || "Could not load reference data.", "error");
+    showToast("Reference data load failed", err.message || "Could not load reference/configuration data.", "error");
   }
 }
 
@@ -2242,7 +2242,7 @@ export function renderReferenceDataList() {
       decorateCapabilityAction(editButton, {
         actionId: "reference_data.break_rules.edit",
         label: "Create/Edit Break Rule",
-        area: "Reference Data",
+        area: "Reference / Configuration Data",
         requiredAny: definitionEditCapabilities(definition),
         actionType: "edit"
       });
@@ -2250,7 +2250,7 @@ export function renderReferenceDataList() {
       decorateCapabilityAction(editButton, {
         actionId: "reference_data.unsociable_time_rules.edit",
         label: "Create/Edit Unsociable Time Rule",
-        area: "Reference Data",
+        area: "Reference / Configuration Data",
         requiredAny: definitionEditCapabilities(definition),
         actionType: "edit"
       });
@@ -2258,7 +2258,7 @@ export function renderReferenceDataList() {
       decorateCapabilityAction(editButton, {
         actionId: "reference_data.unsociable_rule_sets.edit",
         label: "Create/Edit Unsociable Rule Set",
-        area: "Reference Data",
+        area: "Reference / Configuration Data",
         requiredAny: definitionEditCapabilities(definition),
         actionType: "edit"
       });
@@ -2280,7 +2280,7 @@ export function renderReferenceDataList() {
         label: isTimeRules
           ? "View Unsociable Time Rules"
           : "View Unsociable Rule Sets",
-        area: "Reference Data",
+        area: "Reference / Configuration Data",
         requiredAny: definitionViewCapabilities(definition),
         actionType: "view"
       });

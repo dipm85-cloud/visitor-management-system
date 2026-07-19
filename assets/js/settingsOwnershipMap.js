@@ -1,17 +1,23 @@
 export const SETTINGS_STATUS_LABELS = Object.freeze({
-  native: "Native",
-  partially_migrated: "Partially migrated",
-  linked: "Linked to workspace",
+  native: "Native setting",
+  partially_migrated: "Partially migrated setting",
+  managed_reference_data: "Managed in Reference Data",
+  managed_access_control: "Managed in Access Control",
+  linked_workspace: "Linked specialist workspace",
+  linked: "Linked specialist workspace",
   legacy_bridge: "Legacy bridge",
   future: "Future"
 });
 
 export const SETTINGS_STATUS_COPY = Object.freeze({
-  native: "Settings are managed here.",
-  partially_migrated: "Some settings are managed here; others open existing module settings.",
-  linked: "This opens the existing module settings panel.",
+  native: "Application behaviour settings are managed here.",
+  partially_migrated: "Application behaviour settings are managed here; specialist configuration or workspaces remain linked.",
+  managed_reference_data: "Customer-specific rule and dropdown data is managed in Reference Data.",
+  managed_access_control: "Security configuration is managed in Access Control.",
+  linked_workspace: "This opens an existing specialist workspace.",
+  linked: "This opens an existing specialist workspace.",
   legacy_bridge: "This still opens the legacy VMS settings area while migration continues.",
-  future: "This settings area is reserved for a future module."
+  future: "This configuration area is reserved for a future module."
 });
 
 export const SETTINGS_OWNERSHIP_AREAS = Object.freeze([
@@ -52,7 +58,7 @@ export const SETTINGS_OWNERSHIP_AREAS = Object.freeze([
   {
     id: "modules",
     label: "Modules",
-    description: "Central entry point for module-level configuration.",
+    description: "Central entry point for module behaviour settings and owned shortcuts.",
     status: "native",
     owner: "Application Settings",
     currentLocation: "Application Settings -> Modules",
@@ -64,12 +70,12 @@ export const SETTINGS_OWNERSHIP_AREAS = Object.freeze([
     deepLinksToExistingPanel: true,
     migrationRisk: "Low",
     futureMilestone: "OHP-017D",
-    notes: "The duplicate Administration Module Configuration nav item was removed; Application Settings -> Modules is the visible entry point."
+    notes: "Application Settings -> Modules is the visible entry point for application behaviour settings and clearly labelled shortcuts to Reference Data, Access Control or specialist workspaces."
   },
   {
     id: "visitors",
     label: "Visitors",
-    description: "Visitor settings, Form Requirements and existing VMS configuration links.",
+    description: "Visitor behaviour settings, Form Requirements and existing visitor workflow links.",
     status: "partially_migrated",
     owner: "Application Settings",
     currentLocation: "Visitors workspace, legacy VMS settings and Form Requirements",
@@ -81,7 +87,7 @@ export const SETTINGS_OWNERSHIP_AREAS = Object.freeze([
     deepLinksToExistingPanel: true,
     migrationRisk: "High",
     futureMilestone: "OHP-017C",
-    notes: "Keep risky visitor and legacy VMS controls bridged until backend ownership is moved."
+    notes: "Application Settings owns visitor behaviour defaults and Form Requirements. Visitor reason codes or dropdown options belong in Reference Data when implemented."
   },
   {
     id: "shared_terminal",
@@ -103,7 +109,7 @@ export const SETTINGS_OWNERSHIP_AREAS = Object.freeze([
   {
     id: "privacy_gdpr",
     label: "Privacy / Data Governance",
-    description: "Privacy cases, GDPR workflows, SAR evidence and governance tools.",
+    description: "Privacy guardrails, SAR defaults and specialist privacy workspace links.",
     status: "partially_migrated",
     owner: "Application Settings",
     currentLocation: "Privacy / Data Governance administration",
@@ -115,13 +121,13 @@ export const SETTINGS_OWNERSHIP_AREAS = Object.freeze([
     deepLinksToExistingPanel: true,
     migrationRisk: "High",
     futureMilestone: "OHP-017E",
-    notes: "Application Settings owns privacy defaults and locked anonymisation guardrail status; specialist case, SAR and anonymisation workflows stay in the Privacy workspace."
+    notes: "Application Settings owns privacy guardrails, SAR pack defaults and reference-display defaults; privacy cases, SAR evidence, anonymisation previews and rules remain specialist/operational workspaces."
   },
   {
     id: "identity_resolution",
     label: "Identity Resolution",
     description: "Identity review requests, candidate matching and linked identity records.",
-    status: "linked",
+    status: "linked_workspace",
     owner: "Application Settings",
     currentLocation: "Identity Resolution administration",
     targetLocation: "Application Settings -> Modules -> Identity Resolution",
@@ -132,12 +138,12 @@ export const SETTINGS_OWNERSHIP_AREAS = Object.freeze([
     deepLinksToExistingPanel: true,
     migrationRisk: "Medium",
     futureMilestone: "OHP-017D",
-    notes: "Application Settings -> Modules owns the entry point; identity queues remain in the existing module workspace."
+    notes: "Application Settings -> Modules is a shortcut only; identity review requests, candidates, confirmed links and decisions remain specialist operational data."
   },
   {
     id: "documents",
     label: "Documents / Sign-off",
-    description: "Document sign-off settings and compliance controls.",
+    description: "Document/sign-off behaviour settings with specialist configuration links.",
     status: "partially_migrated",
     owner: "Application Settings",
     currentLocation: "Document Sign-offs administration and legacy agreement settings",
@@ -149,12 +155,12 @@ export const SETTINGS_OWNERSHIP_AREAS = Object.freeze([
     deepLinksToExistingPanel: true,
     migrationRisk: "High",
     futureMilestone: "OHP-017E",
-    notes: "Application Settings owns safe document/sign-off defaults; specialist document type, version and evidence workflows remain linked."
+    notes: "Application Settings owns sign-off behaviour, identity-linked compliance, evidence display defaults, print branding and locked scroll guardrails. Agreement/document types are Reference / Configuration Data; sign-off evidence is operational data."
   },
   {
     id: "people_assignments",
     label: "People & Assignments",
-    description: "Assignment Form Requirements and people-policy settings.",
+    description: "Assignment Form Requirements and behaviour settings.",
     status: "partially_migrated",
     owner: "Application Settings",
     currentLocation: "Application Settings -> People & Assignments",
@@ -166,16 +172,16 @@ export const SETTINGS_OWNERSHIP_AREAS = Object.freeze([
     deepLinksToExistingPanel: false,
     migrationRisk: "Medium",
     futureMilestone: "OHP-017C",
-    notes: "Form Requirements are native here; broader people-policy settings remain future work."
+    notes: "Form Requirements are native Application Settings. Departments, contracts, sites, employers and other customer context remain Reference / Configuration Data."
   },
   {
     id: "working_time",
     label: "Working Time",
-    description: "Work Time Profiles, Break Rules and Unsociable Time rules.",
-    status: "linked",
-    owner: "Application Settings",
+    description: "Working-time behaviour settings with Reference Data shortcuts.",
+    status: "managed_reference_data",
+    owner: "Reference / Configuration Data",
     currentLocation: "Reference Data working-time entities",
-    targetLocation: "Application Settings -> Working Time",
+    targetLocation: "Reference Data -> Working Time Configuration",
     viewCapabilities: ["application_settings.view", "application_settings.manage", "work_time_profiles.view", "work_time_profiles.manage", "workforce_calendar.manage"],
     manageCapabilities: ["application_settings.manage", "work_time_profiles.manage", "workforce_calendar.manage"],
     nativeInApplicationSettings: false,
@@ -183,13 +189,13 @@ export const SETTINGS_OWNERSHIP_AREAS = Object.freeze([
     deepLinksToExistingPanel: true,
     migrationRisk: "High",
     futureMilestone: "TBD",
-    notes: "Open existing working-time entities; do not alter calculation logic."
+    notes: "Work Time Profiles, Break Rules, Unsociable Time Rules and Unsociable Rule Sets are customer-specific Reference / Configuration Data. Rota Calendar is an operational workspace. Application Settings may link to these but should not present them as app settings."
   },
   {
     id: "session_security",
     label: "Session Security",
     description: "Staff inactivity, forced actions and Shared Terminal timeout settings.",
-    status: "linked",
+    status: "linked_workspace",
     owner: "Application Settings",
     currentLocation: "Access Control -> Online Users / System Messages",
     targetLocation: "Application Settings -> Session Security",
@@ -200,12 +206,12 @@ export const SETTINGS_OWNERSHIP_AREAS = Object.freeze([
     deepLinksToExistingPanel: true,
     migrationRisk: "Medium",
     futureMilestone: "TBD",
-    notes: "Open the existing Session Security settings card without changing timeout behaviour."
+    notes: "Session-security behaviour is application behaviour. The current editor remains linked from Access Control until safely migrated."
   },
   {
     id: "notifications",
     label: "Notifications",
-    description: "Online users, system messages and system message history.",
+    description: "Notification defaults with operational messaging workspace links.",
     status: "partially_migrated",
     owner: "Application Settings",
     currentLocation: "Access Control -> Online Users / System Messages",
@@ -217,12 +223,12 @@ export const SETTINGS_OWNERSHIP_AREAS = Object.freeze([
     deepLinksToExistingPanel: true,
     migrationRisk: "Medium",
     futureMilestone: "OHP-017E",
-    notes: "Application Settings owns default message, grace, presence-window and history-row settings; message workflows remain linked."
+    notes: "Application Settings owns notification defaults, expiry, action grace and history-row defaults. Online users, sending messages and message history remain operational/admin workspaces. Notification groups, alert rules and escalation rules are future configuration data."
   },
   {
     id: "advanced",
     label: "Access Control / Diagnostics",
-    description: "Access control, diagnostics and controlled technical settings.",
+    description: "Diagnostics defaults with Access Control security configuration links.",
     status: "partially_migrated",
     owner: "Application Settings",
     currentLocation: "Administration -> Access Control",
@@ -234,12 +240,12 @@ export const SETTINGS_OWNERSHIP_AREAS = Object.freeze([
     deepLinksToExistingPanel: true,
     migrationRisk: "Medium",
     futureMilestone: "OHP-017E",
-    notes: "Application Settings owns diagnostics defaults and locked Capability Inspector status; role, assignment and effective capability workspaces remain linked."
+    notes: "Application Settings owns diagnostics defaults and locked Capability Inspector status. Role Presets, capability assignment and User Role Assignments are Security Configuration owned by Access Control."
   },
   {
     id: "future_lmt",
     label: "Future LMT",
-    description: "Labour management settings reserved for a future module.",
+    description: "Labour management settings and reference data reserved for a future module.",
     status: "future",
     owner: "Application Settings",
     currentLocation: "Not available",
@@ -251,7 +257,7 @@ export const SETTINGS_OWNERSHIP_AREAS = Object.freeze([
     deepLinksToExistingPanel: false,
     migrationRisk: "Low",
     futureMilestone: "Future",
-    notes: "Reserved only; no runtime behaviour should be introduced yet."
+    notes: "Reserved only; future LMT behaviour settings belong in Application Settings, while exception reasons and contract policies belong in Reference / Configuration Data."
   }
 ]);
 

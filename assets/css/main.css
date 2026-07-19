@@ -7138,6 +7138,13 @@ button.oh-section-nav-item:focus-visible,
 .reference-data-heading h2 { margin: 0; font-size: 25px; }
 .reference-data-heading p { margin: 6px 0 0; color: var(--oh-shell-muted); }
 
+.reference-data-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
 .reference-toolbar {
   display: flex;
   flex-wrap: wrap;

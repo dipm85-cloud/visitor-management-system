@@ -193,51 +193,51 @@ const MODULE_SETTING_CARDS = MODULE_SETTINGS_AREA_IDS
 const MODULE_CARD_DETAILS = Object.freeze({
   visitors: {
     owner: "Application Settings",
-    statusText: "Partially configured",
-    configurationState: "Visitor settings and form requirements are organised here; legacy VMS remains available for controls not yet migrated.",
-    indicators: ["Visitor settings", "Planned Visit requirements", "Walk-in requirements", "Shared Terminal links"],
+    statusText: "Partially migrated setting",
+    configurationState: "Application settings: visitor behaviour and Form Requirements. Reference data: visitor reason codes/dropdowns when implemented. Operational visitor workflows remain in Visitors.",
+    indicators: ["Behaviour settings", "Form Requirements", "Reference data future", "Visitor workspace"],
     primaryActionLabel: "Configure"
   },
   people_assignments: {
     owner: "Application Settings",
-    statusText: "Partially configured",
-    configurationState: "Assignment Form Requirements are native here; wider people policy settings remain linked to current workspaces.",
-    indicators: ["Assignment requirements", "People Profile status", "Work assignment validation"],
+    statusText: "Partially migrated setting",
+    configurationState: "Application settings: assignment Form Requirements. Reference data: sites, departments, contracts, employers and work-time context.",
+    indicators: ["Form Requirements", "People workspace", "Reference Data"],
     primaryActionLabel: "Configure"
   },
   working_time: {
-    owner: "Existing module settings",
-    statusText: "Linked",
-    configurationState: "Working-time entities stay in Reference Data so calculation logic remains unchanged.",
-    indicators: ["Work Time Profiles", "Break Rules", "Unsociable Rules", "Rota links"],
-    primaryActionLabel: "Open settings"
+    owner: "Reference / Configuration Data",
+    statusText: "Managed in Reference Data",
+    configurationState: "Application settings: future working-time defaults only. Reference data: Work Time Profiles, Break Rules, Unsociable Time Rules and Rule Sets. Workspace: Rota Calendar.",
+    indicators: ["Reference Data", "Work Time Profiles", "Break Rules", "Rota Calendar"],
+    primaryActionLabel: "Open Reference Data"
   },
   documents: {
     owner: "Application Settings",
-    statusText: "Partially configured",
-    configurationState: "Document sign-off defaults are managed here; specialist type, version and evidence workflows remain linked.",
-    indicators: ["Compliance defaults", "Evidence detail", "Document Sign-off admin"],
+    statusText: "Partially migrated setting",
+    configurationState: "Application settings: sign-off behaviour, compliance, evidence display and print defaults. Reference data: agreement/document types. Operational data: sign-off evidence.",
+    indicators: ["Behaviour settings", "Agreement types", "Evidence workspace"],
     primaryActionLabel: "Configure"
   },
   privacy_gdpr: {
     owner: "Application Settings",
-    statusText: "Partially configured",
-    configurationState: "Privacy defaults and locked guardrails are managed here; case, SAR and anonymisation workflows remain linked.",
-    indicators: ["Case defaults", "SAR defaults", "Anonymisation guardrails"],
+    statusText: "Partially migrated setting",
+    configurationState: "Application settings: privacy guardrails, SAR defaults and reference-display defaults. Specialist workspaces: cases, SAR evidence and anonymisation review.",
+    indicators: ["Guardrails", "SAR defaults", "Privacy workspace"],
     primaryActionLabel: "Configure"
   },
   identity_resolution: {
-    owner: "Existing module settings",
-    statusText: "Linked",
-    configurationState: "Identity review queues and linked-record workflows remain in the Identity Resolution workspace.",
-    indicators: ["Review requests", "Candidate queue", "Confirmed links", "Decision history"],
+    owner: "Specialist workspace",
+    statusText: "Linked specialist workspace",
+    configurationState: "Application Settings provides the shortcut. Identity review queues, candidates, confirmed links and decisions remain operational/specialist data.",
+    indicators: ["Review queue", "Candidate matching", "Operational data"],
     primaryActionLabel: "Open module"
   },
   notifications: {
     owner: "Application Settings",
-    statusText: "Partially configured",
-    configurationState: "Notification defaults are managed here; send, presence and history workflows remain linked.",
-    indicators: ["Message defaults", "Presence window", "History rows", "Required actions"],
+    statusText: "Partially migrated setting",
+    configurationState: "Application settings: message defaults, expiry, grace and history rows. Operational/admin workspace: online users, sending messages and history.",
+    indicators: ["Notification defaults", "Online users", "Message history", "Groups future"],
     primaryActionLabel: "Configure"
   },
   shared_terminal: {
@@ -249,16 +249,16 @@ const MODULE_CARD_DETAILS = Object.freeze({
   },
   advanced: {
     owner: "Application Settings",
-    statusText: "Partially configured",
-    configurationState: "Access diagnostics defaults are managed here; role, assignment and capability workspaces remain linked.",
-    indicators: ["Inspector status", "Effective source", "Role Presets", "User assignments"],
+    statusText: "Diagnostics native",
+    configurationState: "Application settings: diagnostics defaults and Capability Inspector status. Security configuration: Role Presets, capability assignment and User Role Assignments in Access Control.",
+    indicators: ["Diagnostics defaults", "Security Configuration", "Role Presets", "User assignments"],
     primaryActionLabel: "Configure"
   },
   future_lmt: {
     owner: "Future",
     statusText: "Future",
-    configurationState: "LMT settings will be configured here after the LMT module foundation is added.",
-    indicators: ["Reserved module card", "No runtime behaviour yet"],
+    configurationState: "Future LMT behaviour settings belong here. Exception reasons and contract policies belong in Reference / Configuration Data when the module exists.",
+    indicators: ["Behaviour settings future", "Reference data future", "No runtime behaviour yet"],
     primaryActionLabel: "Coming later"
   }
 });
@@ -398,7 +398,7 @@ function primaryActionLabel(area) {
   if (area.id === "branding") return "Open Branding";
   if (area.id === "visitors") return "Open Visitor Settings / Form Requirements";
   if (area.id === "people_assignments") return "Open Form Requirements";
-  if (area.id === "working_time") return "Open Working Time Settings";
+  if (area.id === "working_time") return "Open Working Time Reference Data";
   if (area.id === "documents") return "Open Sign-off Settings";
   if (area.id === "session_security") return "Open Session Security";
   if (area.id === "notifications") return "Open Notifications";
@@ -630,10 +630,14 @@ function moduleActionsFor(area) {
   const sectionAction = {
     label: details.primaryActionLabel || "Configure",
     actionId: "application_settings.modules." + area.id + ".configure",
-    capabilityLabel: "Open/configure " + area.label + " module",
+    capabilityLabel: area.status === "managed_reference_data"
+      ? "Open Reference Data -> " + area.label
+      : "Open/configure " + area.label + " module",
     description: details.configurationState,
     requiredAny: area.viewCapabilities,
-    handler: () => openApplicationSettingsSection(area.id)
+    handler: area.status === "managed_reference_data"
+      ? () => dependencies.openWorkingTimeEntity?.("workTimeProfiles")
+      : () => openApplicationSettingsSection(area.id)
   };
   const actions = [sectionAction];
   moduleQuickActionsFor(area.id).forEach(action => actions.push(action));
@@ -724,9 +728,10 @@ function moduleQuickActionsFor(sectionId) {
   if (sectionId === "advanced") {
     return [
       {
-        label: "Access Control",
+        label: "Security configuration",
         actionId: "application_settings.modules.advanced.access_control.open",
-        description: "Open Role Presets and User Role Assignments.",
+        capabilityLabel: "Open Access Control security configuration",
+        description: "Open Access Control for Role Presets and User Role Assignments.",
         requiredAny: ["access_control.view", "access_control.manage", "user_role_assignments.view", "user_role_assignments.manage"],
         secondary: true,
         handler: () => dependencies.openAccessControl?.()
@@ -1311,23 +1316,23 @@ function bridgeActionsFor(sectionId) {
         label: "Document Sign-off Admin",
         actionId: "application_settings.documents.admin.open",
         capabilityLabel: "Open Documents / Sign-off settings",
-        description: "Open document type, version and sign-off administration.",
+        description: "Open document/sign-off behaviour and specialist sign-off administration.",
         requiredAny: settingsAreaById("documents").viewCapabilities,
         handler: () => dependencies.openDocuments?.("overview")
       },
       {
         label: "Agreement / Document Types",
         actionId: "application_settings.documents.types.open",
-        capabilityLabel: "Open Agreement/document type settings",
-        description: "Open existing agreement and document type settings.",
+        capabilityLabel: "Open Agreement/document type configuration",
+        description: "Open customer-specific agreement/document type configuration.",
         requiredAny: settingsAreaById("documents").viewCapabilities,
         handler: () => dependencies.openDocuments?.("document-types")
       },
       {
-        label: "Evidence / Detail Admin",
+        label: "Evidence workspace",
         actionId: "application_settings.documents.evidence.open",
-        capabilityLabel: "Open evidence/detail admin areas",
-        description: "Open existing document evidence and compliance detail areas.",
+        capabilityLabel: "Open document evidence workspace",
+        description: "Open operational sign-off evidence and compliance detail areas.",
         requiredAny: settingsAreaById("documents").viewCapabilities,
         handler: () => dependencies.openDocuments?.("legacy-tools")
       }
@@ -1339,7 +1344,7 @@ function bridgeActionsFor(sectionId) {
         label: "Privacy Case Workspace",
         actionId: "application_settings.privacy_gdpr.cases.open",
         capabilityLabel: "Open Privacy / Data Governance settings",
-        description: "Open the existing privacy case workspace.",
+        description: "Open the specialist privacy case operational workspace.",
         requiredAny: settingsAreaById("privacy_gdpr").viewCapabilities,
         handler: () => dependencies.openPrivacyGdpr?.("cases")
       },
@@ -1347,7 +1352,7 @@ function bridgeActionsFor(sectionId) {
         label: "SAR Evidence Pack",
         actionId: "application_settings.privacy_gdpr.sar_pack.open",
         capabilityLabel: "Open SAR Evidence Pack",
-        description: "Open SAR evidence pack preview and legacy SAR links.",
+        description: "Open SAR evidence pack specialist workflow.",
         requiredAny: settingsAreaById("privacy_gdpr").viewCapabilities,
         handler: () => dependencies.openPrivacyGdpr?.("evidence-pack")
       },
@@ -1392,32 +1397,32 @@ function bridgeActionsFor(sectionId) {
       {
         label: "Work Time Profiles",
         actionId: "application_settings.working_time.profiles.open",
-        capabilityLabel: "Open Work Time Profiles",
-        description: "Open the existing Work Time Profiles settings.",
+        capabilityLabel: "Open Reference Data -> Work Time Profiles",
+        description: "Open Work Time Profiles in Reference Data / Working Time Configuration.",
         requiredAny: settingsAreaById("working_time").viewCapabilities,
         handler: () => dependencies.openWorkingTimeEntity?.("workTimeProfiles")
       },
       {
         label: "Break Rules",
         actionId: "application_settings.working_time.break_rules.open",
-        capabilityLabel: "Open Break Rules",
-        description: "Open the existing Break Rules settings.",
+        capabilityLabel: "Open Reference Data -> Break Rules",
+        description: "Open Break Rules in Reference Data / Working Time Configuration.",
         requiredAny: settingsAreaById("working_time").viewCapabilities,
         handler: () => dependencies.openWorkingTimeEntity?.("breakRules")
       },
       {
         label: "Unsociable Time Rules",
         actionId: "application_settings.working_time.unsociable_rules.open",
-        capabilityLabel: "Open Unsociable Time Rules",
-        description: "Open the existing Unsociable Time Rules settings.",
+        capabilityLabel: "Open Reference Data -> Unsociable Time Rules",
+        description: "Open Unsociable Time Rules in Reference Data / Working Time Configuration.",
         requiredAny: settingsAreaById("working_time").viewCapabilities,
         handler: () => dependencies.openWorkingTimeEntity?.("unsociableTimeRules")
       },
       {
         label: "Unsociable Rule Sets",
         actionId: "application_settings.working_time.unsociable_sets.open",
-        capabilityLabel: "Open Unsociable Rule Sets",
-        description: "Open the existing Unsociable Rule Sets settings.",
+        capabilityLabel: "Open Reference Data -> Unsociable Rule Sets",
+        description: "Open Unsociable Rule Sets in Reference Data / Working Time Configuration.",
         requiredAny: settingsAreaById("working_time").viewCapabilities,
         handler: () => dependencies.openWorkingTimeEntity?.("unsociableRuleSets")
       }
@@ -1439,7 +1444,7 @@ function bridgeActionsFor(sectionId) {
         label: "Online Users",
         actionId: "application_settings.notifications.online.open",
         capabilityLabel: "Open Online Users",
-        description: "Open the existing Online Users workspace.",
+        description: "Open the operational Online Users workspace.",
         requiredAny: settingsAreaById("notifications").viewCapabilities,
         handler: () => dependencies.openNotifications?.("presence")
       },
@@ -1447,7 +1452,7 @@ function bridgeActionsFor(sectionId) {
         label: "Send System Message",
         actionId: "application_settings.notifications.send_message.open",
         capabilityLabel: "Open Send System Message",
-        description: "Open the existing send system message workflow.",
+        description: "Open the operational send system message workflow.",
         requiredAny: ["admin_system_messages.send", "admin_system_messages.force_action", "access_control.manage"],
         handler: () => dependencies.openNotifications?.("send")
       },
@@ -1455,7 +1460,7 @@ function bridgeActionsFor(sectionId) {
         label: "System Message History",
         actionId: "application_settings.notifications.history.open",
         capabilityLabel: "Open System Message History",
-        description: "Open the existing message history panel.",
+        description: "Open the operational system message history panel.",
         requiredAny: settingsAreaById("notifications").viewCapabilities,
         handler: () => dependencies.openNotifications?.("history")
       },
@@ -1463,7 +1468,7 @@ function bridgeActionsFor(sectionId) {
         label: "Notification Groups",
         actionId: "application_settings.notifications.groups.future",
         capabilityLabel: "Open future Notification Groups placeholder",
-        description: "Future notification group routing. No runtime behaviour in OHP-017E.",
+        description: "Future Reference / Configuration Data for notification groups. No runtime behaviour in OHP-017F.",
         requiredAny: settingsAreaById("notifications").manageCapabilities,
         handler: () => showToast("Coming later", "Notification Groups are reserved for a future notification-routing milestone.", "info")
       }
@@ -1475,7 +1480,7 @@ function bridgeActionsFor(sectionId) {
         label: "Access Control Workspace",
         actionId: "application_settings.advanced.access_control.open",
         capabilityLabel: "Open Access Control workspace",
-        description: "Open the existing Access Control workspace.",
+        description: "Open Access Control for security configuration.",
         requiredAny: settingsAreaById("advanced").viewCapabilities,
         handler: () => dependencies.openAccessControl?.()
       },
@@ -1483,7 +1488,7 @@ function bridgeActionsFor(sectionId) {
         label: "Role Presets",
         actionId: "application_settings.advanced.role_presets.open",
         capabilityLabel: "Open Role Presets",
-        description: "Open role preset configuration.",
+        description: "Open Security Configuration for role presets because they affect permissions.",
         requiredAny: ["role_presets.view", "role_presets.manage", "access_control.view", "access_control.manage"],
         handler: () => dependencies.openAccessControl?.("roles")
       },
@@ -1491,7 +1496,7 @@ function bridgeActionsFor(sectionId) {
         label: "User Role Assignments",
         actionId: "application_settings.advanced.user_assignments.open",
         capabilityLabel: "Open User Role Assignments",
-        description: "Open user role assignment defaults and existing assignment tools.",
+        description: "Open Security Configuration for user role assignments.",
         requiredAny: ["user_role_assignments.view", "user_role_assignments.manage", "access_control.view", "access_control.manage"],
         handler: () => dependencies.openAccessControl?.("assignments")
       },

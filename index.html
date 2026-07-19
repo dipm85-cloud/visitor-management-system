@@ -120,7 +120,7 @@
           </button>
           <div id="ohAdministrationChildren" class="oh-nav-children" aria-label="Administration areas">
             <button id="administrationApplicationSettingsNav" class="oh-nav-child-item hidden" type="button" title="Application Settings" data-nav-action="navigation.application_settings.open" data-capability-action="application_settings.open" data-capability-label="Open Application Settings" data-capability-area="Navigation" data-capability-any="application_settings.view application_settings.manage form_requirements.view form_requirements.manage settings.view settings.edit module_configuration.view module_configuration.manage visitor.view devices.view devices.manage agreements.view agreements.manage document_signoff.manage privacy.case.view privacy.case.manage privacy.view privacy.manage gdpr.view gdpr.manage audit.view identity_resolution.view identity_resolution.manage people.view people.manage work_time_profiles.view work_time_profiles.manage workforce_calendar.manage session_security_settings.view session_security_settings.manage online_users.view admin_system_messages.view admin_system_messages.send admin_system_messages.force_action access_control.view access_control.manage role_presets.view role_presets.manage user_role_assignments.view user_role_assignments.manage capabilities.diagnose" data-capability-type="navigation">Application Settings</button>
-            <button id="administrationReferenceNav" class="oh-nav-child-item active" type="button" aria-current="page" title="Reference Data" data-nav-action="navigation.reference_data.open" data-capability-action="navigation.reference_data.open" data-capability-label="Reference Data" data-capability-area="Navigation" data-capability-any="reference_data.view reference_data.manage settings.view settings.edit" data-capability-type="navigation">Reference Data</button>
+            <button id="administrationReferenceNav" class="oh-nav-child-item active" type="button" aria-current="page" title="Reference Data" data-nav-action="navigation.reference_data.open" data-capability-action="navigation.reference_data.open" data-capability-label="Open Reference / Configuration Data" data-capability-area="Navigation" data-capability-any="reference_data.view reference_data.manage settings.view settings.edit work_time_profiles.view work_time_profiles.manage break_rules.view break_rules.manage unsociable_time_rules.view unsociable_time_rules.manage people.view people.manage organisation.view organisation.manage agreements.view agreements.manage document_signoff.manage" data-capability-type="navigation">Reference Data</button>
             <button id="administrationIdentityResolutionNav" class="oh-nav-child-item hidden" type="button" title="Identity Resolution" data-nav-action="navigation.identity_resolution.open" data-capability-action="navigation.identity_resolution.open" data-capability-label="Identity Resolution" data-capability-area="Navigation" data-capability-any="identity_resolution.view identity_resolution.manage" data-capability-type="navigation">Identity Resolution</button>
             <button id="administrationDocumentSignoffsNav" class="oh-nav-child-item hidden" type="button" title="Document Sign-offs" data-nav-action="navigation.document_signoffs.open" data-capability-action="navigation.document_signoffs.open" data-capability-label="Document Sign-offs" data-capability-area="Navigation" data-capability-any="agreements.view agreements.manage document_signoff.manage" data-capability-type="navigation">Document Sign-offs</button>
             <button id="administrationPrivacyGdprNav" class="oh-nav-child-item hidden" type="button" title="Privacy / Data Governance" data-nav-action="navigation.privacy_gdpr.open" data-capability-action="navigation.privacy_gdpr.open" data-capability-label="Privacy / Data Governance" data-capability-area="Navigation" data-capability-any="privacy.case.view privacy.case.manage privacy.view privacy.manage gdpr.view gdpr.manage" data-capability-type="navigation">Privacy / Data Governance</button>
@@ -299,7 +299,7 @@
           <div class="dashboard-quick-actions">
             <button id="dashboardOpenVisitorsButton" type="button">Open Visitors</button>
             <button id="dashboardOpenPeopleButton" type="button" data-capability-action="dashboard.people.open" data-capability-label="Open People From Dashboard" data-capability-area="Dashboard" data-capability-any="people.view people.manage" data-capability-type="view">Open People</button>
-            <button id="dashboardOpenReferenceButton" type="button">Open Reference Data</button>
+            <button id="dashboardOpenReferenceButton" type="button" data-capability-action="dashboard.reference_data.open" data-capability-label="Open Reference / Configuration Data" data-capability-area="Dashboard" data-capability-any="reference_data.view reference_data.manage settings.view settings.edit work_time_profiles.view work_time_profiles.manage break_rules.view break_rules.manage unsociable_time_rules.view unsociable_time_rules.manage" data-capability-type="navigation">Open Reference Data</button>
           </div>
         </section>
       </section>
@@ -1352,7 +1352,7 @@
       <div class="brand-mark"><img id="brandLogoImg" alt="Logo" style="display:none;width:100%;height:100%;object-fit:contain;border-radius:12px;"><span id="brandLogoFallback">V</span></div>
       <div>
         Visitor Management<br>
-        <span style="font-size:12px;color:var(--muted);font-weight:700;">Operations Hub nextgen-ui - OHP-017E.1</span>
+        <span style="font-size:12px;color:var(--muted);font-weight:700;">Operations Hub nextgen-ui - OHP-017F</span>
       </div>
     </div>
     <div class="button-row no-print" style="margin:0;">
@@ -1401,7 +1401,7 @@
       </div>
       <button id="terminalReturnHomeButton" class="secondary hidden" type="button">Return to Terminal Home</button>
     </section>
-  <div id="appVersionFooter" class="version-footer">Version <span id="appVersionText">OHP-017E.1</span></div>
+  <div id="appVersionFooter" class="version-footer">Version <span id="appVersionText">OHP-017F</span></div>
 </main>
 
   <section id="signInScreen" class="screen">
@@ -5139,9 +5139,67 @@
         <section id="referenceDataSection" aria-labelledby="referenceDataTitle">
           <div class="reference-data-heading">
             <div>
-              <h2 id="referenceDataTitle">Reference Data</h2>
-              <p>Manage reusable operational values using Active and Inactive status to preserve history.</p>
+              <h2 id="referenceDataTitle">Reference / Configuration Data</h2>
+              <p>Manage customer-specific dropdowns, rules and policies using Active and Inactive status to preserve history.</p>
             </div>
+          </div>
+
+          <div id="referenceDataOverviewCards" class="reference-data-overview-grid">
+            <article class="application-settings-card">
+              <h4>Working Time Configuration</h4>
+              <p>Customer-specific Work Time Profiles, Break Rules, Unsociable Time Rules and Rule Sets.</p>
+              <div class="application-settings-module-indicators">
+                <span>Reference Data</span>
+                <span>Working Time</span>
+              </div>
+              <button id="referenceOpenWorkingTimeConfigButton" type="button" data-capability-action="reference_data.working_time_configuration.open" data-capability-label="Open Working Time Configuration" data-capability-area="Reference / Configuration Data" data-capability-any="reference_data.view reference_data.manage work_time_profiles.view work_time_profiles.manage break_rules.view break_rules.manage unsociable_time_rules.view unsociable_time_rules.manage" data-capability-type="navigation">Open Working Time</button>
+            </article>
+            <article class="application-settings-card">
+              <h4>Operational Lists</h4>
+              <p>Sites, departments and contracts used by People, Assignments and reporting contexts.</p>
+              <div class="application-settings-module-indicators">
+                <span>Sites</span>
+                <span>Departments</span>
+                <span>Contracts</span>
+              </div>
+              <button id="referenceOpenCoreListsButton" class="secondary" type="button" data-capability-action="reference_data.operational_lists.open" data-capability-label="Open Operational Reference Lists" data-capability-area="Reference / Configuration Data" data-capability-any="reference_data.view reference_data.manage settings.view settings.edit people.view people.manage" data-capability-type="navigation">Open Lists</button>
+            </article>
+            <article class="application-settings-card">
+              <h4>Employers / Organisations</h4>
+              <p>Organisation records remain in the Organisations workspace and are linked here as customer configuration.</p>
+              <div class="application-settings-module-indicators">
+                <span>Shortcut</span>
+                <span>People context</span>
+              </div>
+              <button id="referenceOpenEmployersButton" class="secondary" type="button" data-capability-action="reference_data.organisations.open" data-capability-label="Open Employer / Organisation Configuration" data-capability-area="Reference / Configuration Data" data-capability-any="organisation.view organisation.manage people.view people.manage" data-capability-type="navigation">Open Organisations</button>
+            </article>
+            <article class="application-settings-card">
+              <h4>Document / Agreement Types</h4>
+              <p>Document and agreement types are customer configuration managed in the specialist document workspace.</p>
+              <div class="application-settings-module-indicators">
+                <span>Shortcut</span>
+                <span>Documents</span>
+              </div>
+              <button id="referenceOpenDocumentTypesButton" class="secondary" type="button" data-capability-action="reference_data.document_types.open" data-capability-label="Open Document / Agreement Type Configuration" data-capability-area="Reference / Configuration Data" data-capability-any="agreements.view agreements.manage document_signoff.manage" data-capability-type="navigation">Open Types</button>
+            </article>
+            <article class="application-settings-card">
+              <h4>Visitor Reason Codes</h4>
+              <p>Future customer-specific visitor reason dropdowns belong here when implemented.</p>
+              <div class="application-settings-module-indicators">
+                <span>Future</span>
+                <span>Visitors</span>
+              </div>
+              <button id="referenceVisitorReasonsFutureButton" class="secondary" type="button" data-capability-action="reference_data.visitor_reason_codes.future" data-capability-label="Open future Visitor Reason Codes placeholder" data-capability-area="Reference / Configuration Data" data-capability-any="reference_data.view reference_data.manage visitor.view visitor.edit visitor.create" data-capability-type="navigation">Future</button>
+            </article>
+            <article class="application-settings-card">
+              <h4>Future LMT Reference Data</h4>
+              <p>Exception reasons and contract policies will live here after the LMT foundation exists.</p>
+              <div class="application-settings-module-indicators">
+                <span>Future</span>
+                <span>LMT</span>
+              </div>
+              <button id="referenceLmtFutureButton" class="secondary" type="button" data-capability-action="reference_data.future_lmt.open" data-capability-label="Open future LMT Reference Data placeholder" data-capability-area="Reference / Configuration Data" data-capability-any="reference_data.view reference_data.manage module_configuration.view module_configuration.manage" data-capability-type="navigation">Future</button>
+            </article>
           </div>
 
           <div id="referenceDataWorkspaceContent">
@@ -5828,7 +5886,7 @@
 
   <footer class="oh-footer">
     <strong>Operations Hub</strong>
-    <span>Version <span id="ohPlatformVersion">OHP-017E.1</span></span>
+    <span>Version <span id="ohPlatformVersion">OHP-017F</span></span>
     <span>Environment <span id="ohEnvironment">Local</span></span>
   </footer>
 </div>

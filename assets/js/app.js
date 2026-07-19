@@ -5332,6 +5332,68 @@ window.addEventListener("load", async function () {
     if ($("administrationReferenceNav")) {
       $("administrationReferenceNav").addEventListener("click", openReferenceDataWorkspace);
     }
+    function syncReferenceOverviewActionVisibility() {
+      [
+        {
+          id: "referenceOpenWorkingTimeConfigButton",
+          capabilities: ["reference_data.view", "reference_data.manage", "work_time_profiles.view", "work_time_profiles.manage", "break_rules.view", "break_rules.manage", "unsociable_time_rules.view", "unsociable_time_rules.manage"]
+        },
+        {
+          id: "referenceOpenCoreListsButton",
+          capabilities: ["reference_data.view", "reference_data.manage", "settings.view", "settings.edit", "people.view", "people.manage"]
+        },
+        {
+          id: "referenceOpenEmployersButton",
+          capabilities: ["organisation.view", "organisation.manage", "people.view", "people.manage"]
+        },
+        {
+          id: "referenceOpenDocumentTypesButton",
+          capabilities: ["agreements.view", "agreements.manage", "document_signoff.manage"]
+        },
+        {
+          id: "referenceVisitorReasonsFutureButton",
+          capabilities: ["reference_data.view", "reference_data.manage", "visitor.view", "visitor.edit", "visitor.create"]
+        },
+        {
+          id: "referenceLmtFutureButton",
+          capabilities: ["reference_data.view", "reference_data.manage", "module_configuration.view", "module_configuration.manage"]
+        }
+      ].forEach(item => {
+        const button = $(item.id);
+        const card = button ? button.closest(".application-settings-card") : null;
+        if (card) card.classList.toggle("hidden", !hasAnyCapability(item.capabilities));
+      });
+    }
+    syncReferenceOverviewActionVisibility();
+    window.addEventListener("oh:capabilities-changed", syncReferenceOverviewActionVisibility);
+    if ($("referenceOpenWorkingTimeConfigButton")) {
+      $("referenceOpenWorkingTimeConfigButton").addEventListener("click", async () => {
+        await openReferenceDataWorkspace();
+        await selectReferenceEntity("workTimeProfiles");
+      });
+    }
+    if ($("referenceOpenCoreListsButton")) {
+      $("referenceOpenCoreListsButton").addEventListener("click", async () => {
+        await openReferenceDataWorkspace();
+        await selectReferenceEntity("sites");
+      });
+    }
+    if ($("referenceOpenEmployersButton")) {
+      $("referenceOpenEmployersButton").addEventListener("click", openOrganisationsWorkspace);
+    }
+    if ($("referenceOpenDocumentTypesButton")) {
+      $("referenceOpenDocumentTypesButton").addEventListener("click", () => openDocumentSignoffAdministration("document-types"));
+    }
+    if ($("referenceVisitorReasonsFutureButton")) {
+      $("referenceVisitorReasonsFutureButton").addEventListener("click", () => {
+        showToast("Future configuration area", "Visitor reason codes will be managed in Reference / Configuration Data when implemented.", "info");
+      });
+    }
+    if ($("referenceLmtFutureButton")) {
+      $("referenceLmtFutureButton").addEventListener("click", () => {
+        showToast("Future configuration area", "LMT exception reasons and contract policies will be managed here after the LMT foundation exists.", "info");
+      });
+    }
     if ($("referenceSearch")) $("referenceSearch").addEventListener("input", handleReferenceSearchInput);
     if ($("referenceIncludeInactive")) $("referenceIncludeInactive").addEventListener("change", loadReferenceData);
     if ($("referenceExportCsvButton")) $("referenceExportCsvButton").addEventListener("click", exportReferenceDataCsv);
