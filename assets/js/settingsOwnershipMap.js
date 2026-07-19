@@ -159,12 +159,12 @@ export const SETTINGS_OWNERSHIP_AREAS = Object.freeze([
   },
   {
     id: "people_assignments",
-    label: "People & Assignments",
-    description: "Assignment Form Requirements and behaviour settings.",
+    label: "Form Configuration",
+    description: "Configure platform-defined form behaviour such as required fields for assignments, visitor walk-ins, planned visits, and future forms.",
     status: "partially_migrated",
     owner: "Application Settings",
-    currentLocation: "Application Settings -> People & Assignments",
-    targetLocation: "Application Settings -> People & Assignments",
+    currentLocation: "Application Settings -> Form Configuration",
+    targetLocation: "Application Settings -> Form Configuration",
     viewCapabilities: ["application_settings.view", "application_settings.manage", "form_requirements.view", "form_requirements.manage", "assignment_field_requirements.view", "assignment_field_requirements.manage", "people.view", "people.manage"],
     manageCapabilities: ["application_settings.manage", "form_requirements.manage", "assignment_field_requirements.manage", "people.manage"],
     nativeInApplicationSettings: true,
@@ -172,7 +172,7 @@ export const SETTINGS_OWNERSHIP_AREAS = Object.freeze([
     deepLinksToExistingPanel: false,
     migrationRisk: "Medium",
     futureMilestone: "OHP-017C",
-    notes: "Form Requirements are native Application Settings. Departments, contracts, sites, employers and other customer context remain Reference / Configuration Data."
+    notes: "Form Configuration owns configurable Form Requirements for assignments, visitor walk-ins, planned visits and future forms. People & Assignments remains a module/business area, not the generic form settings owner."
   },
   {
     id: "working_time",

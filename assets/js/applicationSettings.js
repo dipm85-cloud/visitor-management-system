@@ -201,8 +201,8 @@ const MODULE_CARD_DETAILS = Object.freeze({
   people_assignments: {
     owner: "Application Settings",
     statusText: "Partially migrated setting",
-    configurationState: "Application settings: assignment Form Requirements. Reference data: sites, departments, contracts, employers and work-time context.",
-    indicators: ["Form Requirements", "People workspace", "Reference Data"],
+    configurationState: "Application settings: form behaviour and required fields for Assignments, Visitor Walk-ins, Planned Visits, and future forms. People & Assignments remains a business module.",
+    indicators: ["Form Configuration", "Assignments", "Visitor Walk-ins", "Planned Visits"],
     primaryActionLabel: "Configure"
   },
   working_time: {
@@ -397,7 +397,7 @@ function primaryActionLabel(area) {
   if (area.status === "future") return "Coming later";
   if (area.id === "branding") return "Open Branding";
   if (area.id === "visitors") return "Open Visitor Settings / Form Requirements";
-  if (area.id === "people_assignments") return "Open Form Requirements";
+  if (area.id === "people_assignments") return "Open Form Configuration";
   if (area.id === "working_time") return "Open Working Time Reference Data";
   if (area.id === "documents") return "Open Sign-off Settings";
   if (area.id === "session_security") return "Open Session Security";
@@ -678,7 +678,8 @@ function moduleQuickActionsFor(sectionId) {
       {
         label: "Assignment requirements",
         actionId: "application_settings.modules.people_assignments.requirements.open",
-        description: "Open assignment Form Requirements.",
+        capabilityLabel: "Open Assignment Form Configuration",
+        description: "Open assignment required-field configuration.",
         requiredAny: FIELD_REQUIREMENT_VIEW_CAPABILITIES,
         secondary: true,
         handler: () => openFormRequirementsArea("work_assignments")

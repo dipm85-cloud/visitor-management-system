@@ -1352,7 +1352,7 @@
       <div class="brand-mark"><img id="brandLogoImg" alt="Logo" style="display:none;width:100%;height:100%;object-fit:contain;border-radius:12px;"><span id="brandLogoFallback">V</span></div>
       <div>
         Visitor Management<br>
-        <span style="font-size:12px;color:var(--muted);font-weight:700;">Operations Hub nextgen-ui - OHP-017F.1</span>
+        <span style="font-size:12px;color:var(--muted);font-weight:700;">Operations Hub nextgen-ui - OHP-017F.2</span>
       </div>
     </div>
     <div class="button-row no-print" style="margin:0;">
@@ -1401,7 +1401,7 @@
       </div>
       <button id="terminalReturnHomeButton" class="secondary hidden" type="button">Return to Terminal Home</button>
     </section>
-  <div id="appVersionFooter" class="version-footer">Version <span id="appVersionText">OHP-017F.1</span></div>
+  <div id="appVersionFooter" class="version-footer">Version <span id="appVersionText">OHP-017F.2</span></div>
 </main>
 
   <section id="signInScreen" class="screen">
@@ -3408,7 +3408,7 @@
               <textarea id="assignmentNotes" rows="4"></textarea>
 
               <div class="people-form-actions" data-oh-side-panel-actions>
-                <button id="assignmentSaveButton" type="submit" data-capability-action="assignments.save_with_configured_requirements" data-capability-label="Save assignment with configured requirements" data-capability-area="People & Assignments" data-capability-any="assignment.manage" data-capability-type="update">Create Assignment</button>
+                <button id="assignmentSaveButton" type="submit" data-capability-action="assignments.save_with_configured_requirements" data-capability-label="Save assignment with configured requirements" data-capability-area="Assignments" data-capability-any="assignment.manage" data-capability-type="update">Create Assignment</button>
                 <button id="assignmentCancelButton" class="secondary" type="button">Cancel</button>
               </div>
             </form>
@@ -5324,8 +5324,8 @@
               <section id="applicationSettingsPeoplePanel" class="application-settings-panel hidden" data-application-settings-panel="form_requirements" aria-labelledby="applicationSettingsPeopleTitle">
                 <div class="application-settings-section-heading">
                   <div>
-                    <h3 id="applicationSettingsPeopleTitle">Form Requirements</h3>
-                    <p>Reusable required-field settings for supported platform forms.</p>
+                    <h3 id="applicationSettingsPeopleTitle">Form Configuration</h3>
+                    <p>Configure platform-defined form behaviour such as required fields for assignments, visitor walk-ins, planned visits, and future forms.</p>
                   </div>
                 </div>
                 <div id="applicationSettingsPeopleRegistry" class="application-settings-registry"></div>
@@ -5336,9 +5336,9 @@
                       <p id="formRequirementsAreaDescription">System-required fields stay locked. Configurable fields can be made required by business policy.</p>
                     </div>
                     <div class="application-settings-heading-actions">
-                      <button id="assignmentFieldRequirementsRefreshButton" class="secondary" type="button" data-capability-action="form_requirements.view" data-capability-label="Open Form Requirements" data-capability-area="Application Settings" data-capability-any="form_requirements.view form_requirements.manage assignment_field_requirements.view assignment_field_requirements.manage application_settings.view application_settings.manage settings.view settings.edit" data-capability-type="view">Refresh</button>
+                      <button id="assignmentFieldRequirementsRefreshButton" class="secondary" type="button" data-capability-action="form_requirements.view" data-capability-label="Refresh Form Configuration" data-capability-area="Application Settings -> Form Configuration" data-capability-any="form_requirements.view form_requirements.manage assignment_field_requirements.view assignment_field_requirements.manage application_settings.view application_settings.manage settings.view settings.edit" data-capability-type="view">Refresh</button>
                       <button id="formRequirementsRevertButton" class="secondary" type="button" disabled>Revert</button>
-                      <button id="formRequirementsSaveButton" type="button" disabled data-capability-action="form_requirements.batch_save" data-capability-label="Save Form Requirements batch" data-capability-area="Application Settings" data-capability-any="form_requirements.manage assignment_field_requirements.manage application_settings.manage settings.edit" data-capability-type="update">Save Changes</button>
+                      <button id="formRequirementsSaveButton" type="button" disabled data-capability-action="form_requirements.batch_save" data-capability-label="Save Form Configuration requirements" data-capability-area="Application Settings -> Form Configuration" data-capability-any="form_requirements.manage assignment_field_requirements.manage application_settings.manage settings.edit" data-capability-type="update">Save Changes</button>
                     </div>
                   </div>
                   <div id="formRequirementsAreaSelector" class="form-requirements-area-selector" role="tablist" aria-label="Form requirement areas"></div>
@@ -5886,7 +5886,7 @@
 
   <footer class="oh-footer">
     <strong>Operations Hub</strong>
-    <span>Version <span id="ohPlatformVersion">OHP-017F.1</span></span>
+    <span>Version <span id="ohPlatformVersion">OHP-017F.2</span></span>
     <span>Environment <span id="ohEnvironment">Local</span></span>
   </footer>
 </div>
