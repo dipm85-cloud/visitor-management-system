@@ -18,6 +18,7 @@ import {
   updateApplicationSetting
 } from "./applicationSettingsService.js";
 import {
+  brandedContrastColour,
   brandingImplementationStatus,
   getCurrentBranding,
   isHexColour
@@ -66,6 +67,7 @@ const APPLICATION_SETTINGS_MANAGE_CAPABILITIES = [
   "module_configuration.manage",
   "access_control.manage"
 ];
+const APPLICATION_SETTINGS_MANAGE_ONLY_CAPABILITY = ["application_settings.manage"];
 const APPLICATION_SETTINGS_REGISTRY_VIEW_CAPABILITIES = [
   "application_settings.view",
   "application_settings.manage",
@@ -146,6 +148,7 @@ const BRANDING_THEME_RESET_KEYS = Object.freeze([
   "branding.theme_mode",
   "branding.primary_color",
   "branding.accent_color",
+  "branding.brand_contrast_mode",
   "branding.background_mode",
   "branding.background_color",
   "branding.background_gradient_start_color",
@@ -165,12 +168,38 @@ const BRANDING_THEME_RESET_KEYS = Object.freeze([
   "branding.corner_style"
 ]);
 
+const SELECT_VALUE_LABELS = Object.freeze({
+  "branding.brand_contrast_mode": Object.freeze({
+    auto: "Auto contrast",
+    light_text: "Light text",
+    dark_text: "Dark text"
+  })
+});
+
+const SETTING_HELP_TEXT = Object.freeze({
+  "branding.brand_contrast_mode": "Auto is recommended. This controls text on branded buttons and active navigation only."
+});
+
 function canViewApplicationSettings() {
   return hasAnyCapability(APPLICATION_SETTINGS_VIEW_CAPABILITIES);
 }
 
 function canManageApplicationSettings() {
   return hasAnyCapability(APPLICATION_SETTINGS_MANAGE_CAPABILITIES);
+}
+
+function canManageApplicationSettingsOnly() {
+  return hasAnyCapability(APPLICATION_SETTINGS_MANAGE_ONLY_CAPABILITY);
+}
+
+function settingManageCapabilities(setting) {
+  return setting && setting.setting_key === "branding.brand_contrast_mode"
+    ? APPLICATION_SETTINGS_MANAGE_ONLY_CAPABILITY
+    : APPLICATION_SETTINGS_MANAGE_CAPABILITIES;
+}
+
+function canManageApplicationSetting(setting) {
+  return hasAnyCapability(settingManageCapabilities(setting));
 }
 
 function canViewApplicationSettingsRegistry() {
@@ -389,7 +418,7 @@ function categoryLabel(categoryCode) {
 
 function createSettingControl(setting) {
   const value = jsonValue(setting.setting_value);
-  const disabled = !canManageApplicationSettings() || setting.locked_by_system || setting.sensitive;
+  const disabled = !canManageApplicationSetting(setting) || setting.locked_by_system || setting.sensitive;
   let control;
   const component = setting.ui_component || setting.value_type;
 
@@ -431,10 +460,14 @@ function createSettingControl(setting) {
     setting.allowed_values.forEach(item => {
       const option = document.createElement("option");
       option.value = String(jsonValue(item));
-      option.textContent = String(jsonValue(item));
+      option.textContent = selectOptionLabel(setting, item);
       control.appendChild(option);
     });
-    control.value = value == null ? "" : String(value);
+    const selectValue = value == null ? "" : String(value);
+    control.value = selectValue;
+    if (setting.setting_key === "branding.brand_contrast_mode" && !control.value) {
+      control.value = "auto";
+    }
   } else {
     control = document.createElement("input");
     control.type = "text";
@@ -444,6 +477,11 @@ function createSettingControl(setting) {
   control.id = settingInputId(setting.setting_key);
   control.disabled = disabled;
   return control;
+}
+
+function selectOptionLabel(setting, item) {
+  const value = String(jsonValue(item));
+  return SELECT_VALUE_LABELS[setting.setting_key]?.[value] || value;
 }
 
 function readSettingControlValue(setting) {
@@ -497,6 +535,11 @@ function brandingPreviewBackground(mode, fallbackBackground, prefix) {
   return fallbackBackground;
 }
 
+function brandingPreviewColour(settingKey, fallback) {
+  const value = String(brandingSettingValue(settingKey, fallback) || fallback);
+  return isHexColour(value) ? value : fallback;
+}
+
 function renderBrandingPreview() {
   const root = $("brandingPreviewRoot");
   if (!root) return;
@@ -512,6 +555,11 @@ function renderBrandingPreview() {
   const logoUrl = String(brandingSettingValue("branding.logo_url", current.logoUrl || "") || "");
   const printLogoUrl = String(brandingSettingValue("branding.print_logo_url", current.printLogoUrl || "") || "");
   const displayMode = String(brandingSettingValue("branding.header_logo_display_mode", current.headerLogoDisplayMode || "logo_and_name") || "logo_and_name");
+  const primaryColour = brandingPreviewColour("branding.primary_color", current.primaryColour || "#1f4f8f");
+  const accentColour = brandingPreviewColour("branding.accent_color", current.accentColour || "#18a999");
+  const contrastMode = String(brandingSettingValue("branding.brand_contrast_mode", current.brandContrastMode || "auto") || "auto");
+  const primaryContrast = brandedContrastColour(primaryColour, contrastMode);
+  const accentContrast = brandedContrastColour(accentColour, contrastMode);
   const appBackgroundMode = String(brandingSettingValue("branding.background_mode", current.backgroundMode || "default") || "default");
   const appGradientStrength = String(brandingSettingValue("branding.background_gradient_strength", current.backgroundGradientStrength || "subtle") || "subtle");
   const publicBackgroundMode = String(brandingSettingValue("branding.public_screen_background_mode", current.publicScreenBackgroundMode || "inherit_app") || "inherit_app");
@@ -523,6 +571,13 @@ function renderBrandingPreview() {
   const preview = document.createElement("section");
   preview.className = "branding-preview";
   preview.setAttribute("aria-label", "Branding preview");
+  preview.style.setProperty("--oh-brand-primary", primaryColour);
+  preview.style.setProperty("--oh-brand-primary-contrast", primaryContrast);
+  preview.style.setProperty("--oh-brand-accent", accentColour);
+  preview.style.setProperty("--oh-brand-accent-contrast", accentContrast);
+  preview.style.setProperty("--oh-nav-active-background", primaryColour);
+  preview.style.setProperty("--oh-nav-active-text", primaryContrast);
+  preview.style.setProperty("--oh-nav-active-icon-background", primaryContrast === "#101828" ? "rgba(16,24,40,.10)" : "rgba(255,255,255,.18)");
   preview.style.background = brandingPreviewBackground(appBackgroundMode, "", "branding.background_");
 
   const appSurface = document.createElement("article");
@@ -591,7 +646,7 @@ function settingActionId(setting, suffix) {
 }
 
 function canResetSetting(setting) {
-  return canManageApplicationSettings() && setting && !setting.locked_by_system && !setting.sensitive;
+  return canManageApplicationSetting(setting) && setting && !setting.locked_by_system && !setting.sensitive;
 }
 
 function renderRegistry(filterCategory, targetId = "applicationSettingsRegistry") {
@@ -626,13 +681,13 @@ function renderRegistry(filterCategory, targetId = "applicationSettingsRegistry"
       resetTheme.type = "button";
       resetTheme.className = "secondary";
       resetTheme.textContent = "Reset Theme Colours";
-      resetTheme.disabled = !canManageApplicationSettings();
+      resetTheme.disabled = !canManageApplicationSettingsOnly();
       resetTheme.addEventListener("click", resetBrandingThemeColours);
       decorateCapabilityAction(resetTheme, {
         actionId: "application_settings.branding.reset_theme_colours",
         label: "Reset theme colours",
         area: "Application Settings",
-        requiredAny: APPLICATION_SETTINGS_MANAGE_CAPABILITIES,
+        requiredAny: APPLICATION_SETTINGS_MANAGE_ONLY_CAPABILITY,
         actionType: "reset"
       });
       headingActions.appendChild(resetTheme);
@@ -641,13 +696,15 @@ function renderRegistry(filterCategory, targetId = "applicationSettingsRegistry"
     resetCategory.type = "button";
     resetCategory.className = "secondary";
     resetCategory.textContent = categoryCode === "branding" ? "Reset All Branding" : "Reset Category";
-    resetCategory.disabled = !canManageApplicationSettings() || !items.some(canResetSetting);
+    resetCategory.disabled = !(categoryCode === "branding" ? canManageApplicationSettingsOnly() : canManageApplicationSettings()) || !items.some(canResetSetting);
     resetCategory.addEventListener("click", () => resetApplicationSettingsCategory(categoryCode));
     decorateCapabilityAction(resetCategory, {
       actionId: "application_settings." + categoryCode + ".reset_defaults",
       label: categoryCode === "branding" ? "Reset all branding" : "Reset " + categoryLabel(categoryCode) + " defaults",
       area: "Application Settings",
-      requiredAny: APPLICATION_SETTINGS_MANAGE_CAPABILITIES,
+      requiredAny: categoryCode === "branding"
+        ? APPLICATION_SETTINGS_MANAGE_ONLY_CAPABILITY
+        : APPLICATION_SETTINGS_MANAGE_CAPABILITIES,
       actionType: "reset"
     });
     headingActions.appendChild(resetCategory);
@@ -687,24 +744,34 @@ function renderRegistry(filterCategory, targetId = "applicationSettingsRegistry"
       const field = document.createElement("label");
       field.className = "application-settings-control";
       const label = document.createElement("span");
-      label.textContent = setting.setting_key;
+      label.textContent = setting.setting_key === "branding.brand_contrast_mode"
+        ? "Branded text contrast mode"
+        : setting.setting_key;
       const control = createSettingControl(setting);
       if (setting.category_code === "branding") {
         control.addEventListener("input", renderBrandingPreview);
         control.addEventListener("change", renderBrandingPreview);
       }
       field.append(label, control);
+      const settingHelpText = SETTING_HELP_TEXT[setting.setting_key];
+      if (settingHelpText) {
+        const help = document.createElement("small");
+        help.textContent = settingHelpText;
+        field.appendChild(help);
+      }
 
       const save = document.createElement("button");
       save.type = "button";
       save.textContent = "Save";
-      save.disabled = !canManageApplicationSettings() || setting.locked_by_system || setting.sensitive;
+      save.disabled = !canManageApplicationSetting(setting) || setting.locked_by_system || setting.sensitive;
       save.addEventListener("click", () => saveApplicationSetting(setting.setting_key));
       decorateCapabilityAction(save, {
         actionId: settingActionId(setting, "save"),
-        label: "Save " + (setting.setting_name || setting.setting_key),
+        label: setting.setting_key === "branding.brand_contrast_mode"
+          ? "Save branded text contrast mode"
+          : "Save " + (setting.setting_name || setting.setting_key),
         area: "Application Settings",
-        requiredAny: APPLICATION_SETTINGS_MANAGE_CAPABILITIES,
+        requiredAny: settingManageCapabilities(setting),
         actionType: "update"
       });
       const reset = document.createElement("button");
@@ -715,9 +782,11 @@ function renderRegistry(filterCategory, targetId = "applicationSettingsRegistry"
       reset.addEventListener("click", () => resetApplicationSetting(setting.setting_key));
       decorateCapabilityAction(reset, {
         actionId: settingActionId(setting, "reset_default"),
-        label: "Reset " + (setting.setting_name || setting.setting_key),
+        label: setting.setting_key === "branding.brand_contrast_mode"
+          ? "Reset branded text contrast mode"
+          : "Reset " + (setting.setting_name || setting.setting_key),
         area: "Application Settings",
-        requiredAny: APPLICATION_SETTINGS_MANAGE_CAPABILITIES,
+        requiredAny: settingManageCapabilities(setting),
         actionType: "reset"
       });
       const actions = document.createElement("div");
@@ -1120,11 +1189,11 @@ async function loadFieldRequirements() {
 }
 
 async function saveApplicationSetting(settingKey) {
-  if (!canManageApplicationSettings()) {
+  const setting = settings.find(item => item.setting_key === settingKey);
+  if (!canManageApplicationSetting(setting)) {
     showToast("Setting not saved", "Application Settings manage capability is required.", "error");
     return;
   }
-  const setting = settings.find(item => item.setting_key === settingKey);
   if (!setting || setting.locked_by_system || setting.sensitive) return;
   const value = readSettingControlValue(setting);
   if (setting.ui_component === "colour" && value && !isHexColour(value)) {
@@ -1141,11 +1210,11 @@ async function saveApplicationSetting(settingKey) {
 }
 
 async function resetApplicationSetting(settingKey) {
-  if (!canManageApplicationSettings()) {
+  const setting = settings.find(item => item.setting_key === settingKey);
+  if (!canManageApplicationSetting(setting)) {
     showToast("Setting not reset", "Application Settings manage capability is required.", "error");
     return;
   }
-  const setting = settings.find(item => item.setting_key === settingKey);
   if (!canResetSetting(setting)) return;
   try {
     await resetApplicationSettingToDefault(settingKey);
@@ -1157,7 +1226,7 @@ async function resetApplicationSetting(settingKey) {
 }
 
 async function resetApplicationSettingsCategory(categoryCode) {
-  if (!canManageApplicationSettings()) {
+  if (!(categoryCode === "branding" ? canManageApplicationSettingsOnly() : canManageApplicationSettings())) {
     showToast("Settings not reset", "Application Settings manage capability is required.", "error");
     return;
   }
@@ -1173,7 +1242,7 @@ async function resetApplicationSettingsCategory(categoryCode) {
 }
 
 async function resetBrandingThemeColours() {
-  if (!canManageApplicationSettings()) {
+  if (!canManageApplicationSettingsOnly()) {
     showToast("Theme colours not reset", "Application Settings manage capability is required.", "error");
     return;
   }

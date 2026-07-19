@@ -55,7 +55,7 @@ button {
   border-radius: var(--oh-radius-button, 14px);
   padding: 12px 18px;
   background: var(--oh-brand-primary, var(--brand));
-  color: white;
+  color: var(--oh-brand-primary-contrast, #ffffff);
   cursor: pointer;
   font-weight: 700;
   transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
@@ -64,10 +64,10 @@ button {
 button:hover { transform: translateY(-1px); box-shadow: 0 10px 22px rgba(31,79,143,.18); }
 button:disabled { background: #9aa7b7; cursor: not-allowed; transform: none; box-shadow: none; }
 
-button.secondary { background: #475467; }
+button.secondary { background: #475467; color: #ffffff; }
 button.ghost { background: transparent; color: var(--brand); border: 1px solid var(--border); }
-button.danger { background: var(--danger); }
-button.accent { background: var(--accent); }
+button.danger { background: var(--danger); color: #ffffff; }
+button.accent { background: var(--oh-brand-accent, var(--accent)); color: var(--oh-brand-accent-contrast, #ffffff); }
 
 input, textarea, select {
   width: 100%;
@@ -4818,8 +4818,9 @@ body.document-signoff-overlay-open {
   --oh-app-text: #1d2939;
   --oh-app-text-muted: #667085;
   --oh-nav-background: #ffffff;
-  --oh-nav-active-background: rgba(31, 79, 143, .12);
-  --oh-nav-active-text: #173b6d;
+  --oh-nav-active-background: var(--oh-brand-primary);
+  --oh-nav-active-text: var(--oh-brand-primary-contrast);
+  --oh-nav-active-icon-background: rgba(255, 255, 255, .18);
   --oh-nav-hover-background: rgba(31, 79, 143, .08);
   --oh-focus-ring: rgba(31, 79, 143, .28);
   --oh-toast-accent: var(--oh-brand-accent);
@@ -5298,7 +5299,7 @@ button.oh-nav-item:disabled {
 }
 
 .oh-nav-item.active .oh-nav-icon {
-  background: var(--oh-brand-primary-soft);
+  background: var(--oh-nav-active-icon-background, rgba(255,255,255,.18));
   color: var(--oh-nav-active-text);
 }
 .oh-nav-label {
@@ -11753,8 +11754,8 @@ body.assignment-workspace-open .modal-backdrop.active {
 .branding-preview-accent {
   padding: 7px 10px;
   border-radius: 999px;
-  background: var(--oh-brand-accent-soft);
-  color: var(--oh-brand-accent-strong);
+  background: var(--oh-brand-accent);
+  color: var(--oh-brand-accent-contrast);
   font-size: 12px;
   font-weight: 800;
   line-height: var(--oh-line-height-control, 1.25);
@@ -11846,6 +11847,13 @@ body.assignment-workspace-open .modal-backdrop.active {
   font-size: var(--oh-font-size-settings-control, 12px);
   font-weight: 700;
   line-height: var(--oh-line-height-control, 1.25);
+}
+
+.application-settings-control small {
+  color: var(--oh-app-text-muted, #667085);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: var(--oh-line-height-base, 1.45);
 }
 
 .application-settings-control input,

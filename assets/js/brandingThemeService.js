@@ -12,6 +12,7 @@ const DEFAULT_BRANDING = Object.freeze({
   printLogoUrl: null,
   primaryColour: "#1f4f8f",
   accentColour: "#18a999",
+  brandContrastMode: "auto",
   themeMode: "system",
   backgroundMode: "default",
   backgroundColor: "#eef3f8",
@@ -35,6 +36,7 @@ const DEFAULT_BRANDING = Object.freeze({
 const HEADER_DISPLAY_MODES = new Set(["logo_and_name", "logo_only", "name_only", "default_mark_and_name"]);
 const HEADER_LOGO_SIZES = new Set(["small", "medium", "large"]);
 const THEME_MODES = new Set(["system", "light", "dark"]);
+const BRAND_CONTRAST_MODES = new Set(["auto", "light_text", "dark_text"]);
 const BACKGROUND_MODES = new Set(["default", "solid_colour", "gradient", "image"]);
 const PUBLIC_BACKGROUND_MODES = new Set(["inherit_app", "default", "solid_colour", "gradient", "image"]);
 const CORNER_STYLES = new Set(["standard", "rounded", "square"]);
@@ -129,10 +131,39 @@ function rgbString(hex) {
   return r + ", " + g + ", " + b;
 }
 
-function contrastColour(hex) {
+function relativeChannel(channel) {
+  const value = channel / 255;
+  return value <= 0.03928 ? value / 12.92 : Math.pow((value + 0.055) / 1.055, 2.4);
+}
+
+function relativeLuminance(hex) {
   const { r, g, b } = hexToRgb(hex);
-  const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
-  return yiq >= 150 ? "#101828" : "#ffffff";
+  return (0.2126 * relativeChannel(r)) + (0.7152 * relativeChannel(g)) + (0.0722 * relativeChannel(b));
+}
+
+function contrastRatio(luminanceA, luminanceB) {
+  const lighter = Math.max(luminanceA, luminanceB);
+  const darker = Math.min(luminanceA, luminanceB);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+function autoContrastColour(hex) {
+  const backgroundLuminance = relativeLuminance(hex);
+  return contrastRatio(1, backgroundLuminance) >= contrastRatio(backgroundLuminance, 0)
+    ? "#ffffff"
+    : "#101828";
+}
+
+function brandContrastColour(hex, mode) {
+  if (mode === "light_text") return "#ffffff";
+  if (mode === "dark_text") return "#101828";
+  return autoContrastColour(hex);
+}
+
+export function brandedContrastColour(backgroundColour, contrastMode = DEFAULT_BRANDING.brandContrastMode) {
+  const colour = colourValue(backgroundColour, DEFAULT_BRANDING.primaryColour);
+  const mode = allowed(contrastMode, BRAND_CONTRAST_MODES, DEFAULT_BRANDING.brandContrastMode);
+  return brandContrastColour(colour, mode);
 }
 
 function strongerColour(hex, amount = 0.18) {
@@ -244,19 +275,22 @@ function applyThemeTokens(branding) {
   const theme = effectiveThemeMode(branding.themeMode);
   document.documentElement.dataset.theme = theme;
   document.documentElement.dataset.brandingThemeMode = branding.themeMode;
+  document.documentElement.dataset.brandContrastMode = branding.brandContrastMode;
 
   const primary = branding.primaryColour;
   const accent = branding.accentColour;
+  const primaryContrast = brandContrastColour(primary, branding.brandContrastMode);
+  const accentContrast = brandContrastColour(accent, branding.brandContrastMode);
   setToken("--brand", primary);
   setToken("--accent", accent);
   setToken("--oh-brand-primary", primary);
   setToken("--oh-brand-primary-strong", strongerColour(primary));
   setToken("--oh-brand-primary-soft", softColour(primary, theme === "dark" ? 0.22 : 0.12));
-  setToken("--oh-brand-primary-contrast", contrastColour(primary));
+  setToken("--oh-brand-primary-contrast", primaryContrast);
   setToken("--oh-brand-accent", accent);
   setToken("--oh-brand-accent-strong", strongerColour(accent));
   setToken("--oh-brand-accent-soft", softColour(accent, theme === "dark" ? 0.24 : 0.14));
-  setToken("--oh-brand-accent-contrast", contrastColour(accent));
+  setToken("--oh-brand-accent-contrast", accentContrast);
 
   const dark = theme === "dark";
   setToken("--oh-app-background", dark ? "#101828" : "#f4f6f8");
@@ -266,8 +300,9 @@ function applyThemeTokens(branding) {
   setToken("--oh-app-text", dark ? "#f9fafb" : "#1d2939");
   setToken("--oh-app-text-muted", dark ? "#cbd5e1" : "#667085");
   setToken("--oh-nav-background", dark ? "#111827" : "#ffffff");
-  setToken("--oh-nav-active-background", softColour(primary, dark ? 0.28 : 0.14));
-  setToken("--oh-nav-active-text", dark ? "#ffffff" : strongerColour(primary, 0.1));
+  setToken("--oh-nav-active-background", primary);
+  setToken("--oh-nav-active-text", primaryContrast);
+  setToken("--oh-nav-active-icon-background", primaryContrast === "#101828" ? "rgba(16,24,40,.10)" : "rgba(255,255,255,.18)");
   setToken("--oh-nav-hover-background", dark ? "#1f2937" : softColour(primary, 0.08));
   setToken("--oh-focus-ring", softColour(primary, 0.32));
   setToken("--oh-toast-accent", accent);
@@ -479,6 +514,7 @@ export function brandingFromSettings(settings = {}, appSettings = {}) {
     printLogoUrl: optionalUrl(settings.branding_print_logo_url),
     primaryColour: colourValue(settings.primary_colour, appSettings.primaryColour || DEFAULT_BRANDING.primaryColour),
     accentColour: colourValue(settings.accent_colour, appSettings.accentColour || DEFAULT_BRANDING.accentColour),
+    brandContrastMode: allowed(settings.branding_brand_contrast_mode, BRAND_CONTRAST_MODES, DEFAULT_BRANDING.brandContrastMode),
     themeMode: allowed(settings.branding_theme_mode, THEME_MODES, DEFAULT_BRANDING.themeMode),
     backgroundMode: allowed(settings.branding_background_mode, BACKGROUND_MODES, DEFAULT_BRANDING.backgroundMode),
     backgroundColor: colourValue(settings.page_background_colour, appSettings.pageBackgroundColour || DEFAULT_BRANDING.backgroundColor),
@@ -512,6 +548,7 @@ export function syncBrandingToAppSettings(appSettings, branding) {
     printLogoUrl: branding.printLogoUrl,
     primaryColour: branding.primaryColour,
     accentColour: branding.accentColour,
+    brandContrastMode: branding.brandContrastMode,
     themeMode: branding.themeMode,
     backgroundMode: branding.backgroundMode,
     backgroundGradientStartColor: branding.backgroundGradientStartColor,
@@ -580,6 +617,7 @@ export function brandingImplementationStatus(settingKey) {
     "branding.theme_mode": ["Applied", "Applies light, dark or system shell tokens."],
     "branding.primary_color": ["Applied", "Buttons, active navigation, focus and selected states."],
     "branding.accent_color": ["Applied", "Secondary highlights, chips and toast accent tokens."],
+    "branding.brand_contrast_mode": ["Applied", "Controls text contrast on branded buttons, active navigation and branded preview samples."],
     "branding.background_mode": ["Applied", "Controls app background mode."],
     "branding.background_color": ["Applied", "Visible shell/workspace background for solid colour mode."],
     "branding.background_gradient_start_color": ["Applied", "Used for subtle app gradient mode."],

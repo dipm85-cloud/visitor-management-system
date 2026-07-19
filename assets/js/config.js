@@ -1,7 +1,7 @@
 export const SUPABASE_URL = "https://fozfvgdmrxygbzuhnojm.supabase.co/";
 export const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZvemZ2Z2Rtcnh5Z2J6dWhub2ptIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3MTgxNTgsImV4cCI6MjA5NTI5NDE1OH0.GWjcFVFzUkp0dG6Gj6ZnnY20Eqi0nNJaNSggjEGnVPo";
 export const KIOSK_TOKEN_STORAGE_KEY = "vms_kiosk_token";
-export const APP_BUILD_LABEL = "OHP-017C.1";
+export const APP_BUILD_LABEL = "OHP-017C.2";
 
 const DEFAULT_APP_SETTINGS = Object.freeze({
     confirmationAutoCloseMs: 5000,
@@ -19,6 +19,7 @@ const DEFAULT_APP_SETTINGS = Object.freeze({
     showEnvironmentLabel: false,
     primaryColour: "#1f4f8f",
     accentColour: "#18a999",
+    brandContrastMode: "auto",
     themeMode: "system",
     backgroundMode: "default",
     backgroundGradientStartColor: "#f8fafc",

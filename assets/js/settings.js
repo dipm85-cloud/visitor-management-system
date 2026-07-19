@@ -160,6 +160,7 @@ function overlayApplicationSettings(settings) {
   put("logo_transparent_background", "branding.logo_transparent_background", settings.logo_transparent_background == null ? false : settings.logo_transparent_background);
   put("primary_colour", "branding.primary_color", settings.primary_colour || "#1f4f8f");
   put("accent_colour", "branding.accent_color", settings.accent_colour || "#18a999");
+  put("branding_brand_contrast_mode", "branding.brand_contrast_mode", "auto");
   put("page_background_colour", "branding.background_color", settings.page_background_colour || "#eef3f8");
   put("branding_background_gradient_start_color", "branding.background_gradient_start_color", "#f8fafc");
   put("branding_background_gradient_end_color", "branding.background_gradient_end_color", "#e2e8f0");
