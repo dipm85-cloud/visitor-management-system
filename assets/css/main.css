@@ -4966,6 +4966,23 @@ button.oh-header-action:disabled {
   opacity: .75;
 }
 
+.oh-environment-chip {
+  min-height: 30px;
+  max-width: 180px;
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 9px;
+  border: 1px solid #fedf89;
+  border-radius: 999px;
+  background: #fffaeb;
+  color: #93370d;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .oh-kiosk-staff-login,
 button.oh-kiosk-staff-login,
 .oh-terminal-home-action,
@@ -11485,6 +11502,10 @@ body.assignment-workspace-open .modal-backdrop.active {
   align-self: flex-start;
 }
 
+.application-settings-related-actions {
+  margin-top: 18px;
+}
+
 .application-settings-card-status {
   display: inline-flex;
   align-items: center;
@@ -11540,6 +11561,13 @@ body.assignment-workspace-open .modal-backdrop.active {
   background: #fcfcfd;
 }
 
+.application-settings-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .application-settings-control {
   display: flex;
   flex-direction: column;
@@ -11552,9 +11580,19 @@ body.assignment-workspace-open .modal-backdrop.active {
 }
 
 .application-settings-control input,
-.application-settings-control select {
+.application-settings-control select,
+.application-settings-control textarea {
   width: 100%;
   min-height: 40px;
+}
+
+.application-settings-control textarea {
+  min-height: 86px;
+  resize: vertical;
+}
+
+.application-settings-control input[type="color"] {
+  padding: 4px;
 }
 
 .application-settings-control input[type="checkbox"] {

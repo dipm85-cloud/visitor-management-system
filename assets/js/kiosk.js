@@ -141,6 +141,11 @@ export function resetKioskIdleTimer() {
     $("signOutScreen").classList.contains("active");
 
   if (!onKioskScreen) return;
+  const registeredTerminal = !!(
+    AppState.terminalRegistration &&
+    AppState.terminalRegistration.registered
+  );
+  if (registeredTerminal && appSettings.sharedTerminalIdleResetEnabled !== true) return;
 
   AppState.kioskIdleTimer = setTimeout(function () {
     AppState.kioskIdleTimer = null;
@@ -162,7 +167,7 @@ export function resetKioskIdleTimer() {
       return;
     }
     showScreen("homeScreen");
-  }, appSettings.kioskIdleTimeoutMs);
+  }, registeredTerminal ? appSettings.sharedTerminalIdleResetMs : appSettings.kioskIdleTimeoutMs);
 }
 
 export function ensureKioskToken() {

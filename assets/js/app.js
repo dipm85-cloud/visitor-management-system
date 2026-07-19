@@ -5156,6 +5156,13 @@ window.addEventListener("load", async function () {
     window.addEventListener("oh:capabilities-changed", syncIdentityResolutionVisibility);
     window.addEventListener("oh:capabilities-changed", syncVisitorHousekeepingControls);
     window.addEventListener("oh:capabilities-changed", syncSharedTerminalAdministrationVisibility);
+    window.addEventListener("oh:application-settings-values-changed", async () => {
+      await loadSystemSettings();
+      applyPlannedVisitRequirementIndicators();
+      applyWalkInRequirementIndicators();
+      bindKioskIdleActivityReset();
+      updateHomeAccess();
+    });
     window.addEventListener("oh:legacy-vms-opened", openStaffAreaFromProfile);
     window.addEventListener("oh:report-shortcut-requested", event => {
       openExistingReportShortcut(event.detail && event.detail.shortcut);

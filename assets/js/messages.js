@@ -80,6 +80,8 @@ export function showToast(title, body, type) {
 export function showKioskConfirmation(title, body) {
   $("kioskConfirmTitle").textContent = title;
   $("kioskConfirmBody").textContent = body;
+  const closeButton = $("kioskConfirmCloseButton");
+  if (closeButton) closeButton.classList.toggle("hidden", appSettings.requireConfirmationCloseButton === false);
   $("kioskConfirmBackdrop").classList.add("active");
 
   if (confirmTimer) clearTimeout(confirmTimer);

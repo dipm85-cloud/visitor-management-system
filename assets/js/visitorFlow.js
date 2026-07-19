@@ -37,6 +37,7 @@ let appSettings;
 let visitorDependencies;
 let latestPrivacyAcceptance = null;
 let kioskActionInProgress = false;
+let publicVisitorReturnTimer = null;
 
 const WALK_IN_REQUIREMENT_MAPPINGS = {
   visitor_name: { inputId: "walkInName", nativeRequired: true },
@@ -168,7 +169,11 @@ function returnFromPublicVisitorAction() {
     isPublicKioskContext() &&
     typeof visitorDependencies.returnToVisitorKiosk === "function"
   ) {
-    visitorDependencies.returnToVisitorKiosk();
+    if (publicVisitorReturnTimer) clearTimeout(publicVisitorReturnTimer);
+    publicVisitorReturnTimer = setTimeout(() => {
+      publicVisitorReturnTimer = null;
+      visitorDependencies.returnToVisitorKiosk();
+    }, Math.max(0, Number(appSettings.sharedTerminalReturnHomeAfterActionMs || 0)));
     return;
   }
   showScreen("homeScreen");
@@ -508,26 +513,28 @@ async function validateStaffWalkInVisitorName(name) {
     };
   }
 
-  const availablePlanned = await supabaseClient.rpc("get_kiosk_available_planned_visits", {
-    p_visit_date: todayDate()
-  });
-  if (availablePlanned.error || !Array.isArray(availablePlanned.data)) {
-    if (availablePlanned.error) {
-      console.warn("[OH-028 planned visitor collision check unavailable]", availablePlanned.error);
+  if (appSettings.preventWalkInWhenMatchingPlannedVisitExists !== false) {
+    const availablePlanned = await supabaseClient.rpc("get_kiosk_available_planned_visits", {
+      p_visit_date: todayDate()
+    });
+    if (availablePlanned.error || !Array.isArray(availablePlanned.data)) {
+      if (availablePlanned.error) {
+        console.warn("[OH-028 planned visitor collision check unavailable]", availablePlanned.error);
+      }
+      return {
+        code: "validation_unavailable",
+        message: "Planned visitor status could not be verified safely."
+      };
     }
-    return {
-      code: "validation_unavailable",
-      message: "Planned visitor status could not be verified safely."
-    };
-  }
-  const plannedDuplicate = availablePlanned.data.find(
-    visit => formatPersonName(visit.visitor_name) === name
-  );
-  if (plannedDuplicate) {
-    return {
-      code: "planned_duplicate",
-      message: "A planned visitor with this name is expected today."
-    };
+    const plannedDuplicate = availablePlanned.data.find(
+      visit => formatPersonName(visit.visitor_name) === name
+    );
+    if (plannedDuplicate) {
+      return {
+        code: "planned_duplicate",
+        message: "A planned visitor with this name is expected today."
+      };
+    }
   }
 
   return null;

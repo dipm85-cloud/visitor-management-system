@@ -6,6 +6,10 @@ import { $ } from "./dom.js";
 import { showMessage, clearMessage, showWalkInModalMessage } from "./messages.js";
 import { writeAuditEvent } from "./audit.js";
 import { boolString } from "./utils.js";
+import {
+  getCachedApplicationSettingValue,
+  loadApplicationSettingsForRuntime
+} from "./applicationSettingsService.js";
 
 let appSettings;
 let appVersion;
@@ -133,6 +137,100 @@ export function validateRequiredField(id, label, useModalMessage) {
 function syncKioskManagerSettingsControls() {}
 function syncKioskManagerSettingsBack() {}
 
+function cachedAppSetting(key, fallback) {
+  return getCachedApplicationSettingValue(key, fallback);
+}
+
+function setBrandText(appSettings) {
+  const brandText = document.querySelector(".brand div:last-child");
+  if (!brandText) return;
+  brandText.replaceChildren();
+  brandText.append(document.createTextNode(appSettings.companyName || "Visitor Management"));
+  brandText.appendChild(document.createElement("br"));
+  const version = document.createElement("span");
+  version.style.fontSize = "12px";
+  version.style.color = "var(--muted)";
+  version.style.fontWeight = "700";
+  version.textContent = "Operations Hub nextgen-ui - " + APP_BUILD_LABEL;
+  brandText.appendChild(version);
+}
+
+function applyApplicationIdentity() {
+  const productName = appSettings.productName || "Operations Hub";
+  const productSubtitle = appSettings.productSubtitle || "Operational workspace";
+  const product = document.querySelector(".oh-product-name");
+  if (product) {
+    const name = product.querySelector("strong");
+    const subtitle = product.querySelector("span");
+    if (name) name.textContent = productName;
+    if (subtitle) subtitle.textContent = productSubtitle;
+  }
+  document.title = productName + " - " + APP_BUILD_LABEL;
+
+  let chip = $("ohEnvironmentChip");
+  if (!chip) {
+    chip = document.createElement("span");
+    chip.id = "ohEnvironmentChip";
+    chip.className = "oh-environment-chip hidden";
+    const actions = document.querySelector(".oh-header-actions");
+    const settings = $("ohSettingsShortcut");
+    if (actions) actions.insertBefore(chip, settings || actions.firstChild);
+  }
+  const label = String(appSettings.environmentLabel || "").trim();
+  chip.textContent = label;
+  chip.classList.toggle("hidden", !(appSettings.showEnvironmentLabel && label));
+}
+
+function applySharedTerminalSettings() {
+  const title = $("terminalHomeTitle");
+  if (title) title.textContent = appSettings.sharedTerminalHomeTitle || "How can we help?";
+  const subtitle = document.querySelector(".terminal-home-hero > p:last-child");
+  if (subtitle) subtitle.textContent = appSettings.sharedTerminalHomeSubtitle || "Select an available workflow below.";
+  const staffLogin = $("kioskStaffLoginButton");
+  if (staffLogin) staffLogin.classList.toggle("hidden", appSettings.sharedTerminalShowStaffLoginButton === false);
+}
+
+function overlayApplicationSettings(settings) {
+  const put = (legacyKey, appKey, fallback) => {
+    const value = cachedAppSetting(appKey, undefined);
+    if (value !== undefined) settings[legacyKey] = value == null ? fallback : value;
+  };
+
+  put("company_name", "application.product_name", settings.company_name || "Visitor Management");
+  put("application_product_name", "application.product_name", "Operations Hub");
+  put("application_product_subtitle", "application.product_subtitle", "Operational workspace");
+  put("application_environment_label", "application.environment_label", "");
+  put("application_show_environment_label", "application.show_environment_label", false);
+
+  put("logo_url", "branding.logo_url", settings.logo_url || null);
+  put("logo_transparent_background", "branding.logo_transparent_background", settings.logo_transparent_background == null ? false : settings.logo_transparent_background);
+  put("primary_colour", "branding.primary_color", settings.primary_colour || "#1f4f8f");
+  put("accent_colour", "branding.accent_color", settings.accent_colour || "#18a999");
+  put("page_background_colour", "branding.background_color", settings.page_background_colour || "#eef3f8");
+  put("background_url", "branding.background_image_url", settings.background_url || null);
+  put("background_opacity", "branding.background_opacity", settings.background_opacity == null ? 0.18 : settings.background_opacity);
+  put("branding_theme_mode", "branding.theme_mode", "system");
+  put("branding_background_mode", "branding.background_mode", "default");
+
+  put("sign_in_confirmation_message", "visitors.sign_in_confirmation_message", settings.sign_in_confirmation_message);
+  put("walk_in_confirmation_message", "visitors.sign_in_confirmation_message", settings.walk_in_confirmation_message);
+  put("sign_out_confirmation_message", "visitors.sign_out_confirmation_message", settings.sign_out_confirmation_message);
+  put("confirmation_auto_close_seconds", "visitors.confirmation_auto_close_seconds", settings.confirmation_auto_close_seconds == null ? 5 : settings.confirmation_auto_close_seconds);
+  put("require_confirmation_close_button", "visitors.require_confirmation_close_button", true);
+  put("prevent_duplicate_planned_visits", "visitors.prevent_duplicate_planned_visits", true);
+  put("prevent_walk_in_when_matching_planned_visit_exists", "visitors.prevent_walk_in_when_matching_planned_visit_exists", true);
+  put("auto_end_of_day_sign_out_enabled", "visitors.auto_end_of_day_sign_out_enabled", settings.auto_end_of_day_sign_out_enabled == null ? false : settings.auto_end_of_day_sign_out_enabled);
+  put("auto_end_of_day_sign_out_time", "visitors.auto_end_of_day_sign_out_time", settings.auto_end_of_day_sign_out_time || "23:59");
+
+  put("shared_terminal_home_title", "shared_terminal.home_title", "How can we help?");
+  put("shared_terminal_home_subtitle", "shared_terminal.home_subtitle", "Select an available workflow below.");
+  put("shared_terminal_show_staff_login_button", "shared_terminal.show_staff_login_button", true);
+  put("shared_terminal_return_home_after_action_seconds", "shared_terminal.return_home_after_action_seconds", 5);
+  put("shared_terminal_idle_reset_enabled", "shared_terminal.idle_reset_enabled", false);
+  put("shared_terminal_idle_reset_seconds", "shared_terminal.idle_reset_seconds", 120);
+  put("shared_terminal_clear_partial_form_data_on_reset", "shared_terminal.clear_partial_form_data_on_reset", true);
+}
+
 export async function loadSystemSettings() {
   Object.assign(appSettings, getDefaultAppSettings());
 
@@ -167,15 +265,30 @@ export async function loadSystemSettings() {
     console.warn("Could not read document compliance identity-link setting. Defaulting to off.", err);
   }
 
+  await loadApplicationSettingsForRuntime(["general", "branding", "visitors", "shared_terminal"], { force: true });
+  overlayApplicationSettings(settings);
   AppState.systemSettingsRaw = settings;
 
   if (settings.confirmation_auto_close_seconds != null) {
     appSettings.confirmationAutoCloseMs = Number(settings.confirmation_auto_close_seconds) * 1000;
   }
+  appSettings.requireConfirmationCloseButton = settings.require_confirmation_close_button == null
+    ? appSettings.requireConfirmationCloseButton
+    : settings.require_confirmation_close_button === true || settings.require_confirmation_close_button === "true";
+  appSettings.preventDuplicatePlannedVisits = settings.prevent_duplicate_planned_visits == null
+    ? appSettings.preventDuplicatePlannedVisits
+    : settings.prevent_duplicate_planned_visits === true || settings.prevent_duplicate_planned_visits === "true";
+  appSettings.preventWalkInWhenMatchingPlannedVisitExists = settings.prevent_walk_in_when_matching_planned_visit_exists == null
+    ? appSettings.preventWalkInWhenMatchingPlannedVisitExists
+    : settings.prevent_walk_in_when_matching_planned_visit_exists === true || settings.prevent_walk_in_when_matching_planned_visit_exists === "true";
 
   if (settings.kiosk_idle_timeout_seconds != null) {
     appSettings.kioskIdleTimeoutMs = Number(settings.kiosk_idle_timeout_seconds) * 1000;
   }
+  appSettings.sharedTerminalIdleResetEnabled = settings.shared_terminal_idle_reset_enabled === true || settings.shared_terminal_idle_reset_enabled === "true";
+  appSettings.sharedTerminalIdleResetMs = Number(settings.shared_terminal_idle_reset_seconds || 120) * 1000;
+  appSettings.sharedTerminalClearPartialFormDataOnReset = settings.shared_terminal_clear_partial_form_data_on_reset !== false && settings.shared_terminal_clear_partial_form_data_on_reset !== "false";
+  appSettings.sharedTerminalReturnHomeAfterActionMs = Number(settings.shared_terminal_return_home_after_action_seconds || 5) * 1000;
 
   if (settings.sign_in_confirmation_message) {
     appSettings.plannedSignInMessage = String(settings.sign_in_confirmation_message);
@@ -193,13 +306,17 @@ export async function loadSystemSettings() {
     appSettings.maxLoginAttempts = Number(settings.max_login_attempts);
   }
 
-  if (settings.company_name) {
-    appSettings.companyName = String(settings.company_name);
-    const brandText = document.querySelector(".brand div:last-child");
-    if (brandText) {
-      brandText.innerHTML = appSettings.companyName + "<br><span style='font-size:12px;color:var(--muted);font-weight:700;'>Operations Hub nextgen-ui - " + APP_BUILD_LABEL + "</span>";
-    }
-  }
+  appSettings.companyName = String(settings.company_name || appSettings.companyName);
+  appSettings.productName = String(settings.application_product_name || "Operations Hub");
+  appSettings.productSubtitle = String(settings.application_product_subtitle || "Operational workspace");
+  appSettings.environmentLabel = String(settings.application_environment_label || "");
+  appSettings.showEnvironmentLabel = settings.application_show_environment_label === true || settings.application_show_environment_label === "true";
+  appSettings.sharedTerminalHomeTitle = String(settings.shared_terminal_home_title || appSettings.sharedTerminalHomeTitle);
+  appSettings.sharedTerminalHomeSubtitle = String(settings.shared_terminal_home_subtitle || appSettings.sharedTerminalHomeSubtitle);
+  appSettings.sharedTerminalShowStaffLoginButton = settings.shared_terminal_show_staff_login_button !== false && settings.shared_terminal_show_staff_login_button !== "false";
+  setBrandText(appSettings);
+  applyApplicationIdentity();
+  applySharedTerminalSettings();
 
   if (settings.primary_colour) {
     appSettings.primaryColour = String(settings.primary_colour);
@@ -212,11 +329,15 @@ export async function loadSystemSettings() {
   }
 
   appSettings.logoUrl = settings.logo_url || null;
-  appSettings.backgroundUrl = settings.background_url || null;
+  appSettings.themeMode = String(settings.branding_theme_mode || appSettings.themeMode);
+  appSettings.backgroundMode = String(settings.branding_background_mode || appSettings.backgroundMode);
+  appSettings.backgroundUrl = appSettings.backgroundMode === "image" ? (settings.background_url || null) : null;
   appSettings.backgroundOpacity =
     settings.background_opacity == null ? appSettings.backgroundOpacity : Number(settings.background_opacity);
   appSettings.logoTransparentBackground =
-    settings.logo_transparent_background == null ? appSettings.logoTransparentBackground : !!settings.logo_transparent_background;
+    settings.logo_transparent_background == null
+      ? appSettings.logoTransparentBackground
+      : settings.logo_transparent_background === true || settings.logo_transparent_background === "true";
   appSettings.pageBackgroundColour =
     settings.page_background_colour == null ? appSettings.pageBackgroundColour : String(settings.page_background_colour);
 
@@ -276,6 +397,8 @@ export function applyBrandAssets() {
       "linear-gradient(rgba(238,243,248," + (1 - appSettings.backgroundOpacity) + "), rgba(248,251,255," + (1 - appSettings.backgroundOpacity) + ")), url('" + appSettings.backgroundUrl + "')";
     document.body.style.backgroundSize = "cover";
     document.body.style.backgroundPosition = "center";
+  } else if (appSettings.backgroundMode === "solid_colour") {
+    document.body.style.backgroundImage = "none";
   } else {
     document.body.style.backgroundImage =
       "radial-gradient(circle at top left, rgba(31,79,143,.18), transparent 32%), linear-gradient(135deg, " +

@@ -10,6 +10,14 @@ import {
   resetFormRequirementsCache
 } from "./formRequirements.js";
 import {
+  applicationSettingJsonValue,
+  listApplicationSettingCategories,
+  listApplicationSettings,
+  resetApplicationSettingToDefault,
+  resetApplicationSettingsCategoryToDefaults,
+  updateApplicationSetting
+} from "./applicationSettingsService.js";
+import {
   MODULE_SETTINGS_AREA_IDS,
   SETTINGS_OWNERSHIP_AREAS,
   settingsAreaById,
@@ -88,7 +96,7 @@ const FIELD_REQUIREMENT_MANAGE_CAPABILITIES = [
 ];
 
 const SECTION_CATEGORY_BY_ID = Object.freeze({
-  shared_terminal: "visitors",
+  shared_terminal: "shared_terminal",
   people_assignments: "people_assignments",
   session_security: "session_security",
   future_lmt: "modules"
@@ -169,7 +177,7 @@ function statusBadge(status) {
 function primaryActionLabel(area) {
   if (!area) return "Open";
   if (area.status === "future") return "Coming later";
-  if (area.id === "branding") return "Open Legacy Branding Settings";
+  if (area.id === "branding") return "Open Branding";
   if (area.id === "visitors") return "Open Visitor Settings / Form Requirements";
   if (area.id === "people_assignments") return "Open Form Requirements";
   if (area.id === "working_time") return "Open Working Time Settings";
@@ -177,7 +185,7 @@ function primaryActionLabel(area) {
   if (area.id === "session_security") return "Open Session Security";
   if (area.id === "notifications") return "Open Notifications";
   if (area.id === "advanced") return "Open Diagnostics";
-  if (area.id === "shared_terminal") return "Open Shared Terminals";
+  if (area.id === "shared_terminal") return "Open Shared Terminal Settings";
   return "Open";
 }
 
@@ -189,9 +197,7 @@ function setStatus(message, type) {
 }
 
 function jsonValue(value) {
-  if (value == null) return null;
-  if (typeof value === "object" && Object.prototype.hasOwnProperty.call(value, "value")) return value.value;
-  return value;
+  return applicationSettingJsonValue(value);
 }
 
 function settingInputId(settingKey) {
@@ -357,6 +363,7 @@ function createSettingControl(setting) {
   const value = jsonValue(setting.setting_value);
   const disabled = !canManageApplicationSettings() || setting.locked_by_system || setting.sensitive;
   let control;
+  const component = setting.ui_component || setting.value_type;
 
   if (setting.sensitive) {
     control = document.createElement("input");
@@ -367,10 +374,30 @@ function createSettingControl(setting) {
     control = document.createElement("input");
     control.type = "checkbox";
     control.checked = value === true || value === "true";
+  } else if (component === "textarea") {
+    control = document.createElement("textarea");
+    control.rows = 3;
+    control.value = value == null ? "" : String(value);
+  } else if (component === "colour") {
+    control = document.createElement("input");
+    control.type = "color";
+    control.value = /^#[0-9a-f]{6}$/i.test(String(value || "")) ? String(value) : "#2563eb";
+  } else if (component === "url") {
+    control = document.createElement("input");
+    control.type = "url";
+    control.value = value == null ? "" : String(value);
+  } else if (component === "time") {
+    control = document.createElement("input");
+    control.type = "time";
+    control.value = value == null ? "" : String(value);
   } else if (setting.value_type === "integer" || setting.value_type === "numeric") {
     control = document.createElement("input");
     control.type = "number";
     control.value = value == null ? "" : String(value);
+    const validation = setting.validation_json || {};
+    if (validation.min != null) control.min = String(validation.min);
+    if (validation.max != null) control.max = String(validation.max);
+    if (validation.step != null) control.step = String(validation.step);
   } else if (setting.value_type === "select" && Array.isArray(setting.allowed_values)) {
     control = document.createElement("select");
     setting.allowed_values.forEach(item => {
@@ -397,7 +424,16 @@ function readSettingControlValue(setting) {
   if (setting.value_type === "boolean") return control.checked;
   if (setting.value_type === "integer") return Number.parseInt(control.value, 10);
   if (setting.value_type === "numeric") return Number(control.value);
-  return control.value;
+  return String(control.value || "");
+}
+
+function settingActionId(setting, suffix) {
+  return "application_settings." + String(setting.category_code || "setting") + "." +
+    String(setting.setting_key || "setting").replace(/[^a-z0-9]+/gi, "_") + "." + suffix;
+}
+
+function canResetSetting(setting) {
+  return canManageApplicationSettings() && setting && !setting.locked_by_system && !setting.sensitive;
 }
 
 function renderRegistry(filterCategory, targetId = "applicationSettingsRegistry") {
@@ -423,7 +459,22 @@ function renderRegistry(filterCategory, targetId = "applicationSettingsRegistry"
     title.textContent = categoryLabel(categoryCode);
     const count = document.createElement("p");
     count.textContent = items.length + " platform-defined setting" + (items.length === 1 ? "" : "s");
-    heading.append(title, count);
+    const headingText = document.createElement("div");
+    headingText.append(title, count);
+    const resetCategory = document.createElement("button");
+    resetCategory.type = "button";
+    resetCategory.className = "secondary";
+    resetCategory.textContent = "Reset Category";
+    resetCategory.disabled = !canManageApplicationSettings() || !items.some(canResetSetting);
+    resetCategory.addEventListener("click", () => resetApplicationSettingsCategory(categoryCode));
+    decorateCapabilityAction(resetCategory, {
+      actionId: "application_settings." + categoryCode + ".reset_defaults",
+      label: "Reset " + categoryLabel(categoryCode) + " defaults",
+      area: "Application Settings",
+      requiredAny: APPLICATION_SETTINGS_MANAGE_CAPABILITIES,
+      actionType: "reset"
+    });
+    heading.append(headingText, resetCategory);
     group.appendChild(heading);
 
     items.forEach(setting => {
@@ -460,14 +511,30 @@ function renderRegistry(filterCategory, targetId = "applicationSettingsRegistry"
       save.disabled = !canManageApplicationSettings() || setting.locked_by_system || setting.sensitive;
       save.addEventListener("click", () => saveApplicationSetting(setting.setting_key));
       decorateCapabilityAction(save, {
-        actionId: "application_settings.setting.save",
-        label: "Save Application Setting",
+        actionId: settingActionId(setting, "save"),
+        label: "Save " + (setting.setting_name || setting.setting_key),
         area: "Application Settings",
         requiredAny: APPLICATION_SETTINGS_MANAGE_CAPABILITIES,
         actionType: "update"
       });
+      const reset = document.createElement("button");
+      reset.type = "button";
+      reset.className = "secondary";
+      reset.textContent = "Reset";
+      reset.disabled = !canResetSetting(setting);
+      reset.addEventListener("click", () => resetApplicationSetting(setting.setting_key));
+      decorateCapabilityAction(reset, {
+        actionId: settingActionId(setting, "reset_default"),
+        label: "Reset " + (setting.setting_name || setting.setting_key),
+        area: "Application Settings",
+        requiredAny: APPLICATION_SETTINGS_MANAGE_CAPABILITIES,
+        actionType: "reset"
+      });
+      const actions = document.createElement("div");
+      actions.className = "application-settings-row-actions";
+      actions.append(save, reset);
 
-      row.append(summary, field, save);
+      row.append(summary, field, actions);
       group.appendChild(row);
     });
     container.appendChild(group);
@@ -749,6 +816,40 @@ function renderBridge(sectionId) {
   });
 }
 
+function renderRegistryBridgeActions(sectionId) {
+  const container = $("applicationSettingsRegistryBridgeCards");
+  if (!container) return;
+  container.replaceChildren();
+
+  const actions = bridgeActionsFor(sectionId)
+    .filter(action => hasAnyCapability(action.requiredAny || APPLICATION_SETTINGS_VIEW_CAPABILITIES));
+  container.classList.toggle("hidden", !actions.length);
+
+  actions.forEach(action => {
+    const card = document.createElement("article");
+    card.className = "application-settings-card";
+    const h4 = document.createElement("h4");
+    h4.textContent = action.label;
+    const p = document.createElement("p");
+    p.textContent = action.description || "Open related settings that are still managed in their existing workspace.";
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "secondary";
+    button.textContent = "Open";
+    button.addEventListener("click", action.handler);
+    decorateCapabilityAction(button, {
+      actionId: action.actionId,
+      label: action.capabilityLabel,
+      area: "Application Settings",
+      requiredAny: action.requiredAny || APPLICATION_SETTINGS_VIEW_CAPABILITIES,
+      notes: "Related settings workspace",
+      actionType: "navigation"
+    });
+    card.append(h4, p, button);
+    container.appendChild(card);
+  });
+}
+
 function renderActiveSection() {
   renderSectionNavigation();
   renderOverview();
@@ -769,6 +870,7 @@ function renderActiveSection() {
   } else {
     selectPanel("registry");
     renderRegistry(definition.category);
+    renderRegistryBridgeActions(activeSectionId);
   }
 
   const badge = $("applicationSettingsModeBadge");
@@ -791,17 +893,12 @@ async function loadApplicationSettingsData() {
   }
   setStatus("Loading settings...", "info");
   try {
-    const [categoryResult, settingsResult] = await Promise.all([
-      supabaseClient.rpc("list_application_setting_categories"),
-      supabaseClient.rpc("list_application_settings", {
-        p_category_code: null,
-        p_search_text: null
-      })
+    const [categoryRows, settingRows] = await Promise.all([
+      listApplicationSettingCategories({ force: true }),
+      listApplicationSettings(null, null, { force: true })
     ]);
-    if (categoryResult.error) throw categoryResult.error;
-    if (settingsResult.error) throw settingsResult.error;
-    categories = categoryResult.data || [];
-    settings = settingsResult.data || [];
+    categories = categoryRows || [];
+    settings = settingRows || [];
     settingsLoaded = true;
     setStatus("");
     renderActiveSection();
@@ -839,16 +936,45 @@ async function saveApplicationSetting(settingKey) {
   const setting = settings.find(item => item.setting_key === settingKey);
   if (!setting || setting.locked_by_system || setting.sensitive) return;
   const value = readSettingControlValue(setting);
-  const result = await supabaseClient.rpc("update_application_setting", {
-    p_setting_key: settingKey,
-    p_setting_value: value
-  });
-  if (result.error) {
-    showToast("Setting not saved", result.error.message || "Could not save this setting.", "error");
+  try {
+    await updateApplicationSetting(settingKey, value);
+    showToast("Setting saved", "The application setting was updated.", "success");
+    await loadApplicationSettingsData();
+  } catch (err) {
+    showToast("Setting not saved", err.message || "Could not save this setting.", "error");
+  }
+}
+
+async function resetApplicationSetting(settingKey) {
+  if (!canManageApplicationSettings()) {
+    showToast("Setting not reset", "Application Settings manage capability is required.", "error");
     return;
   }
-  showToast("Setting saved", "The application setting was updated.", "success");
-  await loadApplicationSettingsData();
+  const setting = settings.find(item => item.setting_key === settingKey);
+  if (!canResetSetting(setting)) return;
+  try {
+    await resetApplicationSettingToDefault(settingKey);
+    showToast("Setting reset", "The application setting was restored to its default.", "success");
+    await loadApplicationSettingsData();
+  } catch (err) {
+    showToast("Setting not reset", err.message || "Could not reset this setting.", "error");
+  }
+}
+
+async function resetApplicationSettingsCategory(categoryCode) {
+  if (!canManageApplicationSettings()) {
+    showToast("Settings not reset", "Application Settings manage capability is required.", "error");
+    return;
+  }
+  const label = categoryLabel(categoryCode);
+  if (!window.confirm("Reset " + label + " settings to defaults?")) return;
+  try {
+    await resetApplicationSettingsCategoryToDefaults(categoryCode);
+    showToast("Settings reset", label + " settings were restored to defaults.", "success");
+    await loadApplicationSettingsData();
+  } catch (err) {
+    showToast("Settings not reset", err.message || "Could not reset this settings category.", "error");
+  }
 }
 
 async function selectFormRequirementArea(areaCode) {
