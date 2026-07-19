@@ -55,7 +55,7 @@ export const SETTINGS_OWNERSHIP_AREAS = Object.freeze([
     description: "Central entry point for module-level configuration.",
     status: "native",
     owner: "Application Settings",
-    currentLocation: "Administration -> Application Settings -> Modules",
+    currentLocation: "Application Settings -> Modules",
     targetLocation: "Application Settings -> Modules",
     viewCapabilities: ["application_settings.view", "application_settings.manage", "module_configuration.view", "module_configuration.manage"],
     manageCapabilities: ["application_settings.manage", "module_configuration.manage"],
@@ -64,7 +64,7 @@ export const SETTINGS_OWNERSHIP_AREAS = Object.freeze([
     deepLinksToExistingPanel: true,
     migrationRisk: "Low",
     futureMilestone: "OHP-017D",
-    notes: "Administration Module Configuration remains a shortcut into this ownership area."
+    notes: "The duplicate Administration Module Configuration nav item was removed; Application Settings -> Modules is the visible entry point."
   },
   {
     id: "visitors",

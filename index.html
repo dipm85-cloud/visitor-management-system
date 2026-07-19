@@ -125,7 +125,6 @@
             <button id="administrationDocumentSignoffsNav" class="oh-nav-child-item hidden" type="button" title="Document Sign-offs" data-nav-action="navigation.document_signoffs.open" data-capability-action="navigation.document_signoffs.open" data-capability-label="Document Sign-offs" data-capability-area="Navigation" data-capability-any="agreements.view agreements.manage document_signoff.manage" data-capability-type="navigation">Document Sign-offs</button>
             <button id="administrationPrivacyGdprNav" class="oh-nav-child-item hidden" type="button" title="Privacy / Data Governance" data-nav-action="navigation.privacy_gdpr.open" data-capability-action="navigation.privacy_gdpr.open" data-capability-label="Privacy / Data Governance" data-capability-area="Navigation" data-capability-any="privacy.case.view privacy.case.manage privacy.view privacy.manage gdpr.view gdpr.manage" data-capability-type="navigation">Privacy / Data Governance</button>
             <button id="administrationSharedTerminalsNav" class="oh-nav-child-item hidden" type="button" title="Shared Terminals" data-nav-action="navigation.shared_terminals.open" data-capability-action="navigation.shared_terminals.open" data-capability-label="Shared Terminals" data-capability-area="Navigation" data-capability-any="devices.view devices.manage" data-capability-type="navigation">Shared Terminals</button>
-            <button id="administrationModuleConfigurationNav" class="oh-nav-child-item hidden" type="button" title="Module settings are managed in Application Settings" data-nav-action="navigation.module_configuration.open" data-capability-action="application_settings.modules.shortcut.open" data-capability-label="Open Application Settings Modules" data-capability-area="Navigation" data-capability-any="application_settings.view application_settings.manage module_configuration.view module_configuration.manage settings.view settings.edit" data-capability-type="navigation">Module Settings</button>
             <button id="administrationAccessControlNav" class="oh-nav-child-item hidden" type="button" title="Access Control" data-nav-action="navigation.access_control.open" data-capability-action="navigation.access_control.open" data-capability-label="Access Control" data-capability-area="Navigation" data-capability-any="access_control.view access_control.manage role_presets.view user_role_assignments.view online_users.view admin_system_messages.view admin_system_messages.send admin_system_messages.force_action session_security_settings.view session_security_settings.manage" data-capability-type="navigation">Access Control</button>
           </div>
         </div>
@@ -1099,8 +1098,8 @@
               <article id="visitorsConfigurationShortcut" class="visitor-tool-card">
                 <span class="report-status available">Available</span>
                 <h3>Visitor Configuration</h3>
-                <p>Open Visitors configuration in Administration Module Configuration.</p>
-                <button id="visitorsConfigurationButton" type="button">Open Configuration</button>
+                <p>Open Visitors configuration through Application Settings Modules.</p>
+                <button id="visitorsConfigurationButton" type="button" data-capability-action="application_settings.modules.visitors.open" data-capability-label="Open Visitors module settings" data-capability-area="Visitors" data-capability-any="application_settings.view application_settings.manage module_configuration.view module_configuration.manage settings.view settings.edit" data-capability-type="navigation">Open Configuration</button>
               </article>
             </div>
           </section>
@@ -1353,7 +1352,7 @@
       <div class="brand-mark"><img id="brandLogoImg" alt="Logo" style="display:none;width:100%;height:100%;object-fit:contain;border-radius:12px;"><span id="brandLogoFallback">V</span></div>
       <div>
         Visitor Management<br>
-        <span style="font-size:12px;color:var(--muted);font-weight:700;">Operations Hub nextgen-ui - OHP-017B</span>
+        <span style="font-size:12px;color:var(--muted);font-weight:700;">Operations Hub nextgen-ui - OHP-017B.1</span>
       </div>
     </div>
     <div class="button-row no-print" style="margin:0;">
@@ -1402,7 +1401,7 @@
       </div>
       <button id="terminalReturnHomeButton" class="secondary hidden" type="button">Return to Terminal Home</button>
     </section>
-  <div id="appVersionFooter" class="version-footer">Version <span id="appVersionText">OHP-017B</span></div>
+  <div id="appVersionFooter" class="version-footer">Version <span id="appVersionText">OHP-017B.1</span></div>
 </main>
 
   <section id="signInScreen" class="screen">
@@ -5824,7 +5823,7 @@
 
   <footer class="oh-footer">
     <strong>Operations Hub</strong>
-    <span>Version <span id="ohPlatformVersion">OHP-017B</span></span>
+    <span>Version <span id="ohPlatformVersion">OHP-017B.1</span></span>
     <span>Environment <span id="ohEnvironment">Local</span></span>
   </footer>
 </div>

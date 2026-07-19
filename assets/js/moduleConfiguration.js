@@ -273,12 +273,15 @@ export function openModuleConfigurationAdministration(moduleId) {
 export function initialiseModuleConfigurationFramework() {
   if (initialised) return;
   initialised = true;
-  $("administrationModuleConfigurationNav").addEventListener(
-    "click",
-    () => window.dispatchEvent(new CustomEvent("oh:application-settings-requested", {
-      detail: { sectionId: "modules" }
-    }))
-  );
+  const moduleConfigurationNav = $("administrationModuleConfigurationNav");
+  if (moduleConfigurationNav) {
+    moduleConfigurationNav.addEventListener(
+      "click",
+      () => window.dispatchEvent(new CustomEvent("oh:application-settings-requested", {
+        detail: { sectionId: "modules" }
+      }))
+    );
+  }
   $("moduleConfigurationBackButton").addEventListener("click", showModuleCatalogue);
   window.addEventListener(
     "oh:module-configuration-requested",

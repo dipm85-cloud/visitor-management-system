@@ -2760,8 +2760,8 @@ export function initialiseVisitorsWorkspace() {
         );
         return;
       }
-      window.dispatchEvent(new CustomEvent("oh:module-configuration-requested", {
-        detail: { moduleId: "visitors" }
+      window.dispatchEvent(new CustomEvent("oh:application-settings-requested", {
+        detail: { sectionId: "modules" }
       }));
     });
   }

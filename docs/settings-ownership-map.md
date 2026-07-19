@@ -6,7 +6,7 @@ Application Settings is the central settings front door. Existing specialist and
 | --- | --- | --- | --- | --- | --- | --- |
 | General | Application Settings -> General | Application Settings -> General | Native | Low | OHP-017C | Controlled registry values stay native in Application Settings. |
 | Branding | Legacy VMS settings | Application Settings -> Branding | Legacy bridge | Medium | OHP-017C | Logo, theme and background stay in legacy settings until migrated. |
-| Modules | Administration -> Application Settings -> Modules | Application Settings -> Modules | Native | Low | OHP-017D | Administration Module Configuration is a shortcut into this ownership area. |
+| Modules | Application Settings -> Modules | Application Settings -> Modules | Native | Low | OHP-017D | The duplicate Administration Module Configuration nav item was removed; Application Settings -> Modules is the visible entry point. |
 | Visitors | Visitors workspace, legacy VMS settings and Form Requirements | Application Settings -> Visitors | Partially migrated | High | OHP-017C | Keep visitor and VMS controls bridged while Form Requirements stay native. |
 | Shared Terminal | Administration -> Shared Terminals | Application Settings -> Shared Terminal | Linked | Medium | OHP-017C | Open the existing Shared Terminals administration panel. |
 | Documents / Sign-off | Document Sign-offs administration and legacy agreement settings | Application Settings -> Documents / Sign-off | Linked | High | TBD | Keep specialist document/sign-off panels as source of truth. |
@@ -15,4 +15,4 @@ Application Settings is the central settings front door. Existing specialist and
 | Session Security | Access Control -> Online Users / System Messages | Application Settings -> Session Security | Linked | Medium | TBD | Open the existing Session Security settings card without changing timeout behaviour. |
 | Notifications | Access Control -> Online Users / System Messages | Application Settings -> Notifications | Linked | Medium | TBD | Open Online Users, System Messages and Message History. |
 | Access Control / Diagnostics | Administration -> Access Control | Application Settings -> Access Control / Diagnostics | Linked | Medium | TBD | Diagnostics remain in Access Control; Application Settings owns the front door. |
-| Future LMT | Not available | Application Settings -> Modules -> Future LMT | Future | Low | Future | Reserved only; no runtime behaviour in OHP-017B. |
+| Future LMT | Not available | Application Settings -> Modules -> Future LMT | Future | Low | Future | Reserved only; no runtime behaviour in OHP-017B.1. |
