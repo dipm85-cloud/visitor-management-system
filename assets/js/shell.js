@@ -202,6 +202,8 @@ export function shouldShowAdministrationNavigation() {
     "application_settings.manage",
     "assignment_field_requirements.view",
     "assignment_field_requirements.manage",
+    "form_requirements.view",
+    "form_requirements.manage",
     "settings.view",
     "settings.edit",
     "module_configuration.view",

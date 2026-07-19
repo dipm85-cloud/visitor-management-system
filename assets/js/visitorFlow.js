@@ -24,6 +24,11 @@ import {
 import { settingValue } from "./settings.js";
 import { hasCapability } from "./capabilities.js";
 import {
+  applyFormRequirementIndicators,
+  missingRequirementMessage,
+  validateFormRequirements
+} from "./formRequirements.js";
+import {
   recordTerminalPlannedLookupCalled,
   recordTerminalPlannedLookupResult
 } from "./startupDebug.js";
@@ -33,9 +38,60 @@ let visitorDependencies;
 let latestPrivacyAcceptance = null;
 let kioskActionInProgress = false;
 
+const WALK_IN_REQUIREMENT_MAPPINGS = {
+  visitor_name: { inputId: "walkInName", nativeRequired: true },
+  company: { inputId: "walkInCompany" },
+  reason: { inputId: "walkInReason" },
+  vehicle_registration: { inputId: "walkInVehicle" },
+  on_site_contact: { inputId: "walkInContact" },
+  security_pass_id: { inputId: "walkInSecurityPass" }
+};
+
 export function configureVisitorFlow(options) {
   appSettings = options.appSettings;
   visitorDependencies = options.dependencies;
+  applyWalkInRequirementIndicators();
+}
+
+export function applyWalkInRequirementIndicators() {
+  void applyFormRequirementIndicators("visitor_walk_ins", WALK_IN_REQUIREMENT_MAPPINGS);
+}
+
+function walkInRequirementPayload(payload) {
+  return {
+    ...payload,
+    name: payload.visitor_name,
+    visitorName: payload.visitor_name,
+    companyName: payload.company,
+    visitor_company: payload.company,
+    reason: payload.visit_reason,
+    purpose: payload.visit_reason,
+    visitReason: payload.visit_reason,
+    comments: payload.visit_reason,
+    vehicle_registration: payload.vehicle_plate,
+    vehicleRegistration: payload.vehicle_plate,
+    vehicle_reg: payload.vehicle_plate,
+    on_site_contact: payload.onsite_contact,
+    onSiteContact: payload.onsite_contact,
+    contact: payload.onsite_contact,
+    securityPassId: payload.security_pass_id,
+    pass_id: payload.security_pass_id
+  };
+}
+
+async function validateWalkInConfiguredRequirements(payload, options = {}) {
+  const mappings = options.mappings === false ? {} : WALK_IN_REQUIREMENT_MAPPINGS;
+  const result = await validateFormRequirements(
+    "visitor_walk_ins",
+    "validate_visitor_walk_in_requirements_payload",
+    walkInRequirementPayload(payload),
+    mappings,
+    { toast: options.toast !== false, title: "Walk-in incomplete" }
+  );
+  if (!result.ok && options.modalMessage) {
+    showWalkInModalMessage(missingRequirementMessage(result.missing), "error");
+  }
+  return result;
 }
 
 export function setLatestPrivacyAcceptance(value) {
@@ -520,6 +576,20 @@ export async function signInWalkIn() {
   if (!visitorDependencies.validateRequiredField("walkInContact", "On-site contact", true)) return;
   if (!visitorDependencies.validateRequiredField("walkInSecurityPass", "Security pass ID", true)) return;
 
+  const requirementPayload = {
+    visitor_name: name,
+    company: visitorDependencies.fieldValueIfVisible("walkInCompany").trim() || null,
+    visit_reason: visitorDependencies.fieldValueIfVisible("walkInReason").trim() || null,
+    vehicle_plate: normalisePlate(visitorDependencies.fieldValueIfVisible("walkInVehicle")),
+    onsite_contact: formatPersonName(visitorDependencies.fieldValueIfVisible("walkInContact")) || null,
+    security_pass_id: visitorDependencies.fieldValueIfVisible("walkInSecurityPass").trim() || null
+  };
+  const configuredRequirements = await validateWalkInConfiguredRequirements(
+    requirementPayload,
+    { toast: false, modalMessage: true }
+  );
+  if (!configuredRequirements.ok) return;
+
   if (!isPublicKioskContext()) {
     const activeDuplicate = await supabaseClient
       .from("visit_log")
@@ -653,6 +723,17 @@ export async function createStaffWalkIn(input) {
     visit_status: "signed_in",
     visit_origin: "walk_in"
   };
+  const configuredRequirements = await validateWalkInConfiguredRequirements(payload, {
+    toast: false,
+    mappings: false
+  });
+  if (!configuredRequirements.ok) {
+    return {
+      ok: false,
+      code: "validation",
+      message: missingRequirementMessage(configuredRequirements.missing)
+    };
+  }
   const result = await supabaseClient
     .from("visit_log")
     .insert(payload)

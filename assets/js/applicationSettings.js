@@ -4,10 +4,17 @@ import { decorateCapabilityAction } from "./capabilityInspector.js";
 import { $ } from "./dom.js";
 import { showToast } from "./messages.js";
 import { showAdministrationWorkspace } from "./shell.js";
+import {
+  listFormRequirementAreas,
+  loadFormRequirements,
+  resetFormRequirementsCache
+} from "./formRequirements.js";
 
 const APPLICATION_SETTINGS_VIEW_CAPABILITIES = [
   "application_settings.view",
   "application_settings.manage",
+  "form_requirements.view",
+  "form_requirements.manage",
   "settings.view",
   "settings.edit",
   "module_configuration.view",
@@ -21,6 +28,8 @@ const APPLICATION_SETTINGS_MANAGE_CAPABILITIES = [
   "access_control.manage"
 ];
 const FIELD_REQUIREMENT_VIEW_CAPABILITIES = [
+  "form_requirements.view",
+  "form_requirements.manage",
   "assignment_field_requirements.view",
   "assignment_field_requirements.manage",
   "application_settings.view",
@@ -33,6 +42,7 @@ const FIELD_REQUIREMENT_VIEW_CAPABILITIES = [
   "access_control.manage"
 ];
 const FIELD_REQUIREMENT_MANAGE_CAPABILITIES = [
+  "form_requirements.manage",
   "assignment_field_requirements.manage",
   "application_settings.manage",
   "work_time_profiles.manage",
@@ -42,18 +52,28 @@ const FIELD_REQUIREMENT_MANAGE_CAPABILITIES = [
 ];
 
 const SECTION_DEFINITIONS = [
-  { id: "overview", title: "Overview", description: "A map of settings areas and migration status.", status: "Central workspace" },
-  { id: "general", title: "General", description: "Product name, platform defaults and application-level behaviour.", category: "general" },
-  { id: "branding", title: "Branding", description: "Brand identity and appearance settings.", category: "branding" },
-  { id: "modules", title: "Modules", description: "Module availability and module-level configuration.", category: "modules", bridge: "modules" },
-  { id: "visitors", title: "Visitors", description: "Visitor module settings and legacy VMS configuration.", category: "visitors", bridge: "visitors", status: "Legacy-backed" },
-  { id: "shared_terminal", title: "Shared Terminal", description: "Trusted terminal and kiosk-device administration.", category: "visitors", bridge: "shared_terminal", status: "Linked" },
-  { id: "documents", title: "Documents / Sign-off", description: "Document sign-off settings and compliance controls.", category: "documents", bridge: "documents", status: "Linked" },
-  { id: "people_assignments", title: "People & Assignments", description: "Assignment field requirements and people-policy settings.", category: "people_assignments", status: "Configurable" },
-  { id: "working_time", title: "Working Time", description: "Work Time Profiles, Break Rules and Unsociable Time rules.", category: "working_time", bridge: "working_time", status: "Linked" },
-  { id: "session_security", title: "Session Security", description: "Staff inactivity, forced actions and Shared Terminal timeout settings.", category: "session_security", bridge: "session_security", status: "Linked" },
-  { id: "notifications", title: "Notifications", description: "Online users, system messages and system message history.", category: "notifications", bridge: "notifications", status: "Linked" },
-  { id: "advanced", title: "Advanced / Technical", description: "Controlled technical settings and diagnostics.", category: "advanced" }
+  { id: "overview", title: "Overview", description: "A map of settings areas and migration status.", status: "Native in Application Settings" },
+  { id: "general", title: "General", description: "Product name, platform defaults and application-level behaviour.", category: "general", status: "Native in Application Settings" },
+  { id: "branding", title: "Branding", description: "Brand identity and appearance settings.", category: "branding", status: "Legacy-linked" },
+  { id: "modules", title: "Modules", description: "Module-level settings and form requirements.", category: "modules", status: "Native in Application Settings" },
+  { id: "visitors", title: "Visitors", description: "Visitor module settings, Form Requirements and legacy VMS configuration.", category: "visitors", bridge: "visitors", status: "Partially migrated" },
+  { id: "shared_terminal", title: "Shared Terminal", description: "Trusted terminal and kiosk-device administration.", category: "visitors", bridge: "shared_terminal", status: "Linked to existing module settings" },
+  { id: "documents", title: "Documents / Sign-off", description: "Document sign-off settings and compliance controls.", category: "documents", bridge: "documents", status: "Linked to existing module settings" },
+  { id: "people_assignments", title: "People & Assignments", description: "Assignment Form Requirements and people-policy settings.", category: "people_assignments", status: "Partially migrated" },
+  { id: "working_time", title: "Working Time", description: "Work Time Profiles, Break Rules and Unsociable Time rules.", category: "working_time", bridge: "working_time", status: "Linked to existing module settings" },
+  { id: "session_security", title: "Session Security", description: "Staff inactivity, forced actions and Shared Terminal timeout settings.", category: "session_security", bridge: "session_security", status: "Native / embedded" },
+  { id: "notifications", title: "Notifications", description: "Online users, system messages and system message history.", category: "notifications", bridge: "notifications", status: "Linked to existing module settings" },
+  { id: "advanced", title: "Advanced / Technical", description: "Controlled technical settings and diagnostics.", category: "advanced", status: "Partially migrated" }
+];
+
+const MODULE_SETTING_CARDS = [
+  { sectionId: "visitors", title: "Visitors", status: "Partially migrated", description: "Form Requirements live here. Complex visitor settings remain linked to the existing VMS settings area." },
+  { sectionId: "people_assignments", title: "People & Assignments", status: "Native here", description: "Assignment Form Requirements are managed from Application Settings." },
+  { sectionId: "working_time", title: "Working Time", status: "Linked to existing module settings", description: "Open Work Time Profiles, Break Rules, Unsociable Time Rules and Rule Sets." },
+  { sectionId: "documents", title: "Documents / Sign-off", status: "Linked / partial", description: "Document sign-off settings remain in the specialist document area while migration continues." },
+  { sectionId: "session_security", title: "Session Security", status: "Native / embedded", description: "Open the existing Session Security settings panel from the central hub." },
+  { sectionId: "notifications", title: "Notifications", status: "Linked to System Messages", description: "Open Online Users, System Messages and Message History." },
+  { sectionId: "future_lmt", title: "Future LMT", status: "Future", description: "Labour management rules will be added after the settings foundation settles." }
 ];
 
 let dependencies = {};
@@ -62,6 +82,10 @@ let settingsLoaded = false;
 let categories = [];
 let settings = [];
 let fieldRequirements = [];
+let fieldRequirementAreas = [];
+let activeRequirementAreaCode = "work_assignments";
+let requirementDraft = new Map();
+let requirementsDirty = false;
 let activeSectionId = "overview";
 
 function canViewApplicationSettings() {
@@ -193,6 +217,50 @@ function renderOverview() {
     });
 
     card.append(title, description, meta, button);
+    container.appendChild(card);
+  });
+}
+
+function renderModulesPanel() {
+  const container = $("applicationSettingsModuleCards");
+  if (!container) return;
+  container.replaceChildren();
+
+  MODULE_SETTING_CARDS.forEach(cardDefinition => {
+    const card = document.createElement("article");
+    card.className = "application-settings-card";
+    const title = document.createElement("h4");
+    title.textContent = cardDefinition.title;
+    const description = document.createElement("p");
+    description.textContent = cardDefinition.description;
+    const status = document.createElement("span");
+    status.className = "application-settings-card-status";
+    status.textContent = cardDefinition.status;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = cardDefinition.sectionId === "future_lmt" ? "Not yet available" : "Open";
+    button.disabled = cardDefinition.sectionId === "future_lmt";
+    if (cardDefinition.sectionId !== "future_lmt") {
+      button.addEventListener("click", () => openApplicationSettingsSection(cardDefinition.sectionId));
+    }
+    decorateCapabilityAction(button, {
+      actionId: "application_settings.modules.open",
+      label: cardDefinition.title === "People & Assignments"
+        ? "Open People & Assignments settings"
+        : cardDefinition.title === "Visitors"
+          ? "Open Visitors settings bridge"
+          : cardDefinition.title === "Working Time"
+            ? "Open Working Time settings"
+            : cardDefinition.title === "Session Security"
+              ? "Open Session Security settings"
+              : cardDefinition.title === "Notifications"
+                ? "Open Notifications settings"
+                : "Open Modules settings",
+      area: "Application Settings",
+      requiredAny: APPLICATION_SETTINGS_VIEW_CAPABILITIES,
+      actionType: "navigation"
+    });
+    card.append(title, description, status, button);
     container.appendChild(card);
   });
 }
@@ -335,12 +403,60 @@ function renderRegistry(filterCategory, targetId = "applicationSettingsRegistry"
   });
 }
 
+function currentRequirementArea() {
+  return fieldRequirementAreas.find(area => area.area_code === activeRequirementAreaCode) || {
+    area_code: activeRequirementAreaCode,
+    area_name: "Assignments",
+    description: "Form requirement configuration."
+  };
+}
+
+function setRequirementsDirty(dirty) {
+  requirementsDirty = dirty;
+  const status = $("formRequirementsDirtyStatus");
+  if (status) {
+    status.textContent = dirty ? "Unsaved changes" : "";
+    status.className = "local-action-status" + (dirty ? " warning" : "");
+  }
+  const save = $("formRequirementsSaveButton");
+  if (save) save.disabled = !dirty || !canManageFieldRequirements();
+  const revert = $("formRequirementsRevertButton");
+  if (revert) revert.disabled = !dirty;
+}
+
+function renderRequirementAreaSelector() {
+  const container = $("formRequirementsAreaSelector");
+  if (!container) return;
+  container.replaceChildren();
+  fieldRequirementAreas.forEach(area => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = area.area_name;
+    button.className = area.area_code === activeRequirementAreaCode ? "active" : "";
+    button.setAttribute("role", "tab");
+    button.setAttribute("aria-selected", String(area.area_code === activeRequirementAreaCode));
+    button.addEventListener("click", () => selectFormRequirementArea(area.area_code));
+    decorateCapabilityAction(button, {
+      actionId: "form_requirements.area.switch",
+      label: "Switch Form Requirement area",
+      area: "Application Settings",
+      requiredAny: FIELD_REQUIREMENT_VIEW_CAPABILITIES,
+      actionType: "view"
+    });
+    container.appendChild(button);
+  });
+}
+
 function renderFieldRequirements() {
   const body = $("assignmentFieldRequirementsBody");
   const empty = $("assignmentFieldRequirementsEmpty");
   if (!body || !empty) return;
   body.replaceChildren();
   empty.classList.toggle("hidden", fieldRequirements.length > 0);
+  renderRequirementAreaSelector();
+  const area = currentRequirementArea();
+  const description = $("formRequirementsAreaDescription");
+  if (description) description.textContent = area.description || "System-required fields stay locked. Configurable fields can be made required by business policy.";
 
   fieldRequirements.forEach(rule => {
     const row = document.createElement("tr");
@@ -368,32 +484,25 @@ function renderFieldRequirements() {
     toggle.checked = rule.is_required === true || rule.system_required === true;
     toggle.disabled = rule.system_required || !rule.configurable || !canManageFieldRequirements();
     toggle.dataset.fieldRequirementToggle = rule.field_key;
+    toggle.addEventListener("change", () => {
+      requirementDraft.set(rule.field_key, toggle.checked);
+      setRequirementsDirty(true);
+    });
     required.appendChild(toggle);
     const help = document.createElement("td");
     help.textContent = rule.help_text || "";
-    const action = document.createElement("td");
-    const save = document.createElement("button");
-    save.type = "button";
-    save.textContent = "Update";
-    save.disabled = toggle.disabled;
-    save.addEventListener("click", () => updateFieldRequirement(rule.field_key));
-    decorateCapabilityAction(save, {
-      actionId: "assignment_field_requirements.update",
-      label: "Update Assignment Field Requirement",
-      area: "Application Settings",
-      requiredAny: FIELD_REQUIREMENT_MANAGE_CAPABILITIES,
-      actionType: "update"
-    });
-    action.appendChild(save);
 
-    row.append(field, status, locked, configurable, required, help, action);
+    row.append(field, status, locked, configurable, required, help);
     body.appendChild(row);
   });
+  setRequirementsDirty(requirementsDirty);
 }
 
 function bridgeActionsFor(sectionId) {
   if (sectionId === "visitors") {
     return [
+      ["Visitor Walk-ins Form Requirements", "application_settings.visitors.walk_ins.form_requirements.open", "Open Form Requirements", () => openFormRequirementsArea("visitor_walk_ins")],
+      ["Planned Visits Form Requirements", "application_settings.visitors.planned.form_requirements.open", "Open Form Requirements", () => openFormRequirementsArea("planned_visits")],
       ["Open Visitor Settings", "application_settings.visitors.legacy.open", "Open legacy Visitor Settings link", () => dependencies.openLegacySettings?.()],
       ["Open Legacy VMS Settings", "application_settings.visitors.vms.open", "Open legacy VMS Settings link", () => dependencies.openLegacySettings?.()]
     ];
@@ -469,8 +578,11 @@ function renderActiveSection() {
 
   if (activeSectionId === "overview") {
     selectPanel("overview");
+  } else if (activeSectionId === "modules") {
+    selectPanel("modules");
+    renderModulesPanel();
   } else if (activeSectionId === "people_assignments") {
-    selectPanel("people_assignments");
+    selectPanel("form_requirements");
     renderRegistry("people_assignments", "applicationSettingsPeopleRegistry");
     renderFieldRequirements();
   } else if (definition.bridge) {
@@ -516,14 +628,20 @@ async function loadApplicationSettingsData() {
 async function loadFieldRequirements() {
   if (!canViewFieldRequirements()) return;
   try {
-    const result = await supabaseClient.rpc("list_field_requirements", {
-      p_area_code: "work_assignments"
-    });
-    if (result.error) throw result.error;
-    fieldRequirements = result.data || [];
+    fieldRequirementAreas = await listFormRequirementAreas();
+    if (!fieldRequirementAreas.some(area => area.area_code === activeRequirementAreaCode)) {
+      activeRequirementAreaCode = fieldRequirementAreas[0]?.area_code || "work_assignments";
+    }
+    fieldRequirements = await loadFormRequirements(activeRequirementAreaCode, { force: true });
+    requirementDraft = new Map(
+      fieldRequirements
+        .filter(rule => rule.configurable)
+        .map(rule => [rule.field_key, rule.is_required === true])
+    );
+    setRequirementsDirty(false);
     renderFieldRequirements();
   } catch (err) {
-    showToast("Field requirements not loaded", err.message || "Could not load assignment field requirements.", "error");
+    showToast("Form requirements not loaded", err.message || "Could not load form requirements.", "error");
   }
 }
 
@@ -547,27 +665,57 @@ async function saveApplicationSetting(settingKey) {
   await loadApplicationSettingsData();
 }
 
-async function updateFieldRequirement(fieldKey) {
-  if (!canManageFieldRequirements()) {
-    showToast("Requirement not updated", "Assignment field requirement manage capability is required.", "error");
+async function selectFormRequirementArea(areaCode) {
+  if (!areaCode || areaCode === activeRequirementAreaCode) return;
+  if (requirementsDirty) {
+    showToast("Unsaved changes", "Save or revert the current Form Requirements changes before switching area.", "warning");
     return;
   }
-  const rule = fieldRequirements.find(item => item.field_key === fieldKey);
-  const toggle = document.querySelector("[data-field-requirement-toggle='" + fieldKey + "']");
-  if (!rule || !toggle || rule.system_required || !rule.configurable) return;
+  activeRequirementAreaCode = areaCode;
+  await loadFieldRequirements();
+}
 
-  const result = await supabaseClient.rpc("update_field_requirement", {
-    p_area_code: "work_assignments",
-    p_field_key: fieldKey,
-    p_is_required: toggle.checked,
-    p_is_visible: rule.is_visible !== false
+async function saveFormRequirementsBatch() {
+  if (!canManageFieldRequirements()) {
+    showToast("Requirements not saved", "Form Requirements manage capability is required.", "error");
+    return;
+  }
+  const changedRules = fieldRequirements
+    .filter(rule => rule.configurable)
+    .filter(rule => requirementDraft.get(rule.field_key) !== (rule.is_required === true))
+    .map(rule => ({
+      field_key: rule.field_key,
+      is_required: requirementDraft.get(rule.field_key) === true,
+      is_visible: rule.is_visible !== false
+    }));
+
+  if (!changedRules.length) {
+    setRequirementsDirty(false);
+    showToast("No changes to save", "Form Requirements are already up to date.", "info");
+    return;
+  }
+
+  const result = await supabaseClient.rpc("update_field_requirements_batch", {
+    p_area_code: activeRequirementAreaCode,
+    p_rules: changedRules
   });
   if (result.error) {
-    showToast("Requirement not updated", result.error.message || "Could not update this field requirement.", "error");
+    showToast("Requirements not saved", result.error.message || "Could not save Form Requirements.", "error");
     return;
   }
-  showToast("Requirement updated", (rule.field_label || fieldKey) + " is now " + (toggle.checked ? "required" : "optional") + " by configuration.", "success");
+  resetFormRequirementsCache();
+  showToast("Requirements saved", "Form Requirements were updated.", "success");
   await loadFieldRequirements();
+}
+
+function revertFormRequirementChanges() {
+  requirementDraft = new Map(
+    fieldRequirements
+      .filter(rule => rule.configurable)
+      .map(rule => [rule.field_key, rule.is_required === true])
+  );
+  setRequirementsDirty(false);
+  renderFieldRequirements();
 }
 
 export async function openApplicationSettingsSection(sectionId) {
@@ -579,6 +727,11 @@ export async function openApplicationSettingsSection(sectionId) {
   renderActiveSection();
   if (!settingsLoaded) await loadApplicationSettingsData();
   if (activeSectionId === "people_assignments") await loadFieldRequirements();
+}
+
+async function openFormRequirementsArea(areaCode) {
+  activeRequirementAreaCode = areaCode || "work_assignments";
+  await openApplicationSettingsSection("people_assignments");
 }
 
 export async function openApplicationSettingsWorkspace(sectionId = "overview") {
@@ -616,6 +769,10 @@ export function initialiseApplicationSettings(options = {}) {
   });
   const requirementsRefresh = $("assignmentFieldRequirementsRefreshButton");
   if (requirementsRefresh) requirementsRefresh.addEventListener("click", loadFieldRequirements);
+  const saveRequirements = $("formRequirementsSaveButton");
+  if (saveRequirements) saveRequirements.addEventListener("click", saveFormRequirementsBatch);
+  const revertRequirements = $("formRequirementsRevertButton");
+  if (revertRequirements) revertRequirements.addEventListener("click", revertFormRequirementChanges);
 
   window.addEventListener("oh:application-settings-requested", () => {
     void openApplicationSettingsWorkspace();

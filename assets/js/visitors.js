@@ -49,6 +49,11 @@ import {
   getLinkedIdentityActiveVisitConflict,
   renderLinkedIdentityContext
 } from "./identityContext.js";
+import {
+  applyFormRequirementIndicators,
+  missingRequirementMessage,
+  validateFormRequirements
+} from "./formRequirements.js";
 
 let visitorsDependencies = {};
 let nativePlannedVisits = [];
@@ -69,6 +74,25 @@ let walkInPanelController = null;
 let detailsPanelController = null;
 let resetPlannedPanelForm = null;
 let resetWalkInPanelForm = null;
+
+const NATIVE_WALK_IN_REQUIREMENT_MAPPINGS = {
+  visitor_name: { inputId: "visitorsWalkInVisitorName", nativeRequired: true },
+  company: { inputId: "visitorsWalkInCompany" },
+  reason: { inputId: "visitorsWalkInReason" },
+  vehicle_registration: { inputId: "visitorsWalkInVehicle" },
+  on_site_contact: { inputId: "visitorsWalkInContact" },
+  security_pass_id: { inputId: "visitorsWalkInPass" }
+};
+
+const NATIVE_PLANNED_REQUIREMENT_MAPPINGS = {
+  visitor_name: { inputId: "visitorsPlannedVisitorName", nativeRequired: true },
+  visit_date: { inputId: "visitorsPlannedVisitDate", nativeRequired: true },
+  company: { inputId: "visitorsPlannedCompany" },
+  expected_time: { inputId: "visitorsPlannedExpectedTime" },
+  reason: { inputId: "visitorsPlannedReason" },
+  vehicle_registration: { inputId: "visitorsPlannedVehicle" },
+  on_site_contact: { inputId: "visitorsPlannedContact" }
+};
 
 const plannedFieldDefaults = {
   reason: { visible: true, required: false },
@@ -1514,6 +1538,7 @@ function openPlannedPanel(visit, mode, returnFocus) {
     element.classList.toggle("hidden", effectiveMode === "security");
   });
   applyNativePlannedFieldRules(effectiveMode);
+  void applyFormRequirementIndicators("planned_visits", NATIVE_PLANNED_REQUIREMENT_MAPPINGS);
 
   if (isEdit) {
     $("visitorsPlannedVisitorName").value = visit.visitor_name || "";
@@ -1593,6 +1618,7 @@ function openWalkInPanel(returnFocus) {
   }
   clearWalkInForm();
   applyNativeWalkInFieldRules();
+  void applyFormRequirementIndicators("visitor_walk_ins", NATIVE_WALK_IN_REQUIREMENT_MAPPINGS);
   if (walkInPanelController) {
     walkInPanelController.open({
       trigger: returnFocus,
@@ -1917,6 +1943,34 @@ function nativeWalkInFieldValue(field) {
   return String(input.value || "");
 }
 
+function nativeWalkInRequirementPayload() {
+  return {
+    visitor_name: formatPersonName($("visitorsWalkInVisitorName").value),
+    name: formatPersonName($("visitorsWalkInVisitorName").value),
+    company: nativeWalkInFieldValue("company").trim() || null,
+    visit_reason: nativeWalkInFieldValue("reason").trim() || null,
+    reason: nativeWalkInFieldValue("reason").trim() || null,
+    vehicle_plate: normalisePlate(nativeWalkInFieldValue("vehicle")),
+    vehicle_registration: normalisePlate(nativeWalkInFieldValue("vehicle")),
+    onsite_contact: formatPersonName(nativeWalkInFieldValue("contact")) || null,
+    on_site_contact: formatPersonName(nativeWalkInFieldValue("contact")) || null,
+    security_pass_id: nativeWalkInFieldValue("pass").trim() || null
+  };
+}
+
+async function validateNativeWalkInRequirements() {
+  const result = await validateFormRequirements(
+    "visitor_walk_ins",
+    "validate_visitor_walk_in_requirements_payload",
+    nativeWalkInRequirementPayload(),
+    NATIVE_WALK_IN_REQUIREMENT_MAPPINGS,
+    { toast: false }
+  );
+  if (result.ok) return true;
+  showToast("Walk-in incomplete", missingRequirementMessage(result.missing), "error");
+  return false;
+}
+
 function nativeWalkInFormIsValid() {
   const requiredInputs = Array.from(
     $("visitorsWalkInForm").querySelectorAll("input[required], textarea[required]")
@@ -1942,6 +1996,7 @@ async function saveNativeWalkIn(event) {
     );
     return;
   }
+  if (!(await validateNativeWalkInRequirements())) return;
   if (typeof visitorsDependencies.createWalkIn !== "function") {
     showToast("Walk-in not created", "The walk-in service is unavailable.", "error");
     return;
@@ -1988,6 +2043,51 @@ function nativePlannedFieldValue(field) {
   const input = $("visitorsPlanned" + (field === "pass" ? "Pass" : field[0].toUpperCase() + field.slice(1)));
   if (!wrapper || wrapper.classList.contains("hidden")) return "";
   return String(input.value || "");
+}
+
+function nativePlannedRequirementPayload(payload = {}) {
+  const visitReason = Object.prototype.hasOwnProperty.call(payload, "visit_reason")
+    ? payload.visit_reason
+    : nativePlannedFieldValue("reason").trim() || null;
+  const vehiclePlate = Object.prototype.hasOwnProperty.call(payload, "vehicle_plate")
+    ? payload.vehicle_plate
+    : normalisePlate(nativePlannedFieldValue("vehicle"));
+  const onsiteContact = Object.prototype.hasOwnProperty.call(payload, "onsite_contact")
+    ? payload.onsite_contact
+    : formatPersonName(nativePlannedFieldValue("contact")) || null;
+  return {
+    ...payload,
+    visitor_name: payload.visitor_name || formatPersonName($("visitorsPlannedVisitorName").value),
+    name: payload.visitor_name || formatPersonName($("visitorsPlannedVisitorName").value),
+    visit_date: payload.visit_date || $("visitorsPlannedVisitDate").value,
+    date: payload.visit_date || $("visitorsPlannedVisitDate").value,
+    company: Object.prototype.hasOwnProperty.call(payload, "company")
+      ? payload.company
+      : $("visitorsPlannedCompany").value.trim() || null,
+    expected_time: Object.prototype.hasOwnProperty.call(payload, "expected_time")
+      ? payload.expected_time
+      : $("visitorsPlannedExpectedTime").value || null,
+    visit_reason: visitReason,
+    reason: visitReason,
+    purpose: visitReason,
+    vehicle_plate: vehiclePlate,
+    vehicle_registration: vehiclePlate,
+    onsite_contact: onsiteContact,
+    on_site_contact: onsiteContact
+  };
+}
+
+async function validateNativePlannedRequirements(payload) {
+  const result = await validateFormRequirements(
+    "planned_visits",
+    "validate_planned_visit_requirements_payload",
+    nativePlannedRequirementPayload(payload),
+    NATIVE_PLANNED_REQUIREMENT_MAPPINGS,
+    { toast: false }
+  );
+  if (result.ok) return true;
+  showToast("Planned visit incomplete", missingRequirementMessage(result.missing), "error");
+  return false;
 }
 
 function nativePlannedFormIsValid() {
@@ -2045,6 +2145,7 @@ async function createNativePlannedVisit() {
     status: "planned",
     created_by: AppState.currentProfile ? AppState.currentProfile.id : null
   };
+  if (!(await validateNativePlannedRequirements(payload))) return false;
   const result = await supabaseClient
     .from("planned_visits")
     .insert(payload)
@@ -2098,6 +2199,7 @@ async function updateNativePlannedVisit(visit, mode) {
       modified_by: AppState.currentProfile ? AppState.currentProfile.id : null,
       modified_at: new Date().toISOString()
     };
+    if (!(await validateNativePlannedRequirements(payload))) return false;
   }
 
   const trackedFields = Object.keys(payload).filter(key => !["modified_by", "modified_at"].includes(key));

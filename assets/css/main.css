@@ -11499,6 +11499,29 @@ body.assignment-workspace-open .modal-backdrop.active {
   font-weight: 700;
 }
 
+.form-requirements-area-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.form-requirements-area-selector button {
+  min-height: 36px;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #344054;
+  font-weight: 800;
+  padding: 8px 12px;
+}
+
+.form-requirements-area-selector button.active {
+  border-color: #1f4f8f;
+  background: #f0f6ff;
+  color: #123b6d;
+}
+
 .application-settings-registry {
   display: flex;
   flex-direction: column;
@@ -11583,7 +11606,16 @@ body.assignment-workspace-open .modal-backdrop.active {
   color: #667085;
 }
 
+.form-requirement-required-label {
+  color: #101828;
+}
+
 .assignment-required-missing {
+  border-color: #d92d20 !important;
+  box-shadow: 0 0 0 3px rgba(217, 45, 32, .12) !important;
+}
+
+.form-requirement-missing {
   border-color: #d92d20 !important;
   box-shadow: 0 0 0 3px rgba(217, 45, 32, .12) !important;
 }
@@ -11613,6 +11645,10 @@ body.assignment-workspace-open .modal-backdrop.active {
 
   .application-settings-card-grid {
     grid-template-columns: 1fr;
+  }
+
+  .form-requirements-area-selector button {
+    flex: 1 1 180px;
   }
 
   .application-settings-table {

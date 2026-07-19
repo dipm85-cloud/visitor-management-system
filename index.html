@@ -56,7 +56,7 @@
         <button id="ohAccountLogout" type="button" role="menuitem">Log Out</button>
         <button id="ohAccountAbout" type="button" role="menuitem">About Operations Hub</button>
       </div>
-      <button id="ohSettingsShortcut" class="oh-header-action no-print" type="button" title="Open Application Settings" data-capability-action="application_settings.open" data-capability-label="Open Application Settings" data-capability-area="Application Settings" data-capability-any="application_settings.view application_settings.manage settings.view settings.edit module_configuration.view module_configuration.manage access_control.manage" data-capability-type="navigation">
+      <button id="ohSettingsShortcut" class="oh-header-action no-print" type="button" title="Open Application Settings" data-capability-action="application_settings.open" data-capability-label="Open Application Settings" data-capability-area="Application Settings" data-capability-any="application_settings.view application_settings.manage form_requirements.view form_requirements.manage settings.view settings.edit module_configuration.view module_configuration.manage access_control.manage" data-capability-type="navigation">
         <span aria-hidden="true">⚙</span>
         <span class="oh-action-label">Settings</span>
       </button>
@@ -113,13 +113,13 @@
           <span class="oh-nav-label">Reports</span>
         </button>
         <div id="ohAdministrationGroup" class="oh-nav-group" data-oh-nav-group="administration">
-          <button id="ohAdministrationNav" class="oh-nav-item oh-nav-group-toggle" type="button" title="Administration" aria-expanded="false" aria-controls="ohAdministrationChildren" data-nav-action="navigation.administration.open" data-capability-action="navigation.administration.open" data-capability-label="Administration" data-capability-area="Navigation" data-capability-any="application_settings.view application_settings.manage assignment_field_requirements.view assignment_field_requirements.manage settings.view settings.edit module_configuration.view module_configuration.manage visitor.housekeeping.run devices.view devices.manage document_signoff.manage agreements.manage gdpr.view gdpr.manage privacy.view privacy.manage identity_resolution.view identity_resolution.manage audit.view access_control.view access_control.manage online_users.view admin_system_messages.view admin_system_messages.send admin_system_messages.force_action session_security_settings.view session_security_settings.manage" data-capability-type="navigation">
+          <button id="ohAdministrationNav" class="oh-nav-item oh-nav-group-toggle" type="button" title="Administration" aria-expanded="false" aria-controls="ohAdministrationChildren" data-nav-action="navigation.administration.open" data-capability-action="navigation.administration.open" data-capability-label="Administration" data-capability-area="Navigation" data-capability-any="application_settings.view application_settings.manage form_requirements.view form_requirements.manage assignment_field_requirements.view assignment_field_requirements.manage settings.view settings.edit module_configuration.view module_configuration.manage visitor.housekeeping.run devices.view devices.manage document_signoff.manage agreements.manage gdpr.view gdpr.manage privacy.view privacy.manage identity_resolution.view identity_resolution.manage audit.view access_control.view access_control.manage online_users.view admin_system_messages.view admin_system_messages.send admin_system_messages.force_action session_security_settings.view session_security_settings.manage" data-capability-type="navigation">
             <span class="oh-nav-icon" aria-hidden="true">A</span>
             <span class="oh-nav-label">Administration</span>
             <span class="oh-nav-caret" aria-hidden="true">›</span>
           </button>
           <div id="ohAdministrationChildren" class="oh-nav-children" aria-label="Administration areas">
-            <button id="administrationApplicationSettingsNav" class="oh-nav-child-item hidden" type="button" title="Application Settings" data-nav-action="navigation.application_settings.open" data-capability-action="application_settings.open" data-capability-label="Open Application Settings" data-capability-area="Navigation" data-capability-any="application_settings.view application_settings.manage settings.view settings.edit module_configuration.view module_configuration.manage access_control.manage" data-capability-type="navigation">Application Settings</button>
+            <button id="administrationApplicationSettingsNav" class="oh-nav-child-item hidden" type="button" title="Application Settings" data-nav-action="navigation.application_settings.open" data-capability-action="application_settings.open" data-capability-label="Open Application Settings" data-capability-area="Navigation" data-capability-any="application_settings.view application_settings.manage form_requirements.view form_requirements.manage settings.view settings.edit module_configuration.view module_configuration.manage access_control.manage" data-capability-type="navigation">Application Settings</button>
             <button id="administrationReferenceNav" class="oh-nav-child-item active" type="button" aria-current="page" title="Reference Data" data-nav-action="navigation.reference_data.open" data-capability-action="navigation.reference_data.open" data-capability-label="Reference Data" data-capability-area="Navigation" data-capability-any="reference_data.view reference_data.manage settings.view settings.edit" data-capability-type="navigation">Reference Data</button>
             <button id="administrationIdentityResolutionNav" class="oh-nav-child-item hidden" type="button" title="Identity Resolution" data-nav-action="navigation.identity_resolution.open" data-capability-action="navigation.identity_resolution.open" data-capability-label="Identity Resolution" data-capability-area="Navigation" data-capability-any="identity_resolution.view identity_resolution.manage" data-capability-type="navigation">Identity Resolution</button>
             <button id="administrationDocumentSignoffsNav" class="oh-nav-child-item hidden" type="button" title="Document Sign-offs" data-nav-action="navigation.document_signoffs.open" data-capability-action="navigation.document_signoffs.open" data-capability-label="Document Sign-offs" data-capability-area="Navigation" data-capability-any="agreements.view agreements.manage document_signoff.manage" data-capability-type="navigation">Document Sign-offs</button>
@@ -1138,7 +1138,7 @@
               <label id="visitorsPlannedPassField"><span>Security pass ID</span><input id="visitorsPlannedPass" /></label>
               <label id="visitorsPlannedChangeReasonField" class="hidden"><span>Change reason *</span><textarea id="visitorsPlannedChangeReason" rows="3"></textarea></label>
               <div class="visitors-side-panel-actions" data-oh-side-panel-actions>
-                <button id="visitorsPlannedSave" type="submit">Create Planned Visit</button>
+                <button id="visitorsPlannedSave" type="submit" data-capability-action="planned_visits.native.save_with_configured_requirements" data-capability-label="Save planned visit with configured requirements" data-capability-area="Visitors" data-capability-any="visitor.create visitor.edit" data-capability-type="update">Create Planned Visit</button>
                 <button id="visitorsPlannedCancel" class="secondary" type="button">Cancel</button>
               </div>
             </form>
@@ -1170,7 +1170,7 @@
               <label id="visitorsWalkInVehicleField"><span>Vehicle registration</span><input id="visitorsWalkInVehicle" /></label>
               <label id="visitorsWalkInPassField"><span>Security pass ID</span><input id="visitorsWalkInPass" /></label>
               <div class="visitors-side-panel-actions" data-oh-side-panel-actions>
-                <button id="visitorsWalkInSave" type="submit">Sign In Walk-in</button>
+                <button id="visitorsWalkInSave" type="submit" data-capability-action="visitor_walk_ins.native.save_with_configured_requirements" data-capability-label="Save visitor walk-in with configured requirements" data-capability-area="Visitors" data-capability-any="visitor.create visitor.sign_in" data-capability-type="create">Sign In Walk-in</button>
                 <button id="visitorsWalkInCancel" class="secondary" type="button">Cancel</button>
               </div>
             </form>
@@ -1353,7 +1353,7 @@
       <div class="brand-mark"><img id="brandLogoImg" alt="Logo" style="display:none;width:100%;height:100%;object-fit:contain;border-radius:12px;"><span id="brandLogoFallback">V</span></div>
       <div>
         Visitor Management<br>
-        <span style="font-size:12px;color:var(--muted);font-weight:700;">Operations Hub nextgen-ui - OHP-017</span>
+        <span style="font-size:12px;color:var(--muted);font-weight:700;">Operations Hub nextgen-ui - OHP-017A</span>
       </div>
     </div>
     <div class="button-row no-print" style="margin:0;">
@@ -1402,7 +1402,7 @@
       </div>
       <button id="terminalReturnHomeButton" class="secondary hidden" type="button">Return to Terminal Home</button>
     </section>
-  <div id="appVersionFooter" class="version-footer">Version <span id="appVersionText">OHP-017</span></div>
+  <div id="appVersionFooter" class="version-footer">Version <span id="appVersionText">OHP-017A</span></div>
 </main>
 
   <section id="signInScreen" class="screen">
@@ -1482,7 +1482,7 @@
           <input id="plannedContact" data-field-rule="planned_contact" placeholder="On-site contact" />
           <input id="plannedSecurityPass" data-field-rule="planned_pass" placeholder="Security pass ID" />
         </div>
-        <button id="createPlannedButton" type="button">Create Planned Visit</button>
+        <button id="createPlannedButton" type="button" data-capability-action="planned_visits.save_with_configured_requirements" data-capability-label="Save planned visit with configured requirements" data-capability-area="Visitors" data-capability-any="visitor.create" data-capability-type="create">Create Planned Visit</button>
       </div>
 
       <div class="card">
@@ -3406,7 +3406,7 @@
               <textarea id="assignmentNotes" rows="4"></textarea>
 
               <div class="people-form-actions" data-oh-side-panel-actions>
-                <button id="assignmentSaveButton" type="submit">Create Assignment</button>
+                <button id="assignmentSaveButton" type="submit" data-capability-action="assignments.save_with_configured_requirements" data-capability-label="Save assignment with configured requirements" data-capability-area="People & Assignments" data-capability-any="assignment.manage" data-capability-type="update">Create Assignment</button>
                 <button id="assignmentCancelButton" class="secondary" type="button">Cancel</button>
               </div>
             </form>
@@ -5239,6 +5239,16 @@
                 <div id="applicationSettingsOverviewCards" class="application-settings-card-grid"></div>
               </section>
 
+              <section id="applicationSettingsModulesPanel" class="application-settings-panel hidden" data-application-settings-panel="modules" aria-labelledby="applicationSettingsModulesTitle">
+                <div class="application-settings-section-heading">
+                  <div>
+                    <h3 id="applicationSettingsModulesTitle">Modules</h3>
+                    <p>Central entry point for module-level settings and form requirements.</p>
+                  </div>
+                </div>
+                <div id="applicationSettingsModuleCards" class="application-settings-card-grid"></div>
+              </section>
+
               <section id="applicationSettingsRegistryPanel" class="application-settings-panel hidden" data-application-settings-panel="registry" aria-labelledby="applicationSettingsRegistryTitle">
                 <div class="application-settings-section-heading">
                   <div>
@@ -5249,22 +5259,28 @@
                 <div id="applicationSettingsRegistry" class="application-settings-registry"></div>
               </section>
 
-              <section id="applicationSettingsPeoplePanel" class="application-settings-panel hidden" data-application-settings-panel="people_assignments" aria-labelledby="applicationSettingsPeopleTitle">
+              <section id="applicationSettingsPeoplePanel" class="application-settings-panel hidden" data-application-settings-panel="form_requirements" aria-labelledby="applicationSettingsPeopleTitle">
                 <div class="application-settings-section-heading">
                   <div>
-                    <h3 id="applicationSettingsPeopleTitle">People &amp; Assignments</h3>
-                    <p>Assignment rules that are safe for administrators to configure.</p>
+                    <h3 id="applicationSettingsPeopleTitle">Form Requirements</h3>
+                    <p>Reusable required-field settings for supported platform forms.</p>
                   </div>
                 </div>
                 <div id="applicationSettingsPeopleRegistry" class="application-settings-registry"></div>
                 <section class="application-settings-subsection" aria-labelledby="assignmentFieldRequirementsTitle">
                   <div class="application-settings-subsection-heading">
                     <div>
-                      <h4 id="assignmentFieldRequirementsTitle">Assignment Field Requirements</h4>
-                      <p>System-required fields stay locked. Configurable fields can be made required by business policy.</p>
+                      <h4 id="assignmentFieldRequirementsTitle">Required Fields</h4>
+                      <p id="formRequirementsAreaDescription">System-required fields stay locked. Configurable fields can be made required by business policy.</p>
                     </div>
-                    <button id="assignmentFieldRequirementsRefreshButton" class="secondary" type="button" data-capability-action="assignment_field_requirements.view" data-capability-label="View Assignment Field Requirements" data-capability-area="Application Settings" data-capability-any="assignment_field_requirements.view assignment_field_requirements.manage application_settings.view application_settings.manage settings.view settings.edit" data-capability-type="view">Refresh</button>
+                    <div class="application-settings-heading-actions">
+                      <button id="assignmentFieldRequirementsRefreshButton" class="secondary" type="button" data-capability-action="form_requirements.view" data-capability-label="Open Form Requirements" data-capability-area="Application Settings" data-capability-any="form_requirements.view form_requirements.manage assignment_field_requirements.view assignment_field_requirements.manage application_settings.view application_settings.manage settings.view settings.edit" data-capability-type="view">Refresh</button>
+                      <button id="formRequirementsRevertButton" class="secondary" type="button" disabled>Revert</button>
+                      <button id="formRequirementsSaveButton" type="button" disabled data-capability-action="form_requirements.batch_save" data-capability-label="Save Form Requirements batch" data-capability-area="Application Settings" data-capability-any="form_requirements.manage assignment_field_requirements.manage application_settings.manage settings.edit" data-capability-type="update">Save Changes</button>
+                    </div>
                   </div>
+                  <div id="formRequirementsAreaSelector" class="form-requirements-area-selector" role="tablist" aria-label="Form requirement areas"></div>
+                  <p id="formRequirementsDirtyStatus" class="local-action-status" aria-live="polite"></p>
                   <div class="application-settings-table-wrap">
                     <table class="application-settings-table" aria-labelledby="assignmentFieldRequirementsTitle">
                       <thead>
@@ -5275,7 +5291,6 @@
                           <th scope="col">Configurable?</th>
                           <th scope="col">Required</th>
                           <th scope="col">Help text</th>
-                          <th scope="col">Action</th>
                         </tr>
                       </thead>
                       <tbody id="assignmentFieldRequirementsBody"></tbody>
@@ -5809,7 +5824,7 @@
 
   <footer class="oh-footer">
     <strong>Operations Hub</strong>
-    <span>Version <span id="ohPlatformVersion">OHP-017</span></span>
+    <span>Version <span id="ohPlatformVersion">OHP-017A</span></span>
     <span>Environment <span id="ohEnvironment">Local</span></span>
   </footer>
 </div>
@@ -6066,7 +6081,7 @@
     </div>
 
     <div class="button-row" style="margin-top:16px;">
-      <button id="walkInButton" type="button">Sign In Walk-In</button>
+      <button id="walkInButton" type="button" data-capability-action="visitor_walk_ins.save_with_configured_requirements" data-capability-label="Save visitor walk-in with configured requirements" data-capability-area="Visitors" data-capability-any="visitor.create visitor.sign_in" data-capability-type="create">Sign In Walk-In</button>
       <button id="cancelWalkInButton" class="secondary" type="button">Cancel</button>
     </div>
   </div>

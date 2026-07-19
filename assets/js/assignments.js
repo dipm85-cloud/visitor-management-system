@@ -11,6 +11,12 @@ import {
   classifyAssignmentConflict
 } from "./assignmentConflicts.js";
 import { decorateCapabilityAction } from "./capabilityInspector.js";
+import {
+  applyFormRequirementIndicators,
+  clearFormRequirementMarkers,
+  missingRequirementMessage,
+  validateFormRequirements
+} from "./formRequirements.js";
 
 const ASSIGNMENT_COLUMNS = [
   "id",
@@ -1002,6 +1008,7 @@ export function openAssignmentEditor(sourceAssignmentId) {
 
   $("assignmentPanel").classList.remove("hidden");
   $("assignmentPanel").setAttribute("aria-hidden", "false");
+  applyAssignmentRequirementIndicators();
   setTimeout(() => $("assignmentSite").focus({ preventScroll: true }), 0);
 }
 
@@ -1029,6 +1036,7 @@ export function clearAssignmentForm() {
   $("assignmentActive").value = "true";
   populateWorkTimeProfileLookup("");
   renderSelectedAssignmentWorkTimeProfileSummary();
+  applyAssignmentRequirementIndicators();
   $("assignmentPanelTitle").textContent = "Create Assignment";
   $("assignmentPanelPerson").textContent = selectedPersonName || "No person selected";
   $("assignmentEditorNotice").textContent = "Saving creates a new assignment record.";
@@ -1055,13 +1063,25 @@ const ASSIGNMENT_REQUIREMENT_FIELD_IDS = {
   notes: "assignmentNotes"
 };
 
+const ASSIGNMENT_REQUIREMENT_MAPPINGS = {
+  person: { inputId: "assignmentPersonId", nativeRequired: true },
+  start_date: { inputId: "assignmentStart", nativeRequired: true },
+  contract: { inputId: "assignmentContract" },
+  department: { inputId: "assignmentDepartment" },
+  site: { inputId: "assignmentSite" },
+  employer: { inputId: "assignmentEmployer" },
+  job_role: { inputId: "assignmentJobRole" },
+  shift_pattern: { inputId: "assignmentShiftPattern" },
+  work_time_profile: { inputId: "assignmentWorkTimeProfile" },
+  notes: { inputId: "assignmentNotes" }
+};
+
+function applyAssignmentRequirementIndicators() {
+  void applyFormRequirementIndicators("work_assignments", ASSIGNMENT_REQUIREMENT_MAPPINGS);
+}
+
 function clearAssignmentRequirementMarkers() {
-  Object.values(ASSIGNMENT_REQUIREMENT_FIELD_IDS).forEach(id => {
-    const control = $(id);
-    if (!control) return;
-    control.classList.remove("assignment-required-missing");
-    control.removeAttribute("aria-invalid");
-  });
+  clearFormRequirementMarkers(ASSIGNMENT_REQUIREMENT_MAPPINGS);
 }
 
 function markMissingAssignmentRequirements(missingRows) {
@@ -1095,21 +1115,16 @@ function buildAssignmentRequirementPayload(payload) {
 }
 
 async function validateAssignmentConfiguredRequirements(payload) {
-  clearAssignmentRequirementMarkers();
-  const result = await supabaseClient.rpc("validate_assignment_requirements_payload", {
-    p_payload: buildAssignmentRequirementPayload(payload)
-  });
-  if (result.error) throw result.error;
-
-  const missing = (result.data || []).filter(row => row.missing !== false);
-  if (!missing.length) return true;
-
-  markMissingAssignmentRequirements(missing);
-  showToast(
-    "Assignment incomplete",
-    missing.map(row => row.field_label || row.field_key).join(", ") + " required.",
-    "error"
+  const result = await validateFormRequirements(
+    "work_assignments",
+    "validate_assignment_requirements_payload",
+    buildAssignmentRequirementPayload(payload),
+    ASSIGNMENT_REQUIREMENT_MAPPINGS,
+    { toast: false }
   );
+  if (result.ok) return true;
+  markMissingAssignmentRequirements(result.missing);
+  showToast("Assignment incomplete", missingRequirementMessage(result.missing), "error");
   return false;
 }
 

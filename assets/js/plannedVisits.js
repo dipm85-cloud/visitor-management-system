@@ -7,11 +7,49 @@ import { writeAuditEvent } from "./audit.js";
 import { refreshCoreData } from "./visitorFlow.js";
 import { resetVisitorIdentitySelection, visitorDisplayName } from "./visitorIdentity.js";
 import { hasCapability } from "./capabilities.js";
+import {
+  applyFormRequirementIndicators,
+  validateFormRequirements
+} from "./formRequirements.js";
 
 let plannedVisitDependencies;
 
+const PLANNED_VISIT_REQUIREMENT_MAPPINGS = {
+  visitor_name: { inputId: "plannedName", nativeRequired: true },
+  visit_date: { inputId: "plannedDate", nativeRequired: true },
+  company: { inputId: "plannedCompany" },
+  expected_time: { inputId: "plannedTime" },
+  reason: { inputId: "plannedReason" },
+  vehicle_registration: { inputId: "plannedVehicle" },
+  on_site_contact: { inputId: "plannedContact" }
+};
+
 export function configurePlannedVisits(dependencies) {
   plannedVisitDependencies = dependencies;
+  applyPlannedVisitRequirementIndicators();
+}
+
+export function applyPlannedVisitRequirementIndicators() {
+  void applyFormRequirementIndicators("planned_visits", PLANNED_VISIT_REQUIREMENT_MAPPINGS);
+}
+
+function plannedVisitRequirementPayload(payload) {
+  return {
+    ...payload,
+    name: payload.visitor_name,
+    visitorName: payload.visitor_name,
+    visitDate: payload.visit_date,
+    date: payload.visit_date,
+    companyName: payload.company,
+    reason: payload.visit_reason,
+    purpose: payload.visit_reason,
+    visitReason: payload.visit_reason,
+    vehicle_registration: payload.vehicle_plate,
+    vehicleRegistration: payload.vehicle_plate,
+    on_site_contact: payload.onsite_contact,
+    onSiteContact: payload.onsite_contact,
+    contact: payload.onsite_contact
+  };
 }
 
 export function plannedVisitDisplayStatus(visit) {
@@ -85,6 +123,15 @@ export async function createPlannedVisit() {
     status: "planned",
     created_by: AppState.currentProfile ? AppState.currentProfile.id : null
   };
+
+  const configuredRequirements = await validateFormRequirements(
+    "planned_visits",
+    "validate_planned_visit_requirements_payload",
+    plannedVisitRequirementPayload(payload),
+    PLANNED_VISIT_REQUIREMENT_MAPPINGS,
+    { title: "Planned visit incomplete" }
+  );
+  if (!configuredRequirements.ok) return;
 
   const result = await supabaseClient.from("planned_visits").insert(payload);
 

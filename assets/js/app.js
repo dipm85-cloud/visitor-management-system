@@ -106,11 +106,13 @@ import {
   signInStaffPlannedVisit,
   signOutStaffVisit,
   loadActiveVisits,
+  applyWalkInRequirementIndicators,
   renderActiveVisitorList,
   signOut
 } from "./visitorFlow.js";
 import {
   configurePlannedVisits,
+  applyPlannedVisitRequirementIndicators,
   createPlannedVisit,
   searchPlanned,
   loadSecurityPlanned,
@@ -2753,6 +2755,7 @@ window.addEventListener("load", async function () {
         : $("plannedFilter").value || "";
       $("walkInName").value = formatPersonName(initialName);
       applyFieldRules();
+      applyWalkInRequirementIndicators();
       updateWalkInEmbeddedPrivacy();
       $("walkInModalBackdrop").classList.add("active");
       focusFirstModalInput("walkInModalBackdrop");
@@ -2763,6 +2766,7 @@ window.addEventListener("load", async function () {
         if ($(id)) $(id).value = "";
       });
       clearWalkInModalMessage();
+      applyWalkInRequirementIndicators();
     }
 
     function resetTerminalVisitorState() {
@@ -5230,6 +5234,8 @@ window.addEventListener("load", async function () {
         if (hasAnyCapability([
           "application_settings.view",
           "application_settings.manage",
+          "form_requirements.view",
+          "form_requirements.manage",
           "settings.view",
           "settings.edit"
         ])) {
@@ -5637,6 +5643,8 @@ window.addEventListener("load", async function () {
     ["plannedDate","generalSearchDate","securityPlannedDate","securityFromDate","securityToDate","superPlannedDate","superFromDate","superToDate","analyticsFromDate","analyticsToDate","superAnalyticsFromDate","superAnalyticsToDate"].forEach(id => { if ($(id)) $(id).value = todayDate(); });
 
     await loadSystemSettings();
+    applyPlannedVisitRequirementIndicators();
+    applyWalkInRequirementIndicators();
     initialiseCollapsibleSettings();
     finaliseModuleConfigurationRegistrations();
 
