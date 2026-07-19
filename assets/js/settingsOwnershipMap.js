@@ -1,17 +1,19 @@
 export const SETTINGS_STATUS_LABELS = Object.freeze({
-  native: "Native setting",
-  partially_migrated: "Partially migrated setting",
+  native: "Native",
+  mostly_native: "Mostly native",
+  partially_migrated: "Partially migrated",
   managed_reference_data: "Managed in Reference Data",
   managed_access_control: "Managed in Access Control",
-  linked_workspace: "Linked specialist workspace",
-  linked: "Linked specialist workspace",
+  linked_workspace: "Specialist workspace",
+  linked: "Specialist workspace",
   legacy_bridge: "Legacy bridge",
   future: "Future"
 });
 
 export const SETTINGS_STATUS_COPY = Object.freeze({
   native: "Application behaviour settings are managed here.",
-  partially_migrated: "Application behaviour settings are managed here; specialist configuration or workspaces remain linked.",
+  mostly_native: "Application behaviour settings are managed here; a clearly labelled compatibility bridge remains available.",
+  partially_migrated: "Application behaviour settings are managed here; specialist configuration, security configuration or operational workspaces remain clearly labelled.",
   managed_reference_data: "Customer-specific rule and dropdown data is managed in Reference Data.",
   managed_access_control: "Security configuration is managed in Access Control.",
   linked_workspace: "This opens an existing specialist workspace.",
@@ -42,7 +44,7 @@ export const SETTINGS_OWNERSHIP_AREAS = Object.freeze([
     id: "branding",
     label: "Branding",
     description: "Brand identity, logo and appearance settings.",
-    status: "partially_migrated",
+    status: "mostly_native",
     owner: "Application Settings",
     currentLocation: "Application Settings with legacy fallback",
     targetLocation: "Application Settings -> Branding",
@@ -53,7 +55,7 @@ export const SETTINGS_OWNERSHIP_AREAS = Object.freeze([
     deepLinksToExistingPanel: true,
     migrationRisk: "Medium",
     futureMilestone: "OHP-017C",
-    notes: "Application Settings owns commercial branding values and applies shell, subtle gradients, logo, favicon, print-logo, controlled branded text contrast, public-screen background and radius tokens; theme colour reset preserves logos while legacy branding remains fallback during rollout."
+    notes: "Application Settings owns commercial branding values and applies shell, subtle gradients, logo, favicon, print-logo, controlled branded text contrast, public-screen background and radius tokens. Legacy branding values remain compatibility fallback only."
   },
   {
     id: "modules",
@@ -70,7 +72,7 @@ export const SETTINGS_OWNERSHIP_AREAS = Object.freeze([
     deepLinksToExistingPanel: true,
     migrationRisk: "Low",
     futureMilestone: "OHP-017D",
-    notes: "Application Settings -> Modules is the visible entry point for application behaviour settings and clearly labelled shortcuts to Reference Data, Access Control or specialist workspaces."
+    notes: "Application Settings -> Modules is the visible entry point for module behaviour settings and safe shortcuts to Reference Data, Access Control or specialist workspaces."
   },
   {
     id: "visitors",
@@ -87,7 +89,7 @@ export const SETTINGS_OWNERSHIP_AREAS = Object.freeze([
     deepLinksToExistingPanel: true,
     migrationRisk: "High",
     futureMilestone: "OHP-017C",
-    notes: "Application Settings owns visitor behaviour defaults and Form Requirements. Visitor reason codes or dropdown options belong in Reference Data when implemented."
+    notes: "Application Settings owns visitor behaviour defaults and Form Configuration links. Visitor reason codes or dropdown options belong in Reference / Configuration Data when implemented."
   },
   {
     id: "shared_terminal",
@@ -161,7 +163,7 @@ export const SETTINGS_OWNERSHIP_AREAS = Object.freeze([
     id: "people_assignments",
     label: "Form Configuration",
     description: "Configure platform-defined form behaviour such as required fields for assignments, visitor walk-ins, planned visits, and future forms.",
-    status: "partially_migrated",
+    status: "native",
     owner: "Application Settings",
     currentLocation: "Application Settings -> Form Configuration",
     targetLocation: "Application Settings -> Form Configuration",
@@ -206,7 +208,7 @@ export const SETTINGS_OWNERSHIP_AREAS = Object.freeze([
     deepLinksToExistingPanel: true,
     migrationRisk: "Medium",
     futureMilestone: "TBD",
-    notes: "Session-security behaviour is application behaviour. The current editor remains linked from Access Control until safely migrated."
+    notes: "Session-security behaviour is application behaviour. The current editor remains a specialist workspace link from Access Control until safely migrated."
   },
   {
     id: "notifications",
@@ -240,7 +242,7 @@ export const SETTINGS_OWNERSHIP_AREAS = Object.freeze([
     deepLinksToExistingPanel: true,
     migrationRisk: "Medium",
     futureMilestone: "OHP-017E",
-    notes: "Application Settings owns diagnostics defaults and locked Capability Inspector status. Role Presets, capability assignment and User Role Assignments are Security Configuration owned by Access Control."
+    notes: "Application Settings owns diagnostics defaults and locked Capability Inspector status. Role Presets, capability assignment, User Role Assignments and effective capability review are Security Configuration owned by Access Control."
   },
   {
     id: "future_lmt",
@@ -275,7 +277,7 @@ export const MODULE_SETTINGS_AREA_IDS = Object.freeze([
 ]);
 
 export function settingsStatusLabel(status) {
-  return SETTINGS_STATUS_LABELS[status] || String(status || "Linked");
+  return SETTINGS_STATUS_LABELS[status] || String(status || "Specialist workspace");
 }
 
 export function settingsStatusCopy(status) {

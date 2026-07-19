@@ -193,64 +193,64 @@ const MODULE_SETTING_CARDS = MODULE_SETTINGS_AREA_IDS
 const MODULE_CARD_DETAILS = Object.freeze({
   visitors: {
     owner: "Application Settings",
-    statusText: "Partially migrated setting",
-    configurationState: "Application settings: visitor behaviour and Form Requirements. Reference data: visitor reason codes/dropdowns when implemented. Operational visitor workflows remain in Visitors.",
+    statusText: "Partially migrated",
+    configurationState: "Application Settings owns visitor behaviour and Form Configuration links. Visitor reason codes/dropdowns belong in Reference / Configuration Data when implemented. Operational visitor workflows remain in Visitors.",
     indicators: ["Behaviour settings", "Form Requirements", "Reference data future", "Visitor workspace"],
     primaryActionLabel: "Configure"
   },
   people_assignments: {
     owner: "Application Settings",
-    statusText: "Partially migrated setting",
-    configurationState: "Application settings: form behaviour and required fields for Assignments, Visitor Walk-ins, Planned Visits, and future forms. People & Assignments remains a business module.",
+    statusText: "Native",
+    configurationState: "Application Settings owns form behaviour and required fields for Assignments, Visitor Walk-ins, Planned Visits, and future forms. People & Assignments remains a business module.",
     indicators: ["Form Configuration", "Assignments", "Visitor Walk-ins", "Planned Visits"],
     primaryActionLabel: "Configure"
   },
   working_time: {
     owner: "Reference / Configuration Data",
     statusText: "Managed in Reference Data",
-    configurationState: "Application settings: future working-time defaults only. Reference data: Work Time Profiles, Break Rules, Unsociable Time Rules and Rule Sets. Workspace: Rota Calendar.",
+    configurationState: "Application Settings may later own working-time defaults. Reference / Configuration Data owns Work Time Profiles, Break Rules, Unsociable Time Rules and Rule Sets. Rota Calendar is an operational workspace.",
     indicators: ["Reference Data", "Work Time Profiles", "Break Rules", "Rota Calendar"],
     primaryActionLabel: "Open Reference Data"
   },
   documents: {
     owner: "Application Settings",
-    statusText: "Partially migrated setting",
-    configurationState: "Application settings: sign-off behaviour, compliance, evidence display and print defaults. Reference data: agreement/document types. Operational data: sign-off evidence.",
+    statusText: "Partially migrated",
+    configurationState: "Application Settings owns sign-off behaviour, compliance, evidence display and print defaults. Reference / Configuration Data owns agreement/document types. Sign-off evidence is operational data.",
     indicators: ["Behaviour settings", "Agreement types", "Evidence workspace"],
     primaryActionLabel: "Configure"
   },
   privacy_gdpr: {
     owner: "Application Settings",
-    statusText: "Partially migrated setting",
-    configurationState: "Application settings: privacy guardrails, SAR defaults and reference-display defaults. Specialist workspaces: cases, SAR evidence and anonymisation review.",
+    statusText: "Partially migrated",
+    configurationState: "Application Settings owns privacy guardrails, SAR defaults and reference-display defaults. Specialist workspaces own cases, SAR evidence and anonymisation review.",
     indicators: ["Guardrails", "SAR defaults", "Privacy workspace"],
     primaryActionLabel: "Configure"
   },
   identity_resolution: {
     owner: "Specialist workspace",
-    statusText: "Linked specialist workspace",
+    statusText: "Specialist workspace",
     configurationState: "Application Settings provides the shortcut. Identity review queues, candidates, confirmed links and decisions remain operational/specialist data.",
     indicators: ["Review queue", "Candidate matching", "Operational data"],
     primaryActionLabel: "Open module"
   },
   notifications: {
     owner: "Application Settings",
-    statusText: "Partially migrated setting",
-    configurationState: "Application settings: message defaults, expiry, grace and history rows. Operational/admin workspace: online users, sending messages and history.",
+    statusText: "Partially migrated",
+    configurationState: "Application Settings owns message defaults, expiry, grace and history rows. Operational/admin workspaces own online users, sending messages and history.",
     indicators: ["Notification defaults", "Online users", "Message history", "Groups future"],
     primaryActionLabel: "Configure"
   },
   shared_terminal: {
     owner: "Application Settings",
-    statusText: "Partially configured",
-    configurationState: "Terminal display and idle reset settings are native; device/token administration stays linked.",
+    statusText: "Partially migrated",
+    configurationState: "Terminal display and idle reset settings are native; device/token administration stays in its specialist workspace.",
     indicators: ["Terminal settings", "Public branding", "Device tokens", "Idle reset"],
     primaryActionLabel: "Configure"
   },
   advanced: {
     owner: "Application Settings",
-    statusText: "Diagnostics native",
-    configurationState: "Application settings: diagnostics defaults and Capability Inspector status. Security configuration: Role Presets, capability assignment and User Role Assignments in Access Control.",
+    statusText: "Partially migrated",
+    configurationState: "Application Settings owns diagnostics defaults and Capability Inspector status. Security Configuration owns Role Presets, capability assignment and User Role Assignments in Access Control.",
     indicators: ["Diagnostics defaults", "Security Configuration", "Role Presets", "User assignments"],
     primaryActionLabel: "Configure"
   },
@@ -630,9 +630,7 @@ function moduleActionsFor(area) {
   const sectionAction = {
     label: details.primaryActionLabel || "Configure",
     actionId: "application_settings.modules." + area.id + ".configure",
-    capabilityLabel: area.status === "managed_reference_data"
-      ? "Open Reference Data -> " + area.label
-      : "Open/configure " + area.label + " module",
+    capabilityLabel: modulePrimaryCapabilityLabel(area),
     description: details.configurationState,
     requiredAny: area.viewCapabilities,
     handler: area.status === "managed_reference_data"
@@ -642,6 +640,14 @@ function moduleActionsFor(area) {
   const actions = [sectionAction];
   moduleQuickActionsFor(area.id).forEach(action => actions.push(action));
   return actions;
+}
+
+function modulePrimaryCapabilityLabel(area) {
+  if (!area) return "Open module configuration";
+  if (area.status === "managed_reference_data") return "Open Reference Data -> " + area.label;
+  if (area.status === "managed_access_control") return "Open Access Control -> " + area.label;
+  if (area.status === "linked_workspace") return "Open " + area.label + " specialist workspace";
+  return "Open Application Settings -> " + area.label;
 }
 
 function moduleQuickActionsFor(sectionId) {
@@ -750,7 +756,7 @@ function moduleQuickActionsFor(sectionId) {
   return bridgeActionsFor(sectionId).map(action => ({
     label: action.label,
     actionId: action.actionId.replace("application_settings.", "application_settings.modules."),
-    capabilityLabel: "Open/configure " + sectionDefinition(sectionId).title + " module",
+    capabilityLabel: action.capabilityLabel || modulePrimaryCapabilityLabel(settingsAreaById(sectionId)),
     description: action.description,
     requiredAny: action.requiredAny,
     secondary: true,
@@ -1274,18 +1280,18 @@ function bridgeActionsFor(sectionId) {
         handler: () => openFormRequirementsArea("planned_visits")
       },
       {
-        label: "Open Visitor Settings",
+        label: "Visitor settings legacy bridge",
         actionId: "application_settings.visitors.legacy.open",
         capabilityLabel: "Open Visitor settings bridge",
-        description: "Open the existing visitor settings area while migration continues.",
+        description: "Open the existing visitor settings bridge while migration continues.",
         requiredAny: settingsAreaById("visitors").viewCapabilities,
         handler: () => dependencies.openLegacySettings?.()
       },
       {
-        label: "Open Legacy VMS Settings",
+        label: "Legacy VMS settings bridge",
         actionId: "application_settings.visitors.vms.open",
-        capabilityLabel: "Open legacy VMS settings",
-        description: "Open the legacy VMS settings area.",
+        capabilityLabel: "Open legacy VMS settings bridge",
+        description: "Open the legacy VMS settings bridge.",
         requiredAny: ["settings.view", "settings.edit", "visitor.view"],
         handler: () => dependencies.openLegacySettings?.()
       }
@@ -1293,10 +1299,10 @@ function bridgeActionsFor(sectionId) {
   }
   if (sectionId === "branding") {
     return [{
-      label: "Open Legacy Branding Settings",
+      label: "Legacy branding bridge",
       actionId: "application_settings.branding.legacy.open",
       capabilityLabel: "Open Branding legacy bridge",
-      description: "Logo, theme and background still open in legacy VMS settings.",
+      description: "Open legacy branding fallback values while Application Settings remains the owner.",
       requiredAny: settingsAreaById("branding").viewCapabilities,
       handler: () => dependencies.openLegacySettings?.()
     }];
@@ -1469,7 +1475,7 @@ function bridgeActionsFor(sectionId) {
         label: "Notification Groups",
         actionId: "application_settings.notifications.groups.future",
         capabilityLabel: "Open future Notification Groups placeholder",
-        description: "Future Reference / Configuration Data for notification groups. No runtime behaviour in OHP-017F.",
+        description: "Future Reference / Configuration Data for notification groups. No runtime behaviour in OHP-017G.",
         requiredAny: settingsAreaById("notifications").manageCapabilities,
         handler: () => showToast("Coming later", "Notification Groups are reserved for a future notification-routing milestone.", "info")
       }
