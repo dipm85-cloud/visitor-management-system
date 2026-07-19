@@ -1328,6 +1328,27 @@ function recordField(label, value, always) {
   return { label, value, always: always === true };
 }
 
+function privacySettingBool(settingKey, fallback) {
+  const value = settingValue(settingKey, fallback);
+  return value === true || value === "true";
+}
+
+function privacyCaseReferencePrefix() {
+  return String(settingValue("privacy.case_reference_prefix", "PRIV") || "PRIV").trim() || "PRIV";
+}
+
+function includeSarSourceReferencesByDefault() {
+  return privacySettingBool("privacy.sar_pack_include_source_references_by_default", true);
+}
+
+function includeSarTimelineByDefault() {
+  return privacySettingBool("privacy.sar_pack_include_timeline_by_default", true);
+}
+
+function showTechnicalReferencesByDefault() {
+  return privacySettingBool("privacy.show_technical_references_by_default", false);
+}
+
 function createSearchRecord(groupId, row, settings) {
   const options = settings || {};
   return {
@@ -2433,6 +2454,7 @@ async function previewEvidencePack() {
 
 function evidencePackMetadata() {
   const payload = privacyGdprEvidencePackPayload || {};
+  const includeSourceReferences = includeSarSourceReferencesByDefault();
   return {
     generated_at: new Date().toISOString(),
     preview_only: true,
@@ -2440,6 +2462,8 @@ function evidencePackMetadata() {
     search_text: payload.searchText || "",
     date_from: payload.fromDate || "",
     date_to: payload.toDate || "",
+    include_timeline_by_default: includeSarTimelineByDefault(),
+    include_source_references_by_default: includeSourceReferences,
     sources: privacyGdprEvidencePackGroups.map(group => {
       const settings = SEARCH_GROUPS[group.id] || {};
       return {
@@ -2449,7 +2473,7 @@ function evidencePackMetadata() {
         message: group.message || "",
         count: (group.records || []).length,
         records: (group.records || []).map(record => ({
-          record_reference: record.sourceId,
+          record_reference: includeSourceReferences ? record.sourceId : "",
           title: record.title,
           subtitle: record.subtitle,
           date: record.date,
@@ -2549,6 +2573,8 @@ function printEvidencePackPreview() {
       { label: "Search text", value: data.search_text || "-" },
       { label: "Date range", value: (data.date_from || "-") + " to " + (data.date_to || "-") },
       { label: "Source categories", value: sourceList || "-" },
+      { label: "Timeline default", value: includeSarTimelineByDefault() ? "Included where supported" : "Not included by default" },
+      { label: "Source references", value: includeSarSourceReferencesByDefault() ? "Included" : "Hidden by default" },
       { label: "Purpose", value: "Evidence Pack Preview" }
     ],
     reference: "SAR preview " + todayDate(),
@@ -3164,6 +3190,7 @@ function appendPrivacyCaseAdvancedDetails(parent, caseRecord) {
   if (!parent || !caseRecord) return;
   const details = document.createElement("details");
   details.className = "oh-detail-advanced identity-resolution-request-details identity-resolution-request-advanced";
+  details.open = showTechnicalReferencesByDefault();
   const summary = document.createElement("summary");
   summary.textContent = "Advanced / Technical Details";
   const fields = [
@@ -3551,6 +3578,11 @@ function setCaseFormMode(mode, caseRecord) {
   if ($("privacyGdprCaseFormNotes")) $("privacyGdprCaseFormNotes").value = caseNotes(caseRecord);
   if ($("privacyGdprCaseFormOutcome")) $("privacyGdprCaseFormOutcome").value = caseOutcome(caseRecord);
   if ($("privacyGdprCaseFormLegacyReference")) $("privacyGdprCaseFormLegacyReference").value = caseLegacyReference(caseRecord);
+  if ($("privacyGdprCaseFormSubjectReference")) {
+    $("privacyGdprCaseFormSubjectReference").placeholder = mode === "edit"
+      ? ""
+      : privacyCaseReferencePrefix() + "-YYYY-#### or source reference";
+  }
 }
 
 function casePayloadToRpcParams(payload) {
@@ -3908,12 +3940,12 @@ export function syncPrivacyGdprVisibility() {
   }
 }
 
-export async function openPrivacyGdprAdministration() {
+export async function openPrivacyGdprAdministration(sectionId = "overview") {
   syncPrivacyGdprVisibility();
   if (!requirePrivacyGdprAccess()) return;
   showAdministrationWorkspace();
   setAdministrationSection("privacyGdpr");
-  selectPrivacyGdprSection("overview", { focus: false });
+  selectPrivacyGdprSection(sectionId || "overview", { focus: false });
   await loadPrivacyGdprAdministration({ manual: false });
 }
 

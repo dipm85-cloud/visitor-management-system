@@ -4,6 +4,7 @@ import { $, focusFirstModalInput } from "./dom.js";
 import { downloadCsv, downloadXlsx } from "./exports.js";
 import { showToast } from "./messages.js";
 import { AppState } from "./state.js";
+import { settingValue } from "./settings.js";
 import { exportDateStamp, safe } from "./utils.js";
 import { decorateCapabilityAction } from "./capabilityInspector.js";
 
@@ -58,6 +59,7 @@ const SESSION_KEY = "oh_session_key";
 const HEARTBEAT_MS = 30000;
 const PENDING_POLL_MS = 90000;
 const ONLINE_WINDOW_SECONDS = 120;
+const MESSAGE_HISTORY_DEFAULT_ROWS = 100;
 const MESSAGE_TYPES = ["info", "warning", "maintenance", "access_update", "refresh_required"];
 const ADVISORY_ACTION_HINTS = ["acknowledge_only", "refresh_now", "sign_out_now", "sign_out_and_back_in", "none"];
 const REQUIRED_ACTIONS = ["acknowledge_only", "refresh_required", "sign_out_required", "sign_out_and_back_in_required"];
@@ -423,7 +425,7 @@ async function loadOnlineSessions(options = {}) {
   if (button) button.disabled = true;
   try {
     const result = await supabaseClient.rpc("list_online_user_sessions", {
-      p_online_seconds: ONLINE_WINDOW_SECONDS,
+      p_online_seconds: defaultOnlineWindowSeconds(),
       p_include_current_user: true,
       p_search_text: $("adminPresenceSearch") ? $("adminPresenceSearch").value.trim() || null : null
     });
@@ -443,7 +445,7 @@ async function loadMessageHistory() {
   if (!canViewSystemMessageHistory()) return;
   try {
     const result = await supabaseClient.rpc("list_admin_system_message_history", {
-      p_limit: 50,
+      p_limit: defaultMessageHistoryRows(),
       p_search_text: $("adminPresenceHistorySearch") ? $("adminPresenceHistorySearch").value.trim() || null : null
     });
     if (result.error) throw result.error;
@@ -520,6 +522,38 @@ function numberFilterValue(id, fallback) {
   return Number.isFinite(value) ? value : fallback;
 }
 
+function notificationNumberSetting(settingKey, fallback, min, max) {
+  const value = Number(settingValue(settingKey, fallback));
+  if (!Number.isFinite(value)) return fallback;
+  return Math.min(max, Math.max(min, value));
+}
+
+function notificationBoolSetting(settingKey, fallback) {
+  const value = settingValue(settingKey, fallback);
+  return value === true || value === "true";
+}
+
+function defaultOnlineWindowSeconds() {
+  return notificationNumberSetting("notifications.online_users_default_window_seconds", ONLINE_WINDOW_SECONDS, 30, 3600);
+}
+
+function defaultMessageHistoryRows() {
+  return notificationNumberSetting("notifications.message_history_default_rows", MESSAGE_HISTORY_DEFAULT_ROWS, 25, 500);
+}
+
+function defaultMessageExpiryMinutes() {
+  return notificationNumberSetting("notifications.default_message_expiry_minutes", 60, 5, 1440);
+}
+
+function defaultRequiredActionGraceSeconds() {
+  return notificationNumberSetting("notifications.default_required_action_grace_seconds", 300, 30, 86400);
+}
+
+function defaultMessageType() {
+  const value = String(settingValue("notifications.default_message_type", "info") || "info");
+  return MESSAGE_TYPES.includes(value) ? value : "info";
+}
+
 function collectHistorySearchFilters() {
   return {
     p_sent_from: dateFilterValue("adminPresenceHistorySentFrom"),
@@ -530,7 +564,7 @@ function collectHistorySearchFilters() {
     p_ack_filter: $("adminPresenceHistoryStatusFilter") ? $("adminPresenceHistoryStatusFilter").value || "all" : "all",
     p_action_filter: $("adminPresenceHistoryActionFilter") ? $("adminPresenceHistoryActionFilter").value || null : null,
     p_search_text: $("adminPresenceHistorySearchText") ? $("adminPresenceHistorySearchText").value.trim() || null : null,
-    p_limit: numberFilterValue("adminPresenceHistoryLimit", 100),
+    p_limit: numberFilterValue("adminPresenceHistoryLimit", defaultMessageHistoryRows()),
     p_offset: messageHistoryOffset
   };
 }
@@ -540,7 +574,7 @@ function renderHistorySearchSummary() {
   const page = $("adminPresenceHistoryPageSummary");
   const previous = $("adminPresenceHistoryPreviousButton");
   const next = $("adminPresenceHistoryNextButton");
-  const limit = numberFilterValue("adminPresenceHistoryLimit", 100);
+  const limit = numberFilterValue("adminPresenceHistoryLimit", defaultMessageHistoryRows());
   const loaded = messageHistorySearchResults.length;
   const total = Number(messageHistoryTotalCount || 0);
   if (summary) {
@@ -711,13 +745,13 @@ function resetFullMessageHistoryFilters() {
   const limit = $("adminPresenceHistoryLimit");
   if (mode) mode.value = "all";
   if (status) status.value = "all";
-  if (limit) limit.value = "100";
+  if (limit) limit.value = String(defaultMessageHistoryRows());
   messageHistoryOffset = 0;
   void loadFullMessageHistory();
 }
 
 function moveHistoryPage(direction) {
-  const limit = numberFilterValue("adminPresenceHistoryLimit", 100);
+  const limit = numberFilterValue("adminPresenceHistoryLimit", defaultMessageHistoryRows());
   const nextOffset = Math.max(0, messageHistoryOffset + (direction * limit));
   if (nextOffset === messageHistoryOffset) return;
   if (direction > 0 && messageHistoryTotalCount && nextOffset >= messageHistoryTotalCount) return;
@@ -884,12 +918,16 @@ function resetMessageForm() {
   const grace = $("adminPresenceGraceSeconds");
   const confirm = $("adminPresenceSendAllConfirm");
   if (mode) mode.value = "advisory";
-  if (type) type.value = "info";
+  if (type) type.value = defaultMessageType();
   if (hint) hint.value = "acknowledge_only";
   if (requiredAction) requiredAction.value = "refresh_required";
-  if (forceMode) forceMode.value = "request";
-  if (expiry) expiry.value = "60";
-  if (grace) grace.value = "300";
+  if (forceMode) {
+    forceMode.value = canSendForcedActions() && notificationBoolSetting("notifications.default_force_after_grace", false)
+      ? "force"
+      : "request";
+  }
+  if (expiry) expiry.value = String(defaultMessageExpiryMinutes());
+  if (grace) grace.value = String(defaultRequiredActionGraceSeconds());
   if (confirm) confirm.checked = false;
   syncForceActionControls();
 }

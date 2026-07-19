@@ -1,4 +1,5 @@
 import { supabaseClient } from "./api.js";
+import { updateApplicationSetting } from "./applicationSettingsService.js";
 import { auditDiffSummary, buildFieldDiff, buildObjectDiff, writeAuditEvent } from "./audit.js";
 import { hasAnyCapability } from "./capabilities.js";
 import { $ } from "./dom.js";
@@ -37,6 +38,8 @@ const SIGNOFF_SETTING_DEFINITIONS = [
   ["document_signoff.use_confirmed_identity_links_for_compliance", "documentSignoffAdminUseIdentityLinksCompliance", value => value === "true", "Use confirmed identity links for document/induction compliance"],
   ["agreement_acceptance_text", "documentSignoffAdminAcceptanceText", value => value.trim() || "I confirm that I have read, understood, and agree to follow the requirements of this agreement/induction.", "Visitor acceptance wording"]
 ];
+
+const APPLICATION_DOCUMENT_COMPLIANCE_SETTING = "document_signoff.use_confirmed_identity_links_for_compliance";
 
 let documentSignoffAdminInitialised = false;
 let documentSignoffAdminDependencies = {};
@@ -809,6 +812,9 @@ async function saveBehaviourSettings(event) {
   try {
     for (const [key, , , description] of SIGNOFF_SETTING_DEFINITIONS) {
       await saveSetting(key, after[key], description);
+      if (key === APPLICATION_DOCUMENT_COMPLIANCE_SETTING) {
+        await syncApplicationDocumentComplianceSetting(after[key]);
+      }
     }
     const changes = buildObjectDiff(before, after, Object.keys(after));
     await loadSystemSettings();
@@ -827,6 +833,14 @@ async function saveBehaviourSettings(event) {
     showToast("Settings not saved", err.message || "Could not save sign-off behaviour settings.", "error");
   } finally {
     if (button) button.disabled = false;
+  }
+}
+
+async function syncApplicationDocumentComplianceSetting(value) {
+  try {
+    await updateApplicationSetting(APPLICATION_DOCUMENT_COMPLIANCE_SETTING, value);
+  } catch (err) {
+    console.warn("Could not sync Application Settings document compliance setting.", err);
   }
 }
 
@@ -1015,12 +1029,12 @@ export function syncDocumentSignoffAdminVisibility() {
   }
 }
 
-export async function openDocumentSignoffAdministration() {
+export async function openDocumentSignoffAdministration(sectionId = "overview") {
   syncDocumentSignoffAdminVisibility();
   if (!requireDocumentSignoffAdminAccess()) return;
   showAdministrationWorkspace();
   setAdministrationSection("documentSignoffs");
-  selectDocumentSignoffAdminSection("overview", { focus: false });
+  selectDocumentSignoffAdminSection(sectionId || "overview", { focus: false });
   await loadDocumentSignoffAdmin({ manual: false });
 }
 

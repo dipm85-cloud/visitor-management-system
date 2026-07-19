@@ -17,6 +17,7 @@ import {
   resetApplicationSettingsCategoryToDefaults,
   updateApplicationSetting
 } from "./applicationSettingsService.js";
+import { saveSetting } from "./settings.js";
 import {
   brandedContrastColour,
   brandingImplementationStatus,
@@ -67,6 +68,10 @@ const APPLICATION_SETTINGS_VIEW_CAPABILITIES = [
   "admin_system_messages.send",
   "admin_system_messages.force_action",
   "access_control.view",
+  "role_presets.view",
+  "role_presets.manage",
+  "user_role_assignments.view",
+  "user_role_assignments.manage",
   "capabilities.diagnose",
   "access_control.manage"
 ];
@@ -77,6 +82,29 @@ const APPLICATION_SETTINGS_MANAGE_CAPABILITIES = [
   "access_control.manage"
 ];
 const APPLICATION_SETTINGS_MANAGE_ONLY_CAPABILITY = ["application_settings.manage"];
+const APPLICATION_SETTINGS_CATEGORY_MANAGE_CAPABILITIES = Object.freeze({
+  documents: [
+    ...APPLICATION_SETTINGS_MANAGE_CAPABILITIES,
+    "agreements.manage",
+    "document_signoff.manage"
+  ],
+  notifications: [
+    ...APPLICATION_SETTINGS_MANAGE_CAPABILITIES,
+    "admin_system_messages.send",
+    "admin_system_messages.force_action"
+  ],
+  privacy_data_governance: [
+    ...APPLICATION_SETTINGS_MANAGE_CAPABILITIES,
+    "privacy.case.manage",
+    "privacy.manage",
+    "gdpr.manage"
+  ],
+  access_diagnostics: [
+    ...APPLICATION_SETTINGS_MANAGE_CAPABILITIES,
+    "role_presets.manage",
+    "user_role_assignments.manage"
+  ]
+});
 const APPLICATION_SETTINGS_REGISTRY_VIEW_CAPABILITIES = [
   "application_settings.view",
   "application_settings.manage",
@@ -84,8 +112,27 @@ const APPLICATION_SETTINGS_REGISTRY_VIEW_CAPABILITIES = [
   "settings.edit",
   "module_configuration.view",
   "module_configuration.manage",
+  "agreements.view",
+  "agreements.manage",
+  "document_signoff.manage",
+  "privacy.case.view",
+  "privacy.case.manage",
+  "privacy.view",
+  "privacy.manage",
+  "gdpr.view",
+  "gdpr.manage",
+  "audit.view",
+  "online_users.view",
+  "admin_system_messages.view",
+  "admin_system_messages.send",
+  "admin_system_messages.force_action",
   "access_control.view",
-  "access_control.manage"
+  "access_control.manage",
+  "role_presets.view",
+  "role_presets.manage",
+  "user_role_assignments.view",
+  "user_role_assignments.manage",
+  "capabilities.diagnose"
 ];
 const FIELD_REQUIREMENT_VIEW_CAPABILITIES = [
   "form_requirements.view",
@@ -115,6 +162,8 @@ const SECTION_CATEGORY_BY_ID = Object.freeze({
   shared_terminal: "shared_terminal",
   people_assignments: "people_assignments",
   session_security: "session_security",
+  privacy_gdpr: "privacy_data_governance",
+  advanced: "access_diagnostics",
   future_lmt: "modules"
 });
 
@@ -164,18 +213,18 @@ const MODULE_CARD_DETAILS = Object.freeze({
     primaryActionLabel: "Open settings"
   },
   documents: {
-    owner: "Existing module settings",
-    statusText: "Linked",
-    configurationState: "Document sign-off and agreement controls remain in their specialist administration area.",
-    indicators: ["Document Sign-off admin", "Agreement settings", "Identity-linked compliance"],
-    primaryActionLabel: "Open settings"
+    owner: "Application Settings",
+    statusText: "Partially configured",
+    configurationState: "Document sign-off defaults are managed here; specialist type, version and evidence workflows remain linked.",
+    indicators: ["Compliance defaults", "Evidence detail", "Document Sign-off admin"],
+    primaryActionLabel: "Configure"
   },
   privacy_gdpr: {
-    owner: "Existing module settings",
-    statusText: "Linked",
-    configurationState: "Privacy and GDPR workflows remain in the existing governance workspace.",
-    indicators: ["Privacy cases", "GDPR workflows", "SAR evidence", "Audit links"],
-    primaryActionLabel: "Open module"
+    owner: "Application Settings",
+    statusText: "Partially configured",
+    configurationState: "Privacy defaults and locked guardrails are managed here; case, SAR and anonymisation workflows remain linked.",
+    indicators: ["Case defaults", "SAR defaults", "Anonymisation guardrails"],
+    primaryActionLabel: "Configure"
   },
   identity_resolution: {
     owner: "Existing module settings",
@@ -185,11 +234,11 @@ const MODULE_CARD_DETAILS = Object.freeze({
     primaryActionLabel: "Open module"
   },
   notifications: {
-    owner: "Existing module settings",
-    statusText: "Linked",
-    configurationState: "Online users, system messages and history stay in Access Control while this remains the settings front door.",
-    indicators: ["Online users", "System Messages", "Message History", "Required actions"],
-    primaryActionLabel: "Open settings"
+    owner: "Application Settings",
+    statusText: "Partially configured",
+    configurationState: "Notification defaults are managed here; send, presence and history workflows remain linked.",
+    indicators: ["Message defaults", "Presence window", "History rows", "Required actions"],
+    primaryActionLabel: "Configure"
   },
   shared_terminal: {
     owner: "Application Settings",
@@ -199,11 +248,11 @@ const MODULE_CARD_DETAILS = Object.freeze({
     primaryActionLabel: "Configure"
   },
   advanced: {
-    owner: "Existing module settings",
-    statusText: "Linked",
-    configurationState: "Access controls and capability diagnostics remain in the Access Control workspace.",
-    indicators: ["Role Presets", "User assignments", "Capability Inspector", "Effective capabilities"],
-    primaryActionLabel: "Open settings"
+    owner: "Application Settings",
+    statusText: "Partially configured",
+    configurationState: "Access diagnostics defaults are managed here; role, assignment and capability workspaces remain linked.",
+    indicators: ["Inspector status", "Effective source", "Role Presets", "User assignments"],
+    primaryActionLabel: "Configure"
   },
   future_lmt: {
     owner: "Future",
@@ -255,11 +304,28 @@ const SELECT_VALUE_LABELS = Object.freeze({
     auto: "Auto contrast",
     light_text: "Light text",
     dark_text: "Dark text"
+  }),
+  "document_signoff.default_evidence_detail_level": Object.freeze({
+    compact: "Compact",
+    standard: "Standard",
+    detailed: "Detailed"
+  }),
+  "notifications.default_message_type": Object.freeze({
+    info: "Info",
+    warning: "Warning",
+    maintenance: "Maintenance",
+    access_update: "Access update",
+    refresh_required: "Refresh required"
   })
 });
 
 const SETTING_HELP_TEXT = Object.freeze({
-  "branding.brand_contrast_mode": "Auto is recommended. This controls text on branded buttons and active navigation only."
+  "branding.brand_contrast_mode": "Auto is recommended. This controls text on branded buttons and active navigation only.",
+  "document_signoff.require_scroll_to_end_before_signing": "Locked by system / Future controlled document viewer.",
+  "privacy.anonymisation_requires_preview": "Locked by system. Anonymisation preview remains mandatory.",
+  "privacy.anonymisation_requires_confirmation_phrase": "Locked by system. The confirmation phrase guardrail remains mandatory.",
+  "access_diagnostics.capability_inspector_available": "Locked by system. Access still requires diagnostic capability.",
+  "access_diagnostics.capability_inspector_session_only": "Locked by system. Capability Inspector is not persisted."
 });
 
 function canViewApplicationSettings() {
@@ -274,10 +340,18 @@ function canManageApplicationSettingsOnly() {
   return hasAnyCapability(APPLICATION_SETTINGS_MANAGE_ONLY_CAPABILITY);
 }
 
+function categoryManageCapabilities(categoryCode) {
+  return APPLICATION_SETTINGS_CATEGORY_MANAGE_CAPABILITIES[categoryCode] || APPLICATION_SETTINGS_MANAGE_CAPABILITIES;
+}
+
+function canManageApplicationSettingsCategory(categoryCode) {
+  return hasAnyCapability(categoryManageCapabilities(categoryCode));
+}
+
 function settingManageCapabilities(setting) {
   return setting && setting.setting_key === "branding.brand_contrast_mode"
     ? APPLICATION_SETTINGS_MANAGE_ONLY_CAPABILITY
-    : APPLICATION_SETTINGS_MANAGE_CAPABILITIES;
+    : categoryManageCapabilities(setting?.category_code);
 }
 
 function canManageApplicationSetting(setting) {
@@ -304,6 +378,11 @@ function canViewSettingsArea(area) {
 function canOpenSettingsSection(sectionId) {
   const area = settingsAreaById(sectionId);
   return !area || canViewSettingsArea(area);
+}
+
+function canManageApplicationSettingsSection(sectionId) {
+  const definition = sectionDefinition(sectionId);
+  return canManageApplicationSettingsCategory(definition?.category || sectionId);
 }
 
 function statusBadge(status) {
@@ -970,7 +1049,7 @@ function renderRegistry(filterCategory, targetId = "applicationSettingsRegistry"
     resetCategory.type = "button";
     resetCategory.className = "secondary";
     resetCategory.textContent = categoryCode === "branding" ? "Reset All Branding" : "Reset Category";
-    resetCategory.disabled = !(categoryCode === "branding" ? canManageApplicationSettingsOnly() : canManageApplicationSettings()) || !items.some(canResetSetting);
+    resetCategory.disabled = !(categoryCode === "branding" ? canManageApplicationSettingsOnly() : canManageApplicationSettingsCategory(categoryCode)) || !items.some(canResetSetting);
     resetCategory.addEventListener("click", () => resetApplicationSettingsCategory(categoryCode));
     decorateCapabilityAction(resetCategory, {
       actionId: "application_settings." + categoryCode + ".reset_defaults",
@@ -978,7 +1057,7 @@ function renderRegistry(filterCategory, targetId = "applicationSettingsRegistry"
       area: "Application Settings",
       requiredAny: categoryCode === "branding"
         ? APPLICATION_SETTINGS_MANAGE_ONLY_CAPABILITY
-        : APPLICATION_SETTINGS_MANAGE_CAPABILITIES,
+        : categoryManageCapabilities(categoryCode),
       actionType: "reset"
     });
     headingActions.appendChild(resetCategory);
@@ -1001,7 +1080,7 @@ function renderRegistry(filterCategory, targetId = "applicationSettingsRegistry"
         ? "Locked by system"
         : setting.sensitive
           ? "Sensitive"
-          : canManageApplicationSettings()
+          : canManageApplicationSetting(setting)
             ? "Editable"
             : "Read only";
       summary.append(name, description, meta);
@@ -1227,24 +1306,76 @@ function bridgeActionsFor(sectionId) {
     }];
   }
   if (sectionId === "documents") {
-    return [{
-      label: "Open Document Sign-off Settings",
-      actionId: "application_settings.documents.open",
-      capabilityLabel: "Open Document Sign-off settings",
-      description: "Open the existing document and sign-off settings panel.",
-      requiredAny: settingsAreaById("documents").viewCapabilities,
-      handler: () => dependencies.openDocuments?.()
-    }];
+    return [
+      {
+        label: "Document Sign-off Admin",
+        actionId: "application_settings.documents.admin.open",
+        capabilityLabel: "Open Documents / Sign-off settings",
+        description: "Open document type, version and sign-off administration.",
+        requiredAny: settingsAreaById("documents").viewCapabilities,
+        handler: () => dependencies.openDocuments?.("overview")
+      },
+      {
+        label: "Agreement / Document Types",
+        actionId: "application_settings.documents.types.open",
+        capabilityLabel: "Open Agreement/document type settings",
+        description: "Open existing agreement and document type settings.",
+        requiredAny: settingsAreaById("documents").viewCapabilities,
+        handler: () => dependencies.openDocuments?.("document-types")
+      },
+      {
+        label: "Evidence / Detail Admin",
+        actionId: "application_settings.documents.evidence.open",
+        capabilityLabel: "Open evidence/detail admin areas",
+        description: "Open existing document evidence and compliance detail areas.",
+        requiredAny: settingsAreaById("documents").viewCapabilities,
+        handler: () => dependencies.openDocuments?.("legacy-tools")
+      }
+    ];
   }
   if (sectionId === "privacy_gdpr") {
-    return [{
-      label: "Open Privacy / Data Governance",
-      actionId: "application_settings.privacy_gdpr.open",
-      capabilityLabel: "Open Privacy / Data Governance settings",
-      description: "Open the existing Privacy / Data Governance workspace.",
-      requiredAny: settingsAreaById("privacy_gdpr").viewCapabilities,
-      handler: () => dependencies.openPrivacyGdpr?.()
-    }];
+    return [
+      {
+        label: "Privacy Case Workspace",
+        actionId: "application_settings.privacy_gdpr.cases.open",
+        capabilityLabel: "Open Privacy / Data Governance settings",
+        description: "Open the existing privacy case workspace.",
+        requiredAny: settingsAreaById("privacy_gdpr").viewCapabilities,
+        handler: () => dependencies.openPrivacyGdpr?.("cases")
+      },
+      {
+        label: "SAR Evidence Pack",
+        actionId: "application_settings.privacy_gdpr.sar_pack.open",
+        capabilityLabel: "Open SAR Evidence Pack",
+        description: "Open SAR evidence pack preview and legacy SAR links.",
+        requiredAny: settingsAreaById("privacy_gdpr").viewCapabilities,
+        handler: () => dependencies.openPrivacyGdpr?.("evidence-pack")
+      },
+      {
+        label: "Anonymisation Preview",
+        actionId: "application_settings.privacy_gdpr.anonymisation_preview.open",
+        capabilityLabel: "Open Anonymisation Preview",
+        description: "Open controlled anonymisation preview. Native anonymisation remains disabled.",
+        requiredAny: settingsAreaById("privacy_gdpr").manageCapabilities,
+        handler: () => dependencies.openPrivacyGdpr?.("anonymisation-preview")
+      },
+      {
+        label: "Anonymisation Rules Matrix",
+        actionId: "application_settings.privacy_gdpr.anonymisation_rules.open",
+        capabilityLabel: "Open Anonymisation Rules Matrix",
+        description: "Open read-only source-by-source anonymisation readiness rules.",
+        requiredAny: settingsAreaById("privacy_gdpr").manageCapabilities,
+        handler: () => dependencies.openPrivacyGdpr?.("anonymisation-rules")
+      },
+      {
+        label: "Privacy Search",
+        actionId: "application_settings.privacy_gdpr.search.open",
+        capabilityLabel: "Open Privacy search/source-specific search areas",
+        description: "Open source-specific privacy search areas.",
+        requiredAny: settingsAreaById("privacy_gdpr").viewCapabilities,
+        handler: () => dependencies.openPrivacyGdpr?.("search")
+      }
+    ];
   }
   if (sectionId === "identity_resolution") {
     return [{
@@ -1305,12 +1436,20 @@ function bridgeActionsFor(sectionId) {
   if (sectionId === "notifications") {
     return [
       {
-        label: "Online Users / System Messages",
+        label: "Online Users",
         actionId: "application_settings.notifications.online.open",
-        capabilityLabel: "Open Notification settings",
-        description: "Open Online Users and System Messages.",
+        capabilityLabel: "Open Online Users",
+        description: "Open the existing Online Users workspace.",
         requiredAny: settingsAreaById("notifications").viewCapabilities,
         handler: () => dependencies.openNotifications?.("presence")
+      },
+      {
+        label: "Send System Message",
+        actionId: "application_settings.notifications.send_message.open",
+        capabilityLabel: "Open Send System Message",
+        description: "Open the existing send system message workflow.",
+        requiredAny: ["admin_system_messages.send", "admin_system_messages.force_action", "access_control.manage"],
+        handler: () => dependencies.openNotifications?.("send")
       },
       {
         label: "System Message History",
@@ -1319,18 +1458,60 @@ function bridgeActionsFor(sectionId) {
         description: "Open the existing message history panel.",
         requiredAny: settingsAreaById("notifications").viewCapabilities,
         handler: () => dependencies.openNotifications?.("history")
+      },
+      {
+        label: "Notification Groups",
+        actionId: "application_settings.notifications.groups.future",
+        capabilityLabel: "Open future Notification Groups placeholder",
+        description: "Future notification group routing. No runtime behaviour in OHP-017E.",
+        requiredAny: settingsAreaById("notifications").manageCapabilities,
+        handler: () => showToast("Coming later", "Notification Groups are reserved for a future notification-routing milestone.", "info")
       }
     ];
   }
   if (sectionId === "advanced") {
-    return [{
-      label: "Open Access Control / Diagnostics",
-      actionId: "application_settings.advanced.diagnostics.open",
-      capabilityLabel: "Open Access Control / Diagnostics settings",
-      description: "Open the existing Access Control diagnostics workspace.",
-      requiredAny: settingsAreaById("advanced").viewCapabilities,
-      handler: () => dependencies.openAccessControlDiagnostics?.()
-    }];
+    return [
+      {
+        label: "Access Control Workspace",
+        actionId: "application_settings.advanced.access_control.open",
+        capabilityLabel: "Open Access Control workspace",
+        description: "Open the existing Access Control workspace.",
+        requiredAny: settingsAreaById("advanced").viewCapabilities,
+        handler: () => dependencies.openAccessControl?.()
+      },
+      {
+        label: "Role Presets",
+        actionId: "application_settings.advanced.role_presets.open",
+        capabilityLabel: "Open Role Presets",
+        description: "Open role preset configuration.",
+        requiredAny: ["role_presets.view", "role_presets.manage", "access_control.view", "access_control.manage"],
+        handler: () => dependencies.openAccessControl?.("roles")
+      },
+      {
+        label: "User Role Assignments",
+        actionId: "application_settings.advanced.user_assignments.open",
+        capabilityLabel: "Open User Role Assignments",
+        description: "Open user role assignment defaults and existing assignment tools.",
+        requiredAny: ["user_role_assignments.view", "user_role_assignments.manage", "access_control.view", "access_control.manage"],
+        handler: () => dependencies.openAccessControl?.("assignments")
+      },
+      {
+        label: "Effective Capability Viewer",
+        actionId: "application_settings.advanced.effective_capabilities.open",
+        capabilityLabel: "Open Effective Capability Viewer",
+        description: "Open effective capability diagnostics.",
+        requiredAny: ["capabilities.diagnose", "user_role_assignments.view", "user_role_assignments.manage", "access_control.view", "access_control.manage"],
+        handler: () => dependencies.openAccessControl?.("diagnostics")
+      },
+      {
+        label: "Capability Inspector Status",
+        actionId: "application_settings.advanced.capability_inspector_status.open",
+        capabilityLabel: "Open Capability Inspector status/help",
+        description: "Open capability diagnostics; Capability Inspector itself remains session-only.",
+        requiredAny: ["capabilities.diagnose", "access_control.view", "access_control.manage"],
+        handler: () => dependencies.openAccessControlDiagnostics?.()
+      }
+    ];
   }
   return [];
 }
@@ -1429,7 +1610,7 @@ function renderActiveSection() {
 
   const badge = $("applicationSettingsModeBadge");
   if (badge) {
-    badge.textContent = canManageApplicationSettings()
+    badge.textContent = canManageApplicationSettingsSection(activeSectionId)
       ? "Settings editable"
       : "Read only";
   }
@@ -1485,7 +1666,7 @@ async function loadFieldRequirements() {
 async function saveApplicationSetting(settingKey) {
   const setting = settings.find(item => item.setting_key === settingKey);
   if (!canManageApplicationSetting(setting)) {
-    showToast("Setting not saved", "Application Settings manage capability is required.", "error");
+    showToast("Setting not saved", "The required manage capability is missing.", "error");
     return;
   }
   if (!setting || setting.locked_by_system || setting.sensitive) return;
@@ -1496,6 +1677,9 @@ async function saveApplicationSetting(settingKey) {
   }
   try {
     await updateApplicationSetting(settingKey, value);
+    if (settingKey === "document_signoff.use_confirmed_identity_links_for_compliance") {
+      await syncLegacyDocumentComplianceSetting(value);
+    }
     showToast("Setting saved", "The application setting was updated.", "success");
     await loadApplicationSettingsData();
   } catch (err) {
@@ -1506,12 +1690,15 @@ async function saveApplicationSetting(settingKey) {
 async function resetApplicationSetting(settingKey) {
   const setting = settings.find(item => item.setting_key === settingKey);
   if (!canManageApplicationSetting(setting)) {
-    showToast("Setting not reset", "Application Settings manage capability is required.", "error");
+    showToast("Setting not reset", "The required manage capability is missing.", "error");
     return;
   }
   if (!canResetSetting(setting)) return;
   try {
     await resetApplicationSettingToDefault(settingKey);
+    if (settingKey === "document_signoff.use_confirmed_identity_links_for_compliance") {
+      await syncLegacyDocumentComplianceSetting(false);
+    }
     showToast("Setting reset", "The application setting was restored to its default.", "success");
     await loadApplicationSettingsData();
   } catch (err) {
@@ -1520,18 +1707,33 @@ async function resetApplicationSetting(settingKey) {
 }
 
 async function resetApplicationSettingsCategory(categoryCode) {
-  if (!(categoryCode === "branding" ? canManageApplicationSettingsOnly() : canManageApplicationSettings())) {
-    showToast("Settings not reset", "Application Settings manage capability is required.", "error");
+  if (!(categoryCode === "branding" ? canManageApplicationSettingsOnly() : canManageApplicationSettingsCategory(categoryCode))) {
+    showToast("Settings not reset", "The required manage capability is missing.", "error");
     return;
   }
   const label = categoryLabel(categoryCode);
   if (!window.confirm("Reset " + label + " settings to defaults?")) return;
   try {
     await resetApplicationSettingsCategoryToDefaults(categoryCode);
+    if (categoryCode === "documents") {
+      await syncLegacyDocumentComplianceSetting(false);
+    }
     showToast("Settings reset", label + " settings were restored to defaults.", "success");
     await loadApplicationSettingsData();
   } catch (err) {
     showToast("Settings not reset", err.message || "Could not reset this settings category.", "error");
+  }
+}
+
+async function syncLegacyDocumentComplianceSetting(value) {
+  try {
+    await saveSetting(
+      "document_signoff.use_confirmed_identity_links_for_compliance",
+      value,
+      "Use confirmed identity links for document/induction compliance"
+    );
+  } catch (err) {
+    console.warn("Could not sync legacy document compliance setting.", err);
   }
 }
 

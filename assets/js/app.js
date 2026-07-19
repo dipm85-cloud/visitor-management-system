@@ -246,6 +246,7 @@ import {
 } from "./accessControl.js";
 import {
   initialiseDocumentSignoffAdministration,
+  openDocumentSignoffAdministration,
   syncDocumentSignoffAdminVisibility
 } from "./documentSignoffAdmin.js";
 import {
@@ -565,6 +566,10 @@ window.addEventListener("load", async function () {
       showAccessControlView("presence");
       refreshAdminPresenceWorkspace();
       window.setTimeout(() => {
+        if (viewMode === "send" && $("adminPresenceSendAllButton")) {
+          $("adminPresenceSendAllButton").click();
+          return;
+        }
         const target = viewMode === "history"
           ? $("adminPresenceMessageHistoryWorkspace")
           : $("adminPresenceSection");
@@ -591,10 +596,15 @@ window.addEventListener("load", async function () {
       showAccessControlView("diagnostics");
     }
 
+    async function openAccessControlSettingsBridge(viewName) {
+      await openAccessControlWorkspace();
+      if (viewName) showAccessControlView(viewName);
+    }
+
     initialiseApplicationSettings({
       openLegacySettings: openExistingSettingsArea,
-      openDocuments: () => openDocumentSignoffLegacyVms("document-signoffs-management"),
-      openAccessControl: openAccessControlWorkspace,
+      openDocuments: openDocumentSignoffAdministration,
+      openAccessControl: openAccessControlSettingsBridge,
       openAccessControlDiagnostics: openAccessControlDiagnosticsBridge,
       openIdentityResolution: openIdentityResolutionAdministration,
       openNotifications: openAdminPresenceSettings,
@@ -2013,7 +2023,7 @@ window.addEventListener("load", async function () {
 
     function evidenceIdentityHtml(record) {
       const identity = record && record.__canonicalIdentityDisplay;
-      if (!identity || !identity.hasConfirmedIdentity) {
+      if (!settingValue("document_signoff.show_canonical_identity_context", true) || !identity || !identity.hasConfirmedIdentity) {
         return "<div><strong>Visitor</strong><br>" + safe(record.visitor_name) + "</div>";
       }
       return "<div><strong>Evidence signed as</strong><br>" + safe(identity.capturedLabel || record.visitor_name) + "</div>" +
@@ -2022,7 +2032,9 @@ window.addEventListener("load", async function () {
 
     function evidenceHtml(record) {
       const logoUrl = getPrintLogoUrl(appSettings);
-      const showLogo = !!settingValue("agreement_print_show_logo", true) && logoUrl;
+      const showLogo = !!settingValue("document_signoff.print_use_branding_logo", true) &&
+        !!settingValue("agreement_print_show_logo", true) &&
+        logoUrl;
       const header = safe(settingValue("agreement_print_header", "Visitor Agreement / Induction Evidence"));
       const companyName = safe(settingValue("agreement_print_company_name", appSettings.companyName || "Visitor Management"));
       return "<div class='agreement-evidence-print'>" +
@@ -2035,7 +2047,9 @@ window.addEventListener("load", async function () {
       "</div>";
     }
     async function openAgreementEvidenceModal(record) {
-      await canonicalIdentityForAgreementEvidence(record);
+      if (settingValue("document_signoff.show_canonical_identity_context", true)) {
+        await canonicalIdentityForAgreementEvidence(record);
+      }
       currentEvidenceRecord = record;
       $("agreementEvidenceContent").innerHTML = evidenceHtml(record);
       $("agreementEvidenceModalBackdrop").classList.add("active");

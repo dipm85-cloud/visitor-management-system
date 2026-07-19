@@ -16,6 +16,7 @@ import {
   selectModuleSection
 } from "./sectionNavigation.js";
 import { AppState } from "./state.js";
+import { settingValue } from "./settings.js";
 import { exportDateStamp } from "./utils.js";
 import { decorateCapabilityAction } from "./capabilityInspector.js";
 import {
@@ -381,8 +382,21 @@ function userAssignmentFilters() {
       : "",
     includeInactive: $("accessControlUserAssignmentIncludeInactive")
       ? $("accessControlUserAssignmentIncludeInactive").checked
-      : true
+      : defaultUserAssignmentIncludeInactive()
   };
+}
+
+function accessDiagnosticsBool(settingKey, fallback) {
+  const value = settingValue(settingKey, fallback);
+  return value === true || value === "true";
+}
+
+function defaultUserAssignmentIncludeInactive() {
+  return accessDiagnosticsBool("access_diagnostics.default_user_assignment_include_inactive", true);
+}
+
+function showEffectiveCapabilitySource() {
+  return accessDiagnosticsBool("access_diagnostics.show_effective_capability_source", true);
 }
 
 function groupCapabilities(capabilities) {
@@ -772,7 +786,7 @@ function renderEffectiveCapabilityDiagnostics() {
       createCell(capability.group_name),
       capabilityCell,
       effectiveCell,
-      createCell(capability.effective_source),
+      createCell(showEffectiveCapabilitySource() ? capability.effective_source : "Hidden by setting"),
       createCell(rolePresetLabelFromParts(capability.role_name, capability.role_code)),
       createCell(capability.direct_grant_state || "-")
     );
@@ -1777,7 +1791,7 @@ function effectiveCapabilityExportRows() {
       "Capability Code": row.capability_code || "",
       "Capability Name": row.capability_name || "",
       "Effective": row.effective ? "Yes" : "No",
-      "Source": row.effective_source || "",
+      "Source": showEffectiveCapabilitySource() ? row.effective_source || "" : "Hidden by setting",
       "Role Code": row.role_code || "",
       "Role Name": row.role_name || "",
       "Role Assigned": row.role_assigned ? "Yes" : "No",
@@ -1968,7 +1982,7 @@ function resetRolePresetFilters() {
 
 function resetUserAssignmentFilters() {
   $("accessControlUserAssignmentSearch").value = "";
-  $("accessControlUserAssignmentIncludeInactive").checked = true;
+  $("accessControlUserAssignmentIncludeInactive").checked = defaultUserAssignmentIncludeInactive();
   loadAccessControl();
 }
 
@@ -2011,6 +2025,9 @@ export async function openAccessControlWorkspace() {
   showAdministrationWorkspace();
   setAdministrationSection("access");
   refreshSectionNavigator("access-control");
+  if ($("accessControlUserAssignmentIncludeInactive")) {
+    $("accessControlUserAssignmentIncludeInactive").checked = defaultUserAssignmentIncludeInactive();
+  }
   if (hasAccessControlDataAccess()) {
     showAccessControlView("roles");
     await loadAccessControl();
@@ -2100,6 +2117,9 @@ export function initialiseAccessControl() {
   $("accessControlUserAssignmentRefreshButton").addEventListener("click", loadAccessControl);
   $("accessControlUserAssignmentResetButton").addEventListener("click", resetUserAssignmentFilters);
   $("accessControlUserAssignmentSearch").addEventListener("input", scheduleUserAssignmentSearch);
+  if ($("accessControlUserAssignmentIncludeInactive")) {
+    $("accessControlUserAssignmentIncludeInactive").checked = defaultUserAssignmentIncludeInactive();
+  }
   $("accessControlUserAssignmentIncludeInactive").addEventListener("change", loadAccessControl);
   $("accessControlUserAssignmentExportCsvButton").addEventListener("click", () => exportUserRoleAssignments("csv"));
   $("accessControlUserAssignmentExportXlsxButton").addEventListener("click", () => exportUserRoleAssignments("xlsx"));

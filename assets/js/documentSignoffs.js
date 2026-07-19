@@ -1236,7 +1236,10 @@ function nativeInductorEnabledForCurrentStep() {
 }
 
 function nativeRequiresDocumentReviewCompletion() {
-  const value = settingValue("require_document_scroll_to_end_before_signing", false);
+  const value = settingValue(
+    "document_signoff.require_scroll_to_end_before_signing",
+    settingValue("require_document_scroll_to_end_before_signing", false)
+  );
   return value === true || value === "true";
 }
 
@@ -1247,6 +1250,15 @@ function settingEnabled(key, fallback) {
 
 function useIdentityLinksForDocumentCompliance() {
   return settingEnabled(DOCUMENT_COMPLIANCE_IDENTITY_LINK_SETTING, false);
+}
+
+function showCanonicalIdentityContext() {
+  return settingEnabled("document_signoff.show_canonical_identity_context", true);
+}
+
+function documentEvidenceDetailLevel() {
+  const value = String(settingValue("document_signoff.default_evidence_detail_level", "standard") || "standard");
+  return ["compact", "standard", "detailed"].includes(value) ? value : "standard";
 }
 
 function directEvidenceIsValid(status) {
@@ -2051,7 +2063,9 @@ function evidenceIdentityPrintRecord(record, identity) {
 }
 
 async function openEvidenceDetails(record, trigger) {
-  const identity = await canonicalIdentityForEvidenceRecord(record);
+  const identity = showCanonicalIdentityContext()
+    ? await canonicalIdentityForEvidenceRecord(record)
+    : null;
   const identityFields = identity && identity.hasConfirmedIdentity
     ? [
       { label: "Canonical identity", value: identity.displayPrimary || identity.canonicalLabel, always: true },
@@ -2060,6 +2074,28 @@ async function openEvidenceDetails(record, trigger) {
     : [
       { label: "Visitor / subject as stored", value: record.visitor_name, always: true }
     ];
+  const detailLevel = documentEvidenceDetailLevel();
+  const evidenceFields = [
+    ...identityFields,
+    { label: "Company as stored", value: record.company },
+    { label: "Document", value: record.agreement_name, always: true },
+    { label: "Title", value: record.agreement_title },
+    { label: "Version", value: record.agreement_version_number },
+    { label: "Signed date/time", value: formatDateTime(record.signed_at), always: true },
+    { label: "Signature method", value: evidenceType(record), always: true },
+    { label: "Recorded by / witness", value: record.signed_by_name },
+    { label: "Inductor", value: record.inductor_name },
+    { label: "Linked visit", value: record.visit_log_id || record.visitor_log_id },
+    { label: "Created", value: formatDateTime(record.created_at) },
+    { label: "Updated", value: formatDateTime(record.updated_at) }
+  ].filter(field => {
+    if (detailLevel === "detailed") return true;
+    if (detailLevel === "compact") {
+      return ["Canonical identity", "Evidence signed as", "Visitor / subject as stored", "Document", "Signed date/time", "Signature method"].includes(field.label);
+    }
+    return !["Created", "Updated"].includes(field.label);
+  });
+
   renderDetailPanel({
     type: "sign-off-evidence",
     eyebrow: "Signature Evidence",
@@ -2069,20 +2105,7 @@ async function openEvidenceDetails(record, trigger) {
       signedBadge(record),
       { label: evidenceType(record), className: "status-in" }
     ],
-    fields: [
-      ...identityFields,
-      { label: "Company as stored", value: record.company },
-      { label: "Document", value: record.agreement_name, always: true },
-      { label: "Title", value: record.agreement_title },
-      { label: "Version", value: record.agreement_version_number },
-      { label: "Signed date/time", value: formatDateTime(record.signed_at), always: true },
-      { label: "Signature method", value: evidenceType(record), always: true },
-      { label: "Recorded by / witness", value: record.signed_by_name },
-      { label: "Inductor", value: record.inductor_name },
-      { label: "Linked visit", value: record.visit_log_id || record.visitor_log_id },
-      { label: "Created", value: formatDateTime(record.created_at) },
-      { label: "Updated", value: formatDateTime(record.updated_at) }
-    ],
+    fields: evidenceFields,
     advancedFields: [
       { label: "Evidence ID", value: record.id || record.agreement_id || record.agreement_signature_id },
       { label: "Document type ID", value: record.agreement_type_id },

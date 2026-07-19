@@ -201,6 +201,31 @@ function overlayApplicationSettings(settings) {
   put("shared_terminal_idle_reset_enabled", "shared_terminal.idle_reset_enabled", false);
   put("shared_terminal_idle_reset_seconds", "shared_terminal.idle_reset_seconds", 120);
   put("shared_terminal_clear_partial_form_data_on_reset", "shared_terminal.clear_partial_form_data_on_reset", true);
+
+  put("document_signoff.use_confirmed_identity_links_for_compliance", "document_signoff.use_confirmed_identity_links_for_compliance", false);
+  put("document_signoff.show_canonical_identity_context", "document_signoff.show_canonical_identity_context", true);
+  put("document_signoff.print_use_branding_logo", "document_signoff.print_use_branding_logo", true);
+  put("document_signoff.default_evidence_detail_level", "document_signoff.default_evidence_detail_level", "standard");
+  put("document_signoff.require_scroll_to_end_before_signing", "document_signoff.require_scroll_to_end_before_signing", false);
+
+  put("notifications.default_message_type", "notifications.default_message_type", "info");
+  put("notifications.default_message_expiry_minutes", "notifications.default_message_expiry_minutes", 60);
+  put("notifications.default_required_action_grace_seconds", "notifications.default_required_action_grace_seconds", 300);
+  put("notifications.default_force_after_grace", "notifications.default_force_after_grace", false);
+  put("notifications.online_users_default_window_seconds", "notifications.online_users_default_window_seconds", 120);
+  put("notifications.message_history_default_rows", "notifications.message_history_default_rows", 100);
+
+  put("privacy.case_reference_prefix", "privacy.case_reference_prefix", "PRIV");
+  put("privacy.sar_pack_include_timeline_by_default", "privacy.sar_pack_include_timeline_by_default", true);
+  put("privacy.sar_pack_include_source_references_by_default", "privacy.sar_pack_include_source_references_by_default", true);
+  put("privacy.anonymisation_requires_preview", "privacy.anonymisation_requires_preview", true);
+  put("privacy.anonymisation_requires_confirmation_phrase", "privacy.anonymisation_requires_confirmation_phrase", true);
+  put("privacy.show_technical_references_by_default", "privacy.show_technical_references_by_default", false);
+
+  put("access_diagnostics.capability_inspector_available", "access_diagnostics.capability_inspector_available", true);
+  put("access_diagnostics.capability_inspector_session_only", "access_diagnostics.capability_inspector_session_only", true);
+  put("access_diagnostics.show_effective_capability_source", "access_diagnostics.show_effective_capability_source", true);
+  put("access_diagnostics.default_user_assignment_include_inactive", "access_diagnostics.default_user_assignment_include_inactive", true);
 }
 
 export async function loadSystemSettings() {
@@ -237,7 +262,16 @@ export async function loadSystemSettings() {
     console.warn("Could not read document compliance identity-link setting. Defaulting to off.", err);
   }
 
-  await loadApplicationSettingsForRuntime(["general", "branding", "visitors", "shared_terminal"], { force: true });
+  await loadApplicationSettingsForRuntime([
+    "general",
+    "branding",
+    "visitors",
+    "shared_terminal",
+    "documents",
+    "notifications",
+    "privacy_data_governance",
+    "access_diagnostics"
+  ], { force: true });
   overlayApplicationSettings(settings);
   AppState.systemSettingsRaw = settings;
 
