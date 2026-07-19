@@ -19,6 +19,7 @@ import {
   initialisePlatformUi,
   setActionAvailable
 } from "./platformUi.js";
+import { initialiseRenderDiagnostics } from "./renderDiagnostics.js";
 import { selectModuleSection } from "./sectionNavigation.js";
 import {
   $,
@@ -477,6 +478,7 @@ window.addEventListener("load", async function () {
     initialiseCapabilityInspector();
     initialiseAdminPresence();
     configureMessages(appSettings);
+    initialiseRenderDiagnostics();
     configurePrinting({
       appSettings,
       dependencies: {

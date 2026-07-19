@@ -87,6 +87,12 @@ export function showToast(title, body, type, options = {}) {
   toast.appendChild(content);
   toast.appendChild(close);
   area.appendChild(toast);
+  window.dispatchEvent(new CustomEvent("oh:toast-shown", {
+    detail: {
+      title: String(title || ""),
+      type: toastType
+    }
+  }));
 
   if (!options.sticky) {
     setTimeout(function () {
