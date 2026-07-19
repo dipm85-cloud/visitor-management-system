@@ -594,8 +594,11 @@ window.addEventListener("load", async function () {
     initialiseApplicationSettings({
       openLegacySettings: openExistingSettingsArea,
       openDocuments: () => openDocumentSignoffLegacyVms("document-signoffs-management"),
+      openAccessControl: openAccessControlWorkspace,
       openAccessControlDiagnostics: openAccessControlDiagnosticsBridge,
+      openIdentityResolution: openIdentityResolutionAdministration,
       openNotifications: openAdminPresenceSettings,
+      openPrivacyGdpr: openPrivacyGdprAdministration,
       openSessionSecurity: openSessionSecuritySettingsBridge,
       openSharedTerminals: openSharedTerminalAdministration,
       openWorkingTimeEntity: openWorkingTimeSettingsEntity

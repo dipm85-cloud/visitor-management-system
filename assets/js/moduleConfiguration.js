@@ -4,7 +4,6 @@ import {
 } from "./capabilities.js";
 import { $ } from "./dom.js";
 import { showToast } from "./messages.js";
-import { showAdministrationWorkspace } from "./shell.js";
 
 const moduleRegistry = new Map();
 const sourceSectionCache = new Map();
@@ -254,20 +253,9 @@ export function syncModuleConfigurationVisibility() {
 }
 
 export function openModuleConfigurationAdministration(moduleId) {
-  syncModuleConfigurationVisibility();
-  if (!hasModuleConfigurationAccess()) {
-    showToast(
-      "You do not have permission",
-      "Module Configuration requires module_configuration.view.",
-      "error"
-    );
-    return;
-  }
-  showAdministrationWorkspace();
-  setAdministrationSection("modules");
-  renderModuleCatalogue();
-  if (moduleId) openRegisteredModule(moduleId);
-  else showModuleCatalogue();
+  window.dispatchEvent(new CustomEvent("oh:application-settings-requested", {
+    detail: { sectionId: "modules", moduleId: moduleId || "" }
+  }));
 }
 
 export function initialiseModuleConfigurationFramework() {

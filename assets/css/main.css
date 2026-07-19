@@ -11588,6 +11588,10 @@ body.assignment-workspace-open .modal-backdrop.active {
   gap: 12px;
 }
 
+.application-settings-module-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+}
+
 .application-settings-card,
 .application-settings-registry-row {
   border: 1px solid #d0d5dd;
@@ -11627,6 +11631,65 @@ body.assignment-workspace-open .modal-backdrop.active {
   align-self: flex-start;
   font-size: var(--oh-font-size-settings-nav, 13px);
   line-height: var(--oh-line-height-control, 1.25);
+}
+
+.application-settings-module-card {
+  min-width: 0;
+  gap: 12px;
+  min-height: 0;
+}
+
+.application-settings-module-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.application-settings-module-heading > div:first-child {
+  min-width: 0;
+}
+
+.application-settings-module-badges,
+.application-settings-module-indicators,
+.application-settings-module-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.application-settings-module-badges {
+  justify-content: flex-end;
+}
+
+.application-settings-module-state {
+  color: var(--oh-app-text, #344054);
+}
+
+.application-settings-module-indicators span {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  min-height: 24px;
+  padding: 3px 8px;
+  overflow: hidden;
+  border: 1px solid var(--oh-app-border, #d0d5dd);
+  border-radius: 999px;
+  background: var(--oh-app-surface-muted, #f9fafb);
+  color: var(--oh-app-text, #344054);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: var(--oh-line-height-tight, 1.2);
+  text-overflow: ellipsis;
+}
+
+.application-settings-module-actions {
+  margin-top: auto;
+}
+
+.application-settings-module-actions button {
+  margin-top: 0;
 }
 
 .application-settings-related-actions {

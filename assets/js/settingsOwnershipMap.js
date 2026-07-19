@@ -101,6 +101,40 @@ export const SETTINGS_OWNERSHIP_AREAS = Object.freeze([
     notes: "Application Settings owns terminal display/reset settings; device registration remains in the existing Shared Terminals panel."
   },
   {
+    id: "privacy_gdpr",
+    label: "Privacy / Data Governance",
+    description: "Privacy cases, GDPR workflows, SAR evidence and governance tools.",
+    status: "linked",
+    owner: "Application Settings",
+    currentLocation: "Privacy / Data Governance administration",
+    targetLocation: "Application Settings -> Modules -> Privacy / Data Governance",
+    viewCapabilities: ["application_settings.view", "application_settings.manage", "privacy.case.view", "privacy.case.manage", "privacy.view", "privacy.manage", "gdpr.view", "gdpr.manage", "audit.view"],
+    manageCapabilities: ["application_settings.manage", "privacy.case.manage", "privacy.manage", "gdpr.manage"],
+    nativeInApplicationSettings: false,
+    opensEmbeddedPanel: false,
+    deepLinksToExistingPanel: true,
+    migrationRisk: "High",
+    futureMilestone: "OHP-017D",
+    notes: "Application Settings -> Modules is the front door; specialist privacy and GDPR workflows stay in their existing workspace."
+  },
+  {
+    id: "identity_resolution",
+    label: "Identity Resolution",
+    description: "Identity review requests, candidate matching and linked identity records.",
+    status: "linked",
+    owner: "Application Settings",
+    currentLocation: "Identity Resolution administration",
+    targetLocation: "Application Settings -> Modules -> Identity Resolution",
+    viewCapabilities: ["application_settings.view", "application_settings.manage", "identity_resolution.view", "identity_resolution.manage"],
+    manageCapabilities: ["application_settings.manage", "identity_resolution.manage"],
+    nativeInApplicationSettings: false,
+    opensEmbeddedPanel: false,
+    deepLinksToExistingPanel: true,
+    migrationRisk: "Medium",
+    futureMilestone: "OHP-017D",
+    notes: "Application Settings -> Modules owns the entry point; identity queues remain in the existing module workspace."
+  },
+  {
     id: "documents",
     label: "Documents / Sign-off",
     description: "Document sign-off settings and compliance controls.",
@@ -226,10 +260,11 @@ export const MODULE_SETTINGS_AREA_IDS = Object.freeze([
   "people_assignments",
   "working_time",
   "documents",
-  "session_security",
+  "privacy_gdpr",
+  "identity_resolution",
   "notifications",
+  "shared_terminal",
   "advanced",
-  "branding",
   "future_lmt"
 ]);
 

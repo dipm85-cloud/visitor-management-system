@@ -46,6 +46,15 @@ const APPLICATION_SETTINGS_VIEW_CAPABILITIES = [
   "agreements.view",
   "agreements.manage",
   "document_signoff.manage",
+  "privacy.case.view",
+  "privacy.case.manage",
+  "privacy.view",
+  "privacy.manage",
+  "gdpr.view",
+  "gdpr.manage",
+  "audit.view",
+  "identity_resolution.view",
+  "identity_resolution.manage",
   "people.view",
   "people.manage",
   "work_time_profiles.view",
@@ -131,6 +140,79 @@ const SECTION_DEFINITIONS = [
 const MODULE_SETTING_CARDS = MODULE_SETTINGS_AREA_IDS
   .map(settingsAreaById)
   .filter(Boolean);
+
+const MODULE_CARD_DETAILS = Object.freeze({
+  visitors: {
+    owner: "Application Settings",
+    statusText: "Partially configured",
+    configurationState: "Visitor settings and form requirements are organised here; legacy VMS remains available for controls not yet migrated.",
+    indicators: ["Visitor settings", "Planned Visit requirements", "Walk-in requirements", "Shared Terminal links"],
+    primaryActionLabel: "Configure"
+  },
+  people_assignments: {
+    owner: "Application Settings",
+    statusText: "Partially configured",
+    configurationState: "Assignment Form Requirements are native here; wider people policy settings remain linked to current workspaces.",
+    indicators: ["Assignment requirements", "People Profile status", "Work assignment validation"],
+    primaryActionLabel: "Configure"
+  },
+  working_time: {
+    owner: "Existing module settings",
+    statusText: "Linked",
+    configurationState: "Working-time entities stay in Reference Data so calculation logic remains unchanged.",
+    indicators: ["Work Time Profiles", "Break Rules", "Unsociable Rules", "Rota links"],
+    primaryActionLabel: "Open settings"
+  },
+  documents: {
+    owner: "Existing module settings",
+    statusText: "Linked",
+    configurationState: "Document sign-off and agreement controls remain in their specialist administration area.",
+    indicators: ["Document Sign-off admin", "Agreement settings", "Identity-linked compliance"],
+    primaryActionLabel: "Open settings"
+  },
+  privacy_gdpr: {
+    owner: "Existing module settings",
+    statusText: "Linked",
+    configurationState: "Privacy and GDPR workflows remain in the existing governance workspace.",
+    indicators: ["Privacy cases", "GDPR workflows", "SAR evidence", "Audit links"],
+    primaryActionLabel: "Open module"
+  },
+  identity_resolution: {
+    owner: "Existing module settings",
+    statusText: "Linked",
+    configurationState: "Identity review queues and linked-record workflows remain in the Identity Resolution workspace.",
+    indicators: ["Review requests", "Candidate queue", "Confirmed links", "Decision history"],
+    primaryActionLabel: "Open module"
+  },
+  notifications: {
+    owner: "Existing module settings",
+    statusText: "Linked",
+    configurationState: "Online users, system messages and history stay in Access Control while this remains the settings front door.",
+    indicators: ["Online users", "System Messages", "Message History", "Required actions"],
+    primaryActionLabel: "Open settings"
+  },
+  shared_terminal: {
+    owner: "Application Settings",
+    statusText: "Partially configured",
+    configurationState: "Terminal display and idle reset settings are native; device/token administration stays linked.",
+    indicators: ["Terminal settings", "Public branding", "Device tokens", "Idle reset"],
+    primaryActionLabel: "Configure"
+  },
+  advanced: {
+    owner: "Existing module settings",
+    statusText: "Linked",
+    configurationState: "Access controls and capability diagnostics remain in the Access Control workspace.",
+    indicators: ["Role Presets", "User assignments", "Capability Inspector", "Effective capabilities"],
+    primaryActionLabel: "Open settings"
+  },
+  future_lmt: {
+    owner: "Future",
+    statusText: "Future",
+    configurationState: "LMT settings will be configured here after the LMT module foundation is added.",
+    indicators: ["Reserved module card", "No runtime behaviour yet"],
+    primaryActionLabel: "Coming later"
+  }
+});
 
 let dependencies = {};
 let initialised = false;
@@ -318,7 +400,7 @@ function renderSectionNavigation() {
     button.addEventListener("click", () => openApplicationSettingsSection(section.id));
     decorateCapabilityAction(button, {
       actionId: "application_settings.section." + section.id + ".open",
-      label: "Open Application Settings section",
+      label: "Open Application Settings -> " + section.title,
       area: "Application Settings",
       requiredAny: section.area ? section.area.viewCapabilities : APPLICATION_SETTINGS_VIEW_CAPABILITIES,
       actionType: "navigation"
@@ -369,34 +451,226 @@ function renderModulesPanel() {
   const container = $("applicationSettingsModuleCards");
   if (!container) return;
   container.replaceChildren();
+  container.classList.add("application-settings-module-grid");
 
   MODULE_SETTING_CARDS.filter(canViewSettingsArea).forEach(cardDefinition => {
-    const card = document.createElement("article");
-    card.className = "application-settings-card";
-    const title = document.createElement("h4");
-    title.textContent = cardDefinition.label;
-    const description = document.createElement("p");
-    description.textContent = cardDefinition.description;
-    const status = statusBadge(cardDefinition.status);
-    status.title = settingsStatusCopy(cardDefinition.status);
+    container.appendChild(createModuleSettingsCard(cardDefinition));
+  });
+}
+
+function moduleDetailsFor(area) {
+  return MODULE_CARD_DETAILS[area.id] || {
+    owner: area.owner || "Application Settings",
+    statusText: settingsStatusLabel(area.status),
+    configurationState: area.notes || settingsStatusCopy(area.status),
+    indicators: [area.targetLocation || area.label],
+    primaryActionLabel: primaryActionLabel(area)
+  };
+}
+
+function createModuleSettingsCard(area) {
+  const details = moduleDetailsFor(area);
+  const card = document.createElement("article");
+  card.className = "application-settings-card application-settings-module-card";
+  card.dataset.moduleSettingsArea = area.id;
+
+  const heading = document.createElement("div");
+  heading.className = "application-settings-module-heading";
+  const headingText = document.createElement("div");
+  const title = document.createElement("h4");
+  title.textContent = area.label;
+  const description = document.createElement("p");
+  description.textContent = area.description;
+  headingText.append(title, description);
+  const badges = document.createElement("div");
+  badges.className = "application-settings-module-badges";
+  const status = statusBadge(area.status);
+  status.textContent = details.statusText || settingsStatusLabel(area.status);
+  status.title = settingsStatusCopy(area.status);
+  const owner = document.createElement("span");
+  owner.className = "application-settings-card-status";
+  owner.textContent = details.owner;
+  badges.append(status, owner);
+  heading.append(headingText, badges);
+  card.appendChild(heading);
+
+  const state = document.createElement("p");
+  state.className = "application-settings-module-state";
+  state.textContent = details.configurationState;
+  card.appendChild(state);
+
+  const indicators = document.createElement("div");
+  indicators.className = "application-settings-module-indicators";
+  (details.indicators || []).forEach(item => {
+    const chip = document.createElement("span");
+    chip.textContent = item;
+    indicators.appendChild(chip);
+  });
+  card.appendChild(indicators);
+
+  const actions = document.createElement("div");
+  actions.className = "application-settings-module-actions";
+  moduleActionsFor(area).forEach(action => {
+    if (action.hidden || !hasAnyCapability(action.requiredAny || area.viewCapabilities || APPLICATION_SETTINGS_VIEW_CAPABILITIES)) return;
     const button = document.createElement("button");
     button.type = "button";
-    button.textContent = primaryActionLabel(cardDefinition);
-    button.disabled = cardDefinition.status === "future";
-    if (cardDefinition.status !== "future") {
-      button.addEventListener("click", () => openApplicationSettingsSection(cardDefinition.id));
+    button.className = action.secondary ? "secondary" : "";
+    button.textContent = action.label;
+    button.disabled = !!action.disabled;
+    if (!action.disabled && typeof action.handler === "function") {
+      button.addEventListener("click", action.handler);
     }
     decorateCapabilityAction(button, {
-      actionId: "application_settings.modules." + cardDefinition.id + ".open",
-      label: primaryActionLabel(cardDefinition),
+      actionId: action.actionId,
+      label: action.capabilityLabel || action.label,
       area: "Application Settings",
-      requiredAny: cardDefinition.viewCapabilities,
-      notes: settingsStatusCopy(cardDefinition.status),
-      actionType: "navigation"
+      requiredAny: action.requiredAny || area.viewCapabilities,
+      notes: action.description || details.configurationState,
+      actionType: action.actionType || "navigation"
     });
-    card.append(title, description, status, button);
-    container.appendChild(card);
+    actions.appendChild(button);
   });
+  card.appendChild(actions);
+
+  return card;
+}
+
+function moduleActionsFor(area) {
+  const details = moduleDetailsFor(area);
+  if (area.status === "future") {
+    return [{
+      label: details.primaryActionLabel || "Coming later",
+      actionId: "application_settings.modules." + area.id + ".open",
+      capabilityLabel: "Open Future LMT card",
+      description: details.configurationState,
+      requiredAny: area.viewCapabilities,
+      secondary: true,
+      handler: () => showToast("Coming later", details.configurationState, "info")
+    }];
+  }
+  const sectionAction = {
+    label: details.primaryActionLabel || "Configure",
+    actionId: "application_settings.modules." + area.id + ".configure",
+    capabilityLabel: "Open/configure " + area.label + " module",
+    description: details.configurationState,
+    requiredAny: area.viewCapabilities,
+    handler: () => openApplicationSettingsSection(area.id)
+  };
+  const actions = [sectionAction];
+  moduleQuickActionsFor(area.id).forEach(action => actions.push(action));
+  return actions;
+}
+
+function moduleQuickActionsFor(sectionId) {
+  if (sectionId === "visitors") {
+    return [
+      {
+        label: "Planned requirements",
+        actionId: "application_settings.modules.visitors.planned_requirements.open",
+        description: "Open planned visit Form Requirements.",
+        requiredAny: FIELD_REQUIREMENT_VIEW_CAPABILITIES,
+        secondary: true,
+        handler: () => openFormRequirementsArea("planned_visits")
+      },
+      {
+        label: "Walk-in requirements",
+        actionId: "application_settings.modules.visitors.walk_in_requirements.open",
+        description: "Open visitor walk-in Form Requirements.",
+        requiredAny: FIELD_REQUIREMENT_VIEW_CAPABILITIES,
+        secondary: true,
+        handler: () => openFormRequirementsArea("visitor_walk_ins")
+      },
+      {
+        label: "Shared Terminal",
+        actionId: "application_settings.modules.visitors.shared_terminal.open",
+        description: "Open Shared Terminal settings related to visitor flow.",
+        requiredAny: settingsAreaById("shared_terminal").viewCapabilities,
+        secondary: true,
+        handler: () => openApplicationSettingsSection("shared_terminal")
+      }
+    ];
+  }
+  if (sectionId === "people_assignments") {
+    return [
+      {
+        label: "Assignment requirements",
+        actionId: "application_settings.modules.people_assignments.requirements.open",
+        description: "Open assignment Form Requirements.",
+        requiredAny: FIELD_REQUIREMENT_VIEW_CAPABILITIES,
+        secondary: true,
+        handler: () => openFormRequirementsArea("work_assignments")
+      }
+    ];
+  }
+  if (sectionId === "privacy_gdpr") {
+    return [{
+      label: "Open governance",
+      actionId: "application_settings.modules.privacy_gdpr.open",
+      description: "Open Privacy / Data Governance.",
+      requiredAny: settingsAreaById("privacy_gdpr").viewCapabilities,
+      secondary: true,
+      handler: () => dependencies.openPrivacyGdpr?.()
+    }];
+  }
+  if (sectionId === "identity_resolution") {
+    return [{
+      label: "Open identity queue",
+      actionId: "application_settings.modules.identity_resolution.open",
+      description: "Open Identity Resolution.",
+      requiredAny: settingsAreaById("identity_resolution").viewCapabilities,
+      secondary: true,
+      handler: () => dependencies.openIdentityResolution?.()
+    }];
+  }
+  if (sectionId === "shared_terminal") {
+    return [
+      {
+        label: "Device admin",
+        actionId: "application_settings.modules.shared_terminal.devices.open",
+        description: "Open terminal and token administration.",
+        requiredAny: settingsAreaById("shared_terminal").viewCapabilities,
+        secondary: true,
+        handler: () => dependencies.openSharedTerminals?.()
+      },
+      {
+        label: "Public branding",
+        actionId: "application_settings.modules.shared_terminal.branding.open",
+        description: "Open branding controls used by public terminal screens.",
+        requiredAny: settingsAreaById("branding").viewCapabilities,
+        secondary: true,
+        handler: () => openApplicationSettingsSection("branding")
+      }
+    ];
+  }
+  if (sectionId === "advanced") {
+    return [
+      {
+        label: "Access Control",
+        actionId: "application_settings.modules.advanced.access_control.open",
+        description: "Open Role Presets and User Role Assignments.",
+        requiredAny: ["access_control.view", "access_control.manage", "user_role_assignments.view", "user_role_assignments.manage"],
+        secondary: true,
+        handler: () => dependencies.openAccessControl?.()
+      },
+      {
+        label: "Diagnostics",
+        actionId: "application_settings.modules.advanced.diagnostics.open",
+        description: "Open capability diagnostics and effective capability tools.",
+        requiredAny: ["capabilities.diagnose", "access_control.view", "access_control.manage"],
+        secondary: true,
+        handler: () => dependencies.openAccessControlDiagnostics?.()
+      }
+    ];
+  }
+  return bridgeActionsFor(sectionId).map(action => ({
+    label: action.label,
+    actionId: action.actionId.replace("application_settings.", "application_settings.modules."),
+    capabilityLabel: "Open/configure " + sectionDefinition(sectionId).title + " module",
+    description: action.description,
+    requiredAny: action.requiredAny,
+    secondary: true,
+    handler: action.handler
+  }));
 }
 
 function groupedSettings(filterCategory) {
@@ -960,6 +1234,26 @@ function bridgeActionsFor(sectionId) {
       description: "Open the existing document and sign-off settings panel.",
       requiredAny: settingsAreaById("documents").viewCapabilities,
       handler: () => dependencies.openDocuments?.()
+    }];
+  }
+  if (sectionId === "privacy_gdpr") {
+    return [{
+      label: "Open Privacy / Data Governance",
+      actionId: "application_settings.privacy_gdpr.open",
+      capabilityLabel: "Open Privacy / Data Governance settings",
+      description: "Open the existing Privacy / Data Governance workspace.",
+      requiredAny: settingsAreaById("privacy_gdpr").viewCapabilities,
+      handler: () => dependencies.openPrivacyGdpr?.()
+    }];
+  }
+  if (sectionId === "identity_resolution") {
+    return [{
+      label: "Open Identity Resolution",
+      actionId: "application_settings.identity_resolution.open",
+      capabilityLabel: "Open Identity Resolution settings",
+      description: "Open the existing Identity Resolution workspace.",
+      requiredAny: settingsAreaById("identity_resolution").viewCapabilities,
+      handler: () => dependencies.openIdentityResolution?.()
     }];
   }
   if (sectionId === "working_time") {
