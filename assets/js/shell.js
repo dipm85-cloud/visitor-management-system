@@ -134,6 +134,7 @@ function setActiveApp(appName) {
     organisations: "Organisations",
     reporting: "Reporting Centre",
     administration: "Administration",
+    applicationSettings: "Application Settings",
     terminal: "Terminal Home",
     visitorKiosk: "Visitor Kiosk",
     login: "Staff Login"
@@ -197,6 +198,10 @@ export function shouldShowOrganisationNavigation() {
 
 export function shouldShowAdministrationNavigation() {
   return hasAnyCapability([
+    "application_settings.view",
+    "application_settings.manage",
+    "assignment_field_requirements.view",
+    "assignment_field_requirements.manage",
     "settings.view",
     "settings.edit",
     "module_configuration.view",
@@ -378,7 +383,7 @@ export function showAdministrationWorkspace() {
   document.getElementById("operationsHubWorkspace").focus({ preventScroll: true });
 }
 
-function openExistingSettingsArea() {
+export function openExistingSettingsArea() {
   showLegacyVmsWorkspace();
   const staffButton = document.getElementById("staffButton");
   if (!staffButton || staffButton.classList.contains("hidden")) return;
@@ -400,6 +405,10 @@ function openExistingSettingsArea() {
       window.clearInterval(settingsCheck);
     }
   }, 100);
+}
+
+function openApplicationSettingsShortcut() {
+  window.dispatchEvent(new CustomEvent("oh:application-settings-requested"));
 }
 
 function syncCurrentUser() {
@@ -469,7 +478,7 @@ if (administrationChildren) {
     }
   });
 }
-settingsShortcut.addEventListener("click", openExistingSettingsArea);
+settingsShortcut.addEventListener("click", openApplicationSettingsShortcut);
 if (currentUserButton) currentUserButton.addEventListener("click", event => {
   event.stopPropagation();
   toggleAccountMenu();

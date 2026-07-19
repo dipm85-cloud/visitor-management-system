@@ -72,6 +72,7 @@ function setAdministrationSection(sectionName) {
     access: sectionName === "access"
   };
   const sections = {
+    applicationSettings: $("applicationSettingsSection"),
     reference: $("referenceDataSection"),
     identityResolution: $("identityResolutionSection"),
     documentSignoffs: $("documentSignoffAdminSection"),
@@ -81,6 +82,7 @@ function setAdministrationSection(sectionName) {
     access: $("accessControlSection")
   };
   const navigation = {
+    applicationSettings: $("administrationApplicationSettingsNav"),
     reference: $("administrationReferenceNav"),
     identityResolution: $("administrationIdentityResolutionNav"),
     documentSignoffs: $("administrationDocumentSignoffsNav"),

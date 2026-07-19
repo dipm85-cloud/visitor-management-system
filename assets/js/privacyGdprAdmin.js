@@ -526,6 +526,7 @@ function hasSearchGroupRecords(id) {
 
 function setAdministrationSection(sectionName) {
   const sections = {
+    applicationSettings: $("applicationSettingsSection"),
     reference: $("referenceDataSection"),
     identityResolution: $("identityResolutionSection"),
     documentSignoffs: $("documentSignoffAdminSection"),
@@ -535,6 +536,7 @@ function setAdministrationSection(sectionName) {
     access: $("accessControlSection")
   };
   const navigation = {
+    applicationSettings: $("administrationApplicationSettingsNav"),
     reference: $("administrationReferenceNav"),
     identityResolution: $("administrationIdentityResolutionNav"),
     documentSignoffs: $("administrationDocumentSignoffsNav"),

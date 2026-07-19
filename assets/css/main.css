@@ -11361,6 +11361,265 @@ body.assignment-workspace-open .modal-backdrop.active {
 .assignment-form-grid { grid-template-columns: 1fr; }
 }
 
+.application-settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.application-settings-heading,
+.application-settings-section-heading,
+.application-settings-subsection-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.application-settings-heading h2,
+.application-settings-section-heading h3,
+.application-settings-subsection-heading h4 {
+  margin: 0;
+  color: #101828;
+}
+
+.application-settings-heading p,
+.application-settings-section-heading p,
+.application-settings-subsection-heading p {
+  margin: 4px 0 0;
+  color: #667085;
+}
+
+.application-settings-heading-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.application-settings-shell {
+  display: grid;
+  grid-template-columns: minmax(190px, 230px) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.application-settings-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  position: sticky;
+  top: calc(var(--oh-header-height, 64px) + 12px);
+}
+
+.application-settings-nav button {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #344054;
+  font-weight: 700;
+  text-align: left;
+  padding: 9px 11px;
+}
+
+.application-settings-nav button.active {
+  border-color: #1f4f8f;
+  background: #f0f6ff;
+  color: #123b6d;
+}
+
+.application-settings-content {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.application-settings-panel,
+.application-settings-subsection,
+.application-settings-registry-group {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.application-settings-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.application-settings-card,
+.application-settings-registry-row {
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 14px;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, .05);
+}
+
+.application-settings-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 165px;
+}
+
+.application-settings-card h4,
+.application-settings-registry-row h5 {
+  margin: 0;
+  color: #101828;
+}
+
+.application-settings-card p,
+.application-settings-registry-row p {
+  margin: 0;
+  color: #667085;
+  line-height: 1.45;
+}
+
+.application-settings-card button {
+  margin-top: auto;
+  align-self: flex-start;
+}
+
+.application-settings-card-status {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  border: 1px solid #d0d5dd;
+  border-radius: 999px;
+  padding: 3px 8px;
+  color: #475467;
+  background: #f9fafb;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.application-settings-registry {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.application-settings-registry-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(180px, .9fr) auto;
+  align-items: center;
+  gap: 14px;
+  margin-top: 10px;
+}
+
+.application-settings-registry-row.is-locked {
+  background: #fcfcfd;
+}
+
+.application-settings-control {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+  color: #475467;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.application-settings-control input,
+.application-settings-control select {
+  width: 100%;
+  min-height: 40px;
+}
+
+.application-settings-control input[type="checkbox"] {
+  width: 22px;
+  min-height: 22px;
+}
+
+.application-settings-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.application-settings-table {
+  width: 100%;
+  min-width: 820px;
+  border-collapse: collapse;
+}
+
+.application-settings-table th,
+.application-settings-table td {
+  padding: 11px 12px;
+  border-bottom: 1px solid #eaecf0;
+  text-align: left;
+  vertical-align: top;
+}
+
+.application-settings-table th {
+  background: #f9fafb;
+  color: #475467;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.application-settings-table td {
+  color: #344054;
+  font-size: 13px;
+}
+
+.application-settings-table td strong,
+.application-settings-table td span {
+  display: block;
+}
+
+.application-settings-table td span {
+  margin-top: 3px;
+  color: #667085;
+}
+
+.assignment-required-missing {
+  border-color: #d92d20 !important;
+  box-shadow: 0 0 0 3px rgba(217, 45, 32, .12) !important;
+}
+
+@media (max-width: 900px) {
+  .application-settings-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .application-settings-nav {
+    position: static;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  }
+
+  .application-settings-registry-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .application-settings-heading,
+  .application-settings-section-heading,
+  .application-settings-subsection-heading {
+    flex-direction: column;
+  }
+
+  .application-settings-card-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .application-settings-table {
+    min-width: 680px;
+  }
+}
+
 .people-profile-overlay {
   position: fixed;
   inset: 0;

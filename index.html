@@ -56,7 +56,7 @@
         <button id="ohAccountLogout" type="button" role="menuitem">Log Out</button>
         <button id="ohAccountAbout" type="button" role="menuitem">About Operations Hub</button>
       </div>
-      <button id="ohSettingsShortcut" class="oh-header-action no-print" type="button" title="Open the existing Visitor staff area">
+      <button id="ohSettingsShortcut" class="oh-header-action no-print" type="button" title="Open Application Settings" data-capability-action="application_settings.open" data-capability-label="Open Application Settings" data-capability-area="Application Settings" data-capability-any="application_settings.view application_settings.manage settings.view settings.edit module_configuration.view module_configuration.manage access_control.manage" data-capability-type="navigation">
         <span aria-hidden="true">⚙</span>
         <span class="oh-action-label">Settings</span>
       </button>
@@ -113,12 +113,13 @@
           <span class="oh-nav-label">Reports</span>
         </button>
         <div id="ohAdministrationGroup" class="oh-nav-group" data-oh-nav-group="administration">
-          <button id="ohAdministrationNav" class="oh-nav-item oh-nav-group-toggle" type="button" title="Administration" aria-expanded="false" aria-controls="ohAdministrationChildren" data-nav-action="navigation.administration.open" data-capability-action="navigation.administration.open" data-capability-label="Administration" data-capability-area="Navigation" data-capability-any="settings.view settings.edit module_configuration.view module_configuration.manage visitor.housekeeping.run devices.view devices.manage document_signoff.manage agreements.manage gdpr.view gdpr.manage privacy.view privacy.manage identity_resolution.view identity_resolution.manage audit.view access_control.view access_control.manage online_users.view admin_system_messages.view admin_system_messages.send admin_system_messages.force_action session_security_settings.view session_security_settings.manage" data-capability-type="navigation">
+          <button id="ohAdministrationNav" class="oh-nav-item oh-nav-group-toggle" type="button" title="Administration" aria-expanded="false" aria-controls="ohAdministrationChildren" data-nav-action="navigation.administration.open" data-capability-action="navigation.administration.open" data-capability-label="Administration" data-capability-area="Navigation" data-capability-any="application_settings.view application_settings.manage assignment_field_requirements.view assignment_field_requirements.manage settings.view settings.edit module_configuration.view module_configuration.manage visitor.housekeeping.run devices.view devices.manage document_signoff.manage agreements.manage gdpr.view gdpr.manage privacy.view privacy.manage identity_resolution.view identity_resolution.manage audit.view access_control.view access_control.manage online_users.view admin_system_messages.view admin_system_messages.send admin_system_messages.force_action session_security_settings.view session_security_settings.manage" data-capability-type="navigation">
             <span class="oh-nav-icon" aria-hidden="true">A</span>
             <span class="oh-nav-label">Administration</span>
             <span class="oh-nav-caret" aria-hidden="true">›</span>
           </button>
           <div id="ohAdministrationChildren" class="oh-nav-children" aria-label="Administration areas">
+            <button id="administrationApplicationSettingsNav" class="oh-nav-child-item hidden" type="button" title="Application Settings" data-nav-action="navigation.application_settings.open" data-capability-action="application_settings.open" data-capability-label="Open Application Settings" data-capability-area="Navigation" data-capability-any="application_settings.view application_settings.manage settings.view settings.edit module_configuration.view module_configuration.manage access_control.manage" data-capability-type="navigation">Application Settings</button>
             <button id="administrationReferenceNav" class="oh-nav-child-item active" type="button" aria-current="page" title="Reference Data" data-nav-action="navigation.reference_data.open" data-capability-action="navigation.reference_data.open" data-capability-label="Reference Data" data-capability-area="Navigation" data-capability-any="reference_data.view reference_data.manage settings.view settings.edit" data-capability-type="navigation">Reference Data</button>
             <button id="administrationIdentityResolutionNav" class="oh-nav-child-item hidden" type="button" title="Identity Resolution" data-nav-action="navigation.identity_resolution.open" data-capability-action="navigation.identity_resolution.open" data-capability-label="Identity Resolution" data-capability-area="Navigation" data-capability-any="identity_resolution.view identity_resolution.manage" data-capability-type="navigation">Identity Resolution</button>
             <button id="administrationDocumentSignoffsNav" class="oh-nav-child-item hidden" type="button" title="Document Sign-offs" data-nav-action="navigation.document_signoffs.open" data-capability-action="navigation.document_signoffs.open" data-capability-label="Document Sign-offs" data-capability-area="Navigation" data-capability-any="agreements.view agreements.manage document_signoff.manage" data-capability-type="navigation">Document Sign-offs</button>
@@ -1352,7 +1353,7 @@
       <div class="brand-mark"><img id="brandLogoImg" alt="Logo" style="display:none;width:100%;height:100%;object-fit:contain;border-radius:12px;"><span id="brandLogoFallback">V</span></div>
       <div>
         Visitor Management<br>
-        <span style="font-size:12px;color:var(--muted);font-weight:700;">Operations Hub nextgen-ui - OHP-013B.3</span>
+        <span style="font-size:12px;color:var(--muted);font-weight:700;">Operations Hub nextgen-ui - OHP-017</span>
       </div>
     </div>
     <div class="button-row no-print" style="margin:0;">
@@ -1401,7 +1402,7 @@
       </div>
       <button id="terminalReturnHomeButton" class="secondary hidden" type="button">Return to Terminal Home</button>
     </section>
-  <div id="appVersionFooter" class="version-footer">Version <span id="appVersionText">OHP-013B.3</span></div>
+  <div id="appVersionFooter" class="version-footer">Version <span id="appVersionText">OHP-017</span></div>
 </main>
 
   <section id="signInScreen" class="screen">
@@ -5210,6 +5211,93 @@
           </aside>
         </section>
 
+        <section id="applicationSettingsSection" class="application-settings-section hidden" aria-labelledby="applicationSettingsTitle">
+          <div class="application-settings-heading">
+            <div>
+              <p class="oh-app-eyebrow">Administration</p>
+              <h2 id="applicationSettingsTitle">Application Settings</h2>
+              <p>Central workspace for platform-defined settings, business configuration and safe links to legacy-backed areas.</p>
+            </div>
+            <div class="application-settings-heading-actions">
+              <span id="applicationSettingsModeBadge" class="access-control-mode">Read only</span>
+              <button id="applicationSettingsRefreshButton" class="secondary" type="button" data-capability-action="application_settings.refresh" data-capability-label="Refresh Application Settings" data-capability-area="Application Settings" data-capability-any="application_settings.view application_settings.manage settings.view settings.edit module_configuration.view module_configuration.manage access_control.manage" data-capability-type="view">Refresh</button>
+            </div>
+          </div>
+
+          <div class="application-settings-shell">
+            <nav id="applicationSettingsNav" class="application-settings-nav" aria-label="Application Settings sections"></nav>
+            <div class="application-settings-content">
+              <p id="applicationSettingsStatus" class="local-action-status" aria-live="polite"></p>
+
+              <section id="applicationSettingsOverviewPanel" class="application-settings-panel" data-application-settings-panel="overview" aria-labelledby="applicationSettingsOverviewTitle">
+                <div class="application-settings-section-heading">
+                  <div>
+                    <h3 id="applicationSettingsOverviewTitle">Overview</h3>
+                    <p>Settings areas organised by platform ownership and migration status.</p>
+                  </div>
+                </div>
+                <div id="applicationSettingsOverviewCards" class="application-settings-card-grid"></div>
+              </section>
+
+              <section id="applicationSettingsRegistryPanel" class="application-settings-panel hidden" data-application-settings-panel="registry" aria-labelledby="applicationSettingsRegistryTitle">
+                <div class="application-settings-section-heading">
+                  <div>
+                    <h3 id="applicationSettingsRegistryTitle">Controlled Setting Registry</h3>
+                    <p>Only platform-defined keys can be viewed or changed here.</p>
+                  </div>
+                </div>
+                <div id="applicationSettingsRegistry" class="application-settings-registry"></div>
+              </section>
+
+              <section id="applicationSettingsPeoplePanel" class="application-settings-panel hidden" data-application-settings-panel="people_assignments" aria-labelledby="applicationSettingsPeopleTitle">
+                <div class="application-settings-section-heading">
+                  <div>
+                    <h3 id="applicationSettingsPeopleTitle">People &amp; Assignments</h3>
+                    <p>Assignment rules that are safe for administrators to configure.</p>
+                  </div>
+                </div>
+                <div id="applicationSettingsPeopleRegistry" class="application-settings-registry"></div>
+                <section class="application-settings-subsection" aria-labelledby="assignmentFieldRequirementsTitle">
+                  <div class="application-settings-subsection-heading">
+                    <div>
+                      <h4 id="assignmentFieldRequirementsTitle">Assignment Field Requirements</h4>
+                      <p>System-required fields stay locked. Configurable fields can be made required by business policy.</p>
+                    </div>
+                    <button id="assignmentFieldRequirementsRefreshButton" class="secondary" type="button" data-capability-action="assignment_field_requirements.view" data-capability-label="View Assignment Field Requirements" data-capability-area="Application Settings" data-capability-any="assignment_field_requirements.view assignment_field_requirements.manage application_settings.view application_settings.manage settings.view settings.edit" data-capability-type="view">Refresh</button>
+                  </div>
+                  <div class="application-settings-table-wrap">
+                    <table class="application-settings-table" aria-labelledby="assignmentFieldRequirementsTitle">
+                      <thead>
+                        <tr>
+                          <th scope="col">Field</th>
+                          <th scope="col">Current rule</th>
+                          <th scope="col">Locked/system?</th>
+                          <th scope="col">Configurable?</th>
+                          <th scope="col">Required</th>
+                          <th scope="col">Help text</th>
+                          <th scope="col">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody id="assignmentFieldRequirementsBody"></tbody>
+                    </table>
+                    <div id="assignmentFieldRequirementsEmpty" class="people-empty-state hidden" data-oh-empty-state>No assignment field requirements are available.</div>
+                  </div>
+                </section>
+              </section>
+
+              <section id="applicationSettingsBridgePanel" class="application-settings-panel hidden" data-application-settings-panel="bridge" aria-labelledby="applicationSettingsBridgeTitle">
+                <div class="application-settings-section-heading">
+                  <div>
+                    <h3 id="applicationSettingsBridgeTitle">Settings Area</h3>
+                    <p id="applicationSettingsBridgeDescription"></p>
+                  </div>
+                </div>
+                <div id="applicationSettingsBridgeCards" class="application-settings-card-grid"></div>
+              </section>
+            </div>
+          </div>
+        </section>
+
         <section id="accessControlSection" class="hidden" aria-labelledby="accessControlTitle">
           <div class="access-control-heading">
             <div>
@@ -5721,7 +5809,7 @@
 
   <footer class="oh-footer">
     <strong>Operations Hub</strong>
-    <span>Version <span id="ohPlatformVersion">OHP-013B.3</span></span>
+    <span>Version <span id="ohPlatformVersion">OHP-017</span></span>
     <span>Environment <span id="ohEnvironment">Local</span></span>
   </footer>
 </div>

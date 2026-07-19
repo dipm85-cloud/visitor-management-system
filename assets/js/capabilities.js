@@ -34,6 +34,10 @@ const compatibilityCapabilitiesByRole = {
   super_user: [
     "module_configuration.view",
     "module_configuration.manage",
+    "application_settings.view",
+    "application_settings.manage",
+    "assignment_field_requirements.view",
+    "assignment_field_requirements.manage",
     "settings.view",
     "settings.edit",
     "audit.view",

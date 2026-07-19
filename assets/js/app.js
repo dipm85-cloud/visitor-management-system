@@ -190,6 +190,7 @@ import {
   showTerminalHomeWorkspace,
   showVisitorKioskWorkspace,
   closeAccountMenu,
+  openExistingSettingsArea,
   syncNavigationCapabilityVisibility,
   shouldShowPeopleNavigation
 } from "./shell.js";
@@ -206,6 +207,7 @@ import {
   closeReferenceDataPanel,
   saveReferenceRecord,
   clearReferenceForm,
+  selectReferenceEntity,
   exportReferenceDataCsv,
   exportReferenceDataXlsx
 } from "./referenceData.js";
@@ -236,7 +238,8 @@ import { initialiseReportingCentre } from "./reporting.js";
 import {
   initialiseAccessControl,
   syncAccessControlVisibility,
-  openAccessControlWorkspace
+  openAccessControlWorkspace,
+  showAccessControlView
 } from "./accessControl.js";
 import {
   initialiseDocumentSignoffAdministration,
@@ -294,10 +297,16 @@ import {
 import {
   initialiseAdminPresence,
   resetAdminPresence,
+  refreshAdminPresenceWorkspace,
   startAdminPresenceSession,
   stopAdminPresenceSession,
   syncAdminPresenceUi
 } from "./adminPresence.js";
+import {
+  initialiseApplicationSettings,
+  openApplicationSettingsWorkspace,
+  syncApplicationSettingsVisibility
+} from "./applicationSettings.js";
 
 window.addEventListener("load", async function () {
   try {
@@ -544,6 +553,47 @@ window.addEventListener("load", async function () {
       }
     }
 
+    async function openWorkingTimeSettingsEntity(entityKey) {
+      await openReferenceDataWorkspace();
+      await selectReferenceEntity(entityKey);
+    }
+
+    async function openAdminPresenceSettings(viewMode) {
+      await openAccessControlWorkspace();
+      showAccessControlView("presence");
+      refreshAdminPresenceWorkspace();
+      window.setTimeout(() => {
+        const target = viewMode === "history"
+          ? $("adminPresenceMessageHistoryWorkspace")
+          : $("adminPresenceSection");
+        if (target && typeof target.scrollIntoView === "function") {
+          target.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 80);
+    }
+
+    async function openSessionSecuritySettingsBridge() {
+      await openAccessControlWorkspace();
+      showAccessControlView("presence");
+      refreshAdminPresenceWorkspace();
+      window.setTimeout(() => {
+        const target = $("adminPresenceSessionSecurityCard");
+        if (target && typeof target.scrollIntoView === "function") {
+          target.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 80);
+    }
+
+    initialiseApplicationSettings({
+      openLegacySettings: openExistingSettingsArea,
+      openDocuments: () => openDocumentSignoffLegacyVms("document-signoffs-management"),
+      openModuleConfiguration: () => openModuleConfigurationAdministration(),
+      openNotifications: openAdminPresenceSettings,
+      openSessionSecurity: openSessionSecuritySettingsBridge,
+      openSharedTerminals: openSharedTerminalAdministration,
+      openWorkingTimeEntity: openWorkingTimeSettingsEntity
+    });
+
     configureVisitors({
       openLegacyVms: openDocumentSignoffLegacyVms,
       createWalkIn: createStaffWalkIn,
@@ -606,6 +656,7 @@ window.addEventListener("load", async function () {
       showSuperSection,
       syncNavigationCapabilityVisibility() {
         syncNavigationCapabilityVisibility();
+        syncApplicationSettingsVisibility();
         syncAccessControlVisibility();
         syncDocumentSignoffAdminVisibility();
         syncPrivacyGdprVisibility();
@@ -2669,6 +2720,7 @@ window.addEventListener("load", async function () {
       $("superPanel").classList.toggle("active", role === "super");
       if ($("kioskTestPanel")) $("kioskTestPanel").classList.toggle("active", role === "kiosk");
       syncVisitorCapabilityVisibility();
+      syncApplicationSettingsVisibility();
       syncVisitorHousekeepingControls();
       syncSharedTerminalAdministrationVisibility();
 
@@ -5090,6 +5142,7 @@ window.addEventListener("load", async function () {
     initialiseIdentityResolutionAdministration();
     initialiseSharedTerminalAdministration();
     window.addEventListener("oh:capabilities-changed", syncVisitorCapabilityVisibility);
+    window.addEventListener("oh:capabilities-changed", syncApplicationSettingsVisibility);
     window.addEventListener("oh:capabilities-changed", syncDocumentSignoffAdminVisibility);
     window.addEventListener("oh:capabilities-changed", syncPrivacyGdprVisibility);
     window.addEventListener("oh:capabilities-changed", syncIdentityResolutionVisibility);
@@ -5172,6 +5225,15 @@ window.addEventListener("load", async function () {
           "devices.manage"
         ])) {
           openSharedTerminalAdministration();
+          return;
+        }
+        if (hasAnyCapability([
+          "application_settings.view",
+          "application_settings.manage",
+          "settings.view",
+          "settings.edit"
+        ])) {
+          openApplicationSettingsWorkspace();
           return;
         }
         if (hasAnyCapability([

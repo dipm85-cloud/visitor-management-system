@@ -1020,6 +1020,7 @@ export async function cancelAssignmentEditor() {
 }
 
 export function clearAssignmentForm() {
+  clearAssignmentRequirementMarkers();
   $("assignmentForm").reset();
   $("assignmentSourceId").value = "";
   $("assignmentPersonId").value = selectedPersonId || "";
@@ -1039,6 +1040,77 @@ function validateAssignmentDates(startDate, endDate) {
   if (endDate && endDate < startDate) {
     throw new Error("Assignment End Date cannot be before Assignment Start Date.");
   }
+}
+
+const ASSIGNMENT_REQUIREMENT_FIELD_IDS = {
+  person: "assignmentPersonId",
+  start_date: "assignmentStart",
+  contract: "assignmentContract",
+  department: "assignmentDepartment",
+  site: "assignmentSite",
+  employer: "assignmentEmployer",
+  job_role: "assignmentJobRole",
+  shift_pattern: "assignmentShiftPattern",
+  work_time_profile: "assignmentWorkTimeProfile",
+  notes: "assignmentNotes"
+};
+
+function clearAssignmentRequirementMarkers() {
+  Object.values(ASSIGNMENT_REQUIREMENT_FIELD_IDS).forEach(id => {
+    const control = $(id);
+    if (!control) return;
+    control.classList.remove("assignment-required-missing");
+    control.removeAttribute("aria-invalid");
+  });
+}
+
+function markMissingAssignmentRequirements(missingRows) {
+  clearAssignmentRequirementMarkers();
+  (missingRows || []).forEach(row => {
+    const control = $(ASSIGNMENT_REQUIREMENT_FIELD_IDS[row.field_key]);
+    if (!control) return;
+    control.classList.add("assignment-required-missing");
+    control.setAttribute("aria-invalid", "true");
+  });
+}
+
+function buildAssignmentRequirementPayload(payload) {
+  return {
+    ...payload,
+    person_id: payload.person_id,
+    profile_id: payload.person_id,
+    start_date: payload.assignment_start_date,
+    effective_from: payload.assignment_start_date,
+    contract_id: payload.contract_id,
+    department_id: payload.department_id,
+    site_id: payload.site_id,
+    employer_id: payload.employer_organisation_id,
+    company_id: payload.employer_organisation_id,
+    role_id: payload.job_role_id,
+    job_role_id: payload.job_role_id,
+    shift_pattern_id: payload.shift_pattern_id,
+    work_time_profile_id: payload.work_time_profile_id,
+    notes: payload.notes
+  };
+}
+
+async function validateAssignmentConfiguredRequirements(payload) {
+  clearAssignmentRequirementMarkers();
+  const result = await supabaseClient.rpc("validate_assignment_requirements_payload", {
+    p_payload: buildAssignmentRequirementPayload(payload)
+  });
+  if (result.error) throw result.error;
+
+  const missing = (result.data || []).filter(row => row.missing !== false);
+  if (!missing.length) return true;
+
+  markMissingAssignmentRequirements(missing);
+  showToast(
+    "Assignment incomplete",
+    missing.map(row => row.field_label || row.field_key).join(", ") + " required.",
+    "error"
+  );
+  return false;
 }
 
 function assignmentAuditDetails(beforeAssignment, afterAssignment) {
@@ -1113,6 +1185,18 @@ export async function saveAssignment() {
     active,
     notes: optionalValue("assignmentNotes")
   };
+
+  try {
+    const requirementsValid = await validateAssignmentConfiguredRequirements(payload);
+    if (!requirementsValid) return;
+  } catch (err) {
+    showToast(
+      "Assignment not saved",
+      err.message || "Could not validate configured assignment requirements.",
+      "error"
+    );
+    return;
+  }
 
   const localClassification = classifyCandidateAssignment({ id: assignmentId, ...payload }, assignmentsCache);
   if (classificationBlocksSave(localClassification)) {
