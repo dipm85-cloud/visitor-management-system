@@ -320,6 +320,13 @@ const SELECT_VALUE_LABELS = Object.freeze({
 });
 
 const SETTING_HELP_TEXT = Object.freeze({
+  "application.settings_workspace_enabled": "Stored only from the OHP-017 foundation. Runtime access is controlled by capabilities and navigation visibility.",
+  "assignments.field_requirements_enabled": "Stored only from the OHP-017 foundation. Form Configuration is now controlled by field requirement areas and RPC validation.",
+  "assignments.enforce_requirements_on_save": "Stored only from the OHP-017 foundation. Form Configuration save enforcement is now handled by area-specific validation RPCs.",
+  "settings.show_legacy_vms_settings_link": "Legacy bridge marker. The visible Legacy VMS workspace remains available while unique workflows are migrated.",
+  "visitors.prevent_duplicate_planned_visits": "Stored only. Duplicate planned visit protection is still enforced by existing save constraints/workflows, not this registry value.",
+  "visitors.auto_end_of_day_sign_out_time": "Stored only until the backend auto sign-out RPC accepts a configurable local cut-off time.",
+  "shared_terminal.clear_partial_form_data_on_reset": "Partially applied. Idle reset returns the terminal home; explicit partial-form clearing is not separately wired yet.",
   "branding.brand_contrast_mode": "Auto is recommended. This controls text on branded buttons and active navigation only.",
   "document_signoff.require_scroll_to_end_before_signing": "Locked by system / Future controlled document viewer.",
   "privacy.anonymisation_requires_preview": "Locked by system. Anonymisation preview remains mandatory.",
@@ -327,6 +334,66 @@ const SETTING_HELP_TEXT = Object.freeze({
   "access_diagnostics.capability_inspector_available": "Locked by system. Access still requires diagnostic capability.",
   "access_diagnostics.capability_inspector_session_only": "Locked by system. Capability Inspector is not persisted."
 });
+
+const APPLICATION_SETTING_IMPLEMENTATION_STATUS = Object.freeze({
+  "application.product_name": ["Applied", "Updates shell product name, document title and legacy display name through the runtime bridge."],
+  "application.product_subtitle": ["Applied", "Updates the Operations Hub header subtitle and branding preview."],
+  "application.environment_label": ["Applied", "Feeds the optional environment chip when display is enabled."],
+  "application.show_environment_label": ["Applied", "Controls the optional environment chip visibility."],
+  "application.settings_workspace_enabled": ["Stored only", "Seeded by OHP-017 foundation; navigation is currently capability-driven."],
+  "assignments.field_requirements_enabled": ["Stored only", "Superseded by Form Configuration field requirement areas."],
+  "assignments.enforce_requirements_on_save": ["Stored only", "Superseded by area-specific Form Configuration validation RPCs."],
+  "settings.show_legacy_vms_settings_link": ["Legacy bridge", "Documents the temporary legacy settings bridge while migration continues."],
+
+  "visitors.sign_in_confirmation_message": ["Applied", "Used for planned and walk-in visitor sign-in confirmation messages."],
+  "visitors.sign_out_confirmation_message": ["Applied", "Used for visitor sign-out confirmation messages."],
+  "visitors.confirmation_auto_close_seconds": ["Applied", "Controls confirmation auto-close timing after settings refresh."],
+  "visitors.require_confirmation_close_button": ["Applied", "Controls whether confirmation popups show a close button."],
+  "visitors.prevent_duplicate_planned_visits": ["Stored only", "Value is saved and bridged but no runtime consumer reads it yet."],
+  "visitors.prevent_walk_in_when_matching_planned_visit_exists": ["Applied", "Walk-in flow checks for matching planned visits before creating a walk-in."],
+  "visitors.auto_end_of_day_sign_out_enabled": ["Partially applied", "Controls whether the opportunistic auto sign-out RPC is called."],
+  "visitors.auto_end_of_day_sign_out_time": ["Stored only", "Saved for the future backend cut-off time; the current RPC owns timing."],
+
+  "shared_terminal.home_title": ["Applied", "Updates the Shared Terminal home title."],
+  "shared_terminal.home_subtitle": ["Applied", "Updates the Shared Terminal home subtitle."],
+  "shared_terminal.show_staff_login_button": ["Applied", "Controls staff login button visibility on the public terminal surface."],
+  "shared_terminal.return_home_after_action_seconds": ["Applied", "Controls post-action return-home delay in visitor terminal flows."],
+  "shared_terminal.idle_reset_enabled": ["Applied", "Controls registered terminal idle reset."],
+  "shared_terminal.idle_reset_seconds": ["Applied", "Controls registered terminal idle reset delay."],
+  "shared_terminal.clear_partial_form_data_on_reset": ["Partially applied", "Idle reset returns home; explicit partial form clearing is not separately wired."],
+
+  "document_signoff.use_confirmed_identity_links_for_compliance": ["Legacy bridge", "Application Settings syncs this value to legacy system settings and native compliance logic reads the bridged key."],
+  "document_signoff.show_canonical_identity_context": ["Applied", "Controls canonical/signed-as identity context in native evidence views and print output."],
+  "document_signoff.print_use_branding_logo": ["Partially applied", "Used by supported agreement/sign-off print output with branding print-logo fallback."],
+  "document_signoff.default_evidence_detail_level": ["Applied", "Controls default detail density in native document evidence views."],
+  "document_signoff.require_scroll_to_end_before_signing": ["Future / locked", "Locked until the controlled document viewer can enforce review-to-end reliably."],
+
+  "notifications.default_message_type": ["Applied", "Seeds the default message type when opening Send System Message."],
+  "notifications.default_message_expiry_minutes": ["Applied", "Seeds the default expiry minutes for new system messages."],
+  "notifications.default_required_action_grace_seconds": ["Applied", "Seeds the default grace period for required actions."],
+  "notifications.default_force_after_grace": ["Applied", "Seeds the default force-after-grace mode when the sender has permission."],
+  "notifications.online_users_default_window_seconds": ["Applied", "Controls the default probably-online activity window."],
+  "notifications.message_history_default_rows": ["Applied", "Controls the default message history row limit."],
+
+  "privacy.case_reference_prefix": ["Applied", "Used as the case reference placeholder/default prefix in privacy case workflows."],
+  "privacy.sar_pack_include_timeline_by_default": ["Applied", "Controls SAR/evidence pack timeline default metadata."],
+  "privacy.sar_pack_include_source_references_by_default": ["Applied", "Controls SAR/evidence pack source-reference defaults."],
+  "privacy.anonymisation_requires_preview": ["Future / locked", "Locked guardrail; current native anonymisation remains preview/review only."],
+  "privacy.anonymisation_requires_confirmation_phrase": ["Future / locked", "Locked guardrail; confirmation phrase remains mandatory in the review workflow."],
+  "privacy.show_technical_references_by_default": ["Applied", "Controls whether technical references are expanded by default in privacy case details."],
+
+  "access_diagnostics.capability_inspector_available": ["Future / locked", "Locked status marker; Capability Inspector availability remains capability/session controlled."],
+  "access_diagnostics.capability_inspector_session_only": ["Future / locked", "Locked status marker; Inspector mode remains session-only."],
+  "access_diagnostics.show_effective_capability_source": ["Applied", "Controls whether effective capability sources are shown in Access Control diagnostics."],
+  "access_diagnostics.default_user_assignment_include_inactive": ["Applied", "Controls the default inactive-user filter state for User Role Assignments."]
+});
+
+function applicationSettingImplementationStatus(settingKey) {
+  const brandingStatus = brandingImplementationStatus(settingKey);
+  if (brandingStatus) return brandingStatus;
+  const entry = APPLICATION_SETTING_IMPLEMENTATION_STATUS[settingKey];
+  return entry ? { label: entry[0], detail: entry[1] } : null;
+}
 
 function canViewApplicationSettings() {
   return hasAnyCapability(APPLICATION_SETTINGS_VIEW_CAPABILITIES);
@@ -1096,7 +1163,7 @@ function renderRegistry(filterCategory, targetId = "applicationSettingsRegistry"
             ? "Editable"
             : "Read only";
       summary.append(name, description, meta);
-      const implementationStatus = brandingImplementationStatus(setting.setting_key);
+      const implementationStatus = applicationSettingImplementationStatus(setting.setting_key);
       if (implementationStatus) {
         const status = document.createElement("span");
         status.className = "application-settings-card-status is-" +
@@ -1475,7 +1542,7 @@ function bridgeActionsFor(sectionId) {
         label: "Notification Groups",
         actionId: "application_settings.notifications.groups.future",
         capabilityLabel: "Open future Notification Groups placeholder",
-        description: "Future Reference / Configuration Data for notification groups. No runtime behaviour in OHP-017G.",
+        description: "Future Reference / Configuration Data for notification groups. No runtime behaviour in OHP-017H.",
         requiredAny: settingsAreaById("notifications").manageCapabilities,
         handler: () => showToast("Coming later", "Notification Groups are reserved for a future notification-routing milestone.", "info")
       }

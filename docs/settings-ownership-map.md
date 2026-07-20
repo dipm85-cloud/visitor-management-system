@@ -1,6 +1,11 @@
 # Settings Ownership Map
 
-OHP-017G is the final settings ownership review before LMT work. Application Settings is the stable home for platform behaviour, branding, security defaults, notifications, form configuration and safe links. It may link to Reference / Configuration Data, Access Control, and specialist workspaces, but those links must be labelled by their real owner.
+OHP-017H is the settings linkage and legacy dependency audit before LMT work. Application Settings is the stable home for platform behaviour, branding, security defaults, notifications, form configuration and safe links. It may link to Reference / Configuration Data, Access Control, and specialist workspaces, but those links must be labelled by their real owner.
+
+Audit references:
+
+- [Application Settings Linkage Audit](application-settings-linkage-audit.md)
+- [Legacy VMS Settings Dependency Review](legacy-vms-settings-dependency-review.md)
 
 ## Ownership Taxonomy
 
@@ -48,9 +53,15 @@ Avoid generic "Linked" for intentional owners. If Application Settings opens ano
 | Reference / Configuration Data | Administration -> Reference Data | Reference / Configuration Data | Managed in Reference Data | Specialist editors where not yet consolidated | Sites, departments, contracts, working-time rules/profiles, organisations, dropdowns and future rule/policy data are customer context, not application settings. |
 | Future LMT | Reserved card in Application Settings -> Modules | Application Settings, Reference / Configuration Data, and Operational Workspaces | Future | None | LMT behaviour/default settings belong in Application Settings. LMT exception reasons, finance mappings, contract rules and contract policies belong in Reference / Configuration Data unless they are security-related. Weekly LMT records belong in operational workspaces. |
 
+## OHP-017H Audit Notes
+
+The linkage audit found no SQL-required blocker, but it did confirm a few stored-only or partial registry values. `application.settings_workspace_enabled`, `assignments.field_requirements_enabled`, `assignments.enforce_requirements_on_save`, `settings.show_legacy_vms_settings_link`, `visitors.prevent_duplicate_planned_visits`, `visitors.auto_end_of_day_sign_out_time`, and `shared_terminal.clear_partial_form_data_on_reset` must remain clearly labelled until they are wired, locked, hidden, or retired in a later milestone.
+
+Legacy VMS settings are not safe to remove yet. Application Settings is the primary owner for migrated settings, while `public.system_settings` remains a compatibility bridge and still stores unique deployment, email, privacy notice, retention, agreement, kiosk, and operational settings.
+
 ## LMT Readiness
 
-The OHP-017G ownership model is ready for LMT if these rules stay intact:
+The OHP-017H ownership model is ready for LMT if these rules stay intact:
 
 - LMT app behaviour/defaults go in Application Settings.
 - LMT exception reasons, finance mappings, contract rules, contract policies, working-time rules and dropdown-style data go in Reference / Configuration Data unless they are security-related.
