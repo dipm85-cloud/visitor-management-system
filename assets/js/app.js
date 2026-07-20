@@ -443,7 +443,7 @@ window.addEventListener("load", async function () {
       return AppState.currentProfile && AppState.currentProfile.active && AppState.currentProfile.role === "super_user" && superKioskTestMode === true;
     }
 
-    // Settings are loaded from public.system_settings.
+    // Settings load from Application Settings runtime RPCs, with legacy storage as fallback.
     // Defaults are used if a setting is missing or cannot be loaded.
     const appSettings = getDefaultAppSettings();
     configureKiosk({

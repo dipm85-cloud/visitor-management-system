@@ -1,12 +1,12 @@
 # Application Settings Linkage Audit
 
-Milestone: OHP-017H
+Milestone: OHP-017I
 
 ## Summary
 
-Application Settings is linked to runtime behaviour for General, Branding, Visitor, Shared Terminal, Document / Sign-off, Notifications, Privacy, Access / Diagnostics, and Form Configuration areas. The audit found a few registry values that are intentionally bridge, locked/future, partial, or stored-only; these are now labelled in the Application Settings UI metadata so editable settings do not silently appear fully active.
+Application Settings is now the normal runtime source of truth for General, Branding, Visitors, Shared Terminal, Documents / Sign-off, Notifications, Privacy, Access / Diagnostics, Retention / Housekeeping, Email, Deployment / Devices, and Form Configuration areas. The audit keeps bridge, locked/future, partial, and stored-only labels visible so editable settings do not silently appear fully active.
 
-No SQL was added for this milestone.
+SQL for this milestone is `database/OHP-017I_remove_legacy_vms_runtime_dependency.sql`. It seeds the remaining runtime settings, adds Application Settings categories, and exposes compatibility RPCs for legacy-shaped keys.
 
 ## Status Meanings
 
@@ -14,12 +14,16 @@ No SQL was added for this milestone.
 - Partially applied: the app reads part of the value, or applies it only to supported outputs.
 - Future / locked: the value is locked by system or reserved for a future controlled workflow.
 - Stored only: the value can be saved but no runtime consumer currently reads it.
-- Legacy bridge: Application Settings is the primary owner, but legacy `system_settings` or legacy UI remain compatibility paths.
+- Legacy bridge: Application Settings is the primary owner, but legacy UI remains a compatibility/historical bridge.
 - Unused / needs action: no acceptable label or runtime linkage exists.
 
 ## Runtime Pattern
 
-Application Settings values are loaded by `assets/js/applicationSettingsService.js`, overlaid onto legacy-shaped settings in `assets/js/settings.js`, and then consumed by existing modules through `appSettings` or `settingValue()`. Saves dispatch `oh:application-settings-values-changed`; `assets/js/app.js` reloads settings, reapplies form requirement indicators, and refreshes kiosk/terminal access wiring.
+Normal runtime loads call `get_runtime_application_settings()` first and `get_runtime_legacy_compat_settings()` second through `assets/js/applicationSettingsService.js`. `assets/js/settings.js` builds `appSettings` and legacy-shaped compatibility values from those results, so existing `settingValue("legacy_key")` consumers keep working without reading `public.system_settings`.
+
+`public.system_settings` is now fallback only. If the runtime RPCs fail, `loadSystemSettings()` logs a console warning, loads legacy rows, and overlays Application Settings categories where available.
+
+Saves dispatch `oh:application-settings-values-changed`; `assets/js/app.js` reloads settings, reapplies form requirement indicators, and refreshes kiosk/terminal access wiring.
 
 ## Registry Inventory
 
@@ -97,6 +101,25 @@ Application Settings values are loaded by `assets/js/applicationSettingsService.
 | `access_diagnostics.show_effective_capability_source` | Access Control / Diagnostics | Show effective capability source | Active / applied | `settings.js`, `accessControl.js` | True | After settings reload; next Access Control render/export | No | Hides/shows role/direct source. |
 | `access_diagnostics.default_user_assignment_include_inactive` | Access Control / Diagnostics | Include inactive users by default | Active / applied | `settings.js`, `accessControl.js` | True | After settings reload; next assignment filter reset/open | No | Default filter state only. |
 
+## OHP-017I Runtime Additions
+
+| Setting key | Category | Status | Legacy compatibility key(s) | Runtime notes |
+| --- | --- | --- | --- | --- |
+| `visitors.allow_walk_ins` | Visitors | Active / applied | `allow_walk_ins` | Controls whether walk-in flows remain available. |
+| `visitors.walk_in_confirmation_message` | Visitors | Active / applied | `walk_in_confirmation_message` | Separate walk-in confirmation wording; fallback still accepts the older sign-in bridge. |
+| `visitors.require_security_pass` | Visitors | Legacy bridge | `require_security_pass` | Bridged for legacy visitor forms; Form Configuration remains the new form field owner. |
+| `visitors.require_vehicle_plate` | Visitors | Legacy bridge | `require_vehicle_plate` | Bridged for legacy visitor forms; Form Configuration remains the new form field owner. |
+| `visitors.require_onsite_contact` | Visitors | Legacy bridge | `require_onsite_contact` | Bridged for legacy visitor forms; Form Configuration remains the new form field owner. |
+| `visitors.max_login_attempts` | Visitors | Active / applied | `max_login_attempts` | Used by existing security/login compatibility paths. |
+| `shared_terminal.kiosk_device_required` | Shared Terminal | Active / applied | `kiosk_device_required` | Keeps device-token enforcement driven by Application Settings. |
+| `shared_terminal.kiosk_idle_timeout_seconds` | Shared Terminal | Active / applied | `kiosk_idle_timeout_seconds` | Maintains legacy kiosk timeout compatibility while Shared Terminal idle reset remains native. |
+| `retention.*` | Retention / Housekeeping | Active / applied | `retention_*`, `planned_*`, `daily_maintenance_*` | Retention preview, cleanup, no-show retention and daily maintenance read generated compatibility values. |
+| `privacy.notice_*`, `privacy.display_mode` | Privacy / Data Governance | Active / applied | `privacy_notice_*`, `privacy_*` | Visitor privacy notice behaviour is now represented in Application Settings. |
+| `email.*` | Email | Active / applied | `email_*` | Processor and delivery settings come from Application Settings; delivery defaults disabled. |
+| `notifications.notify_*`, `notifications.*_minutes`, `notifications.*_days` | Notifications | Active / applied | notification trigger legacy keys | Notification trigger settings are now in Application Settings alongside message defaults. |
+| `agreements.*` | Documents / Sign-off | Active / applied | agreement/sign-off legacy keys | Agreement enablement, validity, signatures, print wording and compliance guards are runtime compatibility values. |
+| `deployment.*` | Deployment / Devices | Active / applied | `current_app_version`, `outdated_device_warning_enabled` | Expected app version and outdated-device warning settings are owned by Application Settings. |
+
 ## Form Configuration Inventory
 
 Form Configuration is stored in `field_requirement_areas`, `field_requirement_definitions`, and `field_requirement_values`, not in `application_setting_definitions`.
@@ -110,6 +133,7 @@ Form Configuration is stored in `field_requirement_areas`, `field_requirement_de
 ## Findings
 
 - Acceptable: most Application Settings are active or safely bridged.
+- Acceptable: OHP-017I removes normal runtime dependency on `public.system_settings`; it is retained only as a fallback/historical bridge.
 - Acceptable with clear label: `document_signoff.print_use_branding_logo`, `visitors.auto_end_of_day_sign_out_enabled`, and `shared_terminal.clear_partial_form_data_on_reset` are partial.
 - Acceptable with clear label: locked/future guardrails remain locked and labelled.
 - Needs later cleanup: foundation keys and `visitors.prevent_duplicate_planned_visits` / `visitors.auto_end_of_day_sign_out_time` should either be wired, locked, or retired in a later migration after manual testing.

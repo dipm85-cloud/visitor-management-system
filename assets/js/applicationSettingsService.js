@@ -26,6 +26,20 @@ function cacheSettings(categoryCode, rows) {
   return settings;
 }
 
+function runtimeObjectFromResult(data) {
+  if (!data || typeof data !== "object" || Array.isArray(data)) return {};
+  return Object.fromEntries(
+    Object.entries(data).map(([key, value]) => [key, applicationSettingJsonValue(value)])
+  );
+}
+
+function cacheRuntimeApplicationSettings(values) {
+  Object.entries(values || {}).forEach(([settingKey, value]) => {
+    valueCache.set(settingKey, applicationSettingJsonValue(value));
+  });
+  return values || {};
+}
+
 export async function listApplicationSettingCategories(options = {}) {
   if (!options.force && categoriesCache) return categoriesCache;
   const result = await supabaseClient.rpc("list_application_setting_categories");
@@ -55,6 +69,18 @@ export async function loadApplicationSettingsForRuntime(categoryCodes, options =
     }))
   );
   return results.flat();
+}
+
+export async function getRuntimeApplicationSettings() {
+  const result = await supabaseClient.rpc("get_runtime_application_settings");
+  if (result.error) throw result.error;
+  return cacheRuntimeApplicationSettings(runtimeObjectFromResult(result.data));
+}
+
+export async function getRuntimeLegacyCompatSettings() {
+  const result = await supabaseClient.rpc("get_runtime_legacy_compat_settings");
+  if (result.error) throw result.error;
+  return runtimeObjectFromResult(result.data);
 }
 
 export function getCachedApplicationSettingValue(settingKey, fallback) {

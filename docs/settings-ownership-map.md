@@ -1,6 +1,6 @@
 # Settings Ownership Map
 
-OHP-017H is the settings linkage and legacy dependency audit before LMT work. Application Settings is the stable home for platform behaviour, branding, security defaults, notifications, form configuration and safe links. It may link to Reference / Configuration Data, Access Control, and specialist workspaces, but those links must be labelled by their real owner.
+OHP-017I removes normal runtime dependency on Legacy VMS settings before LMT work. Application Settings is the stable home for platform behaviour, branding, security defaults, notifications, retention/housekeeping, email, deployment/device warnings, form configuration and safe links. It may link to Reference / Configuration Data, Access Control, and specialist workspaces, but those links must be labelled by their real owner.
 
 Audit references:
 
@@ -9,7 +9,7 @@ Audit references:
 
 ## Ownership Taxonomy
 
-Application Settings owns app behaviour: branding, product identity, visitor behaviour defaults, Shared Terminal behaviour, session security defaults, notification defaults, privacy guardrails, Form Configuration, module availability, and module behaviour settings.
+Application Settings owns app behaviour: branding, product identity, visitor behaviour defaults, Shared Terminal behaviour, session security defaults, notification defaults and triggers, retention/housekeeping, email processor/delivery switches, deployment warning defaults, privacy guardrails, Form Configuration, module availability, and module behaviour settings.
 
 Reference / Configuration Data owns customer-specific business context, dropdowns, rules and policies: Work Time Profiles, Break Rules, Unsociable Time Rules, Unsociable Rule Sets, departments, contracts, sites, employers/organisations, reason codes, agreement/document types where supported, and future LMT exception reasons, finance mappings, contract rules or contract policies.
 
@@ -49,19 +49,22 @@ Avoid generic "Linked" for intentional owners. If Application Settings opens ano
 | Working Time | Reference Data -> Working Time Configuration, plus Rota Calendar | Reference / Configuration Data | Managed in Reference Data | None | Work Time Profiles, Break Rules, Unsociable Time Rules and Unsociable Rule Sets are customer configuration. Rota Calendar is an operational workspace. Application Settings may link to working-time reference data but must not present it as app settings. |
 | Session Security | Access Control -> Online Users / System Messages | Application Settings | Specialist workspace | Existing Access Control editor until migration is safe | Staff inactivity and session behaviour are application settings, but the current editor remains in its existing security/admin workspace. |
 | Notifications | Application Settings plus Online Users / System Messages | Application Settings | Partially migrated | Operational messaging workspace | Message defaults, expiry, action grace and history-row defaults are settings. Online users, send message and message history remain operational/admin workspaces. Notification groups, alert rules and escalation rules are future Reference / Configuration Data. |
+| Retention / Housekeeping | Application Settings -> Retention / Housekeeping | Application Settings | Native | Legacy fallback only | Retention days, cleanup mode, no-show retention and daily maintenance compatibility values are runtime settings. |
+| Email | Application Settings -> Email | Application Settings | Native | Legacy fallback only | Email processor and delivery settings are runtime settings. Delivery remains disabled unless explicitly enabled. |
+| Deployment / Devices | Application Settings -> Deployment / Devices | Application Settings | Native | Legacy fallback only | Expected app version and outdated-device warning settings are runtime settings. Device tokens/session state remain specialist/local state. |
 | Access Control / Diagnostics | Application Settings plus Administration -> Access Control | Application Settings and Access Control | Partially migrated | None | Application Settings owns diagnostics defaults and locked Capability Inspector status. Role Presets, capability assignment, User Role Assignments and effective capability review are Security Configuration owned by Access Control. |
 | Reference / Configuration Data | Administration -> Reference Data | Reference / Configuration Data | Managed in Reference Data | Specialist editors where not yet consolidated | Sites, departments, contracts, working-time rules/profiles, organisations, dropdowns and future rule/policy data are customer context, not application settings. |
 | Future LMT | Reserved card in Application Settings -> Modules | Application Settings, Reference / Configuration Data, and Operational Workspaces | Future | None | LMT behaviour/default settings belong in Application Settings. LMT exception reasons, finance mappings, contract rules and contract policies belong in Reference / Configuration Data unless they are security-related. Weekly LMT records belong in operational workspaces. |
 
-## OHP-017H Audit Notes
+## OHP-017I Audit Notes
 
-The linkage audit found no SQL-required blocker, but it did confirm a few stored-only or partial registry values. `application.settings_workspace_enabled`, `assignments.field_requirements_enabled`, `assignments.enforce_requirements_on_save`, `settings.show_legacy_vms_settings_link`, `visitors.prevent_duplicate_planned_visits`, `visitors.auto_end_of_day_sign_out_time`, and `shared_terminal.clear_partial_form_data_on_reset` must remain clearly labelled until they are wired, locked, hidden, or retired in a later milestone.
+The OHP-017I SQL seeds remaining runtime Application Settings and exposes `get_runtime_application_settings()` plus `get_runtime_legacy_compat_settings()`. Normal runtime builds both canonical `appSettings` and legacy-shaped `settingValue()` aliases from those RPCs.
 
-Legacy VMS settings are not safe to remove yet. Application Settings is the primary owner for migrated settings, while `public.system_settings` remains a compatibility bridge and still stores unique deployment, email, privacy notice, retention, agreement, kiosk, and operational settings.
+Legacy VMS settings are not removed. `public.system_settings` remains fallback/historical storage only, and the legacy UI stays available while duplicate controls are manually smoke-tested or retired.
 
 ## LMT Readiness
 
-The OHP-017H ownership model is ready for LMT if these rules stay intact:
+The OHP-017I ownership model is ready for LMT if these rules stay intact:
 
 - LMT app behaviour/defaults go in Application Settings.
 - LMT exception reasons, finance mappings, contract rules, contract policies, working-time rules and dropdown-style data go in Reference / Configuration Data unless they are security-related.

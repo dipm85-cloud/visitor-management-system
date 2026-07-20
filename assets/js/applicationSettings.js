@@ -236,8 +236,15 @@ const MODULE_CARD_DETAILS = Object.freeze({
   notifications: {
     owner: "Application Settings",
     statusText: "Partially migrated",
-    configurationState: "Application Settings owns message defaults, expiry, grace and history rows. Operational/admin workspaces own online users, sending messages and history.",
-    indicators: ["Notification defaults", "Online users", "Message history", "Groups future"],
+    configurationState: "Application Settings owns message defaults, notification triggers, expiry, grace and history rows. Operational/admin workspaces own online users, sending messages and history.",
+    indicators: ["Notification defaults", "Notification triggers", "Online users", "Message history"],
+    primaryActionLabel: "Configure"
+  },
+  email: {
+    owner: "Application Settings",
+    statusText: "Native",
+    configurationState: "Application Settings owns runtime email processor and delivery settings. Delivery remains disabled unless explicitly enabled.",
+    indicators: ["Processor mode", "Batch size", "Delivery disabled by default", "Sender details"],
     primaryActionLabel: "Configure"
   },
   shared_terminal: {
@@ -245,6 +252,20 @@ const MODULE_CARD_DETAILS = Object.freeze({
     statusText: "Partially migrated",
     configurationState: "Terminal display and idle reset settings are native; device/token administration stays in its specialist workspace.",
     indicators: ["Terminal settings", "Public branding", "Device tokens", "Idle reset"],
+    primaryActionLabel: "Configure"
+  },
+  retention_housekeeping: {
+    owner: "Application Settings",
+    statusText: "Native",
+    configurationState: "Application Settings owns runtime retention, cleanup and daily maintenance compatibility values.",
+    indicators: ["Retention", "Cleanup", "Daily maintenance", "Legacy fallback only"],
+    primaryActionLabel: "Configure"
+  },
+  deployment: {
+    owner: "Application Settings",
+    statusText: "Native",
+    configurationState: "Application Settings owns expected app version and outdated-device warning settings.",
+    indicators: ["App version", "Device warnings", "Compatibility values"],
     primaryActionLabel: "Configure"
   },
   advanced: {
@@ -353,6 +374,12 @@ const APPLICATION_SETTING_IMPLEMENTATION_STATUS = Object.freeze({
   "visitors.prevent_walk_in_when_matching_planned_visit_exists": ["Applied", "Walk-in flow checks for matching planned visits before creating a walk-in."],
   "visitors.auto_end_of_day_sign_out_enabled": ["Partially applied", "Controls whether the opportunistic auto sign-out RPC is called."],
   "visitors.auto_end_of_day_sign_out_time": ["Stored only", "Saved for the future backend cut-off time; the current RPC owns timing."],
+  "visitors.allow_walk_ins": ["Applied", "Controls walk-in availability where supported through generated runtime compatibility values."],
+  "visitors.walk_in_confirmation_message": ["Applied", "Used for walk-in visitor sign-in confirmation messages."],
+  "visitors.require_security_pass": ["Legacy bridge", "Generated as a legacy compatibility value while Form Configuration remains the normal new-form owner."],
+  "visitors.require_vehicle_plate": ["Legacy bridge", "Generated as a legacy compatibility value while Form Configuration remains the normal new-form owner."],
+  "visitors.require_onsite_contact": ["Legacy bridge", "Generated as a legacy compatibility value while Form Configuration remains the normal new-form owner."],
+  "visitors.max_login_attempts": ["Applied", "Used by staff login/security warning compatibility paths."],
 
   "shared_terminal.home_title": ["Applied", "Updates the Shared Terminal home title."],
   "shared_terminal.home_subtitle": ["Applied", "Updates the Shared Terminal home subtitle."],
@@ -361,12 +388,27 @@ const APPLICATION_SETTING_IMPLEMENTATION_STATUS = Object.freeze({
   "shared_terminal.idle_reset_enabled": ["Applied", "Controls registered terminal idle reset."],
   "shared_terminal.idle_reset_seconds": ["Applied", "Controls registered terminal idle reset delay."],
   "shared_terminal.clear_partial_form_data_on_reset": ["Partially applied", "Idle reset returns home; explicit partial form clearing is not separately wired."],
+  "shared_terminal.kiosk_device_required": ["Applied", "Controls registered terminal/device-token requirement compatibility paths."],
+  "shared_terminal.kiosk_idle_timeout_seconds": ["Applied", "Feeds legacy kiosk idle-timeout compatibility values; new registered terminals use Shared Terminal idle reset settings."],
 
   "document_signoff.use_confirmed_identity_links_for_compliance": ["Legacy bridge", "Application Settings syncs this value to legacy system settings and native compliance logic reads the bridged key."],
   "document_signoff.show_canonical_identity_context": ["Applied", "Controls canonical/signed-as identity context in native evidence views and print output."],
   "document_signoff.print_use_branding_logo": ["Partially applied", "Used by supported agreement/sign-off print output with branding print-logo fallback."],
   "document_signoff.default_evidence_detail_level": ["Applied", "Controls default detail density in native document evidence views."],
   "document_signoff.require_scroll_to_end_before_signing": ["Future / locked", "Locked until the controlled document viewer can enforce review-to-end reliably."],
+  "agreements.visitor_agreements_enabled": ["Applied", "Generated as the runtime compatibility value for agreement/sign-off enablement."],
+  "agreements.validity_mode": ["Applied", "Generated as the runtime compatibility value for agreement validity mode."],
+  "agreements.validity_days": ["Applied", "Generated as the runtime compatibility value for agreement validity days."],
+  "agreements.signature_required": ["Applied", "Generated as the runtime compatibility value for visitor signature requirements."],
+  "agreements.inductor_signoff_enabled": ["Applied", "Generated as the runtime compatibility value for inductor sign-off enablement."],
+  "agreements.inductor_signoff_mode": ["Applied", "Generated as the runtime compatibility value for inductor sign-off mode."],
+  "agreements.acceptance_text": ["Applied", "Generated as the runtime compatibility value for acceptance wording."],
+  "agreements.print_header": ["Applied", "Generated as the runtime compatibility value for agreement print headers."],
+  "agreements.print_company_name": ["Applied", "Generated as the runtime compatibility value for agreement print company name."],
+  "agreements.print_show_logo": ["Applied", "Generated as the runtime compatibility value for agreement print logo visibility."],
+  "agreements.show_compliance_warnings": ["Applied", "Generated as the runtime compatibility value for compliance warnings."],
+  "agreements.highlight_overdue_agreements": ["Applied", "Generated as the runtime compatibility value for overdue highlighting."],
+  "agreements.block_sign_out_if_required_missing": ["Applied", "Generated as the runtime compatibility value for sign-out guard behaviour."],
 
   "notifications.default_message_type": ["Applied", "Seeds the default message type when opening Send System Message."],
   "notifications.default_message_expiry_minutes": ["Applied", "Seeds the default expiry minutes for new system messages."],
@@ -374,6 +416,11 @@ const APPLICATION_SETTING_IMPLEMENTATION_STATUS = Object.freeze({
   "notifications.default_force_after_grace": ["Applied", "Seeds the default force-after-grace mode when the sender has permission."],
   "notifications.online_users_default_window_seconds": ["Applied", "Controls the default probably-online activity window."],
   "notifications.message_history_default_rows": ["Applied", "Controls the default message history row limit."],
+  "notifications.notify_host_on_visitor_arrival": ["Applied", "Generated as the runtime compatibility value for host-arrival notification triggers."],
+  "notifications.notify_gdpr_due_soon": ["Applied", "Generated as the runtime compatibility value for GDPR/privacy due-soon notification triggers."],
+  "notifications.gdpr_due_soon_days": ["Applied", "Generated as the runtime compatibility value for due-soon notification windows."],
+  "notifications.notify_kiosk_offline": ["Applied", "Generated as the runtime compatibility value for kiosk-offline notification triggers."],
+  "notifications.kiosk_offline_minutes": ["Applied", "Generated as the runtime compatibility value for kiosk-offline thresholds."],
 
   "privacy.case_reference_prefix": ["Applied", "Used as the case reference placeholder/default prefix in privacy case workflows."],
   "privacy.sar_pack_include_timeline_by_default": ["Applied", "Controls SAR/evidence pack timeline default metadata."],
@@ -381,11 +428,36 @@ const APPLICATION_SETTING_IMPLEMENTATION_STATUS = Object.freeze({
   "privacy.anonymisation_requires_preview": ["Future / locked", "Locked guardrail; current native anonymisation remains preview/review only."],
   "privacy.anonymisation_requires_confirmation_phrase": ["Future / locked", "Locked guardrail; confirmation phrase remains mandatory in the review workflow."],
   "privacy.show_technical_references_by_default": ["Applied", "Controls whether technical references are expanded by default in privacy case details."],
+  "privacy.notice_enabled": ["Applied", "Generated as the runtime compatibility value for visitor privacy notice display."],
+  "privacy.acknowledgement_required": ["Applied", "Generated as the runtime compatibility value for privacy acknowledgement requirements."],
+  "privacy.notice_version": ["Applied", "Generated as the runtime compatibility value for privacy notice versioning."],
+  "privacy.notice_text": ["Applied", "Generated as the runtime compatibility value for privacy notice text; rendered as text by existing flows."],
+  "privacy.display_mode": ["Applied", "Generated as the runtime compatibility value for privacy notice display mode."],
 
   "access_diagnostics.capability_inspector_available": ["Future / locked", "Locked status marker; Capability Inspector availability remains capability/session controlled."],
   "access_diagnostics.capability_inspector_session_only": ["Future / locked", "Locked status marker; Inspector mode remains session-only."],
   "access_diagnostics.show_effective_capability_source": ["Applied", "Controls whether effective capability sources are shown in Access Control diagnostics."],
-  "access_diagnostics.default_user_assignment_include_inactive": ["Applied", "Controls the default inactive-user filter state for User Role Assignments."]
+  "access_diagnostics.default_user_assignment_include_inactive": ["Applied", "Controls the default inactive-user filter state for User Role Assignments."],
+
+  "retention.planned_days": ["Applied", "Generated as the runtime compatibility value for planned visit retention."],
+  "retention.visit_log_days": ["Applied", "Generated as the runtime compatibility value for visit log retention."],
+  "retention.audit_days": ["Applied", "Generated as the runtime compatibility value for audit retention."],
+  "retention.mode": ["Applied", "Generated as the runtime compatibility value for retention mode."],
+  "retention.planned_completed_cleanup_mode": ["Applied", "Generated as the runtime compatibility value for completed planned visit cleanup mode."],
+  "retention.planned_no_show_retention_days": ["Applied", "Generated as the runtime compatibility value for no-show retention."],
+  "retention.daily_maintenance_enabled": ["Applied", "Generated as the runtime compatibility value for daily maintenance enablement."],
+  "retention.daily_maintenance_roles": ["Applied", "Generated as the runtime compatibility value for daily maintenance role compatibility."],
+
+  "email.processor_mode": ["Applied", "Generated as the runtime compatibility value for email processor mode."],
+  "email.processor_batch_size": ["Applied", "Generated as the runtime compatibility value for email processor batch size."],
+  "email.processor_schedule": ["Applied", "Generated as the runtime compatibility value for email processor schedule."],
+  "email.delivery_enabled": ["Applied", "Generated as the runtime compatibility value for email delivery; default remains disabled."],
+  "email.edge_function_url": ["Applied", "Generated as the runtime compatibility value for email edge function URL."],
+  "email.sender_name": ["Applied", "Generated as the runtime compatibility value for email sender name."],
+  "email.sender_address": ["Applied", "Generated as the runtime compatibility value for email sender address."],
+
+  "deployment.current_app_version": ["Applied", "Generated as the runtime compatibility value for expected app version checks."],
+  "deployment.outdated_device_warning_enabled": ["Applied", "Generated as the runtime compatibility value for outdated-device warnings."]
 });
 
 function applicationSettingImplementationStatus(settingKey) {
@@ -1542,7 +1614,7 @@ function bridgeActionsFor(sectionId) {
         label: "Notification Groups",
         actionId: "application_settings.notifications.groups.future",
         capabilityLabel: "Open future Notification Groups placeholder",
-        description: "Future Reference / Configuration Data for notification groups. No runtime behaviour in OHP-017H.",
+        description: "Future Reference / Configuration Data for notification groups. No runtime behaviour in OHP-017I.",
         requiredAny: settingsAreaById("notifications").manageCapabilities,
         handler: () => showToast("Coming later", "Notification Groups are reserved for a future notification-routing milestone.", "info")
       }

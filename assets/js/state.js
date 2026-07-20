@@ -10,6 +10,8 @@ export const AppState = {
   opportunisticAutoSignOutChecked: false,
   currentProfile: null,
   userCapabilities: new Set(),
+  applicationSettingsRaw: {},
+  runtimeSettingsSource: "unloaded",
   systemSettingsRaw: {},
   kioskIdleTimer: null,
   terminalRegistration: {

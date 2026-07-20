@@ -8,6 +8,8 @@ import { writeAuditEvent } from "./audit.js";
 import { boolString } from "./utils.js";
 import {
   getCachedApplicationSettingValue,
+  getRuntimeApplicationSettings,
+  getRuntimeLegacyCompatSettings,
   loadApplicationSettingsForRuntime
 } from "./applicationSettingsService.js";
 import {
@@ -144,6 +146,152 @@ function cachedAppSetting(key, fallback) {
   return getCachedApplicationSettingValue(key, fallback);
 }
 
+function settingFrom(source, key, fallback) {
+  return Object.prototype.hasOwnProperty.call(source || {}, key) && source[key] != null
+    ? source[key]
+    : fallback;
+}
+
+function deriveLegacyCompatibilitySettings(applicationSettings, runtimeCompatSettings = {}) {
+  const settings = { ...(runtimeCompatSettings || {}) };
+  const put = (legacyKey, appKey, fallback) => {
+    const value = settingFrom(applicationSettings, appKey, undefined);
+    if (value !== undefined) settings[legacyKey] = value == null ? fallback : value;
+  };
+
+  put("company_name", "application.product_name", "Visitor Management");
+  put("application_product_name", "application.product_name", "Operations Hub");
+  put("application_product_subtitle", "application.product_subtitle", "Operational workspace");
+  put("application_environment_label", "application.environment_label", "");
+  put("application_show_environment_label", "application.show_environment_label", false);
+
+  put("logo_url", "branding.logo_url", null);
+  put("logo_transparent_background", "branding.logo_transparent_background", false);
+  put("primary_colour", "branding.primary_color", "#475569");
+  put("accent_colour", "branding.accent_color", "#18a999");
+  put("branding_brand_contrast_mode", "branding.brand_contrast_mode", "auto");
+  put("page_background_colour", "branding.background_color", "#eef3f8");
+  put("branding_background_gradient_start_color", "branding.background_gradient_start_color", "#f8fafc");
+  put("branding_background_gradient_end_color", "branding.background_gradient_end_color", "#e2e8f0");
+  put("branding_background_gradient_direction", "branding.background_gradient_direction", "135deg");
+  put("branding_background_gradient_strength", "branding.background_gradient_strength", "subtle");
+  put("background_url", "branding.background_image_url", null);
+  put("background_opacity", "branding.background_opacity", 0.18);
+  put("branding_theme_mode", "branding.theme_mode", "system");
+  put("branding_background_mode", "branding.background_mode", "default");
+  put("branding_header_logo_display_mode", "branding.header_logo_display_mode", "logo_and_name");
+  put("branding_header_logo_size", "branding.header_logo_size", "medium");
+  put("branding_favicon_url", "branding.favicon_url", null);
+  put("branding_print_logo_url", "branding.print_logo_url", null);
+  put("branding_public_screen_background_mode", "branding.public_screen_background_mode", "inherit_app");
+  put("branding_public_screen_background_color", "branding.public_screen_background_color", "#f8fafc");
+  put("branding_public_screen_gradient_start_color", "branding.public_screen_gradient_start_color", "#f8fafc");
+  put("branding_public_screen_gradient_end_color", "branding.public_screen_gradient_end_color", "#e2e8f0");
+  put("branding_public_screen_gradient_direction", "branding.public_screen_gradient_direction", "135deg");
+  put("branding_public_screen_gradient_strength", "branding.public_screen_gradient_strength", "subtle");
+  put("branding_public_screen_background_image_url", "branding.public_screen_background_image_url", null);
+  put("branding_public_screen_background_opacity", "branding.public_screen_background_opacity", 0.25);
+  put("branding_corner_style", "branding.corner_style", "standard");
+
+  put("sign_in_confirmation_message", "visitors.sign_in_confirmation_message", appSettings.plannedSignInMessage);
+  put("walk_in_confirmation_message", "visitors.walk_in_confirmation_message", appSettings.walkInSignInMessage);
+  put("sign_out_confirmation_message", "visitors.sign_out_confirmation_message", appSettings.signOutMessage);
+  put("confirmation_auto_close_seconds", "visitors.confirmation_auto_close_seconds", 5);
+  put("require_confirmation_close_button", "visitors.require_confirmation_close_button", true);
+  put("prevent_duplicate_planned_visits", "visitors.prevent_duplicate_planned_visits", true);
+  put("prevent_walk_in_when_matching_planned_visit_exists", "visitors.prevent_walk_in_when_matching_planned_visit_exists", true);
+  put("auto_end_of_day_sign_out_enabled", "visitors.auto_end_of_day_sign_out_enabled", false);
+  put("auto_end_of_day_sign_out_time", "visitors.auto_end_of_day_sign_out_time", "23:59");
+  put("allow_walk_ins", "visitors.allow_walk_ins", true);
+  put("require_security_pass", "visitors.require_security_pass", false);
+  put("require_vehicle_plate", "visitors.require_vehicle_plate", false);
+  put("require_onsite_contact", "visitors.require_onsite_contact", false);
+  put("max_login_attempts", "visitors.max_login_attempts", 5);
+
+  put("shared_terminal_home_title", "shared_terminal.home_title", "How can we help?");
+  put("shared_terminal_home_subtitle", "shared_terminal.home_subtitle", "Select an available workflow below.");
+  put("shared_terminal_show_staff_login_button", "shared_terminal.show_staff_login_button", true);
+  put("shared_terminal_return_home_after_action_seconds", "shared_terminal.return_home_after_action_seconds", 5);
+  put("shared_terminal_idle_reset_enabled", "shared_terminal.idle_reset_enabled", false);
+  put("shared_terminal_idle_reset_seconds", "shared_terminal.idle_reset_seconds", 120);
+  put("shared_terminal_clear_partial_form_data_on_reset", "shared_terminal.clear_partial_form_data_on_reset", true);
+  put("kiosk_device_required", "shared_terminal.kiosk_device_required", true);
+  put("kiosk_idle_timeout_seconds", "shared_terminal.kiosk_idle_timeout_seconds", 45);
+
+  put(DOCUMENT_COMPLIANCE_IDENTITY_LINK_SETTING, DOCUMENT_COMPLIANCE_IDENTITY_LINK_SETTING, false);
+  put("document_signoff.show_canonical_identity_context", "document_signoff.show_canonical_identity_context", true);
+  put("document_signoff.print_use_branding_logo", "document_signoff.print_use_branding_logo", true);
+  put("document_signoff.default_evidence_detail_level", "document_signoff.default_evidence_detail_level", "standard");
+  put("document_signoff.require_scroll_to_end_before_signing", "document_signoff.require_scroll_to_end_before_signing", false);
+
+  put("notifications.default_message_type", "notifications.default_message_type", "info");
+  put("notifications.default_message_expiry_minutes", "notifications.default_message_expiry_minutes", 60);
+  put("notifications.default_required_action_grace_seconds", "notifications.default_required_action_grace_seconds", 300);
+  put("notifications.default_force_after_grace", "notifications.default_force_after_grace", false);
+  put("notifications.online_users_default_window_seconds", "notifications.online_users_default_window_seconds", 120);
+  put("notifications.message_history_default_rows", "notifications.message_history_default_rows", 100);
+  put("notify_host_on_visitor_arrival", "notifications.notify_host_on_visitor_arrival", false);
+  put("notify_gdpr_due_soon", "notifications.notify_gdpr_due_soon", false);
+  put("gdpr_due_soon_days", "notifications.gdpr_due_soon_days", 30);
+  put("notify_kiosk_offline", "notifications.notify_kiosk_offline", false);
+  put("kiosk_offline_minutes", "notifications.kiosk_offline_minutes", 10);
+
+  put("privacy.case_reference_prefix", "privacy.case_reference_prefix", "PRIV");
+  put("privacy.sar_pack_include_timeline_by_default", "privacy.sar_pack_include_timeline_by_default", true);
+  put("privacy.sar_pack_include_source_references_by_default", "privacy.sar_pack_include_source_references_by_default", true);
+  put("privacy.anonymisation_requires_preview", "privacy.anonymisation_requires_preview", true);
+  put("privacy.anonymisation_requires_confirmation_phrase", "privacy.anonymisation_requires_confirmation_phrase", true);
+  put("privacy.show_technical_references_by_default", "privacy.show_technical_references_by_default", false);
+  put("privacy_notice_enabled", "privacy.notice_enabled", true);
+  put("privacy_acknowledgement_required", "privacy.acknowledgement_required", true);
+  put("privacy_notice_version", "privacy.notice_version", "2026.1");
+  put("privacy_notice_text", "privacy.notice_text", appSettings.privacyNoticeText);
+  put("privacy_display_mode", "privacy.display_mode", "modal");
+
+  put("access_diagnostics.capability_inspector_available", "access_diagnostics.capability_inspector_available", true);
+  put("access_diagnostics.capability_inspector_session_only", "access_diagnostics.capability_inspector_session_only", true);
+  put("access_diagnostics.show_effective_capability_source", "access_diagnostics.show_effective_capability_source", true);
+  put("access_diagnostics.default_user_assignment_include_inactive", "access_diagnostics.default_user_assignment_include_inactive", true);
+
+  put("retention_planned_days", "retention.planned_days", appSettings.retentionPlannedDays);
+  put("retention_visit_log_days", "retention.visit_log_days", appSettings.retentionVisitLogDays);
+  put("retention_audit_days", "retention.audit_days", appSettings.retentionAuditDays);
+  put("retention_mode", "retention.mode", appSettings.retentionMode);
+  put("planned_completed_cleanup_mode", "retention.planned_completed_cleanup_mode", appSettings.plannedCompletedCleanupMode);
+  put("planned_no_show_retention_days", "retention.planned_no_show_retention_days", appSettings.plannedNoShowRetentionDays);
+  put("daily_maintenance_enabled", "retention.daily_maintenance_enabled", appSettings.dailyMaintenanceEnabled);
+  put("daily_maintenance_roles", "retention.daily_maintenance_roles", appSettings.dailyMaintenanceRoles);
+
+  put("email_processor_mode", "email.processor_mode", appSettings.emailProcessorMode || "manual");
+  put("email_processor_batch_size", "email.processor_batch_size", appSettings.emailProcessorBatchSize || 25);
+  put("email_processor_schedule", "email.processor_schedule", appSettings.emailProcessorSchedule || "Every 5 minutes");
+  put("email_delivery_enabled", "email.delivery_enabled", false);
+  put("email_edge_function_url", "email.edge_function_url", "");
+  put("email_sender_name", "email.sender_name", appSettings.emailSenderName || "Visitor Management");
+  put("email_sender_address", "email.sender_address", appSettings.emailSenderAddress || "onboarding@resend.dev");
+
+  put("visitor_agreements_enabled", "agreements.visitor_agreements_enabled", true);
+  put("agreement_validity_mode", "agreements.validity_mode", "version");
+  put("agreement_validity_days", "agreements.validity_days", 365);
+  put("signature_required", "agreements.signature_required", true);
+  put("inductor_signoff_enabled", "agreements.inductor_signoff_enabled", false);
+  put("inductor_signoff_mode", "agreements.inductor_signoff_mode", "typed_name");
+  put("agreement_acceptance_text", "agreements.acceptance_text", appSettings.agreementAcceptanceText);
+  put("agreement_print_header", "agreements.print_header", appSettings.agreementPrintHeader);
+  put("agreement_print_company_name", "agreements.print_company_name", appSettings.agreementPrintCompanyName);
+  put("agreement_print_show_logo", "agreements.print_show_logo", true);
+  put("show_compliance_warnings", "agreements.show_compliance_warnings", true);
+  put("highlight_overdue_agreements", "agreements.highlight_overdue_agreements", true);
+  put("block_sign_out_if_required_agreements_missing", "agreements.block_sign_out_if_required_missing", false);
+  if (settings.inductor_signoff_mode === "typed") settings.inductor_signoff_mode = "typed_name";
+  if (settings.inductor_signoff_mode === "signature" || settings.inductor_signoff_mode === "manual") settings.inductor_signoff_mode = "manual_signature";
+
+  put("current_app_version", "deployment.current_app_version", APP_BUILD_LABEL);
+  put("outdated_device_warning_enabled", "deployment.outdated_device_warning_enabled", true);
+
+  return settings;
+}
+
 function overlayApplicationSettings(settings) {
   const put = (legacyKey, appKey, fallback) => {
     const value = cachedAppSetting(appKey, undefined);
@@ -186,6 +334,7 @@ function overlayApplicationSettings(settings) {
 
   put("sign_in_confirmation_message", "visitors.sign_in_confirmation_message", settings.sign_in_confirmation_message);
   put("walk_in_confirmation_message", "visitors.sign_in_confirmation_message", settings.walk_in_confirmation_message);
+  put("walk_in_confirmation_message", "visitors.walk_in_confirmation_message", settings.walk_in_confirmation_message);
   put("sign_out_confirmation_message", "visitors.sign_out_confirmation_message", settings.sign_out_confirmation_message);
   put("confirmation_auto_close_seconds", "visitors.confirmation_auto_close_seconds", settings.confirmation_auto_close_seconds == null ? 5 : settings.confirmation_auto_close_seconds);
   put("require_confirmation_close_button", "visitors.require_confirmation_close_button", true);
@@ -231,48 +380,63 @@ function overlayApplicationSettings(settings) {
 export async function loadSystemSettings() {
   Object.assign(appSettings, getDefaultAppSettings());
 
-  const result = await supabaseClient
-    .from("system_settings")
-    .select("setting_key, setting_value");
+  let applicationSettings = {};
+  let settings = {};
+  let runtimeSource = "application_settings";
+  try {
+    const [runtimeSettings, legacyCompatSettings] = await Promise.all([
+      getRuntimeApplicationSettings(),
+      getRuntimeLegacyCompatSettings()
+    ]);
+    applicationSettings = runtimeSettings || {};
+    settings = deriveLegacyCompatibilitySettings(applicationSettings, legacyCompatSettings);
+  } catch (runtimeErr) {
+    runtimeSource = "legacy_fallback";
+    console.warn(
+      "Application Settings runtime RPCs unavailable; falling back to legacy system_settings.",
+      runtimeErr
+    );
+    const result = await supabaseClient
+      .from("system_settings")
+      .select("setting_key, setting_value");
 
-  if (result.error) {
-    console.warn("Could not load system settings. Defaults will be used.", result.error);
-    AppState.systemSettingsRaw = {
-      [DOCUMENT_COMPLIANCE_IDENTITY_LINK_SETTING]: false
-    };
-    return;
+    if (result.error) {
+      console.warn("Could not load fallback system settings. Defaults will be used.", result.error);
+      AppState.applicationSettingsRaw = {};
+      AppState.runtimeSettingsSource = "defaults";
+      AppState.systemSettingsRaw = {
+        [DOCUMENT_COMPLIANCE_IDENTITY_LINK_SETTING]: false
+      };
+      return;
+    }
+
+    (result.data || []).forEach(row => {
+      settings[row.setting_key] = row.setting_value;
+    });
+    try {
+      await loadApplicationSettingsForRuntime([
+        "general",
+        "branding",
+        "visitors",
+        "shared_terminal",
+        "documents",
+        "notifications",
+        "privacy_data_governance",
+        "access_diagnostics",
+        "retention_housekeeping",
+        "email",
+        "deployment"
+      ], { force: true });
+      overlayApplicationSettings(settings);
+    } catch (categoryErr) {
+      console.warn("Could not overlay Application Settings during legacy fallback.", categoryErr);
+    }
   }
-
-  const settings = {};
-  (result.data || []).forEach(row => {
-    settings[row.setting_key] = row.setting_value;
-  });
   if (settings[DOCUMENT_COMPLIANCE_IDENTITY_LINK_SETTING] == null) {
     settings[DOCUMENT_COMPLIANCE_IDENTITY_LINK_SETTING] = false;
   }
-
-  try {
-    const identityLinkComplianceResult = await supabaseClient.rpc("get_use_identity_links_for_document_compliance");
-    if (!identityLinkComplianceResult.error && identityLinkComplianceResult.data != null) {
-      settings[DOCUMENT_COMPLIANCE_IDENTITY_LINK_SETTING] = identityLinkComplianceResult.data === true;
-    } else if (identityLinkComplianceResult.error) {
-      console.warn("Could not read document compliance identity-link setting. Defaulting to off.", identityLinkComplianceResult.error);
-    }
-  } catch (err) {
-    console.warn("Could not read document compliance identity-link setting. Defaulting to off.", err);
-  }
-
-  await loadApplicationSettingsForRuntime([
-    "general",
-    "branding",
-    "visitors",
-    "shared_terminal",
-    "documents",
-    "notifications",
-    "privacy_data_governance",
-    "access_diagnostics"
-  ], { force: true });
-  overlayApplicationSettings(settings);
+  AppState.applicationSettingsRaw = applicationSettings;
+  AppState.runtimeSettingsSource = runtimeSource;
   AppState.systemSettingsRaw = settings;
 
   if (settings.confirmation_auto_close_seconds != null) {
@@ -350,6 +514,14 @@ export function applyBrandAssets() {
 export function settingValue(key, fallback) {
   return AppState.systemSettingsRaw[key] == null ? fallback : AppState.systemSettingsRaw[key];
 }
+
+export function applicationSettingValue(key, fallback) {
+  return AppState.applicationSettingsRaw && AppState.applicationSettingsRaw[key] != null
+    ? AppState.applicationSettingsRaw[key]
+    : fallback;
+}
+
+export const getApplicationSetting = applicationSettingValue;
 
 export function fillSettingsForm() {
   if (!$("settingKioskTimeout")) return;

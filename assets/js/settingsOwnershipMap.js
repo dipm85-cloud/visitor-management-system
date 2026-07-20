@@ -109,6 +109,23 @@ export const SETTINGS_OWNERSHIP_AREAS = Object.freeze([
     notes: "Application Settings owns terminal display/reset settings; device registration remains in the existing Shared Terminals panel."
   },
   {
+    id: "retention_housekeeping",
+    label: "Retention / Housekeeping",
+    description: "Retention, cleanup and daily maintenance settings.",
+    status: "native",
+    owner: "Application Settings",
+    currentLocation: "Application Settings -> Retention / Housekeeping",
+    targetLocation: "Application Settings -> Retention / Housekeeping",
+    viewCapabilities: ["application_settings.view", "application_settings.manage", "settings.view", "settings.edit", "privacy.view", "privacy.manage", "visitor.housekeeping.run"],
+    manageCapabilities: ["application_settings.manage", "settings.edit", "privacy.manage", "visitor.housekeeping.run"],
+    nativeInApplicationSettings: true,
+    opensEmbeddedPanel: true,
+    deepLinksToExistingPanel: false,
+    migrationRisk: "Medium",
+    futureMilestone: "OHP-017I",
+    notes: "Application Settings is the runtime source for retention, planned visit cleanup and daily maintenance compatibility values. Legacy VMS settings remain fallback storage only."
+  },
+  {
     id: "privacy_gdpr",
     label: "Privacy / Data Governance",
     description: "Privacy guardrails, SAR defaults and specialist privacy workspace links.",
@@ -228,6 +245,40 @@ export const SETTINGS_OWNERSHIP_AREAS = Object.freeze([
     notes: "Application Settings owns notification defaults, expiry, action grace and history-row defaults. Online users, sending messages and message history remain operational/admin workspaces. Notification groups, alert rules and escalation rules are future configuration data."
   },
   {
+    id: "email",
+    label: "Email",
+    description: "Email processor and delivery defaults.",
+    status: "native",
+    owner: "Application Settings",
+    currentLocation: "Application Settings -> Email",
+    targetLocation: "Application Settings -> Email",
+    viewCapabilities: ["application_settings.view", "application_settings.manage", "settings.view", "settings.edit", "admin_system_messages.view", "admin_system_messages.send"],
+    manageCapabilities: ["application_settings.manage", "settings.edit", "admin_system_messages.send"],
+    nativeInApplicationSettings: true,
+    opensEmbeddedPanel: true,
+    deepLinksToExistingPanel: false,
+    migrationRisk: "Medium",
+    futureMilestone: "OHP-017I",
+    notes: "Application Settings is the runtime source for email processor and delivery settings. Delivery remains disabled unless explicitly enabled."
+  },
+  {
+    id: "deployment",
+    label: "Deployment / Devices",
+    description: "Expected app version and device warning settings.",
+    status: "native",
+    owner: "Application Settings",
+    currentLocation: "Application Settings -> Deployment / Devices",
+    targetLocation: "Application Settings -> Deployment / Devices",
+    viewCapabilities: ["application_settings.view", "application_settings.manage", "settings.view", "settings.edit", "devices.view", "devices.manage"],
+    manageCapabilities: ["application_settings.manage", "settings.edit", "devices.manage"],
+    nativeInApplicationSettings: true,
+    opensEmbeddedPanel: true,
+    deepLinksToExistingPanel: false,
+    migrationRisk: "Low",
+    futureMilestone: "OHP-017I",
+    notes: "Application Settings is the runtime source for expected app version and outdated-device warning compatibility values."
+  },
+  {
     id: "advanced",
     label: "Access Control / Diagnostics",
     description: "Diagnostics defaults with Access Control security configuration links.",
@@ -271,7 +322,10 @@ export const MODULE_SETTINGS_AREA_IDS = Object.freeze([
   "privacy_gdpr",
   "identity_resolution",
   "notifications",
+  "email",
   "shared_terminal",
+  "retention_housekeeping",
+  "deployment",
   "advanced",
   "future_lmt"
 ]);
