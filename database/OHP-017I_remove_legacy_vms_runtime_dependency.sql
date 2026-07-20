@@ -102,50 +102,50 @@ values
   (
     'visitors.require_security_pass',
     'visitors',
-    'Require security pass ID',
-    'Controls whether Security Pass ID is required where supported.',
+    'Legacy compatibility: security pass requirement',
+    'Inactive legacy compatibility marker only. Editable security pass requirements are owned by Application Settings -> Form Configuration.',
     'boolean',
     to_jsonb(false),
     null,
     '{}'::jsonb,
     false,
     false,
-    true,
+    false,
     94,
     'toggle',
-    'Form Configuration can also require this field for specific forms.'
+    'Do not expose as an editable Visitor setting. Configure security_pass_id per form in Form Configuration.'
   ),
   (
     'visitors.require_vehicle_plate',
     'visitors',
-    'Require vehicle registration',
-    'Controls whether vehicle registration is required where supported.',
+    'Legacy compatibility: vehicle registration requirement',
+    'Inactive legacy compatibility marker only. Editable vehicle registration requirements are owned by Application Settings -> Form Configuration.',
     'boolean',
     to_jsonb(false),
     null,
     '{}'::jsonb,
     false,
     false,
-    true,
+    false,
     96,
     'toggle',
-    'Form Configuration can also require this field for specific forms.'
+    'Do not expose as an editable Visitor setting. Configure vehicle_registration per form in Form Configuration.'
   ),
   (
     'visitors.require_onsite_contact',
     'visitors',
-    'Require on-site contact',
-    'Controls whether on-site contact is required where supported.',
+    'Legacy compatibility: on-site contact requirement',
+    'Inactive legacy compatibility marker only. Editable on-site contact requirements are owned by Application Settings -> Form Configuration.',
     'boolean',
     to_jsonb(false),
     null,
     '{}'::jsonb,
     false,
     false,
-    true,
+    false,
     98,
     'toggle',
-    'Form Configuration can also require this field for specific forms.'
+    'Do not expose as an editable Visitor setting. Configure on_site_contact per form in Form Configuration.'
   ),
   (
     'visitors.max_login_attempts',
@@ -1050,12 +1050,10 @@ select
   d.default_value,
   auth.uid()
 from public.application_setting_definitions d
-where d.setting_key in (
+where d.active is true
+  and d.setting_key in (
   'visitors.allow_walk_ins',
   'visitors.walk_in_confirmation_message',
-  'visitors.require_security_pass',
-  'visitors.require_vehicle_plate',
-  'visitors.require_onsite_contact',
   'visitors.max_login_attempts',
   'shared_terminal.kiosk_device_required',
   'shared_terminal.kiosk_idle_timeout_seconds',
@@ -1174,9 +1172,9 @@ values
   ('allow_walk_ins', 'visitors.allow_walk_ins', true, 'Walk-in availability compatibility.'),
   ('auto_end_of_day_sign_out_enabled', 'visitors.auto_end_of_day_sign_out_enabled', true, 'Visitor auto sign-out compatibility.'),
   ('auto_end_of_day_sign_out_time', 'visitors.auto_end_of_day_sign_out_time', true, 'Visitor auto sign-out time compatibility.'),
-  ('require_security_pass', 'visitors.require_security_pass', true, 'Legacy visitor required field compatibility.'),
-  ('require_vehicle_plate', 'visitors.require_vehicle_plate', true, 'Legacy visitor required field compatibility.'),
-  ('require_onsite_contact', 'visitors.require_onsite_contact', true, 'Legacy visitor required field compatibility.'),
+  ('require_security_pass', 'visitors.require_security_pass', false, 'Legacy compatibility only. Editable security_pass_id requirements are owned by Application Settings -> Form Configuration.'),
+  ('require_vehicle_plate', 'visitors.require_vehicle_plate', false, 'Legacy compatibility only. Editable vehicle_registration requirements are owned by Application Settings -> Form Configuration.'),
+  ('require_onsite_contact', 'visitors.require_onsite_contact', false, 'Legacy compatibility only. Editable on_site_contact requirements are owned by Application Settings -> Form Configuration.'),
   ('max_login_attempts', 'visitors.max_login_attempts', true, 'Legacy login warning compatibility.'),
 
   ('kiosk_device_required', 'shared_terminal.kiosk_device_required', true, 'Terminal device-token requirement compatibility.'),
@@ -1305,7 +1303,7 @@ notify pgrst, 'reload schema';
 
 select
   'OHP-017I remaining legacy runtime settings migrated to Application Settings' as result,
-  (select count(*) from public.application_setting_definitions where category_code in (
+  (select count(*) from public.application_setting_definitions where active is true and category_code in (
     'visitors',
     'shared_terminal',
     'retention_housekeeping',
@@ -1317,4 +1315,6 @@ select
   )) as relevant_setting_definitions,
   (select count(*) from public.application_setting_legacy_key_map where active is true) as active_legacy_compat_keys,
   public.get_runtime_application_settings() ? 'visitors.allow_walk_ins' as runtime_has_allow_walk_ins,
-  public.get_runtime_legacy_compat_settings() ? 'allow_walk_ins' as compat_has_allow_walk_ins;
+  public.get_runtime_legacy_compat_settings() ? 'allow_walk_ins' as compat_has_allow_walk_ins,
+  not (public.get_runtime_application_settings() ? 'visitors.require_security_pass') as security_pass_requirement_hidden,
+  not (public.get_runtime_legacy_compat_settings() ? 'require_security_pass') as security_pass_compat_mapping_inactive;

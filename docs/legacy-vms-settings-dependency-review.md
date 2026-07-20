@@ -16,7 +16,7 @@ SQL for this milestone is `database/OHP-017I_remove_legacy_vms_runtime_dependenc
 
 ## Dependency Pattern
 
-Application Settings is the runtime source of truth. Existing modules may continue to call `settingValue("legacy_key")`, but those values are generated from Application Settings and the compatibility RPC during normal loads.
+Application Settings is the runtime source of truth. Existing modules may continue to call `settingValue("legacy_key")`, but those values are generated from Application Settings and the compatibility RPC during normal loads. The old global required-field keys are the exception: `require_security_pass`, `require_vehicle_plate`, and `require_onsite_contact` return conservative compatibility fallbacks only, because editable ownership is Form Configuration per form area.
 
 Legacy VMS settings remain a fallback/historical bridge. `superuser_save_setting` and the legacy UI are retained for compatibility, but they are not the source used by normal startup when the OHP-017I RPCs are available.
 
@@ -32,7 +32,8 @@ Local per-device/session state is unchanged. Kiosk tokens, terminal session stat
 | Confirmation auto-close seconds | `confirmation_auto_close_seconds` | `visitors.confirmation_auto_close_seconds` | Compatibility RPC / derived alias | Later | Unknown | Existing consumers can keep `settingValue()`. |
 | Visitor confirmation messages | `sign_in_confirmation_message`, `walk_in_confirmation_message`, `sign_out_confirmation_message` | `visitors.sign_in_confirmation_message`, `visitors.walk_in_confirmation_message`, `visitors.sign_out_confirmation_message` | Compatibility RPC / derived alias | Later | Unknown | Walk-in wording is now separate in Application Settings. |
 | Walk-in availability and matching rules | `allow_walk_ins`, `prevent_walk_in_when_matching_planned_visit_exists` | `visitors.allow_walk_ins`, `visitors.prevent_walk_in_when_matching_planned_visit_exists` | Compatibility RPC / derived alias | Later | Unknown | Walk-in controls are represented in Application Settings. |
-| Operational visitor rules | `auto_end_of_day_sign_out_enabled`, `auto_end_of_day_sign_out_time`, `max_login_attempts`, `require_security_pass`, `require_vehicle_plate`, `require_onsite_contact` | `visitors.*` plus Form Configuration for field requirements | Compatibility RPC / derived alias | No | Unknown | Field requirement ownership remains Form Configuration for new forms. |
+| Operational visitor rules | `auto_end_of_day_sign_out_enabled`, `auto_end_of_day_sign_out_time`, `max_login_attempts` | `visitors.*` | Compatibility RPC / derived alias | Later | Unknown | Behaviour defaults remain Application Settings values. |
+| Visitor required-field legacy keys | `require_security_pass`, `require_vehicle_plate`, `require_onsite_contact` | Form Configuration: `security_pass_id`, `vehicle_registration`, `on_site_contact` for `visitor_walk_ins` and `planned_visits` | Conservative derived fallback only | No | Unknown | These must not be editable global Visitor settings and must not use `public.system_settings` as source of truth. |
 | Branding and product identity | `company_name`, colour/logo/background keys | `application.*`, `branding.*` | Compatibility RPC / derived alias | Later | Unknown | Legacy branding controls are historical fallbacks. |
 | Legacy planned/walk-in field rules | `planned_*`, `walkin_*` visibility/required keys | Form Configuration areas | Legacy fallback / form requirement RPCs | No | Unknown | Keep until all legacy form-rule controls are retired. |
 | Retention settings | `retention_planned_days`, `retention_visit_log_days`, `retention_audit_days`, `retention_mode` | `retention.*` | Compatibility RPC / derived alias | Later | Unknown | Retention preview/cleanup are now covered by Application Settings values. |
@@ -51,4 +52,4 @@ Local per-device/session state is unchanged. Kiosk tokens, terminal session stat
 
 ## Decision
 
-Do not delete Legacy VMS UI or `public.system_settings` yet. The correct OHP-017I state is: Application Settings is the normal runtime source of truth, legacy-shaped values are generated for compatibility, and `public.system_settings` remains fallback/historical storage only.
+Do not delete Legacy VMS UI or `public.system_settings` yet. The correct OHP-017I state is: Application Settings is the normal runtime source of truth, legacy-shaped values are generated for compatibility, visitor required-field ownership stays in Form Configuration, and `public.system_settings` remains fallback/historical storage only.

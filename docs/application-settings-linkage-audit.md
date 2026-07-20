@@ -107,9 +107,9 @@ Saves dispatch `oh:application-settings-values-changed`; `assets/js/app.js` relo
 | --- | --- | --- | --- | --- |
 | `visitors.allow_walk_ins` | Visitors | Active / applied | `allow_walk_ins` | Controls whether walk-in flows remain available. |
 | `visitors.walk_in_confirmation_message` | Visitors | Active / applied | `walk_in_confirmation_message` | Separate walk-in confirmation wording; fallback still accepts the older sign-in bridge. |
-| `visitors.require_security_pass` | Visitors | Legacy bridge | `require_security_pass` | Bridged for legacy visitor forms; Form Configuration remains the new form field owner. |
-| `visitors.require_vehicle_plate` | Visitors | Legacy bridge | `require_vehicle_plate` | Bridged for legacy visitor forms; Form Configuration remains the new form field owner. |
-| `visitors.require_onsite_contact` | Visitors | Legacy bridge | `require_onsite_contact` | Bridged for legacy visitor forms; Form Configuration remains the new form field owner. |
+| `visitors.require_security_pass` | Visitors | Inactive / compatibility only | `require_security_pass` | Not shown as an editable Visitor setting. `security_pass_id` requirements are owned by Form Configuration. |
+| `visitors.require_vehicle_plate` | Visitors | Inactive / compatibility only | `require_vehicle_plate` | Not shown as an editable Visitor setting. `vehicle_registration` requirements are owned by Form Configuration. |
+| `visitors.require_onsite_contact` | Visitors | Inactive / compatibility only | `require_onsite_contact` | Not shown as an editable Visitor setting. `on_site_contact` requirements are owned by Form Configuration. |
 | `visitors.max_login_attempts` | Visitors | Active / applied | `max_login_attempts` | Used by existing security/login compatibility paths. |
 | `shared_terminal.kiosk_device_required` | Shared Terminal | Active / applied | `kiosk_device_required` | Keeps device-token enforcement driven by Application Settings. |
 | `shared_terminal.kiosk_idle_timeout_seconds` | Shared Terminal | Active / applied | `kiosk_idle_timeout_seconds` | Maintains legacy kiosk timeout compatibility while Shared Terminal idle reset remains native. |
@@ -122,7 +122,7 @@ Saves dispatch `oh:application-settings-values-changed`; `assets/js/app.js` relo
 
 ## Form Configuration Inventory
 
-Form Configuration is stored in `field_requirement_areas`, `field_requirement_definitions`, and `field_requirement_values`, not in `application_setting_definitions`.
+Form Configuration is stored in `field_requirement_areas`, `field_requirement_definitions`, and `field_requirement_values`, not in editable Visitor Application Settings. `security_pass_id`, `vehicle_registration`, and `on_site_contact` requirements must be changed here for Visitor Walk-ins and Planned Visits.
 
 | Area | Status | Fields | Used in code | Fallback behaviour | Immediate after save | Follow-up |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -134,6 +134,7 @@ Form Configuration is stored in `field_requirement_areas`, `field_requirement_de
 
 - Acceptable: most Application Settings are active or safely bridged.
 - Acceptable: OHP-017I removes normal runtime dependency on `public.system_settings`; it is retained only as a fallback/historical bridge.
+- Acceptable: duplicate global Visitor required-field toggles are inactive compatibility markers only; Form Configuration is the only editable owner for security pass, vehicle registration and on-site contact requirements.
 - Acceptable with clear label: `document_signoff.print_use_branding_logo`, `visitors.auto_end_of_day_sign_out_enabled`, and `shared_terminal.clear_partial_form_data_on_reset` are partial.
 - Acceptable with clear label: locked/future guardrails remain locked and labelled.
 - Needs later cleanup: foundation keys and `visitors.prevent_duplicate_planned_visits` / `visitors.auto_end_of_day_sign_out_time` should either be wired, locked, or retired in a later migration after manual testing.

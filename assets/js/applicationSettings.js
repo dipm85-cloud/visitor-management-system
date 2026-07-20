@@ -376,9 +376,9 @@ const APPLICATION_SETTING_IMPLEMENTATION_STATUS = Object.freeze({
   "visitors.auto_end_of_day_sign_out_time": ["Stored only", "Saved for the future backend cut-off time; the current RPC owns timing."],
   "visitors.allow_walk_ins": ["Applied", "Controls walk-in availability where supported through generated runtime compatibility values."],
   "visitors.walk_in_confirmation_message": ["Applied", "Used for walk-in visitor sign-in confirmation messages."],
-  "visitors.require_security_pass": ["Legacy bridge", "Generated as a legacy compatibility value while Form Configuration remains the normal new-form owner."],
-  "visitors.require_vehicle_plate": ["Legacy bridge", "Generated as a legacy compatibility value while Form Configuration remains the normal new-form owner."],
-  "visitors.require_onsite_contact": ["Legacy bridge", "Generated as a legacy compatibility value while Form Configuration remains the normal new-form owner."],
+  "visitors.require_security_pass": ["Compatibility only", "Inactive marker; editable security_pass_id requirements are owned by Form Configuration."],
+  "visitors.require_vehicle_plate": ["Compatibility only", "Inactive marker; editable vehicle_registration requirements are owned by Form Configuration."],
+  "visitors.require_onsite_contact": ["Compatibility only", "Inactive marker; editable on_site_contact requirements are owned by Form Configuration."],
   "visitors.max_login_attempts": ["Applied", "Used by staff login/security warning compatibility paths."],
 
   "shared_terminal.home_title": ["Applied", "Updates the Shared Terminal home title."],

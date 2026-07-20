@@ -800,10 +800,7 @@ window.addEventListener("load", async function () {
       operationalRules: [
         ["auto_end_of_day_sign_out_enabled", () => $("settingAutoEod").value === "true", "Automatically sign out visitors left signed in"],
         ["auto_end_of_day_sign_out_time", () => $("settingAutoEodTime").value, "Time used for automatic sign-out"],
-        ["max_login_attempts", () => Number($("settingMaxLoginAttempts").value), "Failed login attempts before profile deactivation"],
-        ["require_security_pass", () => $("settingRequirePass").value === "true", "Require security pass during sign-in"],
-        ["require_vehicle_plate", () => $("settingRequireVehicle").value === "true", "Require vehicle plate during sign-in"],
-        ["require_onsite_contact", () => $("settingRequireContact").value === "true", "Require on-site contact during sign-in"]
+        ["max_login_attempts", () => Number($("settingMaxLoginAttempts").value), "Failed login attempts before profile deactivation"]
       ]
     };
 
@@ -958,10 +955,7 @@ window.addEventListener("load", async function () {
         operationalRules: {
           auto_end_of_day_sign_out_enabled: true,
           auto_end_of_day_sign_out_time: "23:59",
-          max_login_attempts: defaults.maxLoginAttempts,
-          require_security_pass: false,
-          require_vehicle_plate: false,
-          require_onsite_contact: false
+          max_login_attempts: defaults.maxLoginAttempts
         }
       };
 

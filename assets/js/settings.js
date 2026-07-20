@@ -152,6 +152,12 @@ function settingFrom(source, key, fallback) {
     : fallback;
 }
 
+function applyLegacyRequiredFieldCompatibility(settings) {
+  settings.require_security_pass = false;
+  settings.require_vehicle_plate = false;
+  settings.require_onsite_contact = false;
+}
+
 function deriveLegacyCompatibilitySettings(applicationSettings, runtimeCompatSettings = {}) {
   const settings = { ...(runtimeCompatSettings || {}) };
   const put = (legacyKey, appKey, fallback) => {
@@ -203,10 +209,8 @@ function deriveLegacyCompatibilitySettings(applicationSettings, runtimeCompatSet
   put("auto_end_of_day_sign_out_enabled", "visitors.auto_end_of_day_sign_out_enabled", false);
   put("auto_end_of_day_sign_out_time", "visitors.auto_end_of_day_sign_out_time", "23:59");
   put("allow_walk_ins", "visitors.allow_walk_ins", true);
-  put("require_security_pass", "visitors.require_security_pass", false);
-  put("require_vehicle_plate", "visitors.require_vehicle_plate", false);
-  put("require_onsite_contact", "visitors.require_onsite_contact", false);
   put("max_login_attempts", "visitors.max_login_attempts", 5);
+  applyLegacyRequiredFieldCompatibility(settings);
 
   put("shared_terminal_home_title", "shared_terminal.home_title", "How can we help?");
   put("shared_terminal_home_subtitle", "shared_terminal.home_subtitle", "Select an available workflow below.");
@@ -435,6 +439,7 @@ export async function loadSystemSettings() {
   if (settings[DOCUMENT_COMPLIANCE_IDENTITY_LINK_SETTING] == null) {
     settings[DOCUMENT_COMPLIANCE_IDENTITY_LINK_SETTING] = false;
   }
+  applyLegacyRequiredFieldCompatibility(settings);
   AppState.applicationSettingsRaw = applicationSettings;
   AppState.runtimeSettingsSource = runtimeSource;
   AppState.systemSettingsRaw = settings;
@@ -543,9 +548,6 @@ export function fillSettingsForm() {
   $("settingAutoEodTime").value = String(settingValue("auto_end_of_day_sign_out_time", "23:59"));
   $("settingMaxLoginAttempts").value = Number(settingValue("max_login_attempts", appSettings.maxLoginAttempts));
   $("settingAllowWalkIns").value = boolString(!!settingValue("allow_walk_ins", true));
-  $("settingRequirePass").value = boolString(!!settingValue("require_security_pass", false));
-  $("settingRequireVehicle").value = boolString(!!settingValue("require_vehicle_plate", false));
-  $("settingRequireContact").value = boolString(!!settingValue("require_onsite_contact", false));
   $("settingRequireKioskDevice").value = boolString(!!settingValue("kiosk_device_required", true));
   if ($("settingRetentionPlannedDays")) $("settingRetentionPlannedDays").value = Number(settingValue("retention_planned_days", appSettings.retentionPlannedDays));
   if ($("settingRetentionVisitLogDays")) $("settingRetentionVisitLogDays").value = Number(settingValue("retention_visit_log_days", appSettings.retentionVisitLogDays));
@@ -623,9 +625,6 @@ export async function saveSettingsForm() {
     ["auto_end_of_day_sign_out_time", $("settingAutoEodTime").value, "Time used for automatic sign-out"],
     ["max_login_attempts", Number($("settingMaxLoginAttempts").value), "Failed login attempts before profile deactivation"],
     ["allow_walk_ins", $("settingAllowWalkIns").value === "true", "Enable walk-in sign-in"],
-    ["require_security_pass", $("settingRequirePass").value === "true", "Require security pass during sign-in"],
-    ["require_vehicle_plate", $("settingRequireVehicle").value === "true", "Require vehicle plate during sign-in"],
-    ["require_onsite_contact", $("settingRequireContact").value === "true", "Require on-site contact during sign-in"],
     ["kiosk_device_required", $("settingRequireKioskDevice").value === "true", "Require kiosk token for public kiosk actions"],
 
     ["planned_reason_visible", readBoolInput("settingPlannedReasonVisible"), "Show reason field when creating planned visits"],
