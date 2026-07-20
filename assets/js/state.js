@@ -1,0 +1,24 @@
+export const AppState = {
+  plannedTodayCache: [],
+  visitLogCache: [],
+  securityPlannedCache: [],
+  securityHistoryCache: [],
+  superPlannedCache: [],
+  superHistoryCache: [],
+  auditEventsCache: [],
+  activeVisitCache: [],
+  opportunisticAutoSignOutChecked: false,
+  currentProfile: null,
+  userCapabilities: new Set(),
+  applicationSettingsRaw: {},
+  runtimeCompatibilitySettingsRaw: {},
+  runtimeSettingsSource: "unloaded",
+  settingsRuntimeDiagnostics: {},
+  settingsRuntimeFallbackEvents: [],
+  systemSettingsRaw: {},
+  kioskIdleTimer: null,
+  terminalRegistration: {
+    checked: false,
+    registered: false
+  }
+};
