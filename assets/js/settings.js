@@ -21,11 +21,61 @@ let appVersion;
 let dependencies;
 const DOCUMENT_COMPLIANCE_IDENTITY_LINK_SETTING =
   "document_signoff.use_confirmed_identity_links_for_compliance";
+const SAMPLE_COMPATIBILITY_KEYS = Object.freeze([
+  "logo_url",
+  "allow_walk_ins",
+  "agreement_validity_mode",
+  "privacy_notice_enabled",
+  "retention_mode",
+  "email_delivery_enabled"
+]);
+const COMPATIBILITY_KEY_SOURCES = Object.freeze({
+  company_name: "application.product_name",
+  logo_url: "branding.logo_url",
+  primary_colour: "branding.primary_color",
+  accent_colour: "branding.accent_color",
+  background_url: "branding.background_image_url",
+  confirmation_auto_close_seconds: "visitors.confirmation_auto_close_seconds",
+  sign_in_confirmation_message: "visitors.sign_in_confirmation_message",
+  walk_in_confirmation_message: "visitors.walk_in_confirmation_message",
+  sign_out_confirmation_message: "visitors.sign_out_confirmation_message",
+  allow_walk_ins: "visitors.allow_walk_ins",
+  auto_end_of_day_sign_out_enabled: "visitors.auto_end_of_day_sign_out_enabled",
+  auto_end_of_day_sign_out_time: "visitors.auto_end_of_day_sign_out_time",
+  kiosk_device_required: "shared_terminal.kiosk_device_required",
+  kiosk_idle_timeout_seconds: "shared_terminal.kiosk_idle_timeout_seconds",
+  privacy_notice_enabled: "privacy.notice_enabled",
+  privacy_acknowledgement_required: "privacy.acknowledgement_required",
+  privacy_notice_version: "privacy.notice_version",
+  privacy_notice_text: "privacy.notice_text",
+  privacy_display_mode: "privacy.display_mode",
+  retention_planned_days: "retention.planned_days",
+  retention_visit_log_days: "retention.visit_log_days",
+  retention_audit_days: "retention.audit_days",
+  retention_mode: "retention.mode",
+  email_delivery_enabled: "email.delivery_enabled",
+  email_edge_function_url: "email.edge_function_url",
+  email_sender_name: "email.sender_name",
+  email_sender_address: "email.sender_address",
+  visitor_agreements_enabled: "agreements.visitor_agreements_enabled",
+  agreement_validity_mode: "agreements.validity_mode",
+  agreement_validity_days: "agreements.validity_days",
+  signature_required: "agreements.signature_required",
+  block_sign_out_if_required_agreements_missing: "agreements.block_sign_out_if_required_missing",
+  current_app_version: "deployment.current_app_version",
+  outdated_device_warning_enabled: "deployment.outdated_device_warning_enabled"
+});
+const CONSERVATIVE_COMPATIBILITY_KEYS = Object.freeze({
+  require_security_pass: "Form Configuration owns security_pass_id requirements.",
+  require_vehicle_plate: "Form Configuration owns vehicle_registration requirements.",
+  require_onsite_contact: "Form Configuration owns on_site_contact requirements."
+});
 
 export function configureSettings(options) {
   appSettings = options.appSettings;
   appVersion = options.appVersion;
   dependencies = options.dependencies;
+  installSettingsRuntimeDiagnostics();
 }
 
 export function initialiseCollapsibleSettings() {
@@ -156,6 +206,102 @@ function applyLegacyRequiredFieldCompatibility(settings) {
   settings.require_security_pass = false;
   settings.require_vehicle_plate = false;
   settings.require_onsite_contact = false;
+}
+
+function safeErrorSummary(err) {
+  if (!err) return null;
+  return {
+    name: err.name || "Error",
+    message: err.message || String(err),
+    code: err.code || null
+  };
+}
+
+function objectCount(value) {
+  return value && typeof value === "object" ? Object.keys(value).length : 0;
+}
+
+function recordSettingsFallbackEvent(event) {
+  const events = Array.isArray(AppState.settingsRuntimeFallbackEvents)
+    ? AppState.settingsRuntimeFallbackEvents.slice(-19)
+    : [];
+  events.push(event);
+  AppState.settingsRuntimeFallbackEvents = events;
+  console.warn(
+    "Operations Hub settings fallback: public.system_settings was used because Application Settings runtime failed.",
+    event
+  );
+}
+
+function compatibilityKeySource(key) {
+  if (Object.prototype.hasOwnProperty.call(CONSERVATIVE_COMPATIBILITY_KEYS, key)) {
+    return "conservative_compatibility_fallback";
+  }
+  if (AppState.runtimeSettingsSource === "legacy_fallback") return "public.system_settings_fallback";
+  if (Object.prototype.hasOwnProperty.call(AppState.runtimeCompatibilitySettingsRaw || {}, key)) {
+    return "generated_legacy_compatibility";
+  }
+  if (Object.prototype.hasOwnProperty.call(COMPATIBILITY_KEY_SOURCES, key)) {
+    return "derived_application_settings_alias";
+  }
+  if (Object.prototype.hasOwnProperty.call(AppState.applicationSettingsRaw || {}, key)) {
+    return "canonical_application_settings";
+  }
+  return "unknown_or_default";
+}
+
+function compatibilityDiagnostic(key) {
+  const canonicalKey = COMPATIBILITY_KEY_SOURCES[key] || null;
+  return {
+    key,
+    canonicalKey,
+    source: compatibilityKeySource(key),
+    hasResolvedValue: settingValue(key, undefined) !== undefined,
+    resolvedFromPublicSystemSettings: AppState.runtimeSettingsSource === "legacy_fallback" &&
+      !Object.prototype.hasOwnProperty.call(CONSERVATIVE_COMPATIBILITY_KEYS, key),
+    valueType: settingValue(key, undefined) == null ? "nullish" : typeof settingValue(key, undefined),
+    valueRedacted: true,
+    note: CONSERVATIVE_COMPATIBILITY_KEYS[key] || null
+  };
+}
+
+function runtimeSourceSummary() {
+  const diagnostics = AppState.settingsRuntimeDiagnostics || {};
+  const fallbackEventCount = Array.isArray(AppState.settingsRuntimeFallbackEvents)
+    ? AppState.settingsRuntimeFallbackEvents.length
+    : 0;
+  return {
+    source: AppState.runtimeSettingsSource,
+    applicationSettingsRuntimeLoaded: !!diagnostics.applicationSettingsRuntimeLoaded,
+    legacyCompatibilityRuntimeLoaded: !!diagnostics.legacyCompatibilityRuntimeLoaded,
+    currentPublicSystemSettingsFallback: AppState.runtimeSettingsSource === "legacy_fallback",
+    publicSystemSettingsFallbackUsed: AppState.runtimeSettingsSource === "legacy_fallback" || fallbackEventCount > 0,
+    canonicalApplicationSettingsCount: objectCount(AppState.applicationSettingsRaw),
+    generatedLegacyCompatibilityKeyCount: objectCount(AppState.runtimeCompatibilitySettingsRaw),
+    fallbackEventCount,
+    lastLoadedAt: diagnostics.lastLoadedAt || null
+  };
+}
+
+function installSettingsRuntimeDiagnostics() {
+  if (typeof window === "undefined") return;
+  window.ohSettingsRuntimeDiagnostics = {
+    snapshot() {
+      return {
+        summary: runtimeSourceSummary(),
+        sampleCompatibilityKeys: SAMPLE_COMPATIBILITY_KEYS.map(key => compatibilityDiagnostic(key))
+      };
+    },
+    sourceSummary() {
+      return runtimeSourceSummary();
+    },
+    listLegacyFallbackEvents() {
+      return (AppState.settingsRuntimeFallbackEvents || []).map(event => ({ ...event }));
+    },
+    testCompatibilityKey(key) {
+      return compatibilityDiagnostic(String(key || ""));
+    }
+  };
 }
 
 function deriveLegacyCompatibilitySettings(applicationSettings, runtimeCompatSettings = {}) {
@@ -385,21 +531,50 @@ export async function loadSystemSettings() {
   Object.assign(appSettings, getDefaultAppSettings());
 
   let applicationSettings = {};
+  let legacyCompatSettings = {};
   let settings = {};
   let runtimeSource = "application_settings";
+  const runtimeLoadState = {
+    applicationSettingsRuntimeLoaded: false,
+    legacyCompatibilityRuntimeLoaded: false,
+    applicationSettingsError: null,
+    legacyCompatibilityError: null
+  };
   try {
-    const [runtimeSettings, legacyCompatSettings] = await Promise.all([
+    const [runtimeSettingsResult, legacyCompatSettingsResult] = await Promise.allSettled([
       getRuntimeApplicationSettings(),
       getRuntimeLegacyCompatSettings()
     ]);
-    applicationSettings = runtimeSettings || {};
+
+    if (runtimeSettingsResult.status === "fulfilled") {
+      runtimeLoadState.applicationSettingsRuntimeLoaded = true;
+      applicationSettings = runtimeSettingsResult.value || {};
+    } else {
+      runtimeLoadState.applicationSettingsError = safeErrorSummary(runtimeSettingsResult.reason);
+    }
+
+    if (legacyCompatSettingsResult.status === "fulfilled") {
+      runtimeLoadState.legacyCompatibilityRuntimeLoaded = true;
+      legacyCompatSettings = legacyCompatSettingsResult.value || {};
+    } else {
+      runtimeLoadState.legacyCompatibilityError = safeErrorSummary(legacyCompatSettingsResult.reason);
+    }
+
+    if (!runtimeLoadState.applicationSettingsRuntimeLoaded || !runtimeLoadState.legacyCompatibilityRuntimeLoaded) {
+      throw new Error("Application Settings runtime RPC failure.");
+    }
+
     settings = deriveLegacyCompatibilitySettings(applicationSettings, legacyCompatSettings);
   } catch (runtimeErr) {
     runtimeSource = "legacy_fallback";
-    console.warn(
-      "Application Settings runtime RPCs unavailable; falling back to legacy system_settings.",
-      runtimeErr
-    );
+    recordSettingsFallbackEvent({
+      timestamp: new Date().toISOString(),
+      reason: runtimeErr.message || String(runtimeErr),
+      applicationSettingsRuntimeLoaded: runtimeLoadState.applicationSettingsRuntimeLoaded,
+      legacyCompatibilityRuntimeLoaded: runtimeLoadState.legacyCompatibilityRuntimeLoaded,
+      applicationSettingsError: runtimeLoadState.applicationSettingsError,
+      legacyCompatibilityError: runtimeLoadState.legacyCompatibilityError
+    });
     const result = await supabaseClient
       .from("system_settings")
       .select("setting_key, setting_value");
@@ -407,7 +582,16 @@ export async function loadSystemSettings() {
     if (result.error) {
       console.warn("Could not load fallback system settings. Defaults will be used.", result.error);
       AppState.applicationSettingsRaw = {};
+      AppState.runtimeCompatibilitySettingsRaw = {};
       AppState.runtimeSettingsSource = "defaults";
+      AppState.settingsRuntimeDiagnostics = {
+        ...runtimeLoadState,
+        source: "defaults",
+        publicSystemSettingsFallbackUsed: true,
+        fallbackFailed: true,
+        fallbackError: safeErrorSummary(result.error),
+        lastLoadedAt: new Date().toISOString()
+      };
       AppState.systemSettingsRaw = {
         [DOCUMENT_COMPLIANCE_IDENTITY_LINK_SETTING]: false
       };
@@ -441,7 +625,16 @@ export async function loadSystemSettings() {
   }
   applyLegacyRequiredFieldCompatibility(settings);
   AppState.applicationSettingsRaw = applicationSettings;
+  AppState.runtimeCompatibilitySettingsRaw = legacyCompatSettings;
   AppState.runtimeSettingsSource = runtimeSource;
+  AppState.settingsRuntimeDiagnostics = {
+    ...runtimeLoadState,
+    source: runtimeSource,
+    publicSystemSettingsFallbackUsed: runtimeSource === "legacy_fallback",
+    canonicalApplicationSettingsCount: objectCount(applicationSettings),
+    generatedLegacyCompatibilityKeyCount: objectCount(legacyCompatSettings),
+    lastLoadedAt: new Date().toISOString()
+  };
   AppState.systemSettingsRaw = settings;
 
   if (settings.confirmation_auto_close_seconds != null) {

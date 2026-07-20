@@ -1,12 +1,12 @@
 # Application Settings Linkage Audit
 
-Milestone: OHP-017I
+Milestone: OHP-017I.1
 
 ## Summary
 
 Application Settings is now the normal runtime source of truth for General, Branding, Visitors, Shared Terminal, Documents / Sign-off, Notifications, Privacy, Access / Diagnostics, Retention / Housekeeping, Email, Deployment / Devices, and Form Configuration areas. The audit keeps bridge, locked/future, partial, and stored-only labels visible so editable settings do not silently appear fully active.
 
-SQL for this milestone is `database/OHP-017I_remove_legacy_vms_runtime_dependency.sql`. It seeds the remaining runtime settings, adds Application Settings categories, and exposes compatibility RPCs for legacy-shaped keys.
+No SQL is expected for OHP-017I.1. The verification baseline remains `database/OHP-017I_remove_legacy_vms_runtime_dependency.sql`, which seeds the remaining runtime settings, adds Application Settings categories, and exposes compatibility RPCs for legacy-shaped keys.
 
 ## Status Meanings
 
@@ -21,7 +21,9 @@ SQL for this milestone is `database/OHP-017I_remove_legacy_vms_runtime_dependenc
 
 Normal runtime loads call `get_runtime_application_settings()` first and `get_runtime_legacy_compat_settings()` second through `assets/js/applicationSettingsService.js`. `assets/js/settings.js` builds `appSettings` and legacy-shaped compatibility values from those results, so existing `settingValue("legacy_key")` consumers keep working without reading `public.system_settings`.
 
-`public.system_settings` is now fallback only. If the runtime RPCs fail, `loadSystemSettings()` logs a console warning, loads legacy rows, and overlays Application Settings categories where available.
+`public.system_settings` is now fallback only. If either runtime RPC fails, `loadSystemSettings()` logs a console warning with timestamp, failure reason, and per-RPC loaded flags before loading legacy rows and overlaying Application Settings categories where available.
+
+Manual verification helper: `window.ohSettingsRuntimeDiagnostics` exposes `snapshot()`, `sourceSummary()`, `listLegacyFallbackEvents()`, and `testCompatibilityKey(key)`. It reports source state, counts, and redacted key-resolution metadata only.
 
 Saves dispatch `oh:application-settings-values-changed`; `assets/js/app.js` reloads settings, reapplies form requirement indicators, and refreshes kiosk/terminal access wiring.
 
@@ -133,8 +135,10 @@ Form Configuration is stored in `field_requirement_areas`, `field_requirement_de
 ## Findings
 
 - Acceptable: most Application Settings are active or safely bridged.
-- Acceptable: OHP-017I removes normal runtime dependency on `public.system_settings`; it is retained only as a fallback/historical bridge.
+- Verified: OHP-017I.1 confirms normal runtime uses Application Settings and generated compatibility values, not `public.system_settings`.
+- Verified: the only direct `system_settings` load path in settings bootstrap is the explicit warning fallback in `assets/js/settings.js`.
 - Acceptable: duplicate global Visitor required-field toggles are inactive compatibility markers only; Form Configuration is the only editable owner for security pass, vehicle registration and on-site contact requirements.
 - Acceptable with clear label: `document_signoff.print_use_branding_logo`, `visitors.auto_end_of_day_sign_out_enabled`, and `shared_terminal.clear_partial_form_data_on_reset` are partial.
 - Acceptable with clear label: locked/future guardrails remain locked and labelled.
+- Exception: `superuser_save_setting` is still used by Legacy VMS/support UI and selected bridge sync paths. This is acceptable support storage, not normal runtime source of truth. Next action: hide duplicate Legacy VMS settings UI in OHP-017J after smoke testing.
 - Needs later cleanup: foundation keys and `visitors.prevent_duplicate_planned_visits` / `visitors.auto_end_of_day_sign_out_time` should either be wired, locked, or retired in a later migration after manual testing.

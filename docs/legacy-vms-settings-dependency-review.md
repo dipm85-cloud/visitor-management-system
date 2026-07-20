@@ -1,18 +1,18 @@
 # Legacy VMS Settings Dependency Review
 
-Milestone: OHP-017I
+Milestone: OHP-017I.1
 
 ## Removal Status
 
-Legacy VMS settings removal status: normal runtime no longer depends on `public.system_settings`.
+Legacy VMS settings removal status: normal runtime is not dependent on `public.system_settings`.
 
 Safe to hide UI but keep storage: not globally. The Legacy VMS workspace remains visible because it still provides historical/fallback controls and familiar operational bridges while the UI is migrated.
 
 Safe to remove storage later: not yet. `public.system_settings` remains the fallback when Application Settings runtime RPCs fail, and it still receives legacy saves from existing grouped controls.
 
-If anything still depends on legacy VMS settings: normal runtime should not. `assets/js/settings.js` now loads `get_runtime_application_settings()` and `get_runtime_legacy_compat_settings()`, derives legacy-shaped values from Application Settings, and only reads `public.system_settings` after an RPC failure with a console warning.
+If anything still depends on legacy VMS settings: normal runtime does not. `assets/js/settings.js` loads `get_runtime_application_settings()` and `get_runtime_legacy_compat_settings()`, derives legacy-shaped values from Application Settings, and only reads `public.system_settings` after an RPC failure with a console warning.
 
-SQL for this milestone is `database/OHP-017I_remove_legacy_vms_runtime_dependency.sql`.
+No SQL is expected for OHP-017I.1.
 
 ## Dependency Pattern
 
@@ -21,6 +21,8 @@ Application Settings is the runtime source of truth. Existing modules may contin
 Legacy VMS settings remain a fallback/historical bridge. `superuser_save_setting` and the legacy UI are retained for compatibility, but they are not the source used by normal startup when the OHP-017I RPCs are available.
 
 Local per-device/session state is unchanged. Kiosk tokens, terminal session state, render diagnostics session flags, and Capability Inspector session state stay in `localStorage` or `sessionStorage` as before.
+
+`window.ohSettingsRuntimeDiagnostics` is available for manual verification. It exposes source summaries, fallback events, and redacted compatibility-key resolution checks without network writes or sensitive value dumps.
 
 ## Legacy Settings Matrix
 
@@ -50,6 +52,20 @@ Local per-device/session state is unchanged. Kiosk tokens, terminal session stat
 | Render diagnostics state | `sessionStorage` keys | None | Session state | No | Unknown | Diagnostics remain session/query-param enabled. |
 | Capability Inspector session state | Session-only state | `access_diagnostics.*` locked markers | Session state plus Application Settings markers | No | No | Inspector remains session-only and intercepts actions when enabled. |
 
+## Remaining Exceptions
+
+| File/module | Setting key or API | Reason | Risk | Recommended next action |
+| --- | --- | --- | --- | --- |
+| `assets/js/settings.js` | `public.system_settings` read | Explicit fallback only after Application Settings runtime RPC failure. | Low; warning diagnostics now record fallback use. | Keep until OHP-017J/legacy retirement plan defines rollback support. |
+| `assets/js/settings.js`, `assets/js/app.js`, `assets/js/documentSignoffAdmin.js` via shared save helper | `superuser_save_setting` | Legacy VMS/support UI and bridge sync still save historical settings. | Medium if users expect these edits to override Application Settings-owned controls. | Hide duplicate Legacy VMS settings UI after smoke testing; keep storage for support/rollback. |
+| `assets/js/settings.js` | `require_security_pass`, `require_vehicle_plate`, `require_onsite_contact` | Old compatibility keys return conservative false fallbacks because Form Configuration owns per-form requirements. | Low; avoids second source of truth. | Keep documented as compatibility-only until old callers are removed. |
+
+## OHP-017J Readiness
+
+Safe to hide duplicate Legacy VMS settings UI after smoke testing. Normal runtime uses Application Settings and generated compatibility values, and duplicate global visitor required-field toggles are no longer editable.
+
+Not safe to delete `public.system_settings` yet. It remains fallback/support storage and is still used by legacy save/reset paths.
+
 ## Decision
 
-Do not delete Legacy VMS UI or `public.system_settings` yet. The correct OHP-017I state is: Application Settings is the normal runtime source of truth, legacy-shaped values are generated for compatibility, visitor required-field ownership stays in Form Configuration, and `public.system_settings` remains fallback/historical storage only.
+Do not delete Legacy VMS UI or `public.system_settings` yet. The correct OHP-017I.1 state is: Application Settings is the normal runtime source of truth, legacy-shaped values are generated for compatibility, visitor required-field ownership stays in Form Configuration, and `public.system_settings` remains fallback/historical storage only.

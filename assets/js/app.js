@@ -4988,7 +4988,7 @@ window.addEventListener("load", async function () {
         const session = await supabaseClient.auth.getSession();
         health.authSession = !!(session.data && session.data.session);
 
-        const ping = await supabaseClient.from("system_settings").select("setting_key").limit(1);
+        const ping = await supabaseClient.rpc("get_runtime_application_settings");
         health.supabaseConnected = !ping.error;
         if (ping.error) health.supabaseError = ping.error.message;
 

@@ -137,7 +137,7 @@ Modal workflows are overlays rather than independent routes, but they are major 
 5. `assets/js/app.js` loads and registers a `window.load` callback.
 6. On window load, the callback establishes constants, in-memory caches, operational flags, and the Supabase client.
 7. Default application settings are created. The script then registers DOM event listeners and sets default date inputs.
-8. Settings are read from `system_settings`, merged over defaults, and applied to branding, messages, field rules, kiosk behaviour, governance, and administration controls.
+8. Settings are read from Application Settings runtime RPCs, legacy-compatible aliases are generated for old callers, and `system_settings` is used only as a warned fallback/support store.
 9. Collapsible settings groups are initialised.
 10. A Supabase authentication-state listener is registered.
 11. The current session and profile are requested to determine role and home-screen access.

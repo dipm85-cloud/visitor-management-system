@@ -11,7 +11,10 @@ export const AppState = {
   currentProfile: null,
   userCapabilities: new Set(),
   applicationSettingsRaw: {},
+  runtimeCompatibilitySettingsRaw: {},
   runtimeSettingsSource: "unloaded",
+  settingsRuntimeDiagnostics: {},
+  settingsRuntimeFallbackEvents: [],
   systemSettingsRaw: {},
   kioskIdleTimer: null,
   terminalRegistration: {
