@@ -1,6 +1,6 @@
 # Settings Ownership Map
 
-OHP-017J retires duplicate Legacy VMS settings UI from normal navigation after verifying runtime independence from Legacy VMS settings. Application Settings is the stable home for platform behaviour, branding, security defaults, notifications, retention/housekeeping, email, deployment/device warnings, form configuration and safe links. It may link to Reference / Configuration Data, Access Control, and specialist workspaces, but those links must be labelled by their real owner.
+OHP-017J.1 demotes Legacy VMS from normal navigation after retiring duplicate Legacy VMS settings UI and verifying runtime independence from Legacy VMS settings. Application Settings is the stable home for platform behaviour, branding, security defaults, notifications, retention/housekeeping, email, deployment/device warnings, form configuration and safe links. It may link to Reference / Configuration Data, Access Control, and specialist workspaces, but those links must be labelled by their real owner.
 
 Audit references:
 
@@ -56,15 +56,15 @@ Avoid generic "Linked" for intentional owners. If Application Settings opens ano
 | Reference / Configuration Data | Administration -> Reference Data | Reference / Configuration Data | Managed in Reference Data | Specialist editors where not yet consolidated | Sites, departments, contracts, working-time rules/profiles, organisations, dropdowns and future rule/policy data are customer context, not application settings. |
 | Future LMT | Reserved card in Application Settings -> Modules | Application Settings, Reference / Configuration Data, and Operational Workspaces | Future | None | LMT behaviour/default settings belong in Application Settings. LMT exception reasons, finance mappings, contract rules and contract policies belong in Reference / Configuration Data unless they are security-related. Weekly LMT records belong in operational workspaces. |
 
-## OHP-017J Status
+## OHP-017J.1 Status
 
-The OHP-017I SQL seeds remaining runtime Application Settings and exposes `get_runtime_application_settings()` plus `get_runtime_legacy_compat_settings()`. OHP-017J keeps normal runtime building both canonical `appSettings` and legacy-shaped `settingValue()` aliases from those RPCs.
+The OHP-017I SQL seeds remaining runtime Application Settings and exposes `get_runtime_application_settings()` plus `get_runtime_legacy_compat_settings()`. OHP-017J.1 keeps normal runtime building both canonical `appSettings` and legacy-shaped `settingValue()` aliases from those RPCs.
 
-Legacy VMS settings storage is not removed. `public.system_settings` remains fallback/historical storage only, while the duplicate legacy settings tab is hidden from normal navigation and direct access is labelled support/fallback only. The global legacy required-field keys are compatibility only and must not become editable Visitor Application Settings. Runtime fallback use is console-diagnosed through `ohSettingsRuntimeDiagnostics`.
+Legacy VMS settings storage is not removed. `public.system_settings` remains fallback/historical storage only, while the duplicate legacy settings tab is hidden and the Legacy VMS workspace is no longer visible in normal navigation. Direct/internal access is support-only until final removal is safe. The global legacy required-field keys are compatibility only and must not become editable Visitor Application Settings. Runtime fallback use is console-diagnosed through `ohSettingsRuntimeDiagnostics`.
 
 ## LMT Readiness
 
-The OHP-017J ownership model is ready for LMT if these rules stay intact:
+The OHP-017J.1 ownership model is ready for LMT if these rules stay intact:
 
 - LMT app behaviour/defaults go in Application Settings.
 - LMT exception reasons, finance mappings, contract rules, contract policies, working-time rules and dropdown-style data go in Reference / Configuration Data unless they are security-related.

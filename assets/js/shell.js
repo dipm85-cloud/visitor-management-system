@@ -294,7 +294,7 @@ export function syncNavigationCapabilityVisibility() {
 
   setNavItemCapabilityVisibility(dashboardNav, hasCapability("dashboard.view"));
   setNavItemCapabilityVisibility(visitorsNav, hasCapability("visitor.view"));
-  setNavItemCapabilityVisibility(legacyVmsNav, hasCapability("visitor.view"));
+  setNavItemCapabilityVisibility(legacyVmsNav, false);
   setNavItemCapabilityVisibility(peopleNav, shouldShowPeopleNavigation());
   setNavItemCapabilityVisibility(workforceCalendarNav, shouldShowWorkforceCalendarNavigation());
   setNavItemCapabilityVisibility(
