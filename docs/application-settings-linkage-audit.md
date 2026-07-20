@@ -1,12 +1,12 @@
 # Application Settings Linkage Audit
 
-Milestone: OHP-017I.1
+Milestone: OHP-017J
 
 ## Summary
 
-Application Settings is now the normal runtime source of truth for General, Branding, Visitors, Shared Terminal, Documents / Sign-off, Notifications, Privacy, Access / Diagnostics, Retention / Housekeeping, Email, Deployment / Devices, and Form Configuration areas. The audit keeps bridge, locked/future, partial, and stored-only labels visible so editable settings do not silently appear fully active.
+Application Settings is now the normal runtime source of truth for General, Branding, Visitors, Shared Terminal, Documents / Sign-off, Notifications, Privacy, Access / Diagnostics, Retention / Housekeeping, Email, Deployment / Devices, and Form Configuration areas. OHP-017J retires duplicate Legacy VMS settings UI from normal navigation so Application Settings is the only normal settings home.
 
-No SQL is expected for OHP-017I.1. The verification baseline remains `database/OHP-017I_remove_legacy_vms_runtime_dependency.sql`, which seeds the remaining runtime settings, adds Application Settings categories, and exposes compatibility RPCs for legacy-shaped keys.
+No SQL is expected for OHP-017J. The verification baseline remains `database/OHP-017I_remove_legacy_vms_runtime_dependency.sql`, which seeds the remaining runtime settings, adds Application Settings categories, and exposes compatibility RPCs for legacy-shaped keys.
 
 ## Status Meanings
 
@@ -14,7 +14,7 @@ No SQL is expected for OHP-017I.1. The verification baseline remains `database/O
 - Partially applied: the app reads part of the value, or applies it only to supported outputs.
 - Future / locked: the value is locked by system or reserved for a future controlled workflow.
 - Stored only: the value can be saved but no runtime consumer currently reads it.
-- Legacy bridge: Application Settings is the primary owner, but legacy UI remains a compatibility/historical bridge.
+- Support marker / legacy bridge: Application Settings is the primary owner; any legacy value is compatibility or support-only and must not appear as a normal editable settings destination.
 - Unused / needs action: no acceptable label or runtime linkage exists.
 
 ## Runtime Pattern
@@ -36,7 +36,7 @@ Saves dispatch `oh:application-settings-values-changed`; `assets/js/app.js` relo
 | `application.environment_label` | General | Environment label | Active / applied | `settings.js`, `brandingThemeService.js` | Blank hides chip unless enabled | Yes after settings reload/theme apply | No | Works with show flag. |
 | `application.show_environment_label` | General | Show environment label | Active / applied | `settings.js`, `brandingThemeService.js` | False | Yes after settings reload/theme apply | No | Controls environment chip visibility. |
 | `application.settings_workspace_enabled` | General | Application Settings workspace enabled | Stored only | Seeded in `OHP-017_application_settings_foundation.sql`; no runtime read found | Navigation/capabilities decide visibility | Save only | Yes | UI now labels this stored-only foundation marker. |
-| `settings.show_legacy_vms_settings_link` | Advanced / Technical | Show legacy VMS settings link | Legacy bridge | Seeded in foundation SQL; legacy workspace remains statically reachable by navigation/capabilities | Legacy VMS remains visible where permitted | Save only | Yes | Bridge marker; the banner now says Application Settings is primary. |
+| `settings.show_legacy_vms_settings_link` | Advanced / Technical | Show legacy VMS settings link | Support marker | Seeded in foundation SQL; legacy workspace remains statically reachable by navigation/capabilities | Legacy settings tab is hidden from normal nav; direct section access shows support notice | Save only | Yes | Marker only; it must not make Legacy VMS settings appear as a normal competing settings destination. |
 | `assignments.field_requirements_enabled` | People & Assignments | Assignment field requirements enabled | Stored only | Foundation seed only; superseded by Form Configuration RPCs | Field requirement tables/RPCs are active regardless | Save only | Yes | Keep until foundation keys are retired or locked. |
 | `assignments.enforce_requirements_on_save` | People & Assignments | Enforce assignment requirements on save | Stored only | Foundation seed only; superseded by `validate_*_requirements_payload` RPCs | Form-specific validation RPCs enforce requirements | Save only | Yes | Keep labelled as stored-only. |
 | `branding.logo_url` | Branding | Logo URL | Active / applied | `settings.js`, `brandingThemeService.js`, branding preview | Default mark | Yes after settings reload/theme apply | No | Header, legacy header, public screens, print fallback. |
@@ -135,10 +135,10 @@ Form Configuration is stored in `field_requirement_areas`, `field_requirement_de
 ## Findings
 
 - Acceptable: most Application Settings are active or safely bridged.
-- Verified: OHP-017I.1 confirms normal runtime uses Application Settings and generated compatibility values, not `public.system_settings`.
+- Verified: OHP-017J keeps normal runtime on Application Settings and generated compatibility values, not `public.system_settings`.
 - Verified: the only direct `system_settings` load path in settings bootstrap is the explicit warning fallback in `assets/js/settings.js`.
-- Acceptable: duplicate global Visitor required-field toggles are inactive compatibility markers only; Form Configuration is the only editable owner for security pass, vehicle registration and on-site contact requirements.
+- Acceptable: duplicate global Visitor required-field toggles are inactive compatibility markers only; Form Configuration is the only editable owner for security pass, vehicle registration and on-site contact requirements under Visitor Walk-ins and Planned Visits.
 - Acceptable with clear label: `document_signoff.print_use_branding_logo`, `visitors.auto_end_of_day_sign_out_enabled`, and `shared_terminal.clear_partial_form_data_on_reset` are partial.
 - Acceptable with clear label: locked/future guardrails remain locked and labelled.
-- Exception: `superuser_save_setting` is still used by Legacy VMS/support UI and selected bridge sync paths. This is acceptable support storage, not normal runtime source of truth. Next action: hide duplicate Legacy VMS settings UI in OHP-017J after smoke testing.
+- Exception: `superuser_save_setting` is still used by support/fallback paths and selected bridge sync paths. This is acceptable support storage, not normal runtime source of truth; duplicate Legacy VMS settings UI is hidden in OHP-017J.
 - Needs later cleanup: foundation keys and `visitors.prevent_duplicate_planned_visits` / `visitors.auto_end_of_day_sign_out_time` should either be wired, locked, or retired in a later migration after manual testing.

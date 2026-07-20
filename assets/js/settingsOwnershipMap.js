@@ -6,7 +6,7 @@ export const SETTINGS_STATUS_LABELS = Object.freeze({
   managed_access_control: "Managed in Access Control",
   linked_workspace: "Specialist workspace",
   linked: "Specialist workspace",
-  legacy_bridge: "Legacy bridge",
+  legacy_bridge: "Legacy bridge / support",
   future: "Future"
 });
 
@@ -18,7 +18,7 @@ export const SETTINGS_STATUS_COPY = Object.freeze({
   managed_access_control: "Security configuration is managed in Access Control.",
   linked_workspace: "This opens an existing specialist workspace.",
   linked: "This opens an existing specialist workspace.",
-  legacy_bridge: "This still opens the legacy VMS settings area while migration continues.",
+  legacy_bridge: "Legacy compatibility remains support-only while the normal editable owner is Application Settings.",
   future: "This configuration area is reserved for a future module."
 });
 
@@ -46,16 +46,16 @@ export const SETTINGS_OWNERSHIP_AREAS = Object.freeze([
     description: "Brand identity, logo and appearance settings.",
     status: "mostly_native",
     owner: "Application Settings",
-    currentLocation: "Application Settings with legacy fallback",
+    currentLocation: "Application Settings with hidden legacy fallback",
     targetLocation: "Application Settings -> Branding",
     viewCapabilities: ["application_settings.view", "application_settings.manage", "settings.view", "settings.edit"],
     manageCapabilities: ["application_settings.manage", "settings.edit"],
     nativeInApplicationSettings: true,
     opensEmbeddedPanel: true,
-    deepLinksToExistingPanel: true,
+    deepLinksToExistingPanel: false,
     migrationRisk: "Medium",
     futureMilestone: "OHP-017C",
-    notes: "Application Settings owns commercial branding values and applies shell, subtle gradients, logo, favicon, print-logo, controlled branded text contrast, public-screen background and radius tokens. Legacy branding values remain compatibility fallback only."
+    notes: "Application Settings owns commercial branding values and applies shell, subtle gradients, logo, favicon, print-logo, controlled branded text contrast, public-screen background and radius tokens. Legacy branding values remain compatibility fallback only and are hidden from normal settings UI."
   },
   {
     id: "modules",
@@ -80,16 +80,16 @@ export const SETTINGS_OWNERSHIP_AREAS = Object.freeze([
     description: "Visitor behaviour settings, Form Requirements and existing visitor workflow links.",
     status: "partially_migrated",
     owner: "Application Settings",
-    currentLocation: "Visitors workspace, legacy VMS settings and Form Requirements",
+    currentLocation: "Application Settings -> Visitors, Visitors workspace and Form Configuration",
     targetLocation: "Application Settings -> Visitors",
     viewCapabilities: ["application_settings.view", "application_settings.manage", "form_requirements.view", "form_requirements.manage", "settings.view", "settings.edit", "visitor.view"],
     manageCapabilities: ["application_settings.manage", "form_requirements.manage", "settings.edit"],
     nativeInApplicationSettings: true,
     opensEmbeddedPanel: true,
-    deepLinksToExistingPanel: true,
+    deepLinksToExistingPanel: false,
     migrationRisk: "High",
     futureMilestone: "OHP-017C",
-    notes: "Application Settings owns visitor behaviour defaults and Form Configuration links. Visitor reason codes or dropdown options belong in Reference / Configuration Data when implemented."
+    notes: "Application Settings owns visitor behaviour defaults and Form Configuration links. Visitor required fields for security pass, vehicle registration and on-site contact are owned by Form Configuration, not editable global legacy settings. Visitor reason codes or dropdown options belong in Reference / Configuration Data when implemented."
   },
   {
     id: "shared_terminal",

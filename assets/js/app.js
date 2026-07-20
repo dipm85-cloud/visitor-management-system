@@ -434,9 +434,8 @@ window.addEventListener("load", async function () {
         "downloadAuditExcelButton"
       ], "audit.export");
 
-      const canViewSettings = hasAnyCapability(["settings.view", "settings.edit"]);
       const settingsNav = $("superNavSettings");
-      if (settingsNav) settingsNav.classList.toggle("hidden", !canViewSettings && !hasCapability("audit.view"));
+      if (settingsNav) settingsNav.classList.add("hidden");
     }
 
     function isSuperKioskTestProfile() {
@@ -5652,6 +5651,9 @@ window.addEventListener("load", async function () {
     if ($("superNavGdpr")) $("superNavGdpr").addEventListener("click", () => showSuperSection("gdpr"));
     if ($("superNavNotifications")) $("superNavNotifications").addEventListener("click", () => { showSuperSection("notifications"); refreshNotifications(); });
     if ($("superNavSettings")) $("superNavSettings").addEventListener("click", () => showSuperSection("settings"));
+    if ($("legacySettingsOpenApplicationSettingsButton")) $("legacySettingsOpenApplicationSettingsButton").addEventListener("click", () => {
+      window.dispatchEvent(new CustomEvent("oh:application-settings-requested"));
+    });
     if ($("refreshHealthButton")) $("refreshHealthButton").addEventListener("click", refreshSystemHealth);
     if ($("exportHealthButton")) $("exportHealthButton").addEventListener("click", exportSystemHealth);
     if ($("saveEmailProcessorSettingsButton")) $("saveEmailProcessorSettingsButton").addEventListener("click", () => saveEmailProcessorSettings());

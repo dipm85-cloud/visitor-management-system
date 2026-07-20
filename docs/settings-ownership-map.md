@@ -1,6 +1,6 @@
 # Settings Ownership Map
 
-OHP-017I.1 verifies normal runtime independence from Legacy VMS settings before LMT work. Application Settings is the stable home for platform behaviour, branding, security defaults, notifications, retention/housekeeping, email, deployment/device warnings, form configuration and safe links. It may link to Reference / Configuration Data, Access Control, and specialist workspaces, but those links must be labelled by their real owner.
+OHP-017J retires duplicate Legacy VMS settings UI from normal navigation after verifying runtime independence from Legacy VMS settings. Application Settings is the stable home for platform behaviour, branding, security defaults, notifications, retention/housekeeping, email, deployment/device warnings, form configuration and safe links. It may link to Reference / Configuration Data, Access Control, and specialist workspaces, but those links must be labelled by their real owner.
 
 Audit references:
 
@@ -27,7 +27,7 @@ Use these compact labels in settings overview cards and module cards:
 - Managed in Reference Data
 - Managed in Access Control
 - Specialist workspace
-- Legacy bridge
+- Legacy bridge / support marker
 - Future
 
 Avoid generic "Linked" for intentional owners. If Application Settings opens another area, the label should identify whether that area is Reference Data, Security Configuration, a Specialist workspace, an Operational workspace, or a Legacy bridge.
@@ -37,9 +37,9 @@ Avoid generic "Linked" for intentional owners. If Application Settings opens ano
 | Area | Current UI location | Final owner | Status | Remaining bridge | Notes |
 | --- | --- | --- | --- | --- | --- |
 | General | Application Settings -> General | Application Settings | Native | None | Controlled application identity and platform defaults stay native. |
-| Branding | Application Settings -> Branding, with legacy fallback values | Application Settings | Mostly native | Legacy branding bridge for fallback compatibility | Application Settings owns commercial branding, shell/theme, logos, favicon, print logo, public-screen branding, branded contrast defaults, gradients and radius tokens. |
+| Branding | Application Settings -> Branding, with legacy fallback values hidden from normal UI | Application Settings | Mostly native | Legacy fallback storage only | Application Settings owns commercial branding, shell/theme, logos, favicon, print logo, public-screen branding, branded contrast defaults, gradients and radius tokens. Legacy branding controls are not a normal settings destination. |
 | Modules | Application Settings -> Modules | Application Settings | Native | None | Modules is the single visible module configuration entry point. Cards separate app behaviour settings from Reference Data, Security Configuration, specialist workspaces, operational workspaces and future modules. |
-| Visitors | Application Settings plus Visitors workspace | Application Settings | Partially migrated | Visitor settings legacy bridge | Visitor behaviour defaults belong in Application Settings. Visitor Walk-in and Planned Visit required fields are owned only by Form Configuration. Do not add editable global Visitor toggles for security pass, vehicle registration or on-site contact requirements. Visitor reason codes/dropdowns belong in Reference / Configuration Data when implemented. Visit records remain operational data. |
+| Visitors | Application Settings plus Visitors workspace | Application Settings | Partially migrated | Form Configuration links only | Visitor behaviour defaults belong in Application Settings. Visitor Walk-in and Planned Visit required fields are owned only by Form Configuration. Do not add editable global Visitor toggles for security pass, vehicle registration or on-site contact requirements. Visitor reason codes/dropdowns belong in Reference / Configuration Data when implemented. Visit records remain operational data. |
 | Shared Terminal | Application Settings -> Shared Terminal plus Shared Terminals admin | Application Settings | Partially migrated | Shared Terminals specialist admin | Terminal display and idle/reset behaviour are settings. Device/token administration remains a specialist admin workspace. |
 | Documents / Sign-off | Application Settings -> Documents / Sign-off plus Document Sign-offs admin | Application Settings | Partially migrated | Document legacy tools where native workflows are not complete | Sign-off behaviour, identity-linked compliance, evidence display defaults, print branding and locked scroll guardrails are settings. Agreement/document types are Reference / Configuration Data. Evidence is operational data. |
 | Privacy / Data Governance | Application Settings plus Privacy / Data Governance workspace | Application Settings | Partially migrated | Legacy GDPR workflow bridge | Privacy guardrails, SAR pack defaults and reference-display defaults are settings. Cases, SAR evidence packs, anonymisation preview and rules matrix remain specialist or operational workspaces. |
@@ -56,21 +56,21 @@ Avoid generic "Linked" for intentional owners. If Application Settings opens ano
 | Reference / Configuration Data | Administration -> Reference Data | Reference / Configuration Data | Managed in Reference Data | Specialist editors where not yet consolidated | Sites, departments, contracts, working-time rules/profiles, organisations, dropdowns and future rule/policy data are customer context, not application settings. |
 | Future LMT | Reserved card in Application Settings -> Modules | Application Settings, Reference / Configuration Data, and Operational Workspaces | Future | None | LMT behaviour/default settings belong in Application Settings. LMT exception reasons, finance mappings, contract rules and contract policies belong in Reference / Configuration Data unless they are security-related. Weekly LMT records belong in operational workspaces. |
 
-## OHP-017I.1 Audit Notes
+## OHP-017J Status
 
-The OHP-017I SQL seeds remaining runtime Application Settings and exposes `get_runtime_application_settings()` plus `get_runtime_legacy_compat_settings()`. OHP-017I.1 verifies normal runtime builds both canonical `appSettings` and legacy-shaped `settingValue()` aliases from those RPCs.
+The OHP-017I SQL seeds remaining runtime Application Settings and exposes `get_runtime_application_settings()` plus `get_runtime_legacy_compat_settings()`. OHP-017J keeps normal runtime building both canonical `appSettings` and legacy-shaped `settingValue()` aliases from those RPCs.
 
-Legacy VMS settings are not removed. `public.system_settings` remains fallback/historical storage only, and the legacy UI stays available while duplicate controls are manually smoke-tested or retired. The global legacy required-field keys are compatibility only and must not become editable Visitor Application Settings. Runtime fallback use is console-diagnosed through `ohSettingsRuntimeDiagnostics`.
+Legacy VMS settings storage is not removed. `public.system_settings` remains fallback/historical storage only, while the duplicate legacy settings tab is hidden from normal navigation and direct access is labelled support/fallback only. The global legacy required-field keys are compatibility only and must not become editable Visitor Application Settings. Runtime fallback use is console-diagnosed through `ohSettingsRuntimeDiagnostics`.
 
 ## LMT Readiness
 
-The OHP-017I.1 ownership model is ready for LMT if these rules stay intact:
+The OHP-017J ownership model is ready for LMT if these rules stay intact:
 
 - LMT app behaviour/defaults go in Application Settings.
 - LMT exception reasons, finance mappings, contract rules, contract policies, working-time rules and dropdown-style data go in Reference / Configuration Data unless they are security-related.
 - LMT permissions, presets and effective access diagnostics go in Access Control / Security Configuration.
 - LMT weekly records, rota/calendar work, exports, evidence and day-to-day review queues go in operational workspaces.
-- Any temporary cross-entry must be labelled as Reference Data, Security Configuration, Specialist workspace, Operational workspace, or Legacy bridge.
+- Any temporary cross-entry must be labelled as Reference Data, Security Configuration, Specialist workspace, Operational workspace, or Legacy bridge/support.
 
 ## Navigation Rules
 

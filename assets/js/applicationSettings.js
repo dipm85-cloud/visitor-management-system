@@ -344,7 +344,7 @@ const SETTING_HELP_TEXT = Object.freeze({
   "application.settings_workspace_enabled": "Stored only from the OHP-017 foundation. Runtime access is controlled by capabilities and navigation visibility.",
   "assignments.field_requirements_enabled": "Stored only from the OHP-017 foundation. Form Configuration is now controlled by field requirement areas and RPC validation.",
   "assignments.enforce_requirements_on_save": "Stored only from the OHP-017 foundation. Form Configuration save enforcement is now handled by area-specific validation RPCs.",
-  "settings.show_legacy_vms_settings_link": "Legacy bridge marker. The visible Legacy VMS workspace remains available while unique workflows are migrated.",
+  "settings.show_legacy_vms_settings_link": "Support marker only. Legacy VMS settings are retired from normal navigation; Application Settings and Form Configuration own editable runtime settings.",
   "visitors.prevent_duplicate_planned_visits": "Stored only. Duplicate planned visit protection is still enforced by existing save constraints/workflows, not this registry value.",
   "visitors.auto_end_of_day_sign_out_time": "Stored only until the backend auto sign-out RPC accepts a configurable local cut-off time.",
   "shared_terminal.clear_partial_form_data_on_reset": "Partially applied. Idle reset returns the terminal home; explicit partial-form clearing is not separately wired yet.",
@@ -364,7 +364,7 @@ const APPLICATION_SETTING_IMPLEMENTATION_STATUS = Object.freeze({
   "application.settings_workspace_enabled": ["Stored only", "Seeded by OHP-017 foundation; navigation is currently capability-driven."],
   "assignments.field_requirements_enabled": ["Stored only", "Superseded by Form Configuration field requirement areas."],
   "assignments.enforce_requirements_on_save": ["Stored only", "Superseded by area-specific Form Configuration validation RPCs."],
-  "settings.show_legacy_vms_settings_link": ["Legacy bridge", "Documents the temporary legacy settings bridge while migration continues."],
+  "settings.show_legacy_vms_settings_link": ["Support marker", "Legacy VMS settings are hidden from normal navigation and retained only for support/fallback context."],
 
   "visitors.sign_in_confirmation_message": ["Applied", "Used for planned and walk-in visitor sign-in confirmation messages."],
   "visitors.sign_out_confirmation_message": ["Applied", "Used for visitor sign-out confirmation messages."],
@@ -1417,34 +1417,11 @@ function bridgeActionsFor(sectionId) {
         description: "Manage required fields for planned visit forms.",
         requiredAny: FIELD_REQUIREMENT_VIEW_CAPABILITIES,
         handler: () => openFormRequirementsArea("planned_visits")
-      },
-      {
-        label: "Visitor settings legacy bridge",
-        actionId: "application_settings.visitors.legacy.open",
-        capabilityLabel: "Open Visitor settings bridge",
-        description: "Open the existing visitor settings bridge while migration continues.",
-        requiredAny: settingsAreaById("visitors").viewCapabilities,
-        handler: () => dependencies.openLegacySettings?.()
-      },
-      {
-        label: "Legacy VMS settings bridge",
-        actionId: "application_settings.visitors.vms.open",
-        capabilityLabel: "Open legacy VMS settings bridge",
-        description: "Open the legacy VMS settings bridge.",
-        requiredAny: ["settings.view", "settings.edit", "visitor.view"],
-        handler: () => dependencies.openLegacySettings?.()
       }
     ];
   }
   if (sectionId === "branding") {
-    return [{
-      label: "Legacy branding bridge",
-      actionId: "application_settings.branding.legacy.open",
-      capabilityLabel: "Open Branding legacy bridge",
-      description: "Open legacy branding fallback values while Application Settings remains the owner.",
-      requiredAny: settingsAreaById("branding").viewCapabilities,
-      handler: () => dependencies.openLegacySettings?.()
-    }];
+    return [];
   }
   if (sectionId === "shared_terminal") {
     return [{

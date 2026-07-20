@@ -387,27 +387,7 @@ export function showAdministrationWorkspace() {
 }
 
 export function openExistingSettingsArea() {
-  showLegacyVmsWorkspace();
-  const staffButton = document.getElementById("staffButton");
-  if (!staffButton || staffButton.classList.contains("hidden")) return;
-
-  staffButton.click();
-
-  let checks = 0;
-  const settingsCheck = window.setInterval(function () {
-    checks += 1;
-    const staffScreen = document.getElementById("staffScreen");
-    const superPanel = document.getElementById("superPanel");
-    const settingsButton = document.getElementById("superNavSettings");
-    const superPanelVisible = superPanel && window.getComputedStyle(superPanel).display !== "none";
-
-    if (staffScreen && staffScreen.classList.contains("active") && superPanelVisible && settingsButton) {
-      settingsButton.click();
-      window.clearInterval(settingsCheck);
-    } else if (checks >= 30 || (staffScreen && staffScreen.classList.contains("active") && checks >= 5)) {
-      window.clearInterval(settingsCheck);
-    }
-  }, 100);
+  openApplicationSettingsShortcut();
 }
 
 function openApplicationSettingsShortcut() {
